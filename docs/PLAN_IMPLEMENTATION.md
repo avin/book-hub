@@ -15,7 +15,7 @@
 7. Описать общую модель ошибок.
 8. Добавить схемы DTO.
 9. Прогнать OpenAPI validation.
-10. Зафиксировать спорные решения в `PLAN.md` или отдельном ADR.
+10. Зафиксировать спорные решения в `PLAN.md`.
 
 Критерии готовности:
 
@@ -30,19 +30,20 @@
 Шаги:
 
 1. Инициализировать Go module.
-2. Создать server entrypoint.
-3. Создать config loader.
-4. Подключить router.
-5. Добавить health endpoints.
-6. Подключить PostgreSQL client/pool.
-7. Добавить structured logging.
-8. Добавить базовый graceful shutdown.
+2. Настроить генерацию Go-кода из OpenAPI через `oapi-codegen`.
+3. Создать server entrypoint.
+4. Создать config loader.
+5. Подключить router.
+6. Добавить health endpoints.
+7. Подключить PostgreSQL client/pool.
+8. Добавить structured logging.
+9. Добавить базовый graceful shutdown.
 
 Критерии готовности:
 
 - Server стартует локально.
-- `/healthz` отвечает без БД.
-- `/readyz` проверяет БД и storage directory.
+- `/api/healthz` отвечает без БД при base path `/`.
+- `/api/readyz` проверяет БД и storage directory при base path `/`.
 
 ## Фаза 3: Миграции и DB model
 
@@ -55,7 +56,7 @@
 3. Создать таблицы users, book_files, user_books, reading_progress и sessions,
    если нужны server-side sessions.
 4. Добавить constraints и индексы.
-5. Добавить команду запуска миграций.
+5. Добавить `backend/cmd/book-hub-migrate` с командами `up`, `down`, `version`.
 6. Проверить up/down на чистой БД.
 
 Критерии готовности:
@@ -71,17 +72,22 @@
 Шаги:
 
 1. Реализовать password hashing.
-2. Реализовать регистрацию с `is_active = false`.
-3. Реализовать login только для пользователей с `is_active = true`.
-4. Реализовать logout.
-5. Реализовать auth middleware.
-6. Реализовать `GET /api/v1/me`.
-7. Реализовать смену пароля пользователем.
+2. Реализовать CSRF endpoint и CSRF middleware для state-changing запросов.
+3. Реализовать регистрацию с учетом `BOOK_HUB_REGISTRATION_ENABLED` и
+   `BOOK_HUB_REGISTRATION_AUTO_ACTIVATE`.
+4. Реализовать login только для пользователей с `is_active = true`.
+5. Реализовать logout.
+6. Реализовать auth middleware.
+7. Реализовать `GET /api/v1/me`.
+8. Реализовать смену пароля пользователем.
 
 Критерии готовности:
 
 - Пользователь с `is_active = false` не может войти.
 - Пользователь с `is_active = true` может войти.
+- При самостоятельной смене пароля текущая сессия остается активной, остальные
+  сессии отзываются.
+- Деактивированный пользователь не может продолжать работу по старой сессии.
 - Auth middleware закрывает приватные endpoints.
 
 ## Фаза 5: Admin CLI
@@ -90,7 +96,7 @@
 
 Шаги:
 
-1. Создать `cmd/book-hub-admin`.
+1. Создать `backend/cmd/book-hub-admin`.
 2. Подключить общий config и DB layer.
 3. Реализовать интерактивное меню.
 4. Реализовать list/show users.
@@ -103,6 +109,8 @@
 
 - Админ может активировать зарегистрированного пользователя.
 - Квоту нельзя уменьшить ниже занятого объема.
+- Смена пароля через CLI отзывает все сессии пользователя.
+- Деактивация пользователя через CLI отзывает все сессии пользователя.
 - Удаление пользователя чистит его данные и не ломает файлы других пользователей.
 
 ## Фаза 6: Book upload и storage
@@ -114,12 +122,11 @@
 1. Создать file storage abstraction.
 2. Реализовать temp upload.
 3. Реализовать SHA-256 calculation.
-4. Реализовать format detection для PDF и FB2.
+4. Реализовать format detection по расширению файла для PDF и FB2.
 5. Реализовать quota check.
 6. Реализовать single upload endpoint.
-7. Реализовать batch upload endpoint только с `files[]`, без метаданных.
-8. Реализовать обработку duplicate physical file.
-9. Реализовать ошибку `duplicate_book`, если у пользователя уже есть книга с тем
+7. Реализовать обработку duplicate physical file.
+8. Реализовать ошибку `duplicate_book`, если у пользователя уже есть книга с тем
    же hash.
 
 Критерии готовности:
@@ -146,6 +153,7 @@
 6. Реализовать delete book.
 7. Реализовать physical file cleanup when unused.
 8. Реализовать file download endpoint с ownership check.
+9. Реализовать upload/get/delete cover endpoints с ownership check.
 
 Критерии готовности:
 
@@ -198,7 +206,7 @@
 Шаги:
 
 1. Добавить Dockerfile для backend.
-2. Добавить Dockerfile или static server для frontend.
+2. Добавить Dockerfile для frontend nginx/static container.
 3. Добавить `docker-compose.yml`.
 4. Добавить PostgreSQL service.
 5. Добавить volume для PostgreSQL.
@@ -206,7 +214,7 @@
 7. Добавить `.env.example`.
 8. Описать установку и запуск в README.
 9. Описать запуск миграций.
-10. Описать запуск admin CLI внутри контейнера или на сервере.
+10. Описать запуск admin CLI через `docker compose run --rm admin`.
 
 Критерии готовности:
 

@@ -1,0 +1,1122 @@
+openapi: 3.0.3
+info:
+  title: Book Hub API
+  version: 0.1.0
+  license:
+    name: Proprietary
+  description: |
+    API contract for Book Hub.
+
+    Paths are relative to the API root. In production the API root is usually
+    mounted at `/api` or at `{basePath}/api`, for example `/hub/api`.
+servers:
+  - url: /api
+    description: API root for root-domain deployment
+  - url: /hub/api
+    description: Example API root for subpath deployment
+security: []
+
+tags:
+  - name: Auth
+    description: Registration, login, logout, sessions, and CSRF.
+  - name: User
+    description: Current user profile and password management.
+  - name: Settings
+    description: Opaque frontend settings for the current user.
+  - name: Books
+    description: Book library metadata, files, covers, and uploads.
+  - name: ReadingProgress
+    description: Server-side reading progress for books.
+  - name: Health
+    description: Liveness and readiness checks.
+
+paths:
+  /v1/auth/csrf:
+    get:
+      tags:
+        - Auth
+      operationId: getCsrfToken
+      summary: Issue CSRF token
+      description: |
+        Issues a readable CSRF cookie. The response token matches the cookie
+        value and must be sent in `X-CSRF-Token` for state-changing requests.
+      responses:
+        "200":
+          description: CSRF token issued.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+            Set-Cookie:
+              description: Readable `book_hub_csrf` cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfResponse"
+
+  /v1/auth/register:
+    post:
+      tags:
+        - Auth
+      operationId: registerUser
+      summary: Register user
+      security:
+        - csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/auth/login:
+    post:
+      tags:
+        - Auth
+      operationId: loginUser
+      summary: Login active user
+      security:
+        - csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: User logged in.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+            Set-Cookie:
+              description: HttpOnly `book_hub_session` cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/auth/logout:
+    post:
+      tags:
+        - Auth
+      operationId: logoutUser
+      summary: Logout current session
+      description: Idempotent. Returns 204 even when no active session exists.
+      security:
+        - csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Session cleared.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+            Set-Cookie:
+              description: Expired `book_hub_session` cookie when present.
+              schema:
+                type: string
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/me:
+    get:
+      tags:
+        - User
+      operationId: getCurrentUser
+      summary: Get current user
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current user.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/me/password:
+    put:
+      tags:
+        - User
+      operationId: changeCurrentUserPassword
+      summary: Change current user password
+      description: Keeps the current session active and revokes all other sessions.
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "204":
+          description: Password changed.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/me/settings:
+    get:
+      tags:
+        - Settings
+      operationId: getCurrentUserSettings
+      summary: Get frontend settings
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Opaque frontend settings object. Empty object if not saved yet.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags:
+        - Settings
+      operationId: updateCurrentUserSettings
+      summary: Replace frontend settings
+      description: Body must be a JSON object and is limited to 64 KB.
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        "200":
+          description: Saved settings object.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/books/query:
+    post:
+      tags:
+        - Books
+      operationId: queryBooks
+      summary: Query current user's books
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookQueryRequest"
+      responses:
+        "200":
+          description: Books page.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/books:
+    post:
+      tags:
+        - Books
+      operationId: uploadBook
+      summary: Upload one book
+      description: |
+        Uploads one PDF or FB2 file. Format is determined only from the original
+        filename extension.
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/BookUploadRequest"
+      responses:
+        "201":
+          description: Book uploaded.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+
+  /v1/books/{book_id}:
+    parameters:
+      - $ref: "#/components/parameters/BookId"
+    get:
+      tags:
+        - Books
+      operationId: getBook
+      summary: Get book metadata
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Book metadata.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - Books
+      operationId: updateBook
+      summary: Partially update book metadata
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookPatchRequest"
+      responses:
+        "200":
+          description: Updated book metadata.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Books
+      operationId: deleteBook
+      summary: Delete book from current user's library
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Book deleted.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/books/{book_id}/file:
+    parameters:
+      - $ref: "#/components/parameters/BookId"
+    get:
+      tags:
+        - Books
+      operationId: downloadBookFile
+      summary: Download book file for viewer
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Book file.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+            Content-Disposition:
+              description: Inline filename built from sanitized title and format.
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/xml:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/books/{book_id}/cover:
+    parameters:
+      - $ref: "#/components/parameters/BookId"
+    put:
+      tags:
+        - Books
+      operationId: uploadBookCover
+      summary: Upload or replace book cover
+      description: |
+        Uploads one JPG, PNG, or WEBP cover. Format is determined only from the
+        original filename extension. The `jpeg` extension is normalized to `jpg`.
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CoverUploadRequest"
+      responses:
+        "204":
+          description: Cover uploaded.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+    get:
+      tags:
+        - Books
+      operationId: getBookCover
+      summary: Get book cover
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Book cover.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+            Content-Disposition:
+              description: Inline cover filename.
+              schema:
+                type: string
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - Books
+      operationId: deleteBookCover
+      summary: Delete book cover
+      description: Idempotent. Returns 204 if the book exists and has no cover.
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Cover deleted.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/books/{book_id}/progress:
+    parameters:
+      - $ref: "#/components/parameters/BookId"
+    get:
+      tags:
+        - ReadingProgress
+      operationId: getReadingProgress
+      summary: Get reading progress
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Reading progress.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadingProgress"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - ReadingProgress
+      operationId: updateReadingProgress
+      summary: Save reading progress
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReadingProgressUpdateRequest"
+      responses:
+        "200":
+          description: Saved reading progress.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadingProgress"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - ReadingProgress
+      operationId: deleteReadingProgress
+      summary: Reset reading progress
+      description: Idempotent. Returns 204 if the book exists and has no progress row.
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: Reading progress reset.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /healthz:
+    get:
+      tags:
+        - Health
+      operationId: getHealth
+      summary: Liveness check
+      responses:
+        "200":
+          description: Service is alive.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /readyz:
+    get:
+      tags:
+        - Health
+      operationId: getReadiness
+      summary: Readiness check
+      description: Checks PostgreSQL connectivity and storage path availability.
+      responses:
+        "200":
+          description: Service is ready.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service is not ready.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: book_hub_session
+      description: HttpOnly server-side session cookie.
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: CSRF token from the readable `book_hub_csrf` cookie.
+
+  parameters:
+    BookId:
+      name: book_id
+      in: path
+      required: true
+      description: User book identifier.
+      schema:
+        type: string
+        format: uuid
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: CSRF token from `GET /v1/auth/csrf`.
+      schema:
+        type: string
+        minLength: 1
+
+  headers:
+    RequestId:
+      description: Backend-generated request identifier.
+      schema:
+        type: string
+        minLength: 1
+
+  responses:
+    BadRequest:
+      description: Invalid request.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid active session.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Request is forbidden, including invalid CSRF token.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource was not found or does not belong to the current user.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Request conflicts with existing data.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    PayloadTooLarge:
+      description: Uploaded payload exceeds allowed size or quota.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    CsrfResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - csrf_token
+      properties:
+        csrf_token:
+          type: string
+          minLength: 1
+
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - login
+        - password
+      properties:
+        login:
+          $ref: "#/components/schemas/Login"
+        password:
+          $ref: "#/components/schemas/Password"
+
+    RegisterResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - user_id
+        - is_active
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        is_active:
+          type: boolean
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - login
+        - password
+      properties:
+        login:
+          $ref: "#/components/schemas/Login"
+        password:
+          $ref: "#/components/schemas/Password"
+
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - user
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          $ref: "#/components/schemas/Password"
+        new_password:
+          $ref: "#/components/schemas/Password"
+
+    Login:
+      type: string
+      minLength: 3
+      maxLength: 64
+      pattern: "^[A-Za-z0-9_.-]+$"
+      description: Login is normalized to lowercase and unique case-insensitively.
+      example: reader_1
+
+    Password:
+      type: string
+      minLength: 1
+      maxLength: 2048
+      format: password
+
+    User:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - login
+        - is_active
+        - quota_bytes
+        - used_bytes
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        login:
+          $ref: "#/components/schemas/Login"
+        is_active:
+          type: boolean
+        quota_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        used_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+          description: UTC RFC3339 timestamp.
+
+    Settings:
+      type: object
+      description: Opaque frontend settings JSON object.
+      additionalProperties: true
+
+    BookQueryRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        limit:
+          type: integer
+          format: int32
+          default: 50
+          minimum: 0
+          maximum: 200
+        offset:
+          type: integer
+          format: int32
+          default: 0
+          minimum: 0
+        sort:
+          $ref: "#/components/schemas/BookSort"
+        tags:
+          type: array
+          items:
+            type: string
+        favorite:
+          type: boolean
+          nullable: true
+        q:
+          type: string
+
+    BookSort:
+      type: string
+      default: created_at_desc
+      enum:
+        - created_at_desc
+        - created_at_asc
+        - title_asc
+        - title_desc
+        - updated_at_desc
+        - updated_at_asc
+        - progress_desc
+        - progress_asc
+
+    BookListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - total
+        - limit
+        - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        limit:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 200
+        offset:
+          type: integer
+          format: int32
+          minimum: 0
+
+    Book:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - tags
+        - favorite
+        - format
+        - size_bytes
+        - progress_percent
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 512
+        tags:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 64
+        favorite:
+          type: boolean
+        format:
+          $ref: "#/components/schemas/BookFormat"
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        progress_percent:
+          $ref: "#/components/schemas/ProgressPercent"
+        created_at:
+          type: string
+          format: date-time
+          description: UTC RFC3339 timestamp.
+        updated_at:
+          type: string
+          format: date-time
+          description: UTC RFC3339 timestamp.
+
+    BookFormat:
+      type: string
+      enum:
+        - pdf
+        - fb2
+
+    BookUploadRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - file
+      properties:
+        file:
+          type: string
+          format: binary
+        title:
+          type: string
+          maxLength: 512
+        tags:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 64
+        favorite:
+          type: boolean
+          default: false
+
+    BookPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          maxLength: 512
+        tags:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 64
+        favorite:
+          type: boolean
+
+    CoverUploadRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - file
+      properties:
+        file:
+          type: string
+          format: binary
+
+    ReadingProgress:
+      type: object
+      additionalProperties: false
+      required:
+        - progress_percent
+        - updated_at
+      properties:
+        progress_percent:
+          $ref: "#/components/schemas/ProgressPercent"
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: UTC RFC3339 timestamp or null if progress has not been saved.
+
+    ReadingProgressUpdateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - progress_percent
+      properties:
+        progress_percent:
+          $ref: "#/components/schemas/ProgressPercent"
+
+    ProgressPercent:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 100
+
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - request_id
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+          minLength: 1
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
+        request_id:
+          type: string
+          minLength: 1
+          description: Matches the `X-Request-Id` response header.
+
+    ErrorCode:
+      type: string
+      enum:
+        - validation_error
+        - unauthorized
+        - forbidden
+        - not_found
+        - quota_exceeded
+        - unsupported_format
+        - duplicate_book
+        - account_inactive
+        - registration_disabled
+        - csrf_invalid
