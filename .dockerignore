@@ -1,0 +1,8 @@
+.git
+.vscode
+.idea
+.DS_Store
+.env
+backend/tmp
+frontend/dist
+frontend/node_modules

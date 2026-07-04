@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    image: book-hub-backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8080"
+    volumes:
+      - book_storage:/data/books
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "base=\"$${BOOK_HUB_BASE_PATH:-/}\"; base=\"/$${base#/}\"; base=\"$${base%/}\"; wget -qO- \"http://127.0.0.1:8080$${base}/api/readyz\" >/dev/null"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    image: book-hub-frontend:local
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_BASE_PATH: ${BOOK_HUB_BASE_PATH:-/}
+    env_file:
+      - .env
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${BOOK_HUB_PUBLIC_PORT:-8080}:80"
+    restart: unless-stopped
+
+  migrate:
+    image: book-hub-backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - book_storage:/data/books
+    entrypoint: ["book-hub-migrate"]
+    profiles: ["tools"]
+
+  admin:
+    image: book-hub-backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - book_storage:/data/books
+    entrypoint: ["book-hub-admin"]
+    stdin_open: true
+    tty: true
+    profiles: ["tools"]
+
+volumes:
+  postgres_data:
+  book_storage:

@@ -1,0 +1,29 @@
+server {
+    listen 80;
+    server_name _;
+    root __STATIC_ROOT__;
+
+    client_max_body_size __MAX_BODY_SIZE__;
+
+    location ^~ __API_PREFIX__/ {
+        proxy_pass http://backend:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Prefix __FORWARDED_PREFIX__;
+    }
+
+    location = __BASE_PATH__ {
+        return 308 __BASE_PATH__/;
+    }
+
+    location ^~ __BASE_PATH__/ {
+        try_files $uri $uri/ __BASE_PATH__/index.html;
+    }
+
+    location / {
+        return 404;
+    }
+}
