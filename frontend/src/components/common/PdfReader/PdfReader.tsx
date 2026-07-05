@@ -16,12 +16,19 @@ type PdfPageDescriptor = {
   height: number;
 };
 
+type ScrollAnchor = {
+  pageNumber: number;
+  offsetRatio: number;
+};
+
 const maxRenderPixelRatio = 2;
 const headerHideOffset = 128;
 const headerShowOffset = 72;
 const documentPaddingX = 20;
 const minPageWidth = 240;
 const minPageHalfWidth = 120;
+const guideOutsideMargin = 12;
+const resizeAnchorHoldMs = 180;
 
 function renderPixelRatio() {
   return Math.min(maxRenderPixelRatio, Math.max(1, window.devicePixelRatio || 1));
@@ -29,6 +36,10 @@ function renderPixelRatio() {
 
 function isRenderCancelled(error: unknown) {
   return error instanceof Error && error.name === "RenderingCancelledException";
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function PdfReader(props: {
@@ -49,6 +60,10 @@ function PdfReader(props: {
   let observeFrame: number | undefined;
   let destroyed = false;
   let loadGeneration = 0;
+  let lockedScrollAnchor: ScrollAnchor | undefined;
+  let resizeScrollAnchor: ScrollAnchor | undefined;
+  let resizeAnchorTimeout: number | undefined;
+  let scrollAnchorFrame: number | undefined;
   const pageRefs = new Map<number, HTMLElement>();
   const canvasRefs = new Map<number, HTMLCanvasElement>();
   const pageCache = new Map<number, PDFPageProxy>();
@@ -63,6 +78,7 @@ function PdfReader(props: {
   const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>();
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
+  const [pendingScrollAnchor, setPendingScrollAnchor] = createSignal<ScrollAnchor>();
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
@@ -92,22 +108,105 @@ function PdfReader(props: {
     ),
   );
 
-  const getPageScreenBounds = () => {
-    const firstPage = pages()[0];
+  const handleRulerPointer = (event: PointerEvent) => {
+    if (!rulerRef || !rootRef) {
+      return;
+    }
 
-    if (!firstPage) {
+    const rulerRect = rulerRef.getBoundingClientRect();
+    const rootRect = rootRef.getBoundingClientRect();
+    const rulerCenter = rulerRect.left + rulerRect.width / 2;
+    const pageCenter = rootRect.left + rootRect.width / 2;
+    const nextHalfWidth = clampWidth(
+      Math.abs(event.clientX - rulerCenter),
+      minPageHalfWidth,
+      rulerRect.width / 2,
+    );
+    const nextWidth = nextHalfWidth * 2;
+    const impliedLeft = pageCenter - nextWidth / 2;
+    const impliedRight = pageCenter + nextWidth / 2;
+    const outsideGuides =
+      event.clientX < impliedLeft - guideOutsideMargin || event.clientX > impliedRight + guideOutsideMargin;
+
+    if (outsideGuides) {
+      resetToFitWidth();
+      setGuideX(event.clientX);
+      return;
+    }
+
+    const side = event.clientX < rulerCenter ? -1 : 1;
+
+    setGuideX(rulerCenter + side * nextHalfWidth);
+    updatePageWidth(Math.round(nextWidth));
+  };
+
+  const captureScrollAnchor = (): ScrollAnchor | undefined => {
+    if (!documentRef) {
       return undefined;
     }
 
-    const pageElement = pageRefs.get(firstPage.pageNumber);
+    const documentTopAbsolute = documentRef.getBoundingClientRect().top + window.scrollY;
+    const documentScrollTop = window.scrollY - documentTopAbsolute;
+    const pageList = pages();
 
-    if (!pageElement) {
-      return undefined;
+    for (let index = pageList.length - 1; index >= 0; index -= 1) {
+      const page = pageList[index];
+      const pageElement = pageRefs.get(page.pageNumber);
+
+      if (!pageElement) {
+        continue;
+      }
+
+      const pageTopAbsolute = pageElement.getBoundingClientRect().top + window.scrollY;
+      const pageTopInDocument = pageTopAbsolute - documentTopAbsolute;
+
+      if (pageTopInDocument <= documentScrollTop + 0.5) {
+        const pageHeight = pageElement.offsetHeight;
+        const offsetRatio =
+          pageHeight > 0 ? clamp((documentScrollTop - pageTopInDocument) / pageHeight, 0, 1) : 0;
+
+        return { pageNumber: page.pageNumber, offsetRatio };
+      }
     }
 
-    const rect = pageElement.getBoundingClientRect();
+    const firstPage = pageList[0];
 
-    return { left: rect.left, right: rect.right };
+    return firstPage ? { pageNumber: firstPage.pageNumber, offsetRatio: 0 } : undefined;
+  };
+
+  const scheduleScrollAnchorRestore = (anchor?: ScrollAnchor) => {
+    const nextAnchor = anchor ?? lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
+
+    if (nextAnchor) {
+      setPendingScrollAnchor({ ...nextAnchor });
+    }
+  };
+
+  const lockResizeScrollAnchor = () => {
+    if (lockedScrollAnchor) {
+      return;
+    }
+
+    resizeScrollAnchor = resizeScrollAnchor ?? captureScrollAnchor();
+
+    if (resizeScrollAnchor) {
+      setPendingScrollAnchor({ ...resizeScrollAnchor });
+    }
+
+    if (resizeAnchorTimeout !== undefined) {
+      window.clearTimeout(resizeAnchorTimeout);
+    }
+
+    resizeAnchorTimeout = window.setTimeout(() => {
+      resizeScrollAnchor = undefined;
+      resizeAnchorTimeout = undefined;
+    }, resizeAnchorHoldMs);
+  };
+
+  const updatePageWidth = (width: number | undefined) => {
+    scheduleScrollAnchorRestore();
+    setMaxPageWidth(width);
+    renderedKeys.clear();
   };
 
   const cancelRenderTask = (pageNumber: number) => {
@@ -123,18 +222,37 @@ function PdfReader(props: {
     renderTasks.clear();
   };
 
-  const measureDocument = () => {
+  const measureDocument = (preserveScrollAnchor = false) => {
     if (!rootRef) {
       return;
     }
 
-    setDocumentWidth(rootRef.clientWidth - documentPaddingX * 2);
+    if (preserveScrollAnchor && isFitWidth()) {
+      lockResizeScrollAnchor();
+    }
+
+    const nextWidth = rootRef.clientWidth - documentPaddingX * 2;
+
+    if (Math.abs(nextWidth - documentWidth()) < 0.5) {
+      return;
+    }
+
+    setDocumentWidth(nextWidth);
+  };
+
+  const handleViewportResize = () => {
+    const fit = isFitWidth();
+
+    measureDocument(fit);
+
+    if (fit) {
+      renderedKeys.clear();
+    }
   };
 
   const resetToFitWidth = () => {
-    setMaxPageWidth(undefined);
+    updatePageWidth(undefined);
     measureDocument();
-    renderedKeys.clear();
   };
 
   const syncObservedPages = () => {
@@ -335,28 +453,49 @@ function PdfReader(props: {
     renderedKeys.clear();
   });
 
-  const applyRulerPointer = (event: PointerEvent) => {
-    if (!rulerRef) {
+  createEffect(() => {
+    const anchor = pendingScrollAnchor();
+
+    void pageWidth();
+    void isFitWidth();
+    void documentWidth();
+
+    if (!anchor || !documentRef) {
       return;
     }
 
-    const rulerRect = rulerRef.getBoundingClientRect();
-    const center = rulerRect.left + rulerRect.width / 2;
-    const side = event.clientX < center ? -1 : 1;
-    const nextHalfWidth = clampWidth(Math.abs(event.clientX - center), minPageHalfWidth, rulerRect.width / 2);
-    const nextWidth = nextHalfWidth * 2;
+    if (scrollAnchorFrame !== undefined) {
+      cancelAnimationFrame(scrollAnchorFrame);
+    }
 
-    setGuideX(center + side * nextHalfWidth);
-    setMaxPageWidth(Math.round(nextWidth));
-  };
+    scrollAnchorFrame = requestAnimationFrame(() => {
+      scrollAnchorFrame = requestAnimationFrame(() => {
+        const pageElement = pageRefs.get(anchor.pageNumber);
+
+        if (!pageElement) {
+          setPendingScrollAnchor(undefined);
+          scrollAnchorFrame = undefined;
+          return;
+        }
+
+        const pageTopAbsolute = pageElement.getBoundingClientRect().top + window.scrollY;
+        const pageHeight = pageElement.offsetHeight;
+
+        window.scrollTo({ top: pageTopAbsolute + pageHeight * anchor.offsetRatio });
+        setPendingScrollAnchor(undefined);
+        scrollAnchorFrame = undefined;
+      });
+    });
+  });
 
   const onRulerPointerDown = (event: PointerEvent) => {
     const target = event.currentTarget as HTMLDivElement | null;
 
     target?.setPointerCapture(event.pointerId);
+    lockedScrollAnchor = captureScrollAnchor();
     setDraggingWidth(true);
     setHeaderVisible(true);
-    applyRulerPointer(event);
+    handleRulerPointer(event);
   };
 
   const onRulerPointerMove = (event: PointerEvent) => {
@@ -364,31 +503,15 @@ function PdfReader(props: {
       return;
     }
 
-    const pageBounds = getPageScreenBounds();
-
-    if (pageBounds && (event.clientX < pageBounds.left || event.clientX > pageBounds.right)) {
-      resetToFitWidth();
-      setGuideX(event.clientX);
-      return;
-    }
-
-    applyRulerPointer(event);
-    renderedKeys.clear();
+    handleRulerPointer(event);
   };
 
   const onRulerPointerUp = (event: PointerEvent) => {
     const target = event.currentTarget as HTMLDivElement | null;
 
     target?.releasePointerCapture(event.pointerId);
-
-    const pageBounds = getPageScreenBounds();
-
-    if (pageBounds && (event.clientX < pageBounds.left || event.clientX > pageBounds.right)) {
-      resetToFitWidth();
-    } else {
-      renderedKeys.clear();
-    }
-
+    handleRulerPointer(event);
+    lockedScrollAnchor = undefined;
     setDraggingWidth(false);
     setGuideX(undefined);
   };
@@ -402,7 +525,7 @@ function PdfReader(props: {
       }
     };
 
-    resizeObserver = new ResizeObserver(() => measureDocument());
+    resizeObserver = new ResizeObserver(() => handleViewportResize());
     observer = new IntersectionObserver(
       (entries) => {
         setVisiblePages((current) => {
@@ -435,9 +558,13 @@ function PdfReader(props: {
     measureDocument();
     scheduleObservedPagesSync();
     window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("resize", handleViewportResize);
+    window.visualViewport?.addEventListener("resize", handleViewportResize);
 
     onCleanup(() => {
       window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("resize", handleViewportResize);
+      window.visualViewport?.removeEventListener("resize", handleViewportResize);
       resizeObserver?.disconnect();
       observer?.disconnect();
     });
@@ -448,6 +575,14 @@ function PdfReader(props: {
 
     if (observeFrame !== undefined) {
       cancelAnimationFrame(observeFrame);
+    }
+
+    if (scrollAnchorFrame !== undefined) {
+      cancelAnimationFrame(scrollAnchorFrame);
+    }
+
+    if (resizeAnchorTimeout !== undefined) {
+      window.clearTimeout(resizeAnchorTimeout);
     }
 
     cancelRenderTasks();
