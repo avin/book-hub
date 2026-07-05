@@ -16,6 +16,9 @@ type ScrollAnchor = {
   offsetRatio: number;
 };
 
+const layoutWidthDebounceMs = 120;
+const viewportResizeEndMs = 150;
+
 function settingValue<T extends keyof Fb2ReaderSettings>(
   settings: Fb2ReaderSettings,
   key: T,
@@ -40,10 +43,14 @@ function Fb2Reader(props: {
   let lockedScrollAnchor: ScrollAnchor | undefined;
   let resizeScrollAnchor: ScrollAnchor | undefined;
   let resizeAnchorTimeout: number | undefined;
+  let layoutWidthDebounceTimeout: number | undefined;
+  let viewportResizeEndTimeout: number | undefined;
   const [settings, setSettings] = createSignal<Fb2ReaderSettings>({ ...defaultSettings, ...props.initialSettings });
   const [viewportHeight, setViewportHeight] = createSignal(900);
   const [scrollTop, setScrollTop] = createSignal(0);
   const [readerWidth, setReaderWidth] = createSignal(960);
+  const [layoutTextWidth, setLayoutTextWidth] = createSignal(320);
+  const [viewportResizeActive, setViewportResizeActive] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
   const [panelOpen, setPanelOpen] = createSignal(false);
   const [draggingWidth, setDraggingWidth] = createSignal(false);
@@ -55,6 +62,39 @@ function Fb2Reader(props: {
   const parsed = createMemo(() => parseFb2(props.fb2));
   const availableTextWidth = createMemo(() => Math.max(320, readerWidth() - settings().pagePadding * 2));
   const textWidth = createMemo(() => Math.min(availableTextWidth(), settings().maxTextWidth ?? availableTextWidth()));
+
+  const currentWidthChangeAnchor = () => lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
+
+  const applyLayoutTextWidth = (anchor = currentWidthChangeAnchor()) => {
+    if (anchor) {
+      setPendingScrollAnchor(anchor);
+    }
+
+    setLayoutTextWidth(textWidth());
+  };
+
+  const flushLayoutTextWidth = () => {
+    if (layoutWidthDebounceTimeout !== undefined) {
+      window.clearTimeout(layoutWidthDebounceTimeout);
+      layoutWidthDebounceTimeout = undefined;
+    }
+
+    applyLayoutTextWidth();
+  };
+
+  const scheduleLayoutTextWidth = () => {
+    const anchor = currentWidthChangeAnchor();
+
+    if (layoutWidthDebounceTimeout !== undefined) {
+      window.clearTimeout(layoutWidthDebounceTimeout);
+    }
+
+    layoutWidthDebounceTimeout = window.setTimeout(() => {
+      applyLayoutTextWidth(anchor);
+      layoutWidthDebounceTimeout = undefined;
+    }, layoutWidthDebounceMs);
+  };
+
   const layout = createMemo(() => {
     layoutGeneration();
     const currentSettings = settings();
@@ -63,7 +103,7 @@ function Fb2Reader(props: {
       return lastMeasuredLayout;
     }
 
-    lastMeasuredLayout = buildVirtualLayout(parsed().blocks, textWidth(), currentSettings);
+    lastMeasuredLayout = buildVirtualLayout(parsed().blocks, layoutTextWidth(), currentSettings);
 
     return lastMeasuredLayout;
   });
@@ -250,6 +290,20 @@ function Fb2Reader(props: {
     }, 180);
   };
 
+  const markViewportResize = () => {
+    setViewportResizeActive(true);
+
+    if (viewportResizeEndTimeout !== undefined) {
+      window.clearTimeout(viewportResizeEndTimeout);
+    }
+
+    viewportResizeEndTimeout = window.setTimeout(() => {
+      setViewportResizeActive(false);
+      viewportResizeEndTimeout = undefined;
+      flushLayoutTextWidth();
+    }, viewportResizeEndMs);
+  };
+
   const measureReader = (preserveScrollAnchor = false) => {
     if (!rootRef) {
       return;
@@ -257,10 +311,15 @@ function Fb2Reader(props: {
 
     if (preserveScrollAnchor) {
       lockResizeScrollAnchor();
+      markViewportResize();
     }
 
     setReaderWidth(rootRef.clientWidth);
     setViewportHeight(window.innerHeight);
+    setScrollTop(documentScrollTop());
+  };
+
+  const updateScrollPosition = () => {
     setScrollTop(documentScrollTop());
   };
 
@@ -313,10 +372,22 @@ function Fb2Reader(props: {
     const target = event.currentTarget as HTMLDivElement | null;
 
     target?.releasePointerCapture(event.pointerId);
+    flushLayoutTextWidth();
     setDraggingWidth(false);
     lockedScrollAnchor = undefined;
     setGuideX(undefined);
   };
+
+  createEffect(() => {
+    void textWidth();
+
+    if (draggingWidth() || viewportResizeActive()) {
+      scheduleLayoutTextWidth();
+      return;
+    }
+
+    flushLayoutTextWidth();
+  });
 
   createEffect(() => {
     const currentSettings = settings();
@@ -340,7 +411,7 @@ function Fb2Reader(props: {
 
   onMount(() => {
     const resizeObserver = new ResizeObserver(() => measureReader(true));
-    const onScroll = () => measureReader();
+    const onScroll = () => updateScrollPosition();
     const onResize = () => measureReader(true);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -369,6 +440,7 @@ function Fb2Reader(props: {
     }
 
     measureReader();
+    flushLayoutTextWidth();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
     window.addEventListener("keydown", onKeyDown);
@@ -433,6 +505,14 @@ function Fb2Reader(props: {
 
     if (resizeAnchorTimeout !== undefined) {
       window.clearTimeout(resizeAnchorTimeout);
+    }
+
+    if (layoutWidthDebounceTimeout !== undefined) {
+      window.clearTimeout(layoutWidthDebounceTimeout);
+    }
+
+    if (viewportResizeEndTimeout !== undefined) {
+      window.clearTimeout(viewportResizeEndTimeout);
     }
   });
 
