@@ -1,54 +1,17 @@
-import { AlignLeft, Palette, RotateCcw, Settings, SlidersHorizontal, Type, X } from "lucide-solid";
-import { createEffect, createMemo, createSignal, For, JSX, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createEffect, createMemo, createSignal, For, JSX, onCleanup, onMount, Show } from "solid-js";
+import BlockView from "./BlockView/BlockView";
 import { findBlockIndex, buildVirtualLayout } from "./fb2Layout";
 import { binaryToDataUrl, parseFb2 } from "./fb2Parser";
-import {
-  CssVars,
-  Fb2Block,
-  Fb2Inline,
-  Fb2ReaderProps,
-  Fb2ReaderSettings,
-  Fb2TableCell,
-  RenderedBlock,
-} from "./fb2Types";
+import { defaultSettings } from "./fb2ReaderSettings";
+import { CssVars, Fb2ReaderProps, Fb2ReaderSettings, RenderedBlock } from "./fb2Types";
+import ReaderChrome from "./ReaderChrome/ReaderChrome";
+import SettingsPanel from "./SettingsPanel/SettingsPanel";
 import styles from "./Fb2Reader.module.scss";
-
-const defaultSettings: Fb2ReaderSettings = {
-  backgroundColor: "#f7f3ea",
-  textColor: "#211f1b",
-  linkColor: "#24527a",
-  fontFamily: "Georgia, serif",
-  fontSize: 19,
-  lineHeight: 1.62,
-  paragraphSpacing: 14,
-  paragraphIndent: 28,
-  pagePadding: 56,
-};
-
-const fontOptions = [
-  "Georgia, serif",
-  "Inter, sans-serif",
-  "Arial, sans-serif",
-  "Times New Roman, serif",
-  "Verdana, sans-serif",
-];
 
 type ScrollAnchor = {
   blockIndex: number;
   offsetRatio: number;
 };
-
-function isExternalHref(href: string | undefined) {
-  if (!href) {
-    return false;
-  }
-
-  return /^[a-z][a-z\d+.-]*:/i.test(href);
-}
-
-function normalizeInternalHref(href: string | undefined) {
-  return href?.replace(/^#/, "");
-}
 
 function settingValue<T extends keyof Fb2ReaderSettings>(
   settings: Fb2ReaderSettings,
@@ -60,199 +23,6 @@ function settingValue<T extends keyof Fb2ReaderSettings>(
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function RenderInlines(props: {
-  inlines: Fb2Inline[] | undefined;
-  imageSrc: (id: string | undefined) => string | undefined;
-  onInternalLink: (targetId: string) => void;
-}) {
-  return (
-    <For each={props.inlines ?? []}>
-      {(inline) => (
-        <Switch fallback={<RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />}>
-          <Match when={inline.kind === "text"}>{inline.text}</Match>
-          <Match when={inline.kind === "strong"}>
-            <strong>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-            </strong>
-          </Match>
-          <Match when={inline.kind === "emphasis"}>
-            <em>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-            </em>
-          </Match>
-          <Match when={inline.kind === "strikethrough"}>
-            <s>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-            </s>
-          </Match>
-          <Match when={inline.kind === "sub"}>
-            <sub>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-            </sub>
-          </Match>
-          <Match when={inline.kind === "sup"}>
-            <sup>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-            </sup>
-          </Match>
-          <Match when={inline.kind === "code"}>
-            <code>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-            </code>
-          </Match>
-          <Match when={inline.kind === "link"}>
-            <Show
-              when={isExternalHref(inline.href)}
-              fallback={
-                <button
-                  class={styles.inlineLinkButton}
-                  type="button"
-                  onClick={() => {
-                    const targetId = normalizeInternalHref(inline.href);
-
-                    if (targetId) {
-                      props.onInternalLink(targetId);
-                    }
-                  }}
-                >
-                  <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-                </button>
-              }
-            >
-              <a href={inline.href} target="_blank" rel="noreferrer">
-                <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-              </a>
-            </Show>
-          </Match>
-          <Match when={inline.kind === "style"}>
-            <span data-fb2-style={inline.styleName}>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-            </span>
-          </Match>
-          <Match when={inline.kind === "image"}>
-            <Show when={props.imageSrc(inline.imageId)}>
-              {(src) => <img class={styles.inlineImage} src={src()} alt="" loading="lazy" />}
-            </Show>
-          </Match>
-        </Switch>
-      )}
-    </For>
-  );
-}
-
-function TableCell(props: {
-  cell: Fb2TableCell;
-  imageSrc: (id: string | undefined) => string | undefined;
-  onInternalLink: (targetId: string) => void;
-}) {
-  const content = () => (
-    <RenderInlines inlines={props.cell.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-  );
-
-  return (
-    <Show
-      when={props.cell.header}
-      fallback={
-        <td colSpan={props.cell.colspan} rowSpan={props.cell.rowspan}>
-          {content()}
-        </td>
-      }
-    >
-      <th colSpan={props.cell.colspan} rowSpan={props.cell.rowspan}>
-        {content()}
-      </th>
-    </Show>
-  );
-}
-
-function BlockView(props: {
-  block: Fb2Block;
-  imageSrc: (id: string | undefined) => string | undefined;
-  onInternalLink: (targetId: string) => void;
-}) {
-  return (
-    <Switch>
-      <Match when={props.block.kind === "title"}>
-        <h2 class={styles.title} data-level={props.block.level}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-        </h2>
-      </Match>
-      <Match when={props.block.kind === "subtitle"}>
-        <h3 class={styles.subtitle}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-        </h3>
-      </Match>
-      <Match when={props.block.kind === "paragraph"}>
-        <p
-          class={styles.paragraph}
-          classList={{
-            [styles.annotation]: props.block.role === "annotation" || props.block.role === "metadata",
-            [styles.quote]: props.block.role === "cite" || props.block.role === "epigraph",
-          }}
-        >
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-        </p>
-      </Match>
-      <Match when={props.block.kind === "poemLine"}>
-        <p class={styles.poemLine}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-        </p>
-      </Match>
-      <Match when={props.block.kind === "textAuthor"}>
-        <p class={styles.textAuthor}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-        </p>
-      </Match>
-      <Match when={props.block.kind === "date"}>
-        <p class={styles.date}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-        </p>
-      </Match>
-      <Match when={props.block.kind === "emptyLine"}>
-        <div class={styles.emptyLine} aria-hidden="true" />
-      </Match>
-      <Match when={props.block.kind === "image"}>
-        <figure class={styles.figure}>
-          <Show when={props.imageSrc(props.block.imageId)} fallback={<div class={styles.missingImage}>Нет изображения</div>}>
-            {(src) => <img src={src()} alt="" loading="lazy" />}
-          </Show>
-        </figure>
-      </Match>
-      <Match when={props.block.kind === "table"}>
-        <div class={styles.tableScroller}>
-          <table>
-            <tbody>
-              <For each={props.block.rows ?? []}>
-                {(row) => (
-                  <tr>
-                    <For each={row.cells}>
-                      {(cell) => <TableCell cell={cell} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />}
-                    </For>
-                  </tr>
-                )}
-              </For>
-            </tbody>
-          </table>
-        </div>
-      </Match>
-    </Switch>
-  );
-}
-
-function SettingRow(props: { label: string; value?: string; children: JSX.Element }) {
-  return (
-    <label class={styles.settingRow}>
-      <span>
-        {props.label}
-        <Show when={props.value}>
-          <b>{props.value}</b>
-        </Show>
-      </span>
-      {props.children}
-    </label>
-  );
 }
 
 function Fb2Reader(props: Fb2ReaderProps) {
@@ -592,170 +362,34 @@ function Fb2Reader(props: Fb2ReaderProps) {
   return (
     <div ref={rootRef} class={`${styles.reader} ${props.class ?? ""}`} style={cssVars()}>
       <div class={styles.hoverZone} aria-hidden="true" />
-      <header
-        class={styles.header}
-        classList={{ [styles.visible]: headerVisible() || panelOpen() || draggingWidth() }}
-        onPointerEnter={() => setHeaderVisible(true)}
-      >
-        <div class={styles.headerBar}>
-          <div class={styles.bookTitle}>{documentTitle()}</div>
-          <button
-            class={styles.iconButton}
-            type="button"
-            title="Настройки внешнего вида"
-            aria-label="Настройки внешнего вида"
-            onClick={() => setPanelOpen((value) => !value)}
-          >
-            <Settings size={19} />
-          </button>
-        </div>
-      </header>
-
-      <div
-        class={styles.rulerBar}
-        classList={{ [styles.visible]: headerVisible() || panelOpen() || draggingWidth() }}
-        onPointerEnter={() => setHeaderVisible(true)}
-      >
-        <div
-          ref={rulerRef}
-          class={styles.ruler}
-          role="slider"
-          aria-label="Максимальная ширина текста"
-          aria-valuemin="280"
-          aria-valuemax={Math.round(availableTextWidth())}
-          aria-valuenow={Math.round(settings().maxTextWidth ?? availableTextWidth())}
-          tabIndex={0}
-          onPointerDown={onRulerPointerDown}
-          onPointerMove={onRulerPointerMove}
-          onPointerUp={onRulerPointerUp}
-          onPointerCancel={onRulerPointerUp}
-        >
-          <For each={rulerTicks}>
-            {(tick) => (
-              <span
-                class={styles.rulerTick}
-                classList={{
-                  [styles.majorTick]: tick % 10 === 0,
-                  [styles.middleTick]: tick % 5 === 0,
-                  [styles.centerTick]: tick === 0,
-                }}
-                style={{ left: `${50 + tick * 1.25}%` }}
-              />
-            )}
-          </For>
-          <span class={styles.rulerMarker} style={markerStyles().left} />
-          <span class={styles.rulerMarker} style={markerStyles().right} />
-        </div>
-      </div>
+      <ReaderChrome
+        visible={headerVisible() || panelOpen() || draggingWidth()}
+        title={documentTitle()}
+        rulerTicks={rulerTicks}
+        markerStyles={markerStyles()}
+        availableTextWidth={availableTextWidth()}
+        currentTextWidth={settings().maxTextWidth ?? availableTextWidth()}
+        onShow={() => setHeaderVisible(true)}
+        onToggleSettings={() => setPanelOpen((value) => !value)}
+        onRulerRef={(element) => {
+          rulerRef = element;
+        }}
+        onRulerPointerDown={onRulerPointerDown}
+        onRulerPointerMove={onRulerPointerMove}
+        onRulerPointerUp={onRulerPointerUp}
+      />
 
       <Show when={draggingWidth() && guideX() !== undefined}>
         <div class={styles.widthGuide} style={{ left: `${guideX()}px` }} aria-hidden="true" />
       </Show>
 
-      <aside class={styles.settingsPanel} classList={{ [styles.panelOpen]: panelOpen() }}>
-        <div class={styles.panelHeader}>
-          <h2>Внешний вид</h2>
-          <button class={styles.iconButton} type="button" title="Закрыть" aria-label="Закрыть" onClick={() => setPanelOpen(false)}>
-            <X size={19} />
-          </button>
-        </div>
-
-        <section class={styles.settingGroup}>
-          <h3>
-            <Type size={17} />
-            Текст
-          </h3>
-          <SettingRow label="Шрифт">
-            <select value={settings().fontFamily} onInput={(event) => updateSetting("fontFamily", event.currentTarget.value)}>
-              <For each={fontOptions}>{(font) => <option value={font}>{font}</option>}</For>
-            </select>
-          </SettingRow>
-          <SettingRow label="Размер" value={`${settings().fontSize}px`}>
-            <input
-              type="range"
-              min="14"
-              max="30"
-              value={settings().fontSize}
-              onInput={(event) => updateSetting("fontSize", Number(event.currentTarget.value))}
-            />
-          </SettingRow>
-          <SettingRow label="Интерлиньяж" value={settings().lineHeight.toFixed(2)}>
-            <input
-              type="range"
-              min="1.2"
-              max="2.2"
-              step="0.02"
-              value={settings().lineHeight}
-              onInput={(event) => updateSetting("lineHeight", Number(event.currentTarget.value))}
-            />
-          </SettingRow>
-        </section>
-
-        <section class={styles.settingGroup}>
-          <h3>
-            <AlignLeft size={17} />
-            Абзацы
-          </h3>
-          <SettingRow label="Отступ первой строки" value={`${settings().paragraphIndent}px`}>
-            <input
-              type="range"
-              min="0"
-              max="64"
-              value={settings().paragraphIndent}
-              onInput={(event) => updateSetting("paragraphIndent", Number(event.currentTarget.value))}
-            />
-          </SettingRow>
-          <SettingRow label="Отступ после абзаца" value={`${settings().paragraphSpacing}px`}>
-            <input
-              type="range"
-              min="4"
-              max="36"
-              value={settings().paragraphSpacing}
-              onInput={(event) => updateSetting("paragraphSpacing", Number(event.currentTarget.value))}
-            />
-          </SettingRow>
-          <SettingRow label="Поля документа" value={`${settings().pagePadding}px`}>
-            <input
-              type="range"
-              min="20"
-              max="120"
-              value={settings().pagePadding}
-              onInput={(event) => updateSetting("pagePadding", Number(event.currentTarget.value))}
-            />
-          </SettingRow>
-        </section>
-
-        <section class={styles.settingGroup}>
-          <h3>
-            <Palette size={17} />
-            Цвета
-          </h3>
-          <SettingRow label="Фон">
-            <input
-              type="color"
-              value={settings().backgroundColor}
-              onInput={(event) => updateSetting("backgroundColor", event.currentTarget.value)}
-            />
-          </SettingRow>
-          <SettingRow label="Текст">
-            <input type="color" value={settings().textColor} onInput={(event) => updateSetting("textColor", event.currentTarget.value)} />
-          </SettingRow>
-          <SettingRow label="Ссылки">
-            <input type="color" value={settings().linkColor} onInput={(event) => updateSetting("linkColor", event.currentTarget.value)} />
-          </SettingRow>
-        </section>
-
-        <div class={styles.panelActions}>
-          <button class={styles.resetButton} type="button" onClick={() => setSettings(defaultSettings)}>
-            <RotateCcw size={17} />
-            Сбросить
-          </button>
-          <button class={styles.resetButton} type="button" onClick={() => updateSetting("maxTextWidth", undefined)}>
-            <SlidersHorizontal size={17} />
-            Автоширина
-          </button>
-        </div>
-      </aside>
+      <SettingsPanel
+        open={panelOpen()}
+        settings={settings()}
+        onClose={() => setPanelOpen(false)}
+        onReset={() => setSettings(defaultSettings)}
+        onUpdateSetting={updateSetting}
+      />
 
       <main class={styles.documentShell}>
         <article ref={documentRef} class={styles.document} style={{ width: `${textWidth()}px` }}>

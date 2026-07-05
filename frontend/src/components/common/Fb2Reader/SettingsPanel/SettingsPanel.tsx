@@ -1,0 +1,152 @@
+import { AlignLeft, Palette, RotateCcw, SlidersHorizontal, Type, X } from "lucide-solid";
+import { For, JSX, Show } from "solid-js";
+import { fontOptions } from "../fb2ReaderSettings";
+import { Fb2ReaderSettings } from "../fb2Types";
+import styles from "./SettingsPanel.module.scss";
+
+type UpdateSetting = <T extends keyof Fb2ReaderSettings>(
+  key: T,
+  value: Fb2ReaderSettings[T],
+  keepLockedAnchor?: boolean,
+) => void;
+
+type SettingsPanelProps = {
+  open: boolean;
+  settings: Fb2ReaderSettings;
+  onClose: () => void;
+  onReset: () => void;
+  onUpdateSetting: UpdateSetting;
+};
+
+function SettingRow(props: { label: string; value?: string; children: JSX.Element }) {
+  return (
+    <label class={styles.settingRow}>
+      <span>
+        {props.label}
+        <Show when={props.value}>
+          <b>{props.value}</b>
+        </Show>
+      </span>
+      {props.children}
+    </label>
+  );
+}
+
+function SettingsPanel(props: SettingsPanelProps) {
+  return (
+    <aside class={styles.settingsPanel} classList={{ [styles.panelOpen]: props.open }}>
+      <div class={styles.panelHeader}>
+        <h2>Внешний вид</h2>
+        <button class={styles.iconButton} type="button" title="Закрыть" aria-label="Закрыть" onClick={props.onClose}>
+          <X size={19} />
+        </button>
+      </div>
+
+      <section class={styles.settingGroup}>
+        <h3>
+          <Type size={17} />
+          Текст
+        </h3>
+        <SettingRow label="Шрифт">
+          <select value={props.settings.fontFamily} onInput={(event) => props.onUpdateSetting("fontFamily", event.currentTarget.value)}>
+            <For each={fontOptions}>{(font) => <option value={font}>{font}</option>}</For>
+          </select>
+        </SettingRow>
+        <SettingRow label="Размер" value={`${props.settings.fontSize}px`}>
+          <input
+            type="range"
+            min="14"
+            max="30"
+            value={props.settings.fontSize}
+            onInput={(event) => props.onUpdateSetting("fontSize", Number(event.currentTarget.value))}
+          />
+        </SettingRow>
+        <SettingRow label="Интерлиньяж" value={props.settings.lineHeight.toFixed(2)}>
+          <input
+            type="range"
+            min="1.2"
+            max="2.2"
+            step="0.02"
+            value={props.settings.lineHeight}
+            onInput={(event) => props.onUpdateSetting("lineHeight", Number(event.currentTarget.value))}
+          />
+        </SettingRow>
+      </section>
+
+      <section class={styles.settingGroup}>
+        <h3>
+          <AlignLeft size={17} />
+          Абзацы
+        </h3>
+        <SettingRow label="Отступ первой строки" value={`${props.settings.paragraphIndent}px`}>
+          <input
+            type="range"
+            min="0"
+            max="64"
+            value={props.settings.paragraphIndent}
+            onInput={(event) => props.onUpdateSetting("paragraphIndent", Number(event.currentTarget.value))}
+          />
+        </SettingRow>
+        <SettingRow label="Отступ после абзаца" value={`${props.settings.paragraphSpacing}px`}>
+          <input
+            type="range"
+            min="4"
+            max="36"
+            value={props.settings.paragraphSpacing}
+            onInput={(event) => props.onUpdateSetting("paragraphSpacing", Number(event.currentTarget.value))}
+          />
+        </SettingRow>
+        <SettingRow label="Поля документа" value={`${props.settings.pagePadding}px`}>
+          <input
+            type="range"
+            min="20"
+            max="120"
+            value={props.settings.pagePadding}
+            onInput={(event) => props.onUpdateSetting("pagePadding", Number(event.currentTarget.value))}
+          />
+        </SettingRow>
+      </section>
+
+      <section class={styles.settingGroup}>
+        <h3>
+          <Palette size={17} />
+          Цвета
+        </h3>
+        <SettingRow label="Фон">
+          <input
+            type="color"
+            value={props.settings.backgroundColor}
+            onInput={(event) => props.onUpdateSetting("backgroundColor", event.currentTarget.value)}
+          />
+        </SettingRow>
+        <SettingRow label="Текст">
+          <input
+            type="color"
+            value={props.settings.textColor}
+            onInput={(event) => props.onUpdateSetting("textColor", event.currentTarget.value)}
+          />
+        </SettingRow>
+        <SettingRow label="Ссылки">
+          <input
+            type="color"
+            value={props.settings.linkColor}
+            onInput={(event) => props.onUpdateSetting("linkColor", event.currentTarget.value)}
+          />
+        </SettingRow>
+      </section>
+
+      <div class={styles.panelActions}>
+        <button class={styles.resetButton} type="button" onClick={props.onReset}>
+          <RotateCcw size={17} />
+          Сбросить
+        </button>
+        <button class={styles.resetButton} type="button" onClick={() => props.onUpdateSetting("maxTextWidth", undefined)}>
+          <SlidersHorizontal size={17} />
+          Автоширина
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+export default SettingsPanel;

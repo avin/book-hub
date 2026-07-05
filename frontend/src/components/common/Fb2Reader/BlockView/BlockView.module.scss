@@ -1,0 +1,123 @@
+@use "@/styles/_variables.scss" as *;
+
+.title,
+.subtitle,
+.paragraph,
+.poemLine,
+.textAuthor,
+.date {
+  margin: 0;
+  color: var(--fb2-text);
+}
+
+.title {
+  padding-top: 8px;
+  font-size: calc(var(--fb2-font-size) * 1.58);
+  font-weight: 700;
+  line-height: 1.22;
+  text-align: center;
+}
+
+.title[data-level="1"] {
+  font-size: calc(var(--fb2-font-size) * 1.72);
+}
+
+.subtitle {
+  font-size: calc(var(--fb2-font-size) * 1.16);
+  font-weight: 650;
+  line-height: 1.28;
+  text-align: center;
+}
+
+.paragraph {
+  font-size: var(--fb2-font-size);
+  line-height: var(--fb2-line-height);
+  text-align: justify;
+  text-indent: var(--fb2-paragraph-indent);
+}
+
+.annotation,
+.quote {
+  padding-left: $space-5;
+  border-left: 3px solid rgba(47, 95, 82, 0.34);
+  color: color-mix(in srgb, var(--fb2-text) 84%, $color-ink-500);
+  text-indent: 0;
+}
+
+.quote {
+  border-left-color: rgba(122, 87, 31, 0.44);
+  font-style: italic;
+}
+
+.poemLine {
+  padding-left: calc(var(--fb2-paragraph-indent) * 1.2);
+  font-size: var(--fb2-font-size);
+  font-style: italic;
+  line-height: var(--fb2-line-height);
+  white-space: pre-wrap;
+}
+
+.textAuthor,
+.date {
+  font-size: calc(var(--fb2-font-size) * 0.94);
+  font-style: italic;
+  font-weight: 500;
+  line-height: var(--fb2-line-height);
+  text-align: right;
+}
+
+.emptyLine {
+  height: 100%;
+}
+
+.figure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  margin: 0;
+
+  img {
+    width: min(100%, 420px);
+    max-width: 100%;
+    max-height: calc(100% - 18px);
+    border-radius: $radius-sm;
+    object-fit: contain;
+    box-shadow: 0 12px 30px rgba(20, 23, 31, 0.16);
+  }
+}
+
+.missingImage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 420px);
+  height: 180px;
+  border: 1px dashed $color-border-strong;
+  border-radius: $radius-sm;
+  color: $color-ink-500;
+}
+
+.tableScroller {
+  overflow-x: auto;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: calc(var(--fb2-font-size) * 0.94);
+    line-height: 1.42;
+  }
+
+  th,
+  td {
+    padding: $space-2 $space-3;
+    border: 1px solid color-mix(in srgb, var(--fb2-text) 24%, transparent);
+    vertical-align: top;
+  }
+
+  th {
+    background: rgba(47, 95, 82, 0.12);
+    font-weight: 700;
+    text-align: left;
+  }
+}

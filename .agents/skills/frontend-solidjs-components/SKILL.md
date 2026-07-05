@@ -19,6 +19,7 @@ description: Создание и изменение SolidJS-компоненто
 
 - Папку компонента называть в PascalCase: `ComponentName/`.
 - Основной файл называть так же: `ComponentName.tsx`.
+- Каждый SolidJS-компонент должен лежать в собственной папке `ComponentName/`, даже если у него нет отдельного SCSS Module, Storybook story или ассетов.
 - SCSS Module добавлять рядом: `ComponentName.module.scss`.
 - Storybook story добавлять рядом для визуальных компонентов: `ComponentName.stories.tsx`.
 - Локальные изображения и иконки класть в `images/` внутри папки компонента.
