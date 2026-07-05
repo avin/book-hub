@@ -1,5 +1,5 @@
 import { A } from "@solidjs/router";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, Index, Show } from "solid-js";
 import { Library, Plus, Search } from "lucide-solid";
 import {
   type Book,
@@ -194,7 +194,7 @@ function LibraryPage() {
 
         <Show when={books().length > 0}>
           <div class={styles.bookList}>
-            <For each={books()}>
+            <Index each={books()}>
               {(book) => (
                 <BookCard
                   book={book}
@@ -203,7 +203,7 @@ function LibraryPage() {
                   onDelete={handleDelete}
                 />
               )}
-            </For>
+            </Index>
           </div>
         </Show>
 

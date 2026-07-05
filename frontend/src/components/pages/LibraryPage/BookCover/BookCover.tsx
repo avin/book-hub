@@ -4,12 +4,13 @@ import { type Book, getBookCoverUrl } from "@/api/books";
 import styles from "./BookCover.module.scss";
 
 function BookCover(props: {
-  book: Book;
+  bookId: string;
+  format: Book["format"];
 }) {
   const [failed, setFailed] = createSignal(false);
 
   createEffect(() => {
-    props.book.id;
+    props.bookId;
     setFailed(false);
   });
 
@@ -20,12 +21,12 @@ function BookCover(props: {
         fallback={
           <div class={styles.coverFallback}>
             <FileText />
-            <span>{props.book.format.toUpperCase()}</span>
+            <span>{props.format.toUpperCase()}</span>
           </div>
         }
       >
         <img
-          src={getBookCoverUrl(props.book.id)}
+          src={getBookCoverUrl(props.bookId)}
           alt=""
           loading="lazy"
           onError={() => setFailed(true)}

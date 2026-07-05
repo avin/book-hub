@@ -22,7 +22,7 @@ export const Default = () => (
     <I18nProvider>
       <div style={{ width: "620px" }}>
         <BookCard
-          book={sampleBook}
+          book={() => sampleBook}
           onFavoriteToggle={() => undefined}
           onEdit={() => undefined}
           onDelete={() => undefined}

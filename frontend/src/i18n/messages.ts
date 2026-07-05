@@ -249,17 +249,61 @@ export const messages = {
     ru: "Добавить книгу",
     en: "Add book",
   },
+  addBooks: {
+    ru: "Добавить книги",
+    en: "Add books",
+  },
   fileNotSelected: {
     ru: "Файл не выбран",
     en: "No file selected",
   },
+  booksSelected: {
+    ru: "Выбрано книг: {count}",
+    en: "Books selected: {count}",
+  },
   supportedBookFormats: {
-    ru: "FB2 или PDF",
-    en: "FB2 or PDF",
+    ru: "FB2 или PDF, можно несколько файлов сразу",
+    en: "FB2 or PDF, multiple files are supported",
   },
   selectBookFile: {
     ru: "Выберите файл книги",
     en: "Select a book file",
+  },
+  extractingCover: {
+    ru: "Извлекаем обложку",
+    en: "Extracting cover",
+  },
+  coverNotFound: {
+    ru: "Обложка не найдена",
+    en: "Cover not found",
+  },
+  coverCouldNotBeExtracted: {
+    ru: "Не удалось извлечь обложку",
+    en: "Cover could not be extracted",
+  },
+  extractTitle: {
+    ru: "Извлечь название",
+    en: "Extract title",
+  },
+  titleCouldNotBeExtracted: {
+    ru: "Не удалось извлечь название",
+    en: "Title could not be extracted",
+  },
+  uploadBooks: {
+    ru: "Загрузить книги",
+    en: "Upload books",
+  },
+  bookUploaded: {
+    ru: "Книга загружена",
+    en: "Book uploaded",
+  },
+  someBooksNotUploaded: {
+    ru: "Некоторые книги не удалось загрузить. Проверьте ошибки в списке.",
+    en: "Some books could not be uploaded. Check errors in the list.",
+  },
+  remove: {
+    ru: "Убрать",
+    en: "Remove",
   },
   accountSettings: {
     ru: "Настройки аккаунта",

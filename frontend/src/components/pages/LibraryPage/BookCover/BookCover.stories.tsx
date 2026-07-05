@@ -17,6 +17,6 @@ const sampleBook: Book = {
 
 export const Default = () => (
   <div style={{ width: "92px", height: "120px" }}>
-    <BookCover book={sampleBook} />
+    <BookCover bookId={sampleBook.id} format={sampleBook.format} />
   </div>
 );

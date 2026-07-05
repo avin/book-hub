@@ -3,16 +3,11 @@
 
 .uploadPage {
   display: grid;
-  max-width: 860px;
+  max-width: 980px;
   gap: 24px;
 }
 
 .header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-
   h1 {
     margin: 4px 0 0;
     color: $color-ink-950;
@@ -29,24 +24,6 @@
   font-weight: 750;
   letter-spacing: 0;
   text-transform: uppercase;
-}
-
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: $color-blue-700;
-  font-weight: 700;
-  text-decoration: none;
-
-  &:focus-visible {
-    @include focus-ring;
-  }
-
-  :global(svg) {
-    width: 18px;
-    height: 18px;
-  }
 }
 
 .form {
@@ -75,6 +52,11 @@
     border-color: $color-blue-600;
     outline: none;
     box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.12);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.72;
   }
 
   span {
@@ -106,9 +88,121 @@
   display: none;
 }
 
-.fields {
+.bookDrafts {
   display: grid;
+  gap: 14px;
+}
+
+.bookDraft {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
   gap: 16px;
+  padding: 16px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-paper-0;
+  box-shadow: 0 8px 24px rgba(24, 32, 42, 0.05);
+}
+
+.coverColumn {
+  align-self: start;
+}
+
+.coverButton {
+  display: block;
+  width: 148px;
+  padding: 0;
+  border: 0;
+  border-radius: $radius-sm;
+  background: transparent;
+  cursor: pointer;
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.72;
+  }
+}
+
+.coverPreview {
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-paper-100;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.coverPlaceholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: $color-ink-500;
+
+  :global(svg) {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.draftFields {
+  display: flex;
+  align-self: start;
+  flex-direction: column;
+  min-width: 0;
+  gap: 14px;
+}
+
+.titleInput {
+  position: relative;
+}
+
+.titleInputField {
+  padding-right: 46px;
+}
+
+.extractTitleButton {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.statusText,
+.warningText,
+.successText {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.statusText {
+  color: $color-ink-600;
+}
+
+.warningText {
+  color: $color-red-700;
+}
+
+.successText {
+  color: $color-sage-700;
+}
+
+.draftStatus {
+  display: grid;
+  min-height: 18px;
+  gap: 4px;
 }
 
 .fieldLabel {
@@ -119,20 +213,9 @@
   font-weight: 650;
 }
 
-.checkboxRow {
-  display: inline-flex;
-  width: max-content;
-  max-width: 100%;
-  align-items: center;
-  gap: 8px;
-  color: $color-ink-900;
-  font-weight: 650;
-
-  :global(svg) {
-    width: 18px;
-    height: 18px;
-    color: $color-red-700;
-  }
+.draftActions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .error {
@@ -145,15 +228,28 @@
 .actions {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 @media (max-width: 720px) {
-  .header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .dropzone {
     min-height: 180px;
+  }
+
+  .bookDraft {
+    grid-template-columns: 1fr;
+  }
+
+  .coverColumn {
+    width: 96px;
+  }
+
+  .coverButton {
+    width: 96px;
+  }
+
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
