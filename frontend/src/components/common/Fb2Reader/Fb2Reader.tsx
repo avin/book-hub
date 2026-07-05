@@ -33,6 +33,11 @@ const fontOptions = [
   "Verdana, sans-serif",
 ];
 
+type ScrollAnchor = {
+  blockIndex: number;
+  offsetRatio: number;
+};
+
 function safeHref(href: string | undefined) {
   if (!href) {
     return undefined;
@@ -217,7 +222,12 @@ function SettingRow(props: { label: string; value?: string; children: JSX.Elemen
 
 function Fb2Reader(props: Fb2ReaderProps) {
   let rootRef: HTMLDivElement | undefined;
+  let documentRef: HTMLElement | undefined;
   let rulerRef: HTMLDivElement | undefined;
+  let scrollAnchorFrame: number | undefined;
+  let lockedScrollAnchor: ScrollAnchor | undefined;
+  let resizeScrollAnchor: ScrollAnchor | undefined;
+  let resizeAnchorTimeout: number | undefined;
   const [settings, setSettings] = createSignal<Fb2ReaderSettings>({ ...defaultSettings, ...props.initialSettings });
   const [viewportHeight, setViewportHeight] = createSignal(900);
   const [scrollTop, setScrollTop] = createSignal(0);
@@ -226,6 +236,7 @@ function Fb2Reader(props: Fb2ReaderProps) {
   const [panelOpen, setPanelOpen] = createSignal(false);
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
+  const [pendingScrollAnchor, setPendingScrollAnchor] = createSignal<ScrollAnchor>();
   const parsed = createMemo(() => parseFb2(props.fb2));
   const availableTextWidth = createMemo(() => Math.max(320, readerWidth() - settings().pagePadding * 2));
   const textWidth = createMemo(() => Math.min(availableTextWidth(), settings().maxTextWidth ?? availableTextWidth()));
@@ -296,20 +307,79 @@ function Fb2Reader(props: Fb2ReaderProps) {
     return [parsed().title, authors].filter(Boolean).join(" · ") || "FB2";
   });
 
-  const updateSetting = <T extends keyof Fb2ReaderSettings>(key: T, value: Fb2ReaderSettings[T]) => {
+  const documentScrollTop = () => {
+    if (!documentRef) {
+      return scrollTop();
+    }
+
+    const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
+
+    return Math.max(0, window.scrollY - documentTop);
+  };
+
+  const captureScrollAnchor = () => {
+    const currentLayout = layout();
+
+    if (currentLayout.offsets.length === 0) {
+      return undefined;
+    }
+
+    const currentDocumentScrollTop = documentScrollTop();
+    const blockIndex = findBlockIndex(currentLayout.offsets, currentDocumentScrollTop);
+    const blockTop = currentLayout.offsets[blockIndex] ?? 0;
+    const blockHeight = Math.max(1, currentLayout.heights[blockIndex] ?? 1);
+    const offsetRatio = clamp((currentDocumentScrollTop - blockTop) / blockHeight, 0, 1);
+
+    return { blockIndex, offsetRatio };
+  };
+
+  const updateSetting = <T extends keyof Fb2ReaderSettings>(
+    key: T,
+    value: Fb2ReaderSettings[T],
+    keepLockedAnchor = false,
+  ) => {
+    const anchor = keepLockedAnchor && lockedScrollAnchor ? lockedScrollAnchor : captureScrollAnchor();
+
+    if (anchor) {
+      setPendingScrollAnchor(anchor);
+    }
+
     setSettings((current) => settingValue(current, key, value));
   };
 
-  const measureReader = () => {
+  const lockResizeScrollAnchor = () => {
+    if (lockedScrollAnchor) {
+      return;
+    }
+
+    resizeScrollAnchor = resizeScrollAnchor ?? captureScrollAnchor();
+
+    if (resizeScrollAnchor) {
+      setPendingScrollAnchor(resizeScrollAnchor);
+    }
+
+    if (resizeAnchorTimeout !== undefined) {
+      window.clearTimeout(resizeAnchorTimeout);
+    }
+
+    resizeAnchorTimeout = window.setTimeout(() => {
+      resizeScrollAnchor = undefined;
+      resizeAnchorTimeout = undefined;
+    }, 180);
+  };
+
+  const measureReader = (preserveScrollAnchor = false) => {
     if (!rootRef) {
       return;
     }
 
-    const rootTop = rootRef.getBoundingClientRect().top + window.scrollY;
+    if (preserveScrollAnchor) {
+      lockResizeScrollAnchor();
+    }
 
     setReaderWidth(rootRef.clientWidth);
     setViewportHeight(window.innerHeight);
-    setScrollTop(Math.max(0, window.scrollY - rootTop));
+    setScrollTop(documentScrollTop());
   };
 
   const applyRulerPointer = (event: PointerEvent | MouseEvent) => {
@@ -323,7 +393,7 @@ function Fb2Reader(props: Fb2ReaderProps) {
     const documentRight = rootRect.right - settings().pagePadding;
 
     if (event.clientX <= documentLeft || event.clientX >= documentRight) {
-      updateSetting("maxTextWidth", undefined);
+      updateSetting("maxTextWidth", undefined, true);
       setGuideX(event.clientX);
       return;
     }
@@ -334,13 +404,17 @@ function Fb2Reader(props: Fb2ReaderProps) {
     const nextWidth = nextHalfWidth * 2;
 
     setGuideX(center + side * nextHalfWidth);
-    updateSetting("maxTextWidth", Math.round(nextWidth));
+    updateSetting("maxTextWidth", Math.round(nextWidth), true);
   };
 
   const onRulerPointerDown = (event: PointerEvent) => {
     const target = event.currentTarget as HTMLDivElement | null;
 
     target?.setPointerCapture(event.pointerId);
+    lockedScrollAnchor = captureScrollAnchor();
+    if (lockedScrollAnchor) {
+      setPendingScrollAnchor(lockedScrollAnchor);
+    }
     setDraggingWidth(true);
     applyRulerPointer(event);
   };
@@ -358,13 +432,14 @@ function Fb2Reader(props: Fb2ReaderProps) {
 
     target?.releasePointerCapture(event.pointerId);
     setDraggingWidth(false);
+    lockedScrollAnchor = undefined;
     setGuideX(undefined);
   };
 
   onMount(() => {
-    const resizeObserver = new ResizeObserver(measureReader);
+    const resizeObserver = new ResizeObserver(() => measureReader(true));
     const onScroll = () => measureReader();
-    const onResize = () => measureReader();
+    const onResize = () => measureReader(true);
     const onPointerMove = (event: PointerEvent) => {
       if (event.clientY < 88) {
         setHeaderVisible(true);
@@ -393,6 +468,49 @@ function Fb2Reader(props: Fb2ReaderProps) {
   createEffect(() => {
     if (panelOpen()) {
       setHeaderVisible(true);
+    }
+  });
+
+  createEffect(() => {
+    const anchor = pendingScrollAnchor();
+    const currentLayout = layout();
+
+    if (!anchor || !documentRef) {
+      return;
+    }
+
+    const blockIndex = Math.min(anchor.blockIndex, currentLayout.offsets.length - 1);
+
+    if (blockIndex < 0) {
+      setPendingScrollAnchor(undefined);
+      return;
+    }
+
+    const blockTop = currentLayout.offsets[blockIndex] ?? 0;
+    const blockHeight = Math.max(1, currentLayout.heights[blockIndex] ?? 1);
+    const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
+    const nextDocumentScrollTop = blockTop + blockHeight * anchor.offsetRatio;
+    const nextScrollTop = documentTop + nextDocumentScrollTop;
+
+    if (scrollAnchorFrame !== undefined) {
+      cancelAnimationFrame(scrollAnchorFrame);
+    }
+
+    scrollAnchorFrame = requestAnimationFrame(() => {
+      window.scrollTo({ top: nextScrollTop });
+      setScrollTop(nextDocumentScrollTop);
+      setPendingScrollAnchor(undefined);
+      scrollAnchorFrame = undefined;
+    });
+  });
+
+  onCleanup(() => {
+    if (scrollAnchorFrame !== undefined) {
+      cancelAnimationFrame(scrollAnchorFrame);
+    }
+
+    if (resizeAnchorTimeout !== undefined) {
+      window.clearTimeout(resizeAnchorTimeout);
     }
   });
 
@@ -565,7 +683,7 @@ function Fb2Reader(props: Fb2ReaderProps) {
       </aside>
 
       <main class={styles.documentShell}>
-        <article class={styles.document} style={{ width: `${textWidth()}px` }}>
+        <article ref={documentRef} class={styles.document} style={{ width: `${textWidth()}px` }}>
           <div style={{ height: `${topSpacer()}px` }} aria-hidden="true" />
           <For each={visibleBlocks()}>
             {(item) => (
