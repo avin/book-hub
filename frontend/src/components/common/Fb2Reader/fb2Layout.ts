@@ -1,7 +1,21 @@
-import { measureRichInlineStats, prepareRichInline, RichInlineItem } from "@chenglou/pretext/rich-inline";
+import {
+  layoutNextRichInlineLineRange,
+  prepareRichInline,
+  type PreparedRichInline,
+  type RichInlineCursor,
+  type RichInlineItem,
+} from "@chenglou/pretext/rich-inline";
+import { fontFamilyForMeasurement, webFontMeasureWidthFudge } from "./fb2FontMetrics";
 import { Fb2Block, Fb2Inline, Fb2ReaderSettings, Fb2TableCell, VirtualLayout } from "./fb2Types";
 
 const minMeasureWidth = 240;
+const quoteInset = 32;
+const titlePaddingTop = 8;
+
+type MeasureWidths = {
+  lineWidth: number;
+  firstLineWidth?: number;
+};
 
 type TextMetrics = {
   fontSize: number;
@@ -11,7 +25,7 @@ type TextMetrics = {
 };
 
 function fontFamily(settings: Fb2ReaderSettings) {
-  return settings.fontFamily.includes(",") ? settings.fontFamily : `"${settings.fontFamily}"`;
+  return fontFamilyForMeasurement(settings);
 }
 
 function fontString(settings: Fb2ReaderSettings, fontSize: number, weight = 400, style = "normal") {
@@ -102,9 +116,63 @@ function inlinePlainText(inline: Fb2Inline): string {
   return (inline.children ?? []).map(inlinePlainText).join("");
 }
 
+function tightenMeasureWidth(width: number, settings: Fb2ReaderSettings) {
+  return Math.max(minMeasureWidth, width - webFontMeasureWidthFudge(settings));
+}
+
+function measureWidthsForBlock(block: Fb2Block, width: number, settings: Fb2ReaderSettings): MeasureWidths {
+  const measureWidth = tightenMeasureWidth(width, settings);
+
+  if (
+    block.role === "annotation" ||
+    block.role === "metadata" ||
+    block.role === "cite" ||
+    block.role === "epigraph"
+  ) {
+    return { lineWidth: Math.max(minMeasureWidth, measureWidth - quoteInset) };
+  }
+
+  if (block.kind === "listItem") {
+    return { lineWidth: Math.max(minMeasureWidth, measureWidth - settings.paragraphIndent) };
+  }
+
+  if (block.kind === "poemLine") {
+    return { lineWidth: Math.max(minMeasureWidth, measureWidth - settings.paragraphIndent * 1.2) };
+  }
+
+  if (block.kind === "paragraph") {
+    return {
+      lineWidth: measureWidth,
+      firstLineWidth: Math.max(minMeasureWidth, measureWidth - settings.paragraphIndent),
+    };
+  }
+
+  return { lineWidth: measureWidth };
+}
+
+function measureRichLineCount(prepared: PreparedRichInline, widths: MeasureWidths) {
+  let lineCount = 0;
+  let cursor: RichInlineCursor | undefined;
+
+  while (true) {
+    const maxWidth =
+      lineCount === 0 && widths.firstLineWidth !== undefined ? widths.firstLineWidth : widths.lineWidth;
+    const line = layoutNextRichInlineLineRange(prepared, Math.max(minMeasureWidth, maxWidth), cursor);
+
+    if (!line) {
+      break;
+    }
+
+    lineCount += 1;
+    cursor = line.end;
+  }
+
+  return Math.max(1, lineCount);
+}
+
 function measureInlinesHeight(
   inlines: Fb2Inline[] | undefined,
-  width: number,
+  widths: MeasureWidths,
   metrics: TextMetrics,
   settings: Fb2ReaderSettings,
 ) {
@@ -115,9 +183,9 @@ function measureInlinesHeight(
   }
 
   const prepared = prepareRichInline(items);
-  const stats = measureRichInlineStats(prepared, Math.max(minMeasureWidth, width));
+  const lineCount = measureRichLineCount(prepared, widths);
 
-  return Math.max(1, stats.lineCount) * metrics.lineHeightPx + metrics.marginBlock;
+  return lineCount * metrics.lineHeightPx + metrics.marginBlock;
 }
 
 function measureCodeBlock(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
@@ -143,7 +211,7 @@ function measureTableCell(cell: Fb2TableCell, width: number, settings: Fb2Reader
     marginBlock: 16,
   };
 
-  return measureInlinesHeight(cell.inlines, width, metrics, settings);
+  return measureInlinesHeight(cell.inlines, { lineWidth: width }, metrics, settings);
 }
 
 function measureTable(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
@@ -173,11 +241,6 @@ function measureTable(block: Fb2Block, width: number, settings: Fb2ReaderSetting
 }
 
 function measureBlockHeight(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
-  const textWidth =
-    block.role === "annotation" || block.role === "metadata" || block.role === "cite" || block.role === "epigraph"
-      ? Math.max(minMeasureWidth, width - 32)
-      : width;
-
   switch (block.kind) {
     case "emptyLine":
       return settings.fontSize * settings.lineHeight;
@@ -189,8 +252,16 @@ function measureBlockHeight(block: Fb2Block, width: number, settings: Fb2ReaderS
       return Math.min(520, Math.max(220, width * 0.58)) + settings.paragraphSpacing + 12;
     case "table":
       return measureTable(block, width, settings);
-    default:
-      return measureInlinesHeight(block.inlines, textWidth, textMetrics(block, settings), settings);
+    default: {
+      const height = measureInlinesHeight(
+        block.inlines,
+        measureWidthsForBlock(block, width, settings),
+        textMetrics(block, settings),
+        settings,
+      );
+
+      return block.kind === "title" ? height + titlePaddingTop : height;
+    }
   }
 }
 

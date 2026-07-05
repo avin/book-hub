@@ -6,7 +6,7 @@ const coverImage =
   "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iOTAwIiB2aWV3Qm94PSIwIDAgNjQwIDkwMCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSI5MDAiIGZpbGw9IiNmN2YzZWEiLz48cmVjdCB4PSI1NCIgeT0iNTQiIHdpZHRoPSI1MzIiIGhlaWdodD0iNzkyIiByeD0iMTgiIGZpbGw9IiMyNDUyN2EiLz48cmVjdCB4PSI5MCIgeT0iMTA0IiB3aWR0aD0iNDYwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2YwZGZiNyIvPjx0ZXh0IHg9IjMyMCIgeT0iMTc4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjQ2IiBmb250LWZhbWlseT0iR2VvcmdpYSIgZmlsbD0iIzE0MTcxZiI+RkIyPC90ZXh0Pjx0ZXh0IHg9IjMyMCIgeT0iMzMwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0iR2VvcmdpYSIgZmlsbD0iI2ZmZmZmZiI+Qm9vayBIdWI8L3RleHQ+PHRleHQgeD0iMzIwIiB5PSIzODgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhIiBmaWxsPSIjZGJlYWY0Ij5zYW1wbGUgY292ZXI8L3RleHQ+PC9zdmc+";
 
 const repeatedSections = Array.from(
-  { length: 700 },
+  { length: 70 },
   (_, index) => `
       <section id="stress-${index + 1}">
         <title><p>Виртуальная секция ${index + 1}</p></title>
