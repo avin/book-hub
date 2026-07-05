@@ -3,9 +3,7 @@
 
 .reader {
   min-height: 100vh;
-  background:
-    linear-gradient(90deg, rgba(36, 82, 122, 0.05), transparent 28%, transparent 72%, rgba(47, 95, 82, 0.06)),
-    var(--fb2-bg);
+  background: var(--fb2-bg);
   color: var(--fb2-text);
   font-family: var(--fb2-font-family);
   font-synthesis: style;
