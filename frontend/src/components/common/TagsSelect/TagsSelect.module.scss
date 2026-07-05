@@ -5,10 +5,11 @@
   @include control-text;
 
   display: flex;
+  flex-wrap: wrap;
   width: 100%;
-  min-height: 42px;
+  min-height: 54px;
   align-items: center;
-  padding: 5px 10px;
+  padding: 23px 12px 8px;
   gap: 8px;
   border: 1px solid $color-border;
   border-radius: $radius-sm;
@@ -49,10 +50,10 @@
 
 .tag {
   display: inline-flex;
-  min-height: 26px;
+  min-height: 22px;
   max-width: 100%;
   align-items: center;
-  padding: 3px 6px 3px 9px;
+  padding: 1px 6px 1px 9px;
   gap: 6px;
   border: 1px solid $color-blue-100;
   border-radius: 999px;
@@ -94,7 +95,7 @@
 
   min-width: 120px;
   flex: 1 1 140px;
-  height: 30px;
+  height: 22px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -102,11 +103,17 @@
   outline: none;
 
   &::placeholder {
-    color: $color-ink-500;
+    color: transparent;
   }
 
   &:disabled {
     cursor: not-allowed;
+  }
+}
+
+.inputContainer:focus-within {
+  .input::placeholder {
+    color: $color-ink-500;
   }
 }
 

@@ -52,6 +52,11 @@
   padding: $space-1 $space-5;
 }
 
+.headerContent {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .bookTitle {
   @include truncate;
 

@@ -7,6 +7,7 @@ function InputContainer(props: {
   htmlFor?: string;
   error?: JSX.Element;
   subtext?: JSX.Element;
+  filled?: boolean;
   hideErrorText?: boolean;
   endContent?: JSX.Element;
 }) {
@@ -15,8 +16,16 @@ function InputContainer(props: {
   const [filled, setFilled] = createSignal(false);
 
   const syncFilledState = () => {
-    const fields = Array.from(rootEl?.querySelectorAll("input, textarea") ?? []);
-    setFilled(fields.some((field) => (field as HTMLInputElement | HTMLTextAreaElement).value.length > 0));
+    const fields = Array.from(rootEl?.querySelectorAll("input, textarea, select") ?? []);
+    const hasFilledField = fields.some((field) => {
+      if (field instanceof HTMLInputElement && ["checkbox", "radio"].includes(field.type)) {
+        return field.checked;
+      }
+
+      return (field as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value.length > 0;
+    });
+
+    setFilled(hasFilledField || Boolean(rootEl?.querySelector('[data-filled="true"]')));
   };
 
   return (
@@ -25,7 +34,7 @@ function InputContainer(props: {
       class={styles.container}
       classList={{
         [styles.focused]: focused(),
-        [styles.filled]: filled(),
+        [styles.filled]: props.filled ?? filled(),
         [styles.invalid]: Boolean(props.error),
         [styles.withEndContent]: Boolean(props.endContent),
       }}

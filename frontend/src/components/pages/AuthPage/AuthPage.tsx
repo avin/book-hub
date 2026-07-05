@@ -100,7 +100,12 @@ function AuthPage(props: {
         </div>
 
         <form class={styles.form} onSubmit={submit}>
-          <InputContainer label={t("login")} htmlFor="login" error={loginError()}>
+          <InputContainer
+            label={t("login")}
+            htmlFor="login"
+            error={loginError()}
+            filled={Boolean(login())}
+          >
             <TextInput
               id="login"
               value={login()}
@@ -115,6 +120,7 @@ function AuthPage(props: {
             label={t("password")}
             htmlFor="password"
             error={passwordError()}
+            filled={Boolean(password())}
             endContent={
               <button
                 type="button"
@@ -140,7 +146,12 @@ function AuthPage(props: {
           </InputContainer>
 
           <Show when={isRegister()}>
-            <InputContainer label={t("repeatPassword")} htmlFor="repeat-password" error={repeatPasswordError()}>
+            <InputContainer
+              label={t("repeatPassword")}
+              htmlFor="repeat-password"
+              error={repeatPasswordError()}
+              filled={Boolean(repeatPassword())}
+            >
               <TextInput
                 id="repeat-password"
                 type={showPassword() ? "text" : "password"}

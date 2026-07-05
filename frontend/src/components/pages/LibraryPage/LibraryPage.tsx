@@ -29,23 +29,6 @@ import styles from "./LibraryPage.module.scss";
 
 const pageLimit = 24;
 
-function formatBytes(value: number) {
-  if (value < 1024) {
-    return `${value} B`;
-  }
-
-  const units = ["KB", "MB", "GB"];
-  let nextValue = value / 1024;
-  let unitIndex = 0;
-
-  while (nextValue >= 1024 && unitIndex < units.length - 1) {
-    nextValue /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${nextValue.toFixed(nextValue >= 10 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
 function errorMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
     return error.message;
@@ -173,14 +156,13 @@ function EditBookDialog(props: {
         </header>
 
         <div class={styles.dialogBody}>
-          <InputContainer label={t("title")}>
+          <InputContainer label={t("title")} filled={Boolean(title())}>
             <TextInput value={title()} onInput={(event) => setTitle(event.currentTarget.value)} />
           </InputContainer>
 
-          <label class={styles.fieldLabel}>
-            <span>{t("tags")}</span>
+          <InputContainer label={t("tags")} filled={tags().length > 0}>
             <TagsSelect value={tags()} options={props.tagOptions} onChange={setTags} />
-          </label>
+          </InputContainer>
 
           <label class={styles.checkboxRow}>
             <input
@@ -273,6 +255,7 @@ function LibraryPage() {
       patch: {
         favorite: !book.favorite,
       },
+      invalidateBooks: false,
     });
   };
 
@@ -299,7 +282,7 @@ function LibraryPage() {
         </header>
 
         <section class={styles.toolbar}>
-          <InputContainer label={t("searchBooks")} endContent={<Search />}>
+          <InputContainer label={t("searchBooks")} filled={Boolean(search())} endContent={<Search />}>
             <TextInput
               value={search()}
               onInput={(event) => {
@@ -309,9 +292,9 @@ function LibraryPage() {
             />
           </InputContainer>
 
-          <label class={styles.selectLabel}>
-            <span>{t("sort")}</span>
+          <InputContainer label={t("sort")} filled={Boolean(sort())}>
             <select
+              class={styles.selectControl}
               value={sort()}
               onChange={(event) => {
                 setSort(event.currentTarget.value as BookSort);
@@ -325,43 +308,44 @@ function LibraryPage() {
               <option value="progress_desc">{t("progressHigh")}</option>
               <option value="progress_asc">{t("progressLow")}</option>
             </select>
-          </label>
+          </InputContainer>
 
-          <div class={styles.segmented} role="group" aria-label={t("favoritesFilter")}>
-            <button
-              type="button"
-              classList={{ [styles.activeSegment]: favoriteFilter() === "all" }}
-              onClick={() => {
-                setFavoriteFilter("all");
-                resetToFirstPage();
-              }}
-            >
-              {t("all")}
-            </button>
-            <button
-              type="button"
-              classList={{ [styles.activeSegment]: favoriteFilter() === "favorite" }}
-              onClick={() => {
-                setFavoriteFilter("favorite");
-                resetToFirstPage();
-              }}
-            >
-              {t("favorites")}
-            </button>
-            <button
-              type="button"
-              classList={{ [styles.activeSegment]: favoriteFilter() === "regular" }}
-              onClick={() => {
-                setFavoriteFilter("regular");
-                resetToFirstPage();
-              }}
-            >
-              {t("other")}
-            </button>
-          </div>
+          <InputContainer label={t("favoritesFilter")} filled>
+            <div class={styles.segmented} role="group" aria-label={t("favoritesFilter")}>
+              <button
+                type="button"
+                classList={{ [styles.activeSegment]: favoriteFilter() === "all" }}
+                onClick={() => {
+                  setFavoriteFilter("all");
+                  resetToFirstPage();
+                }}
+              >
+                {t("all")}
+              </button>
+              <button
+                type="button"
+                classList={{ [styles.activeSegment]: favoriteFilter() === "favorite" }}
+                onClick={() => {
+                  setFavoriteFilter("favorite");
+                  resetToFirstPage();
+                }}
+              >
+                {t("favorites")}
+              </button>
+              <button
+                type="button"
+                classList={{ [styles.activeSegment]: favoriteFilter() === "regular" }}
+                onClick={() => {
+                  setFavoriteFilter("regular");
+                  resetToFirstPage();
+                }}
+              >
+                {t("other")}
+              </button>
+            </div>
+          </InputContainer>
 
-          <label class={styles.tagsFilter}>
-            <span>{t("tags")}</span>
+          <InputContainer label={t("tags")} filled={selectedTags().length > 0}>
             <TagsSelect
               value={selectedTags()}
               options={tagOptions()}
@@ -370,7 +354,7 @@ function LibraryPage() {
                 resetToFirstPage();
               }}
             />
-          </label>
+          </InputContainer>
         </section>
 
         <Show when={booksQuery.isLoading}>
@@ -390,7 +374,7 @@ function LibraryPage() {
         </Show>
 
         <Show when={books().length > 0}>
-          <div class={styles.grid}>
+          <div class={styles.bookList}>
             <For each={books()}>
               {(book) => (
                 <article class={styles.bookCard}>
@@ -402,22 +386,36 @@ function LibraryPage() {
                       <h2>
                         <A href={`/reader/${book.id}`}>{book.title}</A>
                       </h2>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        iconOnly
-                        aria-label={book.favorite ? t("removeFromFavorites") : t("addToFavorites")}
-                        iconStart={<Heart />}
-                        classList={{ [styles.favoriteActive]: book.favorite }}
-                        onClick={() => handleFavoriteToggle(book)}
-                      />
-                    </div>
-
-                    <div class={styles.meta}>
-                      <span>{book.format.toUpperCase()}</span>
-                      <span>{formatBytes(book.size_bytes)}</span>
-                      <span>{Math.round(book.progress_percent)}%</span>
+                      <div class={styles.bookActions}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          aria-label={book.favorite ? t("removeFromFavorites") : t("addToFavorites")}
+                          iconStart={<Heart />}
+                          classList={{ [styles.favoriteActive]: book.favorite }}
+                          onClick={() => handleFavoriteToggle(book)}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          aria-label={t("edit")}
+                          iconStart={<Edit3 />}
+                          onClick={() => setEditingBook(book)}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          aria-label={t("delete")}
+                          iconStart={<Trash2 />}
+                          onClick={() => handleDelete(book)}
+                        />
+                      </div>
                     </div>
 
                     <div class={styles.progress}>
@@ -429,30 +427,6 @@ function LibraryPage() {
                         <For each={book.tags}>{(tag) => <span>{tag}</span>}</For>
                       </div>
                     </Show>
-
-                    <footer class={styles.cardActions}>
-                      <A href={`/reader/${book.id}`} class={styles.readLink}>
-                        {t("read")}
-                      </A>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        iconStart={<Edit3 />}
-                        onClick={() => setEditingBook(book)}
-                      >
-                        {t("edit")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        iconOnly
-                        aria-label={t("delete")}
-                        iconStart={<Trash2 />}
-                        onClick={() => handleDelete(book)}
-                      />
-                    </footer>
                   </div>
                 </article>
               )}

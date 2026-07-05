@@ -1,4 +1,4 @@
-import { createMutation, createQuery, useQueryClient } from "@tanstack/solid-query";
+import { createMutation, createQuery, type QueryClient, useQueryClient } from "@tanstack/solid-query";
 import type { components } from "@/api/generated/schema";
 import { apiClient, getCsrfToken } from "./client";
 import { getApiBaseUrl } from "./baseUrl";
@@ -51,6 +51,47 @@ export function createBooksQuery(query: () => BookQueryRequest) {
     queryKey: [...booksQueryKey, query()],
     queryFn: () => queryBooks(query()),
   }));
+}
+
+function isBooksQueryKey(queryKey: readonly unknown[]): queryKey is readonly ["books", BookQueryRequest] {
+  return queryKey[0] === booksQueryKey[0] && typeof queryKey[1] === "object" && queryKey[1] !== null;
+}
+
+function updateBookListCache(list: BookListResponse | undefined, query: BookQueryRequest, book: Book) {
+  if (!list) {
+    return list;
+  }
+
+  const bookIndex = list.items.findIndex((item) => item.id === book.id);
+
+  if (bookIndex === -1) {
+    return list;
+  }
+
+  if (query.favorite !== null && query.favorite !== undefined && query.favorite !== book.favorite) {
+    return {
+      ...list,
+      items: list.items.filter((item) => item.id !== book.id),
+      total: Math.max(0, list.total - 1),
+    };
+  }
+
+  return {
+    ...list,
+    items: list.items.map((item) => (item.id === book.id ? book : item)),
+  };
+}
+
+function updateCachedBookLists(queryClient: QueryClient, book: Book) {
+  for (const [queryKey] of queryClient.getQueriesData<BookListResponse>({ queryKey: booksQueryKey })) {
+    if (!isBooksQueryKey(queryKey)) {
+      continue;
+    }
+
+    queryClient.setQueryData<BookListResponse>(queryKey, (list) =>
+      updateBookListCache(list, queryKey[1], book),
+    );
+  }
 }
 
 export async function getBook(bookId: string) {
@@ -147,10 +188,15 @@ export function createUpdateBookMutation() {
   const queryClient = useQueryClient();
 
   return createMutation(() => ({
-    mutationFn: (input: { bookId: string; patch: BookPatchRequest }) =>
+    mutationFn: (input: { bookId: string; patch: BookPatchRequest; invalidateBooks?: boolean }) =>
       updateBook(input.bookId, input.patch),
-    onSuccess: (book) => {
+    onSuccess: (book, input) => {
       queryClient.setQueryData(["book", book.id], book);
+      if (input.invalidateBooks === false) {
+        updateCachedBookLists(queryClient, book);
+        return;
+      }
+
       void queryClient.invalidateQueries({ queryKey: booksQueryKey });
     },
   }));

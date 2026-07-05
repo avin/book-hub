@@ -6,6 +6,7 @@ import styles from "./ReaderChrome.module.scss";
 function ReaderChrome(props: {
   visible: boolean;
   title: string;
+  headerContent?: JSX.Element;
   rulerTicks: number[];
   markerStyles: {
     left: JSX.CSSProperties;
@@ -24,7 +25,7 @@ function ReaderChrome(props: {
     <>
       <header class={styles.header} classList={{ [styles.visible]: props.visible }} onPointerEnter={props.onShow}>
         <div class={styles.headerBar}>
-          <div class={styles.bookTitle}>{props.title}</div>
+          <div class={styles.headerContent}>{props.headerContent ?? <div class={styles.bookTitle}>{props.title}</div>}</div>
           <Button
             variant="secondary"
             type="button"

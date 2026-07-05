@@ -51,6 +51,46 @@ function ReaderPage() {
   const isFb2 = createMemo(() => book()?.format === "fb2");
   const isPdf = createMemo(() => book()?.format === "pdf");
 
+  const toggleFavorite = () => {
+    const currentBook = book();
+    if (!currentBook) {
+      return;
+    }
+
+    updateBookMutation.mutate({
+      bookId: currentBook.id,
+      patch: {
+        favorite: !currentBook.favorite,
+      },
+      invalidateBooks: false,
+    });
+  };
+
+  const chromeContent = () => (
+    <div class={styles.chromeContent}>
+      <A href="/library" class={styles.backLink} aria-label={t("library")}>
+        <ArrowLeft />
+      </A>
+
+      <div class={styles.bookTitle}>
+        <Show when={book()} fallback={<span>{t("loading")}</span>}>
+          {(currentBook) => <strong>{currentBook().title}</strong>}
+        </Show>
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        iconOnly
+        aria-label={book()?.favorite ? t("removeFromFavorites") : t("addToFavorites")}
+        iconStart={<Heart />}
+        classList={{ [styles.favoriteActive]: Boolean(book()?.favorite) }}
+        onClick={toggleFavorite}
+      />
+    </div>
+  );
+
   const scheduleProgressSave = () => {
     if (!isFb2()) {
       return;
@@ -117,51 +157,8 @@ function ReaderPage() {
     }
   });
 
-  const toggleFavorite = () => {
-    const currentBook = book();
-    if (!currentBook) {
-      return;
-    }
-
-    updateBookMutation.mutate({
-      bookId: currentBook.id,
-      patch: {
-        favorite: !currentBook.favorite,
-      },
-    });
-  };
-
   return (
     <div class={styles.readerPage}>
-      <header class={styles.topbar}>
-        <A href="/library" class={styles.backLink}>
-          <ArrowLeft />
-          {t("library")}
-        </A>
-
-        <div class={styles.bookTitle}>
-          <Show when={book()} fallback={<span>{t("loading")}</span>}>
-            {(currentBook) => (
-              <>
-                <strong>{currentBook().title}</strong>
-                <span>{currentBook().format.toUpperCase()} · {Math.round(currentBook().progress_percent)}%</span>
-              </>
-            )}
-          </Show>
-        </div>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          iconOnly
-          aria-label={book()?.favorite ? t("removeFromFavorites") : t("addToFavorites")}
-          iconStart={<Heart />}
-          classList={{ [styles.favoriteActive]: Boolean(book()?.favorite) }}
-          onClick={toggleFavorite}
-        />
-      </header>
-
       <Show when={bookQuery.isError}>
         <div class={styles.state}>{t("requestFailedTryAgain")}</div>
       </Show>
@@ -172,7 +169,7 @@ function ReaderPage() {
 
       <Show when={isFb2()}>
         <Show when={fb2FileQuery.data} fallback={<div class={styles.state}>{t("loading")}</div>}>
-          {(fb2) => <Fb2Reader fb2={fb2()} class={styles.fb2Reader} />}
+          {(fb2) => <Fb2Reader fb2={fb2()} class={styles.fb2Reader} headerContent={chromeContent()} />}
         </Show>
       </Show>
 

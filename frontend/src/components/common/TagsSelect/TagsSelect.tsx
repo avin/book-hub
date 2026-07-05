@@ -277,6 +277,8 @@ function TagsSelect(props: {
         <div
           class={styles.inputContainer}
           classList={{ [styles.disabled]: props.disabled }}
+          data-input-control="true"
+          data-filled={props.value.length > 0 ? "true" : undefined}
           onClick={() => inputEl?.focus()}
         >
           <Show when={props.value.length > 0}>

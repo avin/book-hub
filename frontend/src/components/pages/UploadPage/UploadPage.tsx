@@ -127,14 +127,13 @@ function UploadPage() {
           />
 
           <div class={styles.fields}>
-            <InputContainer label={t("title")}>
+            <InputContainer label={t("title")} filled={Boolean(title())}>
               <TextInput value={title()} onInput={(event) => setTitle(event.currentTarget.value)} />
             </InputContainer>
 
-            <label class={styles.fieldLabel}>
-              <span>{t("tags")}</span>
+            <InputContainer label={t("tags")} filled={tags().length > 0}>
               <TagsSelect value={tags()} onChange={setTags} />
-            </label>
+            </InputContainer>
 
             <label class={styles.checkboxRow}>
               <input

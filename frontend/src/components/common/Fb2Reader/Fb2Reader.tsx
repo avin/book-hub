@@ -86,6 +86,7 @@ function Fb2Reader(props: {
   fb2: string;
   class?: string;
   initialSettings?: Partial<Fb2ReaderSettings>;
+  headerContent?: JSX.Element;
 }) {
   let rootRef: HTMLDivElement | undefined;
   let documentRef: HTMLElement | undefined;
@@ -592,6 +593,7 @@ function Fb2Reader(props: {
       <ReaderChrome
         visible={headerVisible() || panelOpen() || draggingWidth()}
         title={documentTitle()}
+        headerContent={props.headerContent}
         rulerTicks={rulerTicks}
         markerStyles={markerStyles()}
         availableTextWidth={availableTextWidth()}

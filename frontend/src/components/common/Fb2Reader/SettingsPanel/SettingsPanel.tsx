@@ -14,8 +14,8 @@ type UpdateSetting = <T extends keyof Fb2ReaderSettings>(
 function SettingRow(props: { label: string; value?: string; children: JSX.Element }) {
   return (
     <label class={styles.settingRow}>
-      <span>
-        {props.label}
+      <span class={styles.settingLabel}>
+        <span>{props.label}</span>
         <Show when={props.value}>
           <b>{props.value}</b>
         </Show>

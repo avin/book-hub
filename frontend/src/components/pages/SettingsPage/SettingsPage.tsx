@@ -190,21 +190,21 @@ function SettingsPage() {
               <h2>{t("changePassword")}</h2>
             </header>
 
-            <InputContainer label={t("currentPassword")}>
+            <InputContainer label={t("currentPassword")} filled={Boolean(currentPassword())}>
               <TextInput
                 type="password"
                 value={currentPassword()}
                 onInput={(event) => setCurrentPassword(event.currentTarget.value)}
               />
             </InputContainer>
-            <InputContainer label={t("newPassword")}>
+            <InputContainer label={t("newPassword")} filled={Boolean(newPassword())}>
               <TextInput
                 type="password"
                 value={newPassword()}
                 onInput={(event) => setNewPassword(event.currentTarget.value)}
               />
             </InputContainer>
-            <InputContainer label={t("repeatPassword")}>
+            <InputContainer label={t("repeatPassword")} filled={Boolean(repeatPassword())}>
               <TextInput
                 type="password"
                 value={repeatPassword()}
