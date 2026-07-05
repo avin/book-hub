@@ -88,6 +88,10 @@ function AuthPage(props: AuthPageProps) {
   return (
     <AuthLayout>
       <div class={styles.auth}>
+        <header class={styles.header}>
+          <h1>{t("bookHub")}</h1>
+        </header>
+
         <div class={styles.tabs} role="tablist" aria-label={t("bookHub")}>
           <a classList={{ [styles.active]: props.mode === "login" }} href="/login" role="tab">
             {t("signIn")}
