@@ -1,9 +1,9 @@
 import { Settings } from "lucide-solid";
-import { For, JSX } from "solid-js";
+import { For, type JSX } from "solid-js";
 import Button from "@/components/common/Button/Button";
 import styles from "./ReaderChrome.module.scss";
 
-type ReaderChromeProps = {
+function ReaderChrome(props: {
   visible: boolean;
   title: string;
   rulerTicks: number[];
@@ -19,9 +19,7 @@ type ReaderChromeProps = {
   onRulerPointerDown: (event: PointerEvent) => void;
   onRulerPointerMove: (event: PointerEvent) => void;
   onRulerPointerUp: (event: PointerEvent) => void;
-};
-
-function ReaderChrome(props: ReaderChromeProps) {
+}) {
   return (
     <>
       <header class={styles.header} classList={{ [styles.visible]: props.visible }} onPointerEnter={props.onShow}>

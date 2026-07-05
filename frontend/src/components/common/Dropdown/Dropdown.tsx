@@ -1,8 +1,8 @@
-import { autoUpdate, computePosition, flip, offset, Placement, shift, size } from "@floating-ui/dom";
-import { createEffect, JSX, onCleanup, Show } from "solid-js";
+import { autoUpdate, computePosition, flip, offset, type Placement, shift, size } from "@floating-ui/dom";
+import { createEffect, type JSX, onCleanup, Show } from "solid-js";
 import styles from "./Dropdown.module.scss";
 
-export type DropdownProps = {
+function Dropdown(props: {
   trigger: JSX.Element;
   children: JSX.Element;
   open: boolean;
@@ -10,9 +10,7 @@ export type DropdownProps = {
   placement?: Placement;
   minWidth?: number;
   fitReferenceToContent?: boolean;
-};
-
-function Dropdown(props: DropdownProps) {
+}) {
   let rootEl: HTMLDivElement | undefined;
   let referenceEl: HTMLDivElement | undefined;
   let floatingEl: HTMLDivElement | undefined;

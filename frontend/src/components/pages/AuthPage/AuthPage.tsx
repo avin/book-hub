@@ -11,11 +11,9 @@ import styles from "./AuthPage.module.scss";
 
 type AuthMode = "login" | "register";
 
-type AuthPageProps = {
+function AuthPage(props: {
   mode: AuthMode;
-};
-
-function AuthPage(props: AuthPageProps) {
+}) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const loginMutation = createLoginMutation();

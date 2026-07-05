@@ -1,5 +1,5 @@
-import { createContext, createSignal, JSX, useContext } from "solid-js";
-import { Language, languages, MessageKey, messages } from "./messages";
+import { createContext, createSignal, type JSX, useContext } from "solid-js";
+import { type Language, languages, type MessageKey, messages } from "./messages";
 
 const storageKey = "book-hub-language";
 
@@ -25,11 +25,9 @@ function detectLanguage(): Language {
   return (browserLanguage as Language | undefined) ?? "en";
 }
 
-type I18nProviderProps = {
+export function I18nProvider(props: {
   children: JSX.Element;
-};
-
-export function I18nProvider(props: I18nProviderProps) {
+}) {
   const [language, setLanguageSignal] = createSignal<Language>(detectLanguage());
 
   const setLanguage = (nextLanguage: Language) => {

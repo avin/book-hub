@@ -1,16 +1,14 @@
 import { Navigate, Route, Router } from "@solidjs/router";
-import { JSX, Show } from "solid-js";
+import { type JSX, Show } from "solid-js";
 import { createCurrentUserQuery } from "@/api/user";
 import AuthPage from "@/components/pages/AuthPage/AuthPage";
 import TodoPage from "@/components/pages/TodoPage/TodoPage";
 
-type AuthGateProps = {
+function AuthGate(props: {
   children: JSX.Element;
   fallbackHref: string;
   requireAuth: boolean;
-};
-
-function AuthGate(props: AuthGateProps) {
+}) {
   const currentUserQuery = createCurrentUserQuery();
   const isAuthenticated = () => Boolean(currentUserQuery.data) && !currentUserQuery.isError;
 

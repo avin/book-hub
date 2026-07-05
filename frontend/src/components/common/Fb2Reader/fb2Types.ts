@@ -1,4 +1,4 @@
-import { JSX } from "solid-js";
+import type { JSX } from "solid-js";
 
 export type Fb2InlineKind =
   | "text"
@@ -91,12 +91,6 @@ export type Fb2ReaderSettings = {
   paragraphIndent: number;
   pagePadding: number;
   maxTextWidth?: number;
-};
-
-export type Fb2ReaderProps = {
-  fb2: string;
-  class?: string;
-  initialSettings?: Partial<Fb2ReaderSettings>;
 };
 
 export type RenderedBlock = {

@@ -1,25 +1,15 @@
 import { For, Match, Show, Switch } from "solid-js";
-import { Fb2Block, Fb2TableCell } from "../fb2Types";
+import type { Fb2Block, Fb2TableCell } from "../fb2Types";
 import RenderInlines from "../RenderInlines/RenderInlines";
 import styles from "./BlockView.module.scss";
 
-type BlockViewProps = {
-  block: Fb2Block;
-  imageSrc: (id: string | undefined) => string | undefined;
-  onInternalLink: (targetId: string) => void;
-  onFootnoteLink: (targetId: string) => void;
-  isFootnoteTarget: (targetId: string) => boolean;
-};
-
-type TableCellProps = {
+function TableCell(props: {
   cell: Fb2TableCell;
   imageSrc: (id: string | undefined) => string | undefined;
   onInternalLink: (targetId: string) => void;
   onFootnoteLink: (targetId: string) => void;
   isFootnoteTarget: (targetId: string) => boolean;
-};
-
-function TableCell(props: TableCellProps) {
+}) {
   const alignmentStyle = () => (props.cell.align ? { "text-align": props.cell.align } : undefined);
   const content = () => (
     <RenderInlines
@@ -47,7 +37,13 @@ function TableCell(props: TableCellProps) {
   );
 }
 
-function BlockView(props: BlockViewProps) {
+function BlockView(props: {
+  block: Fb2Block;
+  imageSrc: (id: string | undefined) => string | undefined;
+  onInternalLink: (targetId: string) => void;
+  onFootnoteLink: (targetId: string) => void;
+  isFootnoteTarget: (targetId: string) => boolean;
+}) {
   return (
     <Switch>
       <Match when={props.block.kind === "title"}>

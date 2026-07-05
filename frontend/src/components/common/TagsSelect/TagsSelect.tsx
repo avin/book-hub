@@ -4,16 +4,6 @@ import Dropdown from "@/components/common/Dropdown/Dropdown";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./TagsSelect.module.scss";
 
-export type TagsSelectProps = {
-  value: string[];
-  options?: string[];
-  onSearchOptions?: (query: string) => string[] | Promise<string[]>;
-  onChange: (value: string[]) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  showOptionsOnFocus?: boolean;
-};
-
 const RECENT_TAGS_STORAGE_KEY = "book-hub-tags-recent";
 const MAX_RECENT_TAGS = 20;
 const SEARCH_DEBOUNCE_MS = 200;
@@ -75,7 +65,15 @@ function sortTagsByRecent(tags: string[], recentTags: string[]) {
   return [...recentInList, ...rest];
 }
 
-function TagsSelect(props: TagsSelectProps) {
+function TagsSelect(props: {
+  value: string[];
+  options?: string[];
+  onSearchOptions?: (query: string) => string[] | Promise<string[]>;
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  showOptionsOnFocus?: boolean;
+}) {
   const { t } = useI18n();
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal("");

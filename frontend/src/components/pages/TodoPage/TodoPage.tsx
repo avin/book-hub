@@ -1,13 +1,11 @@
 import AppLayout from "@/components/layouts/AppLayout/AppLayout";
-import { MessageKey } from "@/i18n/messages";
+import type { MessageKey } from "@/i18n/messages";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./TodoPage.module.scss";
 
-type TodoPageProps = {
+function TodoPage(props: {
   titleKey: MessageKey;
-};
-
-function TodoPage(props: TodoPageProps) {
+}) {
   const { t } = useI18n();
 
   return (

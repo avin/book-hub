@@ -1,9 +1,10 @@
 import { Check, ChevronDown, Languages } from "lucide-solid";
+import type { Placement } from "@floating-ui/dom";
 import { createMemo, createSignal } from "solid-js";
 import Dropdown from "@/components/common/Dropdown/Dropdown";
-import Menu, { MenuItem } from "@/components/common/Menu/Menu";
+import Menu, { type MenuItem } from "@/components/common/Menu/Menu";
 import { useI18n } from "@/i18n/I18nProvider";
-import { Language } from "@/i18n/messages";
+import type { Language } from "@/i18n/messages";
 import styles from "./LanguageSelect.module.scss";
 
 const languageOptions: { value: Language; label: string }[] = [
@@ -11,7 +12,9 @@ const languageOptions: { value: Language; label: string }[] = [
   { value: "en", label: "English" },
 ];
 
-function LanguageSelect() {
+function LanguageSelect(props: {
+  placement?: Placement;
+}) {
   const { language, setLanguage, t } = useI18n();
   const [open, setOpen] = createSignal(false);
 
@@ -36,7 +39,7 @@ function LanguageSelect() {
     <Dropdown
       open={open()}
       onOpenChange={setOpen}
-      placement="bottom-end"
+      placement={props.placement ?? "bottom-end"}
       minWidth={180}
       fitReferenceToContent
       trigger={

@@ -1,18 +1,16 @@
 import { For, Match, Show, Switch } from "solid-js";
 import Button from "@/components/common/Button/Button";
-import { Fb2Inline } from "../fb2Types";
+import type { Fb2Inline } from "../fb2Types";
 import { isExternalHref, normalizeInternalHref } from "../linkUtils";
 import styles from "./RenderInlines.module.scss";
 
-type RenderInlinesProps = {
+function RenderInlines(props: {
   inlines: Fb2Inline[] | undefined;
   imageSrc: (id: string | undefined) => string | undefined;
   onInternalLink: (targetId: string) => void;
   onFootnoteLink: (targetId: string) => void;
   isFootnoteTarget: (targetId: string) => boolean;
-};
-
-function RenderInlines(props: RenderInlinesProps) {
+}) {
   return (
     <For each={props.inlines ?? []}>
       {(inline) => (

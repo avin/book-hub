@@ -1,12 +1,10 @@
-import { JSX } from "solid-js";
+import type { JSX } from "solid-js";
 import LanguageSelect from "@/components/common/LanguageSelect/LanguageSelect";
 import styles from "./AuthLayout.module.scss";
 
-type AuthLayoutProps = {
+function AuthLayout(props: {
   children: JSX.Element;
-};
-
-function AuthLayout(props: AuthLayoutProps) {
+}) {
   return (
     <main class={styles.layout}>
       <section class={styles.panel}>
@@ -14,7 +12,7 @@ function AuthLayout(props: AuthLayoutProps) {
       </section>
 
       <div class={styles.languageRow}>
-        <LanguageSelect />
+        <LanguageSelect placement="top" />
       </div>
     </main>
   );

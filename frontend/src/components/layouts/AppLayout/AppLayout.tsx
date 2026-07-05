@@ -1,16 +1,14 @@
 import { A, useNavigate } from "@solidjs/router";
-import { JSX } from "solid-js";
+import type { JSX } from "solid-js";
 import { BookOpen, Library, LogOut, Settings, Upload } from "lucide-solid";
 import { createLogoutMutation } from "@/api/auth";
 import Button from "@/components/common/Button/Button";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./AppLayout.module.scss";
 
-type AppLayoutProps = {
+function AppLayout(props: {
   children: JSX.Element;
-};
-
-function AppLayout(props: AppLayoutProps) {
+}) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const logoutMutation = createLogoutMutation();

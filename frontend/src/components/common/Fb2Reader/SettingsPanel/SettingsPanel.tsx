@@ -1,8 +1,8 @@
 import { AlignLeft, Palette, RotateCcw, SlidersHorizontal, Type, X } from "lucide-solid";
-import { For, JSX, Show } from "solid-js";
+import { For, type JSX, Show } from "solid-js";
 import Button from "@/components/common/Button/Button";
 import { fontOptions } from "../fb2ReaderSettings";
-import { Fb2ReaderSettings } from "../fb2Types";
+import type { Fb2ReaderSettings } from "../fb2Types";
 import styles from "./SettingsPanel.module.scss";
 
 type UpdateSetting = <T extends keyof Fb2ReaderSettings>(
@@ -10,14 +10,6 @@ type UpdateSetting = <T extends keyof Fb2ReaderSettings>(
   value: Fb2ReaderSettings[T],
   keepLockedAnchor?: boolean,
 ) => void;
-
-type SettingsPanelProps = {
-  open: boolean;
-  settings: Fb2ReaderSettings;
-  onClose: () => void;
-  onReset: () => void;
-  onUpdateSetting: UpdateSetting;
-};
 
 function SettingRow(props: { label: string; value?: string; children: JSX.Element }) {
   return (
@@ -33,7 +25,13 @@ function SettingRow(props: { label: string; value?: string; children: JSX.Elemen
   );
 }
 
-function SettingsPanel(props: SettingsPanelProps) {
+function SettingsPanel(props: {
+  open: boolean;
+  settings: Fb2ReaderSettings;
+  onClose: () => void;
+  onReset: () => void;
+  onUpdateSetting: UpdateSetting;
+}) {
   return (
     <aside class={styles.settingsPanel} classList={{ [styles.panelOpen]: props.open }}>
       <div class={styles.panelHeader}>

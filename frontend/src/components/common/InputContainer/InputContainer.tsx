@@ -1,7 +1,7 @@
-import { createSignal, JSX, Show } from "solid-js";
+import { createSignal, type JSX, Show } from "solid-js";
 import styles from "./InputContainer.module.scss";
 
-export type InputContainerProps = {
+function InputContainer(props: {
   children: JSX.Element;
   label: string;
   htmlFor?: string;
@@ -9,9 +9,7 @@ export type InputContainerProps = {
   subtext?: JSX.Element;
   hideErrorText?: boolean;
   endContent?: JSX.Element;
-};
-
-function InputContainer(props: InputContainerProps) {
+}) {
   let rootEl: HTMLDivElement | undefined;
   const [focused, setFocused] = createSignal(false);
   const [filled, setFilled] = createSignal(false);

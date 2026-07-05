@@ -1,19 +1,17 @@
-import { JSX, Show, splitProps } from "solid-js";
+import { type JSX, Show, splitProps } from "solid-js";
 import styles from "./Button.module.scss";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "link";
 type ButtonSize = "sm" | "md";
 
-export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
+function Button(props: JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
   iconStart?: JSX.Element;
   iconEnd?: JSX.Element;
   iconOnly?: boolean;
-};
-
-function Button(props: ButtonProps) {
+}) {
   const [local, buttonProps] = splitProps(props, [
     "children",
     "class",

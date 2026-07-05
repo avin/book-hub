@@ -1,11 +1,9 @@
-import { JSX, splitProps } from "solid-js";
+import { type JSX, splitProps } from "solid-js";
 import styles from "./TextInput.module.scss";
 
-export type TextInputProps = JSX.InputHTMLAttributes<HTMLInputElement> & {
+function TextInput(props: JSX.InputHTMLAttributes<HTMLInputElement> & {
   invalid?: boolean;
-};
-
-function TextInput(props: TextInputProps) {
+}) {
   const [local, inputProps] = splitProps(props, ["class", "classList", "invalid"]);
 
   return (

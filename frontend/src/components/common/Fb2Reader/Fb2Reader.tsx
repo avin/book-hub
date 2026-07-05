@@ -1,11 +1,11 @@
-import { createEffect, createMemo, createSignal, For, JSX, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { X } from "lucide-solid";
 import BlockView from "./BlockView/BlockView";
 import Button from "@/components/common/Button/Button";
 import { findBlockIndex, buildVirtualLayout } from "./fb2Layout";
 import { binaryToDataUrl, parseFb2 } from "./fb2Parser";
 import { defaultSettings } from "./fb2ReaderSettings";
-import { CssVars, Fb2ReaderProps, Fb2ReaderSettings, RenderedBlock } from "./fb2Types";
+import type { CssVars, Fb2ReaderSettings, RenderedBlock } from "./fb2Types";
 import ReaderChrome from "./ReaderChrome/ReaderChrome";
 import SettingsPanel from "./SettingsPanel/SettingsPanel";
 import styles from "./Fb2Reader.module.scss";
@@ -27,7 +27,11 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function Fb2Reader(props: Fb2ReaderProps) {
+function Fb2Reader(props: {
+  fb2: string;
+  class?: string;
+  initialSettings?: Partial<Fb2ReaderSettings>;
+}) {
   let rootRef: HTMLDivElement | undefined;
   let documentRef: HTMLElement | undefined;
   let rulerRef: HTMLDivElement | undefined;

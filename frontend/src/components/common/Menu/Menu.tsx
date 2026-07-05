@@ -1,4 +1,4 @@
-import { For, JSX, Show } from "solid-js";
+import { For, type JSX, Show } from "solid-js";
 import styles from "./Menu.module.scss";
 
 export type MenuSeparator<TId = string> = {
@@ -51,13 +51,6 @@ export type MenuItem<TId = string> =
   | MenuLink<TId>
   | MenuCategory<TId>;
 
-export type MenuProps<TId = string> = {
-  items: MenuItem<TId>[];
-  class?: string;
-  withHoverEffect?: boolean;
-  onClick?: (menuItem: MenuActionItem<TId>) => void;
-};
-
 function getItemKey<TId>(item: MenuItem<TId>, index: number) {
   return String(item.key ?? item.id ?? index);
 }
@@ -66,7 +59,12 @@ function getItemStyle(depth: number) {
   return { "--menu-depth": String(depth) } as JSX.CSSProperties;
 }
 
-function Menu<TId = string>(props: MenuProps<TId>) {
+function Menu<TId = string>(props: {
+  items: MenuItem<TId>[];
+  class?: string;
+  withHoverEffect?: boolean;
+  onClick?: (menuItem: MenuActionItem<TId>) => void;
+}) {
   const renderItems = (items: MenuItem<TId>[], depth: number): JSX.Element => (
     <For each={items}>
       {(item, index) => {
