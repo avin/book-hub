@@ -42,6 +42,39 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function pageHeightAtWidth(descriptor: PdfPageDescriptor, widthPx: number) {
+  return widthPx * (descriptor.height / descriptor.width);
+}
+
+function scrollYForAnchor(
+  anchor: ScrollAnchor,
+  pageList: PdfPageDescriptor[],
+  widthPx: number,
+  documentTopAbsolute: number,
+  paddingTop: number,
+  gap: number,
+) {
+  const descriptor = pageList.find((page) => page.pageNumber === anchor.pageNumber);
+
+  if (!descriptor) {
+    return undefined;
+  }
+
+  let pageTop = paddingTop;
+
+  for (const page of pageList) {
+    if (page.pageNumber === anchor.pageNumber) {
+      break;
+    }
+
+    pageTop += pageHeightAtWidth(page, widthPx) + gap;
+  }
+
+  const pageHeight = pageHeightAtWidth(descriptor, widthPx);
+
+  return documentTopAbsolute + pageTop + pageHeight * anchor.offsetRatio;
+}
+
 function PdfReader(props: {
   fileUrl: string;
   title?: string;
@@ -63,7 +96,6 @@ function PdfReader(props: {
   let lockedScrollAnchor: ScrollAnchor | undefined;
   let resizeScrollAnchor: ScrollAnchor | undefined;
   let resizeAnchorTimeout: number | undefined;
-  let scrollAnchorFrame: number | undefined;
   const pageRefs = new Map<number, HTMLElement>();
   const canvasRefs = new Map<number, HTMLCanvasElement>();
   const pageCache = new Map<number, PDFPageProxy>();
@@ -78,7 +110,6 @@ function PdfReader(props: {
   const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>();
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
-  const [pendingScrollAnchor, setPendingScrollAnchor] = createSignal<ScrollAnchor>();
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
@@ -174,11 +205,51 @@ function PdfReader(props: {
     return firstPage ? { pageNumber: firstPage.pageNumber, offsetRatio: 0 } : undefined;
   };
 
-  const scheduleScrollAnchorRestore = (anchor?: ScrollAnchor) => {
-    const nextAnchor = anchor ?? lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
+  const getDocumentLayoutMetrics = () => {
+    if (!documentRef) {
+      return { paddingTop: 32, gap: 18 };
+    }
 
-    if (nextAnchor) {
-      setPendingScrollAnchor({ ...nextAnchor });
+    const layoutStyles = getComputedStyle(documentRef);
+
+    return {
+      paddingTop: Number.parseFloat(layoutStyles.paddingTop) || 32,
+      gap: Number.parseFloat(layoutStyles.rowGap) || Number.parseFloat(layoutStyles.gap) || 18,
+    };
+  };
+
+  const resolvePageWidthPx = (width: number | undefined) => {
+    if (width !== undefined) {
+      return Math.max(minPageWidth, width);
+    }
+
+    if (!rootRef) {
+      return Math.max(minPageWidth, documentWidth());
+    }
+
+    return Math.max(minPageWidth, rootRef.clientWidth - documentPaddingX * 2);
+  };
+
+  const currentScrollAnchor = () => lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
+
+  const applySynchronizedScrollAnchor = (anchor: ScrollAnchor, targetWidthPx: number) => {
+    if (!documentRef) {
+      return;
+    }
+
+    const metrics = getDocumentLayoutMetrics();
+    const documentTopAbsolute = documentRef.getBoundingClientRect().top + window.scrollY;
+    const nextScrollY = scrollYForAnchor(
+      anchor,
+      pages(),
+      targetWidthPx,
+      documentTopAbsolute,
+      metrics.paddingTop,
+      metrics.gap,
+    );
+
+    if (nextScrollY !== undefined) {
+      window.scrollTo(0, nextScrollY);
     }
   };
 
@@ -188,10 +259,6 @@ function PdfReader(props: {
     }
 
     resizeScrollAnchor = resizeScrollAnchor ?? captureScrollAnchor();
-
-    if (resizeScrollAnchor) {
-      setPendingScrollAnchor({ ...resizeScrollAnchor });
-    }
 
     if (resizeAnchorTimeout !== undefined) {
       window.clearTimeout(resizeAnchorTimeout);
@@ -204,7 +271,17 @@ function PdfReader(props: {
   };
 
   const updatePageWidth = (width: number | undefined) => {
-    scheduleScrollAnchorRestore();
+    const anchor = currentScrollAnchor();
+    const targetWidthPx = resolvePageWidthPx(width);
+
+    if (anchor) {
+      applySynchronizedScrollAnchor(anchor, targetWidthPx);
+    }
+
+    if (width === undefined) {
+      setDocumentWidth(targetWidthPx);
+    }
+
     setMaxPageWidth(width);
     renderedKeys.clear();
   };
@@ -222,13 +299,9 @@ function PdfReader(props: {
     renderTasks.clear();
   };
 
-  const measureDocument = (preserveScrollAnchor = false) => {
+  const measureDocument = () => {
     if (!rootRef) {
       return;
-    }
-
-    if (preserveScrollAnchor && isFitWidth()) {
-      lockResizeScrollAnchor();
     }
 
     const nextWidth = rootRef.clientWidth - documentPaddingX * 2;
@@ -241,18 +314,34 @@ function PdfReader(props: {
   };
 
   const handleViewportResize = () => {
-    const fit = isFitWidth();
-
-    measureDocument(fit);
-
-    if (fit) {
-      renderedKeys.clear();
+    if (!rootRef) {
+      return;
     }
+
+    const nextWidth = rootRef.clientWidth - documentPaddingX * 2;
+
+    if (Math.abs(nextWidth - documentWidth()) < 0.5) {
+      return;
+    }
+
+    if (isFitWidth()) {
+      lockResizeScrollAnchor();
+      const anchor = currentScrollAnchor();
+
+      if (anchor) {
+        applySynchronizedScrollAnchor(anchor, nextWidth);
+      }
+
+      setDocumentWidth(nextWidth);
+      renderedKeys.clear();
+      return;
+    }
+
+    setDocumentWidth(nextWidth);
   };
 
   const resetToFitWidth = () => {
     updatePageWidth(undefined);
-    measureDocument();
   };
 
   const syncObservedPages = () => {
@@ -453,41 +542,6 @@ function PdfReader(props: {
     renderedKeys.clear();
   });
 
-  createEffect(() => {
-    const anchor = pendingScrollAnchor();
-
-    void pageWidth();
-    void isFitWidth();
-    void documentWidth();
-
-    if (!anchor || !documentRef) {
-      return;
-    }
-
-    if (scrollAnchorFrame !== undefined) {
-      cancelAnimationFrame(scrollAnchorFrame);
-    }
-
-    scrollAnchorFrame = requestAnimationFrame(() => {
-      scrollAnchorFrame = requestAnimationFrame(() => {
-        const pageElement = pageRefs.get(anchor.pageNumber);
-
-        if (!pageElement) {
-          setPendingScrollAnchor(undefined);
-          scrollAnchorFrame = undefined;
-          return;
-        }
-
-        const pageTopAbsolute = pageElement.getBoundingClientRect().top + window.scrollY;
-        const pageHeight = pageElement.offsetHeight;
-
-        window.scrollTo({ top: pageTopAbsolute + pageHeight * anchor.offsetRatio });
-        setPendingScrollAnchor(undefined);
-        scrollAnchorFrame = undefined;
-      });
-    });
-  });
-
   const onRulerPointerDown = (event: PointerEvent) => {
     const target = event.currentTarget as HTMLDivElement | null;
 
@@ -575,10 +629,6 @@ function PdfReader(props: {
 
     if (observeFrame !== undefined) {
       cancelAnimationFrame(observeFrame);
-    }
-
-    if (scrollAnchorFrame !== undefined) {
-      cancelAnimationFrame(scrollAnchorFrame);
     }
 
     if (resizeAnchorTimeout !== undefined) {
