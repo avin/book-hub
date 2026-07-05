@@ -81,7 +81,7 @@ function inlineToRichItems(inline: Fb2Inline, inheritedFont: string, settings: F
       case "emphasis":
         return inheritedFont.replace(/^\S+\s+/, "italic ");
       case "code":
-        return `${settings.fontSize}px "Consolas", "Liberation Mono", monospace`;
+        return `${settings.fontSize}px "Cousine", monospace`;
       default:
         return inheritedFont;
     }

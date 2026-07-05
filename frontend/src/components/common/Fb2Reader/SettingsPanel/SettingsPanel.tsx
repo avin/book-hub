@@ -46,7 +46,7 @@ function SettingsPanel(props: {
         </h3>
         <SettingRow label="Шрифт">
           <select value={props.settings.fontFamily} onInput={(event) => props.onUpdateSetting("fontFamily", event.currentTarget.value)}>
-            <For each={fontOptions}>{(font) => <option value={font}>{font}</option>}</For>
+            <For each={fontOptions}>{(font) => <option value={font.value}>{font.label}</option>}</For>
           </select>
         </SettingRow>
         <SettingRow label="Размер" value={`${props.settings.fontSize}px`}>
