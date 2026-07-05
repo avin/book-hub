@@ -104,6 +104,17 @@
   padding: 18px 20px 20px;
 }
 
+.footnoteCloseButton.footnoteCloseButton {
+  background: transparent;
+  color: var(--fb2-text);
+
+  &:hover:not(:disabled),
+  &:active:not(:disabled) {
+    background: transparent;
+    color: var(--fb2-text);
+  }
+}
+
 .footnoteBlock {
   margin-bottom: calc(var(--fb2-font-size) * 0.82);
 

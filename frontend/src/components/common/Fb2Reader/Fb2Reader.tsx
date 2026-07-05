@@ -6,7 +6,15 @@ import { findBlockIndex, buildVirtualLayout } from "./fb2Layout";
 import { isReaderLayoutFontReady, loadReaderLayoutFonts } from "./fb2FontMetrics";
 import { binaryToDataUrl, parseFb2 } from "./fb2Parser";
 import { defaultSettings } from "./fb2ReaderSettings";
-import type { CssVars, Fb2ReaderSettings, RenderedBlock, VirtualLayout } from "./fb2Types";
+import type {
+  CssVars,
+  Fb2Block,
+  Fb2Inline,
+  Fb2Note,
+  Fb2ReaderSettings,
+  RenderedBlock,
+  VirtualLayout,
+} from "./fb2Types";
 import ReaderChrome from "./ReaderChrome/ReaderChrome";
 import SettingsPanel from "./SettingsPanel/SettingsPanel";
 import styles from "./Fb2Reader.module.scss";
@@ -29,6 +37,45 @@ function settingValue<T extends keyof Fb2ReaderSettings>(
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function inlineText(inlines: Fb2Inline[] | undefined): string {
+  return (
+    inlines
+      ?.map((inline) => inline.text ?? inlineText(inline.children))
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim() ?? ""
+  );
+}
+
+function splitFootnote(note: Fb2Note | undefined): { title: string; blocks: Fb2Block[] } | undefined {
+  if (!note) {
+    return undefined;
+  }
+
+  const titleParts: string[] = [];
+  let contentStartIndex = 0;
+
+  while (
+    contentStartIndex < note.blocks.length &&
+    (note.blocks[contentStartIndex].kind === "title" || note.blocks[contentStartIndex].kind === "subtitle")
+  ) {
+    const text = inlineText(note.blocks[contentStartIndex].inlines);
+
+    if (text) {
+      titleParts.push(text);
+    }
+
+    contentStartIndex += 1;
+  }
+
+  const title = titleParts.join(" ");
+
+  return {
+    title: title || "Сноска",
+    blocks: note.blocks.slice(contentStartIndex),
+  };
 }
 
 function Fb2Reader(props: {
@@ -177,6 +224,7 @@ function Fb2Reader(props: {
 
     return id ? parsed().notes.get(id) : undefined;
   });
+  const activeFootnoteDialog = createMemo(() => splitFootnote(activeFootnote()));
   const anchorIndex = createMemo(() => {
     const index = new Map<string, number>();
 
@@ -568,7 +616,7 @@ function Fb2Reader(props: {
         </article>
       </main>
 
-      <Show when={activeFootnote()}>
+      <Show when={activeFootnoteDialog()}>
         {(note) => (
           <div
             class={styles.footnoteOverlay}
@@ -578,12 +626,13 @@ function Fb2Reader(props: {
               }
             }}
           >
-            <section class={styles.footnoteDialog} role="dialog" aria-modal="true" aria-label="Сноска">
+            <section class={styles.footnoteDialog} role="dialog" aria-modal="true" aria-label={note().title}>
               <header class={styles.footnoteHeader}>
-                <h2>Сноска</h2>
+                <h2>{note().title}</h2>
                 <Button
                   variant="ghost"
                   size="sm"
+                  class={styles.footnoteCloseButton}
                   iconOnly
                   type="button"
                   aria-label="Закрыть сноску"
