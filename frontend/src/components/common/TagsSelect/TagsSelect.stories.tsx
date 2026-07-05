@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { createSignal } from "solid-js";
-import InputContainer from "@/components/common/InputContainer/InputContainer";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import TagsSelect from "./TagsSelect";
 
@@ -25,13 +24,11 @@ export const Default = () => {
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <div style={{ width: "380px" }}>
-          <InputContainer label="Tags" filled={value().length > 0}>
-            <TagsSelect
-              value={value()}
-              onChange={setValue}
-              onSearchOptions={searchOptions}
-            />
-          </InputContainer>
+          <TagsSelect
+            value={value()}
+            onChange={setValue}
+            onSearchOptions={searchOptions}
+          />
         </div>
       </I18nProvider>
     </QueryClientProvider>

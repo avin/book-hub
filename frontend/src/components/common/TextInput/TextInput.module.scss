@@ -5,8 +5,8 @@
   @include control-text;
 
   width: 100%;
-  min-height: 54px;
-  padding: 23px 12px 8px;
+  min-height: 42px;
+  padding: 0 12px;
   border: 1px solid $color-border;
   border-radius: $radius-sm;
   background: $color-paper-0;
@@ -18,7 +18,7 @@
     background $duration-fast $ease-standard;
 
   &::placeholder {
-    color: transparent;
+    color: $color-ink-500;
   }
 
   &:focus {

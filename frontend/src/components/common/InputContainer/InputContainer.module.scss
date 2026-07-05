@@ -2,7 +2,9 @@
 @use "@/styles/_mixins.scss" as *;
 
 .container {
+  display: grid;
   width: 100%;
+  gap: 6px;
 }
 
 .control {
@@ -12,30 +14,10 @@
 .label {
   @include truncate;
 
-  z-index: 1;
-  position: absolute;
-  top: 17px;
-  left: 12px;
-  width: calc(100% - 24px);
-  color: $color-ink-500;
-  font-size: 15px;
-  line-height: 20px;
-  pointer-events: none;
-  transition:
-    top $duration-fast $ease-standard,
-    font-size $duration-fast $ease-standard,
-    line-height $duration-fast $ease-standard,
-    color $duration-fast $ease-standard;
-}
-
-.focused,
-.filled {
-  .label {
-    top: 7px;
-    color: $color-ink-600;
-    font-size: 12px;
-    line-height: 16px;
-  }
+  color: $color-ink-700;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 18px;
 }
 
 .invalid {
@@ -45,8 +27,7 @@
 
   :global(input),
   :global(textarea),
-  :global(select),
-  :global([data-input-control]) {
+  :global(select) {
     border-color: $color-red-700;
   }
 }
@@ -54,13 +35,8 @@
 .withEndContent {
   :global(input),
   :global(textarea),
-  :global(select),
-  :global([data-input-control]) {
+  :global(select) {
     padding-right: 44px;
-  }
-
-  .label {
-    width: calc(100% - 56px);
   }
 }
 

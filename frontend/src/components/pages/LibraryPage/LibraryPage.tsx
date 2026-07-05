@@ -156,13 +156,14 @@ function EditBookDialog(props: {
         </header>
 
         <div class={styles.dialogBody}>
-          <InputContainer label={t("title")} filled={Boolean(title())}>
+          <InputContainer label={t("title")}>
             <TextInput value={title()} onInput={(event) => setTitle(event.currentTarget.value)} />
           </InputContainer>
 
-          <InputContainer label={t("tags")} filled={tags().length > 0}>
+          <label class={styles.fieldLabel}>
+            <span>{t("tags")}</span>
             <TagsSelect value={tags()} options={props.tagOptions} onChange={setTags} />
-          </InputContainer>
+          </label>
 
           <label class={styles.checkboxRow}>
             <input
@@ -282,7 +283,7 @@ function LibraryPage() {
         </header>
 
         <section class={styles.toolbar}>
-          <InputContainer label={t("searchBooks")} filled={Boolean(search())} endContent={<Search />}>
+          <InputContainer label={t("searchBooks")} endContent={<Search />}>
             <TextInput
               value={search()}
               onInput={(event) => {
@@ -292,7 +293,7 @@ function LibraryPage() {
             />
           </InputContainer>
 
-          <InputContainer label={t("sort")} filled={Boolean(sort())}>
+          <InputContainer label={t("sort")}>
             <select
               class={styles.selectControl}
               value={sort()}
@@ -310,7 +311,7 @@ function LibraryPage() {
             </select>
           </InputContainer>
 
-          <InputContainer label={t("favoritesFilter")} filled>
+          <InputContainer label={t("favoritesFilter")}>
             <div class={styles.segmented} role="group" aria-label={t("favoritesFilter")}>
               <button
                 type="button"
@@ -345,7 +346,8 @@ function LibraryPage() {
             </div>
           </InputContainer>
 
-          <InputContainer label={t("tags")} filled={selectedTags().length > 0}>
+          <label class={styles.tagsFilter}>
+            <span>{t("tags")}</span>
             <TagsSelect
               value={selectedTags()}
               options={tagOptions()}
@@ -354,7 +356,7 @@ function LibraryPage() {
                 resetToFirstPage();
               }}
             />
-          </InputContainer>
+          </label>
         </section>
 
         <Show when={booksQuery.isLoading}>

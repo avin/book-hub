@@ -104,7 +104,6 @@ function AuthPage(props: {
             label={t("login")}
             htmlFor="login"
             error={loginError()}
-            filled={Boolean(login())}
           >
             <TextInput
               id="login"
@@ -120,7 +119,6 @@ function AuthPage(props: {
             label={t("password")}
             htmlFor="password"
             error={passwordError()}
-            filled={Boolean(password())}
             endContent={
               <button
                 type="button"
@@ -150,7 +148,6 @@ function AuthPage(props: {
               label={t("repeatPassword")}
               htmlFor="repeat-password"
               error={repeatPasswordError()}
-              filled={Boolean(repeatPassword())}
             >
               <TextInput
                 id="repeat-password"

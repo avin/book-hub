@@ -190,21 +190,21 @@ function SettingsPage() {
               <h2>{t("changePassword")}</h2>
             </header>
 
-            <InputContainer label={t("currentPassword")} filled={Boolean(currentPassword())}>
+            <InputContainer label={t("currentPassword")}>
               <TextInput
                 type="password"
                 value={currentPassword()}
                 onInput={(event) => setCurrentPassword(event.currentTarget.value)}
               />
             </InputContainer>
-            <InputContainer label={t("newPassword")} filled={Boolean(newPassword())}>
+            <InputContainer label={t("newPassword")}>
               <TextInput
                 type="password"
                 value={newPassword()}
                 onInput={(event) => setNewPassword(event.currentTarget.value)}
               />
             </InputContainer>
-            <InputContainer label={t("repeatPassword")} filled={Boolean(repeatPassword())}>
+            <InputContainer label={t("repeatPassword")}>
               <TextInput
                 type="password"
                 value={repeatPassword()}
@@ -232,15 +232,18 @@ function SettingsPage() {
               <h2>{t("frontendSettings")}</h2>
             </header>
 
-            <textarea
-              class={styles.textarea}
-              value={settingsJson()}
-              spellcheck={false}
-              onInput={(event) => {
-                setSettingsJson(event.currentTarget.value);
-                setSettingsSaved(false);
-              }}
-            />
+            <label class={styles.textareaLabel}>
+              <span>{t("frontendSettings")}</span>
+              <textarea
+                class={styles.textarea}
+                value={settingsJson()}
+                spellcheck={false}
+                onInput={(event) => {
+                  setSettingsJson(event.currentTarget.value);
+                  setSettingsSaved(false);
+                }}
+              />
+            </label>
 
             <Show when={settingsError()}>
               <p class={styles.error}>{settingsError()}</p>
