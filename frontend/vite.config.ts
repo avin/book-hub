@@ -11,4 +11,12 @@ function normalizeBasePath(value: string | undefined) {
 export default defineConfig({
   base: normalizeBasePath(process.env.VITE_BASE_PATH),
   plugins: [solid()],
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://vm:8080",
+        changeOrigin: true,
+      },
+    },
+  },
 });
