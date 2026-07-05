@@ -9,6 +9,7 @@
   font-family: var(--fb2-font-family);
   font-synthesis: style;
   letter-spacing: 0;
+  overflow-anchor: none;
 }
 
 .hoverZone {
@@ -35,11 +36,13 @@
   justify-content: center;
   min-height: 100vh;
   padding: 124px var(--fb2-content-padding) 80px;
+  overflow-anchor: none;
 }
 
 .document {
   max-width: 100%;
   color: var(--fb2-text);
+  overflow-anchor: none;
 
   a {
     color: var(--fb2-link);
@@ -58,6 +61,7 @@
 
 .blockSlot {
   overflow: hidden;
+  overflow-anchor: none;
 }
 
 .footnoteOverlay {

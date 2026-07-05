@@ -266,7 +266,7 @@ function measureBlockHeight(block: Fb2Block, width: number, settings: Fb2ReaderS
 }
 
 export function buildVirtualLayout(blocks: Fb2Block[], width: number, settings: Fb2ReaderSettings): VirtualLayout {
-  const heights = blocks.map((block) => Math.ceil(measureBlockHeight(block, width, settings)));
+  const heights = blocks.map((block) => measureBlockHeight(block, width, settings));
   const offsets: number[] = [];
   let totalHeight = 0;
 

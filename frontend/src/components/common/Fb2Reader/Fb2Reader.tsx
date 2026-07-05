@@ -27,6 +27,10 @@ type ScrollAnchor = {
 const layoutWidthDebounceMs = 120;
 const viewportResizeEndMs = 150;
 
+function visualViewportHeight() {
+  return window.visualViewport?.height ?? window.innerHeight;
+}
+
 function settingValue<T extends keyof Fb2ReaderSettings>(
   settings: Fb2ReaderSettings,
   key: T,
@@ -92,6 +96,7 @@ function Fb2Reader(props: {
   let resizeAnchorTimeout: number | undefined;
   let layoutWidthDebounceTimeout: number | undefined;
   let viewportResizeEndTimeout: number | undefined;
+  let lastMeasuredReaderWidth = 0;
   const [settings, setSettings] = createSignal<Fb2ReaderSettings>({ ...defaultSettings, ...props.initialSettings });
   const [viewportHeight, setViewportHeight] = createSignal(900);
   const [scrollTop, setScrollTop] = createSignal(0);
@@ -362,9 +367,24 @@ function Fb2Reader(props: {
       markViewportResize();
     }
 
-    setReaderWidth(rootRef.clientWidth);
-    setViewportHeight(window.innerHeight);
+    lastMeasuredReaderWidth = rootRef.getBoundingClientRect().width;
+    setReaderWidth(lastMeasuredReaderWidth);
+    setViewportHeight(visualViewportHeight());
     setScrollTop(documentScrollTop());
+  };
+
+  const measureReaderWidthChange = () => {
+    if (!rootRef) {
+      return;
+    }
+
+    const nextReaderWidth = rootRef.getBoundingClientRect().width;
+
+    if (Math.abs(nextReaderWidth - lastMeasuredReaderWidth) < 0.5) {
+      return;
+    }
+
+    measureReader(true);
   };
 
   const updateScrollPosition = () => {
@@ -458,7 +478,7 @@ function Fb2Reader(props: {
   });
 
   onMount(() => {
-    const resizeObserver = new ResizeObserver(() => measureReader(true));
+    const resizeObserver = new ResizeObserver(() => measureReaderWidthChange());
     const onScroll = () => updateScrollPosition();
     const onResize = () => measureReader(true);
     const onKeyDown = (event: KeyboardEvent) => {
@@ -491,6 +511,7 @@ function Fb2Reader(props: {
     flushLayoutTextWidth();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("pointermove", onPointerMove);
     document.fonts.addEventListener("loadingdone", onFontsChanged);
@@ -500,6 +521,7 @@ function Fb2Reader(props: {
       resizeObserver.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointermove", onPointerMove);
       document.fonts.removeEventListener("loadingdone", onFontsChanged);
@@ -597,7 +619,7 @@ function Fb2Reader(props: {
       />
 
       <main class={styles.documentShell}>
-        <article ref={documentRef} class={styles.document} style={{ width: `${textWidth()}px` }}>
+        <article ref={documentRef} class={styles.document} style={{ width: `${layoutTextWidth()}px` }}>
           <div style={{ height: `${topSpacer()}px` }} aria-hidden="true" />
           <For each={visibleBlocks()}>
             {(item) => (
