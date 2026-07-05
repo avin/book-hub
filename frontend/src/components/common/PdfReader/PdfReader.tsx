@@ -220,14 +220,14 @@ function PdfReader(props: {
 
   const resolvePageWidthPx = (width: number | undefined) => {
     if (width !== undefined) {
-      return Math.max(minPageWidth, width);
+      return Math.max(minPageWidth, Math.round(width));
     }
 
     if (!rootRef) {
       return Math.max(minPageWidth, documentWidth());
     }
 
-    return Math.max(minPageWidth, rootRef.clientWidth - documentPaddingX * 2);
+    return Math.max(minPageWidth, Math.round(rootRef.clientWidth - documentPaddingX * 2));
   };
 
   const currentScrollAnchor = () => lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
@@ -304,9 +304,9 @@ function PdfReader(props: {
       return;
     }
 
-    const nextWidth = rootRef.clientWidth - documentPaddingX * 2;
+    const nextWidth = Math.round(rootRef.clientWidth - documentPaddingX * 2);
 
-    if (Math.abs(nextWidth - documentWidth()) < 0.5) {
+    if (nextWidth === documentWidth()) {
       return;
     }
 
@@ -318,9 +318,9 @@ function PdfReader(props: {
       return;
     }
 
-    const nextWidth = rootRef.clientWidth - documentPaddingX * 2;
+    const nextWidth = Math.round(rootRef.clientWidth - documentPaddingX * 2);
 
-    if (Math.abs(nextWidth - documentWidth()) < 0.5) {
+    if (nextWidth === documentWidth()) {
       return;
     }
 
@@ -396,14 +396,15 @@ function PdfReader(props: {
       return;
     }
 
-    const cssWidth = pageElement.clientWidth;
+    const displayWidth = Math.round(pageElement.clientWidth);
 
-    if (cssWidth <= 0) {
+    if (displayWidth <= 0) {
       return;
     }
 
     const ratio = renderPixelRatio();
-    const renderKey = `${Math.round(cssWidth)}:${ratio}`;
+    const displayHeight = Math.round(displayWidth * (descriptor.height / descriptor.width));
+    const renderKey = `${displayWidth}:${ratio}`;
 
     if (renderedKeys.get(descriptor.pageNumber) === renderKey) {
       return;
@@ -417,13 +418,13 @@ function PdfReader(props: {
 
     cancelRenderTask(descriptor.pageNumber);
 
-    const scale = cssWidth / descriptor.width;
-    const viewport = page.getViewport({ scale: scale * ratio });
+    const scale = (displayWidth * ratio) / descriptor.width;
+    const viewport = page.getViewport({ scale });
 
-    canvas.width = Math.floor(viewport.width);
-    canvas.height = Math.floor(viewport.height);
-    canvas.style.width = `${viewport.width / ratio}px`;
-    canvas.style.height = `${viewport.height / ratio}px`;
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
 
     const task = page.render({ canvas, viewport });
     renderTasks.set(descriptor.pageNumber, task);
@@ -693,7 +694,8 @@ function PdfReader(props: {
                 classList={{ [styles.pageFit]: isFitWidth() }}
                 data-page-number={page.pageNumber}
                 style={{
-                  width: isFitWidth() ? undefined : `${pageWidth()}px`,
+                  width: `${Math.round(pageWidth())}px`,
+                  "max-width": isFitWidth() ? "100%" : undefined,
                   "aspect-ratio": `${page.width} / ${page.height}`,
                 }}
                 aria-label={`Страница ${page.pageNumber}`}
