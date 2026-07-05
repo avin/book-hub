@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { render } from "solid-js/web";
-import { App } from "./App";
+import App from "./components/App/App";
 import { I18nProvider } from "./i18n/I18nProvider";
 import "./styles/app.scss";
 

@@ -54,51 +54,6 @@
   }
 }
 
-.settingRow {
-  display: grid;
-  gap: $space-2;
-
-  span {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: $space-3;
-    color: $color-ink-700;
-    font-size: 13px;
-    line-height: 18px;
-  }
-
-  b {
-    color: $color-ink-500;
-    font-weight: 600;
-  }
-
-  input,
-  select {
-    min-height: 38px;
-  }
-
-  select {
-    padding: 0 $space-3;
-    border: 1px solid $color-border;
-    border-radius: $radius-sm;
-    background: $color-paper-0;
-    color: $color-ink-900;
-  }
-
-  input[type="range"] {
-    width: 100%;
-  }
-
-  input[type="color"] {
-    width: 100%;
-    padding: 2px;
-    border: 1px solid $color-border;
-    border-radius: $radius-sm;
-    background: $color-paper-0;
-  }
-}
-
 .panelActions {
   display: grid;
   grid-template-columns: 1fr 1fr;

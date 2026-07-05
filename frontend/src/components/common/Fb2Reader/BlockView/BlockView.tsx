@@ -1,41 +1,8 @@
 import { For, Match, Show, Switch } from "solid-js";
-import type { Fb2Block, Fb2TableCell } from "../fb2Types";
+import type { Fb2Block } from "../fb2Types";
 import RenderInlines from "../RenderInlines/RenderInlines";
+import TableCell from "./TableCell/TableCell";
 import styles from "./BlockView.module.scss";
-
-function TableCell(props: {
-  cell: Fb2TableCell;
-  imageSrc: (id: string | undefined) => string | undefined;
-  onInternalLink: (targetId: string) => void;
-  onFootnoteLink: (targetId: string) => void;
-  isFootnoteTarget: (targetId: string) => boolean;
-}) {
-  const alignmentStyle = () => (props.cell.align ? { "text-align": props.cell.align } : undefined);
-  const content = () => (
-    <RenderInlines
-      inlines={props.cell.inlines}
-      imageSrc={props.imageSrc}
-      onInternalLink={props.onInternalLink}
-      onFootnoteLink={props.onFootnoteLink}
-      isFootnoteTarget={props.isFootnoteTarget}
-    />
-  );
-
-  return (
-    <Show
-      when={props.cell.header}
-      fallback={
-        <td colSpan={props.cell.colspan} rowSpan={props.cell.rowspan} style={alignmentStyle()}>
-          {content()}
-        </td>
-      }
-    >
-      <th colSpan={props.cell.colspan} rowSpan={props.cell.rowspan} style={alignmentStyle()}>
-        {content()}
-      </th>
-    </Show>
-  );
-}
 
 function BlockView(props: {
   block: Fb2Block;
