@@ -65,8 +65,24 @@ function ReaderChrome(props: {
               />
             )}
           </For>
-          <span class={styles.rulerMarker} style={props.markerStyles.left} />
-          <span class={styles.rulerMarker} style={props.markerStyles.right} />
+          <svg class={styles.rulerMarker} style={props.markerStyles.left} viewBox="0 0 28 24" aria-hidden="true">
+            <polygon
+              points="1.3 1 26.7 1 14 23"
+              fill="rgba(248, 217, 212, 0.86)"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <svg class={styles.rulerMarker} style={props.markerStyles.right} viewBox="0 0 28 24" aria-hidden="true">
+            <polygon
+              points="1.3 1 26.7 1 14 23"
+              fill="rgba(248, 217, 212, 0.86)"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+          </svg>
         </div>
       </div>
     </>
