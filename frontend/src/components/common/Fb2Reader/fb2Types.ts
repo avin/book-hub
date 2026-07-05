@@ -47,6 +47,7 @@ export type Fb2TableRow = {
 
 export type Fb2Block = {
   id: string;
+  sourceId?: string;
   kind: Fb2BlockKind;
   inlines?: Fb2Inline[];
   imageId?: string;

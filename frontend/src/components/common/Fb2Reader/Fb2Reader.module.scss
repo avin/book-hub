@@ -452,6 +452,27 @@
   text-underline-offset: 0.16em;
 }
 
+.inlineLinkButton {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fb2-link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
+
+  &:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  &:focus {
+    @include focus-ring;
+  }
+}
+
 .document code {
   padding: 0 0.18em;
   border-radius: $radius-xs;

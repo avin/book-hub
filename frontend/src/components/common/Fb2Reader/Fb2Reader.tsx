@@ -38,16 +38,16 @@ type ScrollAnchor = {
   offsetRatio: number;
 };
 
-function safeHref(href: string | undefined) {
+function isExternalHref(href: string | undefined) {
   if (!href) {
-    return undefined;
+    return false;
   }
 
-  if (href.startsWith("#") || href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:")) {
-    return href;
-  }
+  return /^[a-z][a-z\d+.-]*:/i.test(href);
+}
 
-  return `#${href}`;
+function normalizeInternalHref(href: string | undefined) {
+  return href?.replace(/^#/, "");
 }
 
 function settingValue<T extends keyof Fb2ReaderSettings>(
@@ -62,50 +62,73 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function RenderInlines(props: { inlines: Fb2Inline[] | undefined; imageSrc: (id: string | undefined) => string | undefined }) {
+function RenderInlines(props: {
+  inlines: Fb2Inline[] | undefined;
+  imageSrc: (id: string | undefined) => string | undefined;
+  onInternalLink: (targetId: string) => void;
+}) {
   return (
     <For each={props.inlines ?? []}>
       {(inline) => (
-        <Switch fallback={<RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />}>
+        <Switch fallback={<RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />}>
           <Match when={inline.kind === "text"}>{inline.text}</Match>
           <Match when={inline.kind === "strong"}>
             <strong>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />
+              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
             </strong>
           </Match>
           <Match when={inline.kind === "emphasis"}>
             <em>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />
+              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
             </em>
           </Match>
           <Match when={inline.kind === "strikethrough"}>
             <s>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />
+              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
             </s>
           </Match>
           <Match when={inline.kind === "sub"}>
             <sub>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />
+              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
             </sub>
           </Match>
           <Match when={inline.kind === "sup"}>
             <sup>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />
+              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
             </sup>
           </Match>
           <Match when={inline.kind === "code"}>
             <code>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />
+              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
             </code>
           </Match>
           <Match when={inline.kind === "link"}>
-            <a href={safeHref(inline.href)}>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />
-            </a>
+            <Show
+              when={isExternalHref(inline.href)}
+              fallback={
+                <button
+                  class={styles.inlineLinkButton}
+                  type="button"
+                  onClick={() => {
+                    const targetId = normalizeInternalHref(inline.href);
+
+                    if (targetId) {
+                      props.onInternalLink(targetId);
+                    }
+                  }}
+                >
+                  <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+                </button>
+              }
+            >
+              <a href={inline.href} target="_blank" rel="noreferrer">
+                <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+              </a>
+            </Show>
           </Match>
           <Match when={inline.kind === "style"}>
             <span data-fb2-style={inline.styleName}>
-              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} />
+              <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
             </span>
           </Match>
           <Match when={inline.kind === "image"}>
@@ -119,8 +142,14 @@ function RenderInlines(props: { inlines: Fb2Inline[] | undefined; imageSrc: (id:
   );
 }
 
-function TableCell(props: { cell: Fb2TableCell; imageSrc: (id: string | undefined) => string | undefined }) {
-  const content = () => <RenderInlines inlines={props.cell.inlines} imageSrc={props.imageSrc} />;
+function TableCell(props: {
+  cell: Fb2TableCell;
+  imageSrc: (id: string | undefined) => string | undefined;
+  onInternalLink: (targetId: string) => void;
+}) {
+  const content = () => (
+    <RenderInlines inlines={props.cell.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+  );
 
   return (
     <Show
@@ -138,17 +167,21 @@ function TableCell(props: { cell: Fb2TableCell; imageSrc: (id: string | undefine
   );
 }
 
-function BlockView(props: { block: Fb2Block; imageSrc: (id: string | undefined) => string | undefined }) {
+function BlockView(props: {
+  block: Fb2Block;
+  imageSrc: (id: string | undefined) => string | undefined;
+  onInternalLink: (targetId: string) => void;
+}) {
   return (
     <Switch>
       <Match when={props.block.kind === "title"}>
         <h2 class={styles.title} data-level={props.block.level}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} />
+          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
         </h2>
       </Match>
       <Match when={props.block.kind === "subtitle"}>
         <h3 class={styles.subtitle}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} />
+          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
         </h3>
       </Match>
       <Match when={props.block.kind === "paragraph"}>
@@ -159,22 +192,22 @@ function BlockView(props: { block: Fb2Block; imageSrc: (id: string | undefined) 
             [styles.quote]: props.block.role === "cite" || props.block.role === "epigraph",
           }}
         >
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} />
+          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
         </p>
       </Match>
       <Match when={props.block.kind === "poemLine"}>
         <p class={styles.poemLine}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} />
+          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
         </p>
       </Match>
       <Match when={props.block.kind === "textAuthor"}>
         <p class={styles.textAuthor}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} />
+          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
         </p>
       </Match>
       <Match when={props.block.kind === "date"}>
         <p class={styles.date}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} />
+          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
         </p>
       </Match>
       <Match when={props.block.kind === "emptyLine"}>
@@ -194,7 +227,9 @@ function BlockView(props: { block: Fb2Block; imageSrc: (id: string | undefined) 
               <For each={props.block.rows ?? []}>
                 {(row) => (
                   <tr>
-                    <For each={row.cells}>{(cell) => <TableCell cell={cell} imageSrc={props.imageSrc} />}</For>
+                    <For each={row.cells}>
+                      {(cell) => <TableCell cell={cell} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />}
+                    </For>
                   </tr>
                 )}
               </For>
@@ -306,6 +341,17 @@ function Fb2Reader(props: Fb2ReaderProps) {
 
     return [parsed().title, authors].filter(Boolean).join(" · ") || "FB2";
   });
+  const anchorIndex = createMemo(() => {
+    const index = new Map<string, number>();
+
+    parsed().blocks.forEach((block, blockIndex) => {
+      if (block.sourceId && !index.has(block.sourceId)) {
+        index.set(block.sourceId, blockIndex);
+      }
+    });
+
+    return index;
+  });
 
   const documentScrollTop = () => {
     if (!documentRef) {
@@ -345,6 +391,35 @@ function Fb2Reader(props: Fb2ReaderProps) {
     }
 
     setSettings((current) => settingValue(current, key, value));
+  };
+
+  const scrollToBlockIndex = (blockIndex: number) => {
+    if (!documentRef) {
+      return;
+    }
+
+    const currentLayout = layout();
+    const blockTop = currentLayout.offsets[blockIndex];
+
+    if (blockTop === undefined) {
+      return;
+    }
+
+    const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
+    const nextScrollTop = documentTop + blockTop;
+
+    window.scrollTo({ top: nextScrollTop, behavior: "smooth" });
+    setScrollTop(blockTop);
+  };
+
+  const onInternalLink = (targetId: string) => {
+    const blockIndex = anchorIndex().get(targetId);
+
+    if (blockIndex === undefined) {
+      return;
+    }
+
+    scrollToBlockIndex(blockIndex);
   };
 
   const lockResizeScrollAnchor = () => {
@@ -688,7 +763,7 @@ function Fb2Reader(props: Fb2ReaderProps) {
           <For each={visibleBlocks()}>
             {(item) => (
               <div class={styles.blockSlot} style={{ height: `${item.height}px` }}>
-                <BlockView block={item.block} imageSrc={imageSrc} />
+                <BlockView block={item.block} imageSrc={imageSrc} onInternalLink={onInternalLink} />
               </div>
             )}
           </For>

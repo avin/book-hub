@@ -138,6 +138,7 @@ function addTextBlock(
 ) {
   blocks.push({
     id: `fb2-block-${blocks.length}`,
+    sourceId: element.getAttribute("id") ?? undefined,
     kind,
     inlines: parseInlineNodes(element),
     level,
@@ -147,19 +148,34 @@ function addTextBlock(
 
 function parseTitle(blocks: Fb2Block[], element: Element, level: number, role: Fb2BlockRole) {
   const titleChildren = ownElementChildren(element);
+  const sourceId = element.getAttribute("id") ?? element.parentElement?.getAttribute("id") ?? undefined;
 
   if (titleChildren.length === 0) {
-    addTextBlock(blocks, "title", element, level, role);
+    blocks.push({
+      id: `fb2-block-${blocks.length}`,
+      sourceId,
+      kind: "title",
+      inlines: parseInlineNodes(element),
+      level,
+      role,
+    });
     return;
   }
 
   titleChildren.forEach((child) => {
     if (localName(child) === "empty-line") {
-      blocks.push({ id: `fb2-block-${blocks.length}`, kind: "emptyLine", level, role });
+      blocks.push({ id: `fb2-block-${blocks.length}`, sourceId, kind: "emptyLine", level, role });
       return;
     }
 
-    addTextBlock(blocks, localName(child) === "subtitle" ? "subtitle" : "title", child, level, role);
+    blocks.push({
+      id: `fb2-block-${blocks.length}`,
+      sourceId,
+      kind: localName(child) === "subtitle" ? "subtitle" : "title",
+      inlines: parseInlineNodes(child),
+      level,
+      role,
+    });
   });
 }
 
@@ -194,6 +210,7 @@ function parsePoem(blocks: Fb2Block[], element: Element, level: number) {
 function parseTable(blocks: Fb2Block[], element: Element, level: number, role: Fb2BlockRole) {
   blocks.push({
     id: `fb2-block-${blocks.length}`,
+    sourceId: element.getAttribute("id") ?? undefined,
     kind: "table",
     level,
     role,
@@ -209,9 +226,14 @@ function parseTable(blocks: Fb2Block[], element: Element, level: number, role: F
 
 function parseBlocks(blocks: Fb2Block[], parent: Element, level: number, role: Fb2BlockRole) {
   ownElementChildren(parent).forEach((child) => {
+    const sectionBlockStart = blocks.length;
+
     switch (localName(child)) {
       case "section":
         parseBlocks(blocks, child, level + 1, role);
+        if (child.getAttribute("id") && blocks[sectionBlockStart] && !blocks[sectionBlockStart].sourceId) {
+          blocks[sectionBlockStart].sourceId = child.getAttribute("id") ?? undefined;
+        }
         break;
       case "title":
         parseTitle(blocks, child, level, role);
@@ -223,10 +245,17 @@ function parseBlocks(blocks: Fb2Block[], parent: Element, level: number, role: F
         addTextBlock(blocks, "paragraph", child, level, role);
         break;
       case "empty-line":
-        blocks.push({ id: `fb2-block-${blocks.length}`, kind: "emptyLine", level, role });
+        blocks.push({ id: `fb2-block-${blocks.length}`, sourceId: child.getAttribute("id") ?? undefined, kind: "emptyLine", level, role });
         break;
       case "image":
-        blocks.push({ id: `fb2-block-${blocks.length}`, kind: "image", imageId: hrefAttr(child), level, role });
+        blocks.push({
+          id: `fb2-block-${blocks.length}`,
+          sourceId: child.getAttribute("id") ?? undefined,
+          kind: "image",
+          imageId: hrefAttr(child),
+          level,
+          role,
+        });
         break;
       case "annotation":
         parseBlocks(blocks, child, level + 1, "annotation");
