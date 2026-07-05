@@ -1,4 +1,5 @@
 import { Eye, EyeOff } from "lucide-solid";
+import { useNavigate } from "@solidjs/router";
 import { createMemo, createSignal, Show } from "solid-js";
 import Button from "@/components/common/Button/Button";
 import InputContainer from "@/components/common/InputContainer/InputContainer";
@@ -16,6 +17,7 @@ type AuthPageProps = {
 
 function AuthPage(props: AuthPageProps) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const loginMutation = createLoginMutation();
   const registerMutation = createRegisterMutation();
 
@@ -76,6 +78,7 @@ function AuthPage(props: AuthPageProps) {
         setSuccess(t("requestCreatedWaitActivation"));
       } else {
         await loginMutation.mutateAsync(credentials);
+        navigate("/library", { replace: true });
       }
     } catch {
       setFormError(t("requestFailedTryAgain"));
