@@ -1,0 +1,86 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.container {
+  width: 100%;
+}
+
+.control {
+  position: relative;
+}
+
+.label {
+  @include truncate;
+
+  z-index: 1;
+  position: absolute;
+  top: 17px;
+  left: 12px;
+  width: calc(100% - 24px);
+  color: $color-ink-500;
+  font-size: 15px;
+  line-height: 20px;
+  pointer-events: none;
+  transition:
+    top $duration-fast $ease-standard,
+    font-size $duration-fast $ease-standard,
+    line-height $duration-fast $ease-standard,
+    color $duration-fast $ease-standard;
+}
+
+.focused,
+.filled {
+  .label {
+    top: 7px;
+    color: $color-ink-600;
+    font-size: 12px;
+    line-height: 16px;
+  }
+}
+
+.invalid {
+  .label {
+    color: $color-red-700;
+  }
+
+  :global(input),
+  :global(textarea) {
+    border-color: $color-red-700;
+  }
+}
+
+.withEndContent {
+  :global(input) {
+    padding-right: 44px;
+  }
+
+  .label {
+    width: calc(100% - 56px);
+  }
+}
+
+.endContent {
+  display: inline-flex;
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  color: $color-ink-500;
+}
+
+.subtext,
+.error {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.subtext {
+  color: $color-ink-600;
+}
+
+.error {
+  color: $color-red-700;
+}

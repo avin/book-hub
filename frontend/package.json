@@ -5,15 +5,27 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "generate:api": "openapi-typescript ../api/openapi.yaml -o src/api/generated/schema.ts",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.7.6",
+    "@solidjs/router": "^0.16.1",
+    "@tanstack/solid-query": "^5.101.2",
+    "lucide-solid": "^1.23.0",
+    "openapi-fetch": "^0.17.0",
     "solid-js": "^1.9.14"
   },
   "devDependencies": {
-    "typescript": "^6.0.3",
-    "vite": "^8.1.3",
+    "openapi-typescript": "^7.13.0",
+    "sass": "^1.101.0",
+    "storybook": "^10.4.6",
+    "storybook-solidjs-vite": "^10.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.11",
     "vite-plugin-solid": "^2.11.12"
   }
 }

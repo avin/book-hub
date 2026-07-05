@@ -1,0 +1,115 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.button {
+  @include control-text;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+  font-weight: 650;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition:
+    background $duration-fast $ease-standard,
+    border-color $duration-fast $ease-standard,
+    color $duration-fast $ease-standard,
+    box-shadow $duration-fast $ease-standard;
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.62;
+  }
+}
+
+.primary {
+  background: $color-sage-700;
+  color: $color-paper-0;
+
+  &:hover:not(:disabled) {
+    background: $color-sage-600;
+  }
+}
+
+.secondary {
+  border-color: $color-border;
+  background: $color-paper-0;
+  color: $color-ink-900;
+
+  &:hover:not(:disabled) {
+    border-color: $color-border-strong;
+    background: $color-paper-50;
+  }
+}
+
+.ghost {
+  background: transparent;
+  color: $color-ink-700;
+
+  &:hover:not(:disabled) {
+    background: $color-paper-100;
+    color: $color-ink-900;
+  }
+}
+
+.danger {
+  background: $color-red-700;
+  color: $color-paper-0;
+
+  &:hover:not(:disabled) {
+    background: #9f1f16;
+  }
+}
+
+.small {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.loading {
+  .content {
+    opacity: 0.72;
+  }
+}
+
+.content {
+  @include truncate;
+}
+
+.icon,
+.spinner {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon :global(svg) {
+  width: 18px;
+  height: 18px;
+}
+
+.spinner {
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

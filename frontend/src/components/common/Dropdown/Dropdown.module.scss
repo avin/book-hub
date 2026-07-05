@@ -1,0 +1,19 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.dropdown {
+  position: relative;
+}
+
+.content {
+  @include compact-shadow;
+
+  z-index: $z-dropdown;
+  position: absolute;
+  max-height: min(320px, calc(100vh - 24px));
+  overflow: auto;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-paper-0;
+  color: $color-ink-900;
+}

@@ -1,0 +1,44 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.input {
+  @include control-text;
+
+  width: 100%;
+  min-height: 54px;
+  padding: 23px 12px 8px;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-paper-0;
+  color: $color-ink-900;
+  letter-spacing: 0;
+  transition:
+    border-color $duration-fast $ease-standard,
+    box-shadow $duration-fast $ease-standard,
+    background $duration-fast $ease-standard;
+
+  &::placeholder {
+    color: transparent;
+  }
+
+  &:focus {
+    border-color: $color-focus;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.14);
+  }
+
+  &:disabled {
+    background: $color-paper-100;
+    color: $color-ink-500;
+    cursor: not-allowed;
+  }
+}
+
+.invalid {
+  border-color: $color-red-700;
+
+  &:focus {
+    border-color: $color-red-700;
+    box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.14);
+  }
+}

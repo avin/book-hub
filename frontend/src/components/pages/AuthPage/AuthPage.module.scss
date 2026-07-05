@@ -1,0 +1,97 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.auth {
+  width: min(100%, 420px);
+  margin: 0 auto;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 24px;
+  padding: 4px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-paper-100;
+
+  a {
+    display: flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    border-radius: $radius-sm;
+    color: $color-ink-600;
+    font-size: 14px;
+    font-weight: 650;
+    text-decoration: none;
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+}
+
+.active {
+  @include compact-shadow;
+
+  background: $color-paper-0;
+  color: $color-ink-950 !important;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.iconButton {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $color-ink-600;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-paper-100;
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.alert,
+.success {
+  padding: 10px 12px;
+  border-radius: $radius-sm;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.alert {
+  background: $color-red-100;
+  color: $color-red-700;
+}
+
+.success {
+  background: $color-sage-100;
+  color: $color-sage-700;
+}
+
+.hint {
+  margin: 18px 0 0;
+  color: $color-ink-600;
+  font-size: 14px;
+  line-height: 22px;
+}

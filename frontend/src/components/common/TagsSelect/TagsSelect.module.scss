@@ -1,0 +1,153 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.inputContainer {
+  @include control-text;
+
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  padding: 5px 10px;
+  gap: 8px;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-paper-0;
+  color: $color-ink-900;
+  text-align: left;
+  cursor: text;
+  transition:
+    border-color $duration-fast $ease-standard,
+    box-shadow $duration-fast $ease-standard;
+
+  &:focus-within {
+    border-color: $color-focus;
+    box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.12);
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &:hover {
+    border-color: $color-border-strong;
+  }
+}
+
+.disabled {
+  background: $color-paper-100;
+  color: $color-ink-500;
+  cursor: not-allowed;
+}
+
+.tags {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tag {
+  display: inline-flex;
+  min-height: 26px;
+  max-width: 100%;
+  align-items: center;
+  padding: 3px 6px 3px 9px;
+  gap: 6px;
+  border: 1px solid $color-blue-100;
+  border-radius: 999px;
+  background: $color-blue-100;
+  color: $color-blue-700;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.removeButton {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgba(36, 82, 122, 0.12);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+
+  :global(svg) {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.input {
+  @include control-text;
+
+  min-width: 120px;
+  flex: 1 1 140px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $color-ink-900;
+  outline: none;
+
+  &::placeholder {
+    color: $color-ink-500;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.menu {
+  width: 100%;
+  padding: 6px;
+}
+
+.options {
+  display: grid;
+  gap: 2px;
+}
+
+.option {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  gap: 12px;
+  border: 0;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $color-ink-900;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: $color-paper-100;
+    outline: none;
+  }
+}
+
+.focusedOption {
+  background: $color-paper-100;
+}
+
+.empty {
+  padding: 12px 8px;
+  color: $color-ink-500;
+  font-size: 14px;
+}

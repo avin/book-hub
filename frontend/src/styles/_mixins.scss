@@ -1,0 +1,35 @@
+@use "@/styles/_variables.scss" as *;
+
+@mixin focus-ring {
+  outline: 2px solid rgba(47, 111, 159, 0.32);
+  outline-offset: 2px;
+}
+
+@mixin control-text {
+  font-family: $font-family-base;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+@mixin compact-shadow {
+  box-shadow:
+    0 1px 2px rgba(20, 23, 31, 0.06),
+    0 10px 24px rgba(20, 23, 31, 0.1);
+}
+
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
