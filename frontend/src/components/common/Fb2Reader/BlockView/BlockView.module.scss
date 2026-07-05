@@ -3,6 +3,7 @@
 .title,
 .subtitle,
 .paragraph,
+.listItem,
 .poemLine,
 .textAuthor,
 .date {
@@ -34,6 +35,58 @@
   line-height: var(--fb2-line-height);
   text-align: justify;
   text-indent: var(--fb2-paragraph-indent);
+}
+
+.listItem {
+  padding-left: var(--fb2-paragraph-indent);
+  font-size: var(--fb2-font-size);
+  line-height: var(--fb2-line-height);
+  text-align: left;
+  text-indent: 0;
+}
+
+.codeBlock {
+  overflow-x: auto;
+  margin: 0;
+  padding: $space-3 $space-4;
+  border: 1px solid color-mix(in srgb, var(--fb2-text) 16%, transparent);
+  border-radius: $radius-sm;
+  background: color-mix(in srgb, var(--fb2-text) 6%, var(--fb2-bg));
+  color: var(--fb2-text);
+  font-family: "Consolas", "Liberation Mono", monospace;
+  font-size: calc(var(--fb2-font-size) * 0.92);
+  line-height: 1.45;
+  white-space: pre-wrap;
+
+  .codeBlockContent {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    font: inherit;
+    white-space: inherit;
+  }
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  height: 100%;
+  color: color-mix(in srgb, var(--fb2-text) 58%, transparent);
+  font-size: calc(var(--fb2-font-size) * 0.9);
+  line-height: 1;
+
+  &::before,
+  &::after {
+    flex: 1;
+    height: 1px;
+    background: currentColor;
+    content: "";
+  }
+
+  span {
+    white-space: nowrap;
+  }
 }
 
 .annotation,

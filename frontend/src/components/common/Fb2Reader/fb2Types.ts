@@ -26,6 +26,9 @@ export type Fb2BlockKind =
   | "title"
   | "subtitle"
   | "paragraph"
+  | "listItem"
+  | "codeBlock"
+  | "divider"
   | "emptyLine"
   | "image"
   | "poemLine"
@@ -39,6 +42,7 @@ export type Fb2TableCell = {
   header: boolean;
   colspan: number;
   rowspan: number;
+  align?: "left" | "center" | "right";
   inlines: Fb2Inline[];
 };
 

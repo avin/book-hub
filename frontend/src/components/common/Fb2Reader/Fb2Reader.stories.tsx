@@ -16,7 +16,7 @@ const repeatedSections = Array.from(
 ).join("");
 
 const sampleFb2 = `<?xml version="1.0" encoding="utf-8"?>
-<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink" xmlns:xlink="http://www.w3.org/1999/xlink">
   <description>
     <title-info>
       <genre>sf</genre>
@@ -33,7 +33,7 @@ const sampleFb2 = `<?xml version="1.0" encoding="utf-8"?>
       <keywords>fb2, reader, virtualization, solidjs</keywords>
       <date value="2026-07-05">5 июля 2026</date>
       <coverpage>
-        <image l:href="#cover.svg" />
+        <image xlink:href="#cover.svg" />
       </coverpage>
       <lang>ru</lang>
       <src-lang>ru</src-lang>
@@ -94,27 +94,50 @@ const sampleFb2 = `<?xml version="1.0" encoding="utf-8"?>
       <table>
         <tr>
           <th>Элемент FB2</th>
-          <th>Ожидаемый рендер</th>
-          <th>Проверка</th>
+          <th align="center">Ожидаемый рендер</th>
+          <th align="right">Проверка</th>
         </tr>
         <tr>
           <td>title</td>
-          <td>Центрированный заголовок</td>
-          <td>Размер зависит от уровня секции</td>
+          <td align="center">Центрированный заголовок</td>
+          <td align="right">Размер зависит от уровня секции</td>
         </tr>
         <tr>
           <td>p + inline</td>
-          <td>Абзац с вложенными тегами</td>
-          <td>Измеряется через Pretext</td>
+          <td align="center">Абзац с вложенными тегами</td>
+          <td align="right">Измеряется через Pretext</td>
         </tr>
         <tr>
           <td colspan="2">Ячейка с colspan</td>
-          <td>Широкая ячейка таблицы</td>
+          <td align="right">Широкая ячейка таблицы</td>
         </tr>
       </table>
     </section>
     <section id="chapter-2">
-      <title><p>Глава 2. Длинный поток</p></title>
+      <title><p>Глава 2. Списки, код и разделители</p></title>
+      <p>Не все FB2-файлы используют отдельную семантику списков: некоторые конвертеры пишут пункты обычными параграфами с маркером.</p>
+      <p>   • Первый пункт маркированного списка</p>
+      <p>   • Второй пункт с <emphasis>курсивом</emphasis></p>
+      <p>   • Третий пункт с <strong>полужирным текстом</strong></p>
+      <empty-line />
+      <p>Нумерованные списки из markdown-конвертеров выглядят так же:</p>
+      <p>   1. Первый пункт нумерованного списка</p>
+      <p>   2. Второй пункт с <code>inlineCode()</code></p>
+      <p>   3. Третий пункт</p>
+      <empty-line />
+      <p>Многострочный код в FB2 часто хранится как параграф с единственным вложенным тегом code:</p>
+      <p><code>#include &lt;stdio.h&gt;
+
+int main()
+    {
+    printf("*Hello* **world!**\\n");
+    }
+</code></p>
+      <subtitle>* * *</subtitle>
+      <p>Разделитель выше пришёл из subtitle, но должен восприниматься как визуальная пауза, а не как очередной заголовок.</p>
+    </section>
+    <section id="chapter-3">
+      <title><p>Глава 3. Длинный поток</p></title>
       ${repeatedSections}
     </section>
   </body>

@@ -37,6 +37,10 @@ function normalizeBinaryData(value: string) {
   return value.replace(/\s+/g, "");
 }
 
+function normalizeTableAlign(value: string | null): Fb2TableCell["align"] {
+  return value === "left" || value === "center" || value === "right" ? value : undefined;
+}
+
 function ownElementChildren(element: Element) {
   return Array.from(element.childNodes).filter((node): node is Element => node.nodeType === Node.ELEMENT_NODE);
 }
@@ -126,6 +130,7 @@ function parseTableCell(element: Element): Fb2TableCell {
     header: localName(element) === "th",
     colspan: Number.isFinite(parsedColspan) && parsedColspan > 0 ? parsedColspan : 1,
     rowspan: Number.isFinite(parsedRowspan) && parsedRowspan > 0 ? parsedRowspan : 1,
+    align: normalizeTableAlign(element.getAttribute("align")),
     inlines: parseInlineNodes(element),
   };
 }
@@ -178,6 +183,32 @@ function parseTitle(blocks: Fb2Block[], element: Element, level: number, role: F
       role,
     });
   });
+}
+
+function multilineCodeChild(element: Element) {
+  const children = Array.from(element.childNodes);
+  const elementChildren = children.filter((node): node is Element => node.nodeType === Node.ELEMENT_NODE);
+  const hasTextOutsideCode = children.some(
+    (node) => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()),
+  );
+
+  if (hasTextOutsideCode || elementChildren.length !== 1 || localName(elementChildren[0]) !== "code") {
+    return undefined;
+  }
+
+  return elementChildren[0].textContent?.includes("\n") ? elementChildren[0] : undefined;
+}
+
+function isListItemParagraph(element: Element) {
+  const text = (element.textContent ?? "").replace(/\u00a0/g, " ").trimStart();
+
+  return /^(?:[•*-]|\d+[.)])\s+/.test(text);
+}
+
+function isDividerSubtitle(element: Element) {
+  const text = (element.textContent ?? "").trim().replace(/\s+/g, "");
+
+  return text === "***" || text === "---" || text === "___";
 }
 
 function parsePoem(blocks: Fb2Block[], element: Element, level: number) {
@@ -240,10 +271,26 @@ function parseBlocks(blocks: Fb2Block[], parent: Element, level: number, role: F
         parseTitle(blocks, child, level, role);
         break;
       case "subtitle":
-        addTextBlock(blocks, "subtitle", child, level, role);
+        addTextBlock(blocks, isDividerSubtitle(child) ? "divider" : "subtitle", child, level, role);
         break;
       case "p":
-        addTextBlock(blocks, "paragraph", child, level, role);
+        {
+          const codeChild = multilineCodeChild(child);
+
+          if (codeChild) {
+            blocks.push({
+              id: `fb2-block-${blocks.length}`,
+              sourceId: child.getAttribute("id") ?? undefined,
+              kind: "codeBlock",
+              inlines: parseInlineNodes(codeChild),
+              level,
+              role,
+            });
+            break;
+          }
+
+          addTextBlock(blocks, isListItemParagraph(child) ? "listItem" : "paragraph", child, level, role);
+        }
         break;
       case "empty-line":
         blocks.push({ id: `fb2-block-${blocks.length}`, sourceId: child.getAttribute("id") ?? undefined, kind: "emptyLine", level, role });

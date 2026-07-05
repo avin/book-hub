@@ -20,6 +20,7 @@ type TableCellProps = {
 };
 
 function TableCell(props: TableCellProps) {
+  const alignmentStyle = () => (props.cell.align ? { "text-align": props.cell.align } : undefined);
   const content = () => (
     <RenderInlines
       inlines={props.cell.inlines}
@@ -34,12 +35,12 @@ function TableCell(props: TableCellProps) {
     <Show
       when={props.cell.header}
       fallback={
-        <td colSpan={props.cell.colspan} rowSpan={props.cell.rowspan}>
+        <td colSpan={props.cell.colspan} rowSpan={props.cell.rowspan} style={alignmentStyle()}>
           {content()}
         </td>
       }
     >
-      <th colSpan={props.cell.colspan} rowSpan={props.cell.rowspan}>
+      <th colSpan={props.cell.colspan} rowSpan={props.cell.rowspan} style={alignmentStyle()}>
         {content()}
       </th>
     </Show>
@@ -87,6 +88,49 @@ function BlockView(props: BlockViewProps) {
             isFootnoteTarget={props.isFootnoteTarget}
           />
         </p>
+      </Match>
+      <Match when={props.block.kind === "listItem"}>
+        <p
+          class={styles.listItem}
+          classList={{
+            [styles.annotation]: props.block.role === "annotation" || props.block.role === "metadata",
+            [styles.quote]: props.block.role === "cite" || props.block.role === "epigraph",
+          }}
+        >
+          <RenderInlines
+            inlines={props.block.inlines}
+            imageSrc={props.imageSrc}
+            onInternalLink={props.onInternalLink}
+            onFootnoteLink={props.onFootnoteLink}
+            isFootnoteTarget={props.isFootnoteTarget}
+          />
+        </p>
+      </Match>
+      <Match when={props.block.kind === "codeBlock"}>
+        <pre class={styles.codeBlock}>
+          <code class={styles.codeBlockContent}>
+            <RenderInlines
+              inlines={props.block.inlines}
+              imageSrc={props.imageSrc}
+              onInternalLink={props.onInternalLink}
+              onFootnoteLink={props.onFootnoteLink}
+              isFootnoteTarget={props.isFootnoteTarget}
+            />
+          </code>
+        </pre>
+      </Match>
+      <Match when={props.block.kind === "divider"}>
+        <div class={styles.divider} aria-hidden="true">
+          <span>
+            <RenderInlines
+              inlines={props.block.inlines}
+              imageSrc={props.imageSrc}
+              onInternalLink={props.onInternalLink}
+              onFootnoteLink={props.onFootnoteLink}
+              isFootnoteTarget={props.isFootnoteTarget}
+            />
+          </span>
+        </div>
       </Match>
       <Match when={props.block.kind === "poemLine"}>
         <p class={styles.poemLine}>

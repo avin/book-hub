@@ -90,6 +90,18 @@ function inlineToRichItems(inline: Fb2Inline, inheritedFont: string, settings: F
   return (inline.children ?? []).flatMap((child) => inlineToRichItems(child, childFont, settings));
 }
 
+function inlinePlainText(inline: Fb2Inline): string {
+  if (inline.kind === "text") {
+    return inline.text ?? "";
+  }
+
+  if (inline.kind === "image") {
+    return "\uFFFC";
+  }
+
+  return (inline.children ?? []).map(inlinePlainText).join("");
+}
+
 function measureInlinesHeight(
   inlines: Fb2Inline[] | undefined,
   width: number,
@@ -106,6 +118,21 @@ function measureInlinesHeight(
   const stats = measureRichInlineStats(prepared, Math.max(minMeasureWidth, width));
 
   return Math.max(1, stats.lineCount) * metrics.lineHeightPx + metrics.marginBlock;
+}
+
+function measureCodeBlock(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
+  const fontSize = settings.fontSize * 0.92;
+  const lineHeightPx = fontSize * 1.45;
+  const text = (block.inlines ?? []).map(inlinePlainText).join("").replace(/\s+$/, "");
+  const lines = text.length > 0 ? text.split(/\r\n|\r|\n/) : [""];
+  const averageCharWidth = fontSize * 0.62;
+  const contentWidth = Math.max(minMeasureWidth, width - 32);
+  const visualLineCount = lines.reduce(
+    (total, line) => total + Math.max(1, Math.ceil((line.length * averageCharWidth) / contentWidth)),
+    0,
+  );
+
+  return visualLineCount * lineHeightPx + settings.paragraphSpacing + 28;
 }
 
 function measureTableCell(cell: Fb2TableCell, width: number, settings: Fb2ReaderSettings) {
@@ -154,6 +181,10 @@ function measureBlockHeight(block: Fb2Block, width: number, settings: Fb2ReaderS
   switch (block.kind) {
     case "emptyLine":
       return settings.fontSize * settings.lineHeight;
+    case "divider":
+      return settings.fontSize * 2.4;
+    case "codeBlock":
+      return measureCodeBlock(block, width, settings);
     case "image":
       return Math.min(520, Math.max(220, width * 0.58)) + settings.paragraphSpacing + 12;
     case "table":
