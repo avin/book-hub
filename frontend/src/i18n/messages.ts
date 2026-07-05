@@ -17,6 +17,10 @@ export const messages = {
     ru: "Войти",
     en: "Sign in",
   },
+  signOut: {
+    ru: "Выйти",
+    en: "Sign out",
+  },
   register: {
     ru: "Регистрация",
     en: "Register",

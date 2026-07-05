@@ -1,0 +1,99 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.menu {
+  min-width: 180px;
+  padding: 6px 0;
+}
+
+.itemWrapper {
+  position: relative;
+}
+
+.item,
+.category {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  padding: 8px 14px;
+  padding-left: calc(14px + (var(--menu-depth, 0) * 12px));
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: $color-ink-900;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.category {
+  min-height: 30px;
+  color: $color-ink-600;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.item {
+  cursor: pointer;
+
+  &:focus-visible {
+    @include focus-ring;
+
+    position: relative;
+    z-index: 1;
+  }
+
+  &:disabled,
+  &[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.56;
+  }
+}
+
+.withHoverEffect .item:not(:disabled):not([aria-disabled="true"]):hover,
+.focused {
+  background: $color-paper-100;
+  color: $color-ink-950;
+}
+
+.selected {
+  background: $color-sage-100;
+  color: $color-ink-950;
+  font-weight: 650;
+}
+
+.separator {
+  height: 1px;
+  margin: 6px 0;
+  background: $color-border;
+}
+
+.label {
+  @include truncate;
+
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: $color-ink-600;
+
+  :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+}

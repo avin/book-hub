@@ -5,11 +5,18 @@
   position: relative;
 }
 
+.fitReferenceToContent {
+  display: inline-flex;
+  max-width: 100%;
+}
+
 .content {
   @include compact-shadow;
 
+  box-sizing: border-box;
   z-index: $z-dropdown;
   position: absolute;
+  width: max-content;
   max-height: min(320px, calc(100vh - 24px));
   overflow: auto;
   border: 1px solid $color-border;

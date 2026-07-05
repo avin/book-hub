@@ -1,6 +1,8 @@
-import { A } from "@solidjs/router";
+import { A, useNavigate } from "@solidjs/router";
 import { JSX } from "solid-js";
-import { BookOpen, Library, Settings, Upload } from "lucide-solid";
+import { BookOpen, Library, LogOut, Settings, Upload } from "lucide-solid";
+import { createLogoutMutation } from "@/api/auth";
+import Button from "@/components/common/Button/Button";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./AppLayout.module.scss";
 
@@ -10,6 +12,16 @@ type AppLayoutProps = {
 
 function AppLayout(props: AppLayoutProps) {
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const logoutMutation = createLogoutMutation();
+
+  const handleLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        navigate("/login", { replace: true });
+      },
+    });
+  };
 
   return (
     <div class={styles.layout}>
@@ -32,6 +44,18 @@ function AppLayout(props: AppLayoutProps) {
             {t("settings")}
           </A>
         </nav>
+        <div class={styles.sidebarFooter}>
+          <Button
+            class={styles.logoutButton}
+            type="button"
+            variant="ghost"
+            loading={logoutMutation.isPending}
+            iconStart={<LogOut />}
+            onClick={handleLogout}
+          >
+            {t("signOut")}
+          </Button>
+        </div>
       </aside>
       <main class={styles.content}>{props.children}</main>
     </div>

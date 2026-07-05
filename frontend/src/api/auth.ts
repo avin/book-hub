@@ -55,3 +55,27 @@ export function createRegisterMutation() {
     },
   }));
 }
+
+export function createLogoutMutation() {
+  const queryClient = useQueryClient();
+
+  return createMutation(() => ({
+    mutationFn: async () => {
+      const csrfToken = await getCsrfToken();
+      const { error } = await apiClient.POST("/v1/auth/logout", {
+        params: {
+          header: {
+            "X-CSRF-Token": csrfToken,
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(currentUserQueryKey, null);
+    },
+  }));
+}

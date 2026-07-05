@@ -1,6 +1,6 @@
 import { JSX } from "solid-js";
 import { BookOpen } from "lucide-solid";
-import { Language, languages } from "@/i18n/messages";
+import LanguageSelect from "@/components/common/LanguageSelect/LanguageSelect";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./AuthLayout.module.scss";
 
@@ -9,7 +9,7 @@ type AuthLayoutProps = {
 };
 
 function AuthLayout(props: AuthLayoutProps) {
-  const { language, setLanguage, t } = useI18n();
+  const { t } = useI18n();
 
   return (
     <main class={styles.layout}>
@@ -25,15 +25,7 @@ function AuthLayout(props: AuthLayoutProps) {
 
       <section class={styles.panel}>
         <div class={styles.languageRow}>
-          <label for="language-select">{t("language")}</label>
-          <select
-            id="language-select"
-            value={language()}
-            onChange={(event) => setLanguage(event.currentTarget.value as Language)}
-          >
-            <option value={languages[0]}>{t("russian")}</option>
-            <option value={languages[1]}>{t("english")}</option>
-          </select>
+          <LanguageSelect />
         </div>
         {props.children}
       </section>

@@ -9,6 +9,7 @@ export type DropdownProps = {
   onOpenChange: (open: boolean) => void;
   placement?: Placement;
   minWidth?: number;
+  fitReferenceToContent?: boolean;
 };
 
 function Dropdown(props: DropdownProps) {
@@ -28,9 +29,11 @@ function Dropdown(props: DropdownProps) {
         flip(),
         shift({ padding: 12 }),
         size({
-          apply({ rects, elements }) {
+          padding: 12,
+          apply({ availableWidth, rects, elements }) {
             Object.assign(elements.floating.style, {
               minWidth: `${Math.max(props.minWidth ?? 0, rects.reference.width)}px`,
+              maxWidth: `${availableWidth}px`,
             });
           },
         }),
@@ -81,7 +84,12 @@ function Dropdown(props: DropdownProps) {
 
   return (
     <div ref={rootEl} class={styles.dropdown}>
-      <div ref={referenceEl}>{props.trigger}</div>
+      <div
+        ref={referenceEl}
+        classList={{ [styles.fitReferenceToContent]: props.fitReferenceToContent }}
+      >
+        {props.trigger}
+      </div>
       <Show when={props.open}>
         <div ref={floatingEl} class={styles.content}>
           {props.children}

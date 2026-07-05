@@ -1,0 +1,63 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.trigger {
+  @include control-text;
+
+  display: inline-flex;
+  min-height: 36px;
+  max-width: 180px;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: rgba(255, 255, 255, 0.84);
+  color: $color-ink-900;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background $duration-fast $ease-standard,
+    border-color $duration-fast $ease-standard,
+    color $duration-fast $ease-standard,
+    box-shadow $duration-fast $ease-standard;
+
+  &:hover {
+    border-color: $color-border-strong;
+    background: $color-paper-0;
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
+
+.icon,
+.chevron {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: $color-ink-600;
+
+  :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.label {
+  @include truncate;
+
+  min-width: 0;
+}
+
+.chevron {
+  transition: transform $duration-fast $ease-standard;
+}
+
+.open {
+  transform: rotate(180deg);
+}
