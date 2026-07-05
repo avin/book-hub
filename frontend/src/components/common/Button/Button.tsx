@@ -1,7 +1,7 @@
 import { JSX, Show, splitProps } from "solid-js";
 import styles from "./Button.module.scss";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "link";
 type ButtonSize = "sm" | "md";
 
 export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -10,6 +10,7 @@ export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean;
   iconStart?: JSX.Element;
   iconEnd?: JSX.Element;
+  iconOnly?: boolean;
 };
 
 function Button(props: ButtonProps) {
@@ -23,6 +24,7 @@ function Button(props: ButtonProps) {
     "disabled",
     "iconStart",
     "iconEnd",
+    "iconOnly",
   ]);
 
   return (
@@ -34,7 +36,9 @@ function Button(props: ButtonProps) {
         [styles.secondary]: local.variant === "secondary",
         [styles.ghost]: local.variant === "ghost",
         [styles.danger]: local.variant === "danger",
+        [styles.link]: local.variant === "link",
         [styles.small]: local.size === "sm",
+        [styles.iconOnly]: local.iconOnly,
         [styles.loading]: local.loading,
         ...(local.classList ?? {}),
       }}
@@ -47,7 +51,9 @@ function Button(props: ButtonProps) {
       <Show when={!local.loading && local.iconStart}>
         <span class={styles.icon}>{local.iconStart}</span>
       </Show>
-      <span class={styles.content}>{local.children}</span>
+      <Show when={!local.iconOnly}>
+        <span class={styles.content}>{local.children}</span>
+      </Show>
       <Show when={!local.loading && local.iconEnd}>
         <span class={styles.icon}>{local.iconEnd}</span>
       </Show>

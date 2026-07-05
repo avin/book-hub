@@ -10,6 +10,8 @@ export const Default = () => (
     <Button variant="ghost">Ghost</Button>
     <Button variant="danger">Danger</Button>
     <Button iconStart={<Plus />}>With icon</Button>
+    <Button variant="secondary" iconStart={<Plus />} iconOnly aria-label="Add" />
+    <Button variant="link">Inline link button</Button>
     <Button loading>Loading</Button>
   </div>
 );

@@ -106,39 +106,6 @@
   margin-top: auto;
 }
 
-.resetButton,
-.iconButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid $color-border;
-  border-radius: $radius-sm;
-  background: $color-paper-0;
-  color: $color-ink-700;
-  cursor: pointer;
-
-  &:focus {
-    @include focus-ring;
-  }
-}
-
-.iconButton {
-  width: 38px;
-  height: 38px;
-
-  &:hover {
-    border-color: $color-blue-600;
-    color: $color-blue-700;
-  }
-}
-
-.resetButton {
-  gap: $space-2;
-  min-height: 40px;
-  padding: 0 $space-3;
-  background: $color-paper-50;
-
-  &:hover {
-    border-color: $color-sage-600;
-  }
+.panelActionButton {
+  width: 100%;
 }

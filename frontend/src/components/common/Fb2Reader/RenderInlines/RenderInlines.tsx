@@ -1,4 +1,5 @@
 import { For, Match, Show, Switch } from "solid-js";
+import Button from "@/components/common/Button/Button";
 import { Fb2Inline } from "../fb2Types";
 import { isExternalHref, normalizeInternalHref } from "../linkUtils";
 import styles from "./RenderInlines.module.scss";
@@ -49,8 +50,8 @@ function RenderInlines(props: RenderInlinesProps) {
             <Show
               when={isExternalHref(inline.href)}
               fallback={
-                <button
-                  class={styles.inlineLinkButton}
+                <Button
+                  variant="link"
                   type="button"
                   onClick={() => {
                     const targetId = normalizeInternalHref(inline.href);
@@ -61,7 +62,7 @@ function RenderInlines(props: RenderInlinesProps) {
                   }}
                 >
                   <RenderInlines inlines={inline.children} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
-                </button>
+                </Button>
               }
             >
               <a href={inline.href} target="_blank" rel="noreferrer">

@@ -1,5 +1,6 @@
 import { AlignLeft, Palette, RotateCcw, SlidersHorizontal, Type, X } from "lucide-solid";
 import { For, JSX, Show } from "solid-js";
+import Button from "@/components/common/Button/Button";
 import { fontOptions } from "../fb2ReaderSettings";
 import { Fb2ReaderSettings } from "../fb2Types";
 import styles from "./SettingsPanel.module.scss";
@@ -37,9 +38,7 @@ function SettingsPanel(props: SettingsPanelProps) {
     <aside class={styles.settingsPanel} classList={{ [styles.panelOpen]: props.open }}>
       <div class={styles.panelHeader}>
         <h2>Внешний вид</h2>
-        <button class={styles.iconButton} type="button" title="Закрыть" aria-label="Закрыть" onClick={props.onClose}>
-          <X size={19} />
-        </button>
+        <Button variant="secondary" type="button" iconOnly iconStart={<X />} title="Закрыть" aria-label="Закрыть" onClick={props.onClose} />
       </div>
 
       <section class={styles.settingGroup}>
@@ -136,14 +135,18 @@ function SettingsPanel(props: SettingsPanelProps) {
       </section>
 
       <div class={styles.panelActions}>
-        <button class={styles.resetButton} type="button" onClick={props.onReset}>
-          <RotateCcw size={17} />
+        <Button class={styles.panelActionButton} variant="secondary" type="button" iconStart={<RotateCcw />} onClick={props.onReset}>
           Сбросить
-        </button>
-        <button class={styles.resetButton} type="button" onClick={() => props.onUpdateSetting("maxTextWidth", undefined)}>
-          <SlidersHorizontal size={17} />
+        </Button>
+        <Button
+          class={styles.panelActionButton}
+          variant="secondary"
+          type="button"
+          iconStart={<SlidersHorizontal />}
+          onClick={() => props.onUpdateSetting("maxTextWidth", undefined)}
+        >
           Автоширина
-        </button>
+        </Button>
       </div>
     </aside>
   );

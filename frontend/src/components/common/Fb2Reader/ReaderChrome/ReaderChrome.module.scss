@@ -123,32 +123,6 @@
   pointer-events: none;
 }
 
-.iconButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid $color-border;
-  border-radius: $radius-sm;
-  background: $color-paper-0;
-  color: $color-ink-700;
-  cursor: pointer;
-  transition:
-    border-color $duration-fast $ease-standard,
-    background $duration-fast $ease-standard,
-    color $duration-fast $ease-standard;
-
-  &:hover {
-    border-color: $color-blue-600;
-    color: $color-blue-700;
-  }
-
-  &:focus {
-    @include focus-ring;
-  }
-}
-
 @media (max-width: 720px) {
   .headerBar {
     padding: $space-2 $space-4;

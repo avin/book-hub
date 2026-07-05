@@ -1,5 +1,6 @@
 import { Settings } from "lucide-solid";
 import { For, JSX } from "solid-js";
+import Button from "@/components/common/Button/Button";
 import styles from "./ReaderChrome.module.scss";
 
 type ReaderChromeProps = {
@@ -26,15 +27,15 @@ function ReaderChrome(props: ReaderChromeProps) {
       <header class={styles.header} classList={{ [styles.visible]: props.visible }} onPointerEnter={props.onShow}>
         <div class={styles.headerBar}>
           <div class={styles.bookTitle}>{props.title}</div>
-          <button
-            class={styles.iconButton}
+          <Button
+            variant="secondary"
             type="button"
+            iconOnly
+            iconStart={<Settings />}
             title="Настройки внешнего вида"
             aria-label="Настройки внешнего вида"
             onClick={props.onToggleSettings}
-          >
-            <Settings size={19} />
-          </button>
+          />
         </div>
       </header>
 
