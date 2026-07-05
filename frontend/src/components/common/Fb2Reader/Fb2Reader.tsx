@@ -17,6 +17,7 @@ import type {
 } from "./fb2Types";
 import ReaderChrome from "./ReaderChrome/ReaderChrome";
 import SettingsPanel from "./SettingsPanel/SettingsPanel";
+import { applyWidthRulerPointer, computeWidthRulerMarkers } from "@/components/common/WidthRuler/widthRulerUtils";
 import styles from "./Fb2Reader.module.scss";
 
 type ScrollAnchor = {
@@ -161,7 +162,6 @@ function Fb2Reader(props: {
     return lastMeasuredLayout;
   });
   const imageSrc = (id: string | undefined) => binaryToDataUrl(id ? parsed().binaries.get(id) : undefined);
-  const rulerTicks = Array.from({ length: 81 }, (_, index) => index - 40);
   const cssVars = createMemo<CssVars>(() => ({
     "--fb2-bg": settings().backgroundColor,
     "--fb2-text": settings().textColor,
@@ -172,22 +172,9 @@ function Fb2Reader(props: {
     "--fb2-paragraph-indent": `${settings().paragraphIndent}px`,
     "--fb2-content-padding": `${settings().pagePadding}px`,
   }));
-  const markerStyles = createMemo<{ left: JSX.CSSProperties; right: JSX.CSSProperties }>(() => {
-    const maxTextWidth = settings().maxTextWidth;
-
-    if (!maxTextWidth || !rulerRef) {
-      return { left: { display: "none" }, right: { display: "none" } };
-    }
-
-    const rulerRect = rulerRef.getBoundingClientRect();
-    const halfWidth = clamp(maxTextWidth / 2, 140, availableTextWidth() / 2);
-    const centerX = rulerRect.width / 2;
-
-    return {
-      left: { left: `${centerX - halfWidth}px` },
-      right: { left: `${centerX + halfWidth}px` },
-    };
-  });
+  const markerStyles = createMemo<{ left: JSX.CSSProperties; right: JSX.CSSProperties }>(() =>
+    computeWidthRulerMarkers(rulerRef, settings().maxTextWidth, availableTextWidth()),
+  );
   const visibleBlocks = createMemo<RenderedBlock[]>(() => {
     const currentLayout = layout();
     const blocks = parsed().blocks;
@@ -398,23 +385,16 @@ function Fb2Reader(props: {
     }
 
     const rootRect = rootRef.getBoundingClientRect();
-    const rulerRect = rulerRef.getBoundingClientRect();
-    const documentLeft = rootRect.left + settings().pagePadding;
-    const documentRight = rootRect.right - settings().pagePadding;
 
-    if (event.clientX <= documentLeft || event.clientX >= documentRight) {
-      updateSetting("maxTextWidth", undefined, true);
-      setGuideX(event.clientX);
-      return;
-    }
-
-    const center = rulerRect.left + rulerRect.width / 2;
-    const side = event.clientX < center ? -1 : 1;
-    const nextHalfWidth = clamp(Math.abs(event.clientX - center), 140, availableTextWidth() / 2);
-    const nextWidth = nextHalfWidth * 2;
-
-    setGuideX(center + side * nextHalfWidth);
-    updateSetting("maxTextWidth", Math.round(nextWidth), true);
+    applyWidthRulerPointer(event, {
+      rulerElement: rulerRef,
+      contentLeft: rootRect.left + settings().pagePadding,
+      contentRight: rootRect.right - settings().pagePadding,
+      availableWidth: availableTextWidth(),
+      minHalfWidth: 140,
+      onWidthChange: (width) => updateSetting("maxTextWidth", width, true),
+      onGuideX: setGuideX,
+    });
   };
 
   const onRulerPointerDown = (event: PointerEvent) => {
@@ -593,7 +573,6 @@ function Fb2Reader(props: {
         visible={headerVisible() || panelOpen() || draggingWidth()}
         title={documentTitle()}
         headerContent={props.headerContent}
-        rulerTicks={rulerTicks}
         markerStyles={markerStyles()}
         availableTextWidth={availableTextWidth()}
         currentTextWidth={settings().maxTextWidth ?? availableTextWidth()}
