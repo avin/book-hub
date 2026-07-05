@@ -1,5 +1,6 @@
-import { createMutation } from "@tanstack/solid-query";
+import { createMutation, useQueryClient } from "@tanstack/solid-query";
 import { apiClient, getCsrfToken } from "./client";
+import { currentUserQueryKey } from "./user";
 
 type Credentials = {
   login: string;
@@ -7,6 +8,8 @@ type Credentials = {
 };
 
 export function createLoginMutation() {
+  const queryClient = useQueryClient();
+
   return createMutation(() => ({
     mutationFn: async (credentials: Credentials) => {
       const csrfToken = await getCsrfToken();
@@ -24,6 +27,9 @@ export function createLoginMutation() {
       }
 
       return data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(currentUserQueryKey, data.user);
     },
   }));
 }
