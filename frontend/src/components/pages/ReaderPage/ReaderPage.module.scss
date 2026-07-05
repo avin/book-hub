@@ -71,41 +71,6 @@
   min-height: 100vh;
 }
 
-.pdfShell {
-  position: relative;
+.pdfReader {
   min-height: 100vh;
-  background: $color-ink-900;
-
-  iframe {
-    display: block;
-    width: 100%;
-    height: 100vh;
-    border: 0;
-    background: $color-paper-0;
-  }
-}
-
-.pdfFallback {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 10px;
-  gap: 8px;
-  border-radius: $radius-sm;
-  background: $color-paper-0;
-  color: $color-blue-700;
-  font-size: 14px;
-  font-weight: 700;
-  box-shadow: 0 10px 36px $color-shadow;
-
-  a {
-    color: inherit;
-  }
-
-  :global(svg) {
-    width: 18px;
-    height: 18px;
-  }
 }

@@ -365,10 +365,6 @@ export const messages = {
     ru: "Настройки сохранены",
     en: "Settings saved",
   },
-  openFile: {
-    ru: "Открыть файл",
-    en: "Open file",
-  },
 } satisfies Record<string, Translation>;
 
 export type MessageKey = keyof typeof messages;

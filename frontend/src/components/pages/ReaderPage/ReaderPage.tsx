@@ -1,6 +1,6 @@
 import { A, useParams } from "@solidjs/router";
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
-import { ArrowLeft, FileText, Heart } from "lucide-solid";
+import { ArrowLeft, Heart } from "lucide-solid";
 import {
   createBookFileTextQuery,
   createBookQuery,
@@ -11,6 +11,7 @@ import {
 } from "@/api/books";
 import Button from "@/components/common/Button/Button";
 import Fb2Reader from "@/components/common/Fb2Reader/Fb2Reader";
+import PdfReader from "@/components/common/PdfReader/PdfReader";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./ReaderPage.module.scss";
 
@@ -44,12 +45,29 @@ function ReaderPage() {
   const updateBookMutation = createUpdateBookMutation();
   const updateProgressMutation = createUpdateReadingProgressMutation();
   const [restoredProgress, setRestoredProgress] = createSignal(false);
+  const [pdfReady, setPdfReady] = createSignal(false);
   let saveTimeout: number | undefined;
+  let activeBookId = bookId();
   let lastSavedProgress = progressQuery.data?.progress_percent ?? 0;
 
   const book = createMemo(() => bookQuery.data);
   const isFb2 = createMemo(() => book()?.format === "fb2");
   const isPdf = createMemo(() => book()?.format === "pdf");
+  const canTrackProgress = createMemo(() => isFb2() || (isPdf() && pdfReady()));
+  const canRestoreProgress = createMemo(() => (isFb2() && fb2FileQuery.data) || (isPdf() && pdfReady()));
+
+  createEffect(() => {
+    const currentBookId = bookId();
+
+    if (currentBookId === activeBookId) {
+      return;
+    }
+
+    activeBookId = currentBookId;
+    lastSavedProgress = 0;
+    setPdfReady(false);
+    setRestoredProgress(false);
+  });
 
   const toggleFavorite = () => {
     const currentBook = book();
@@ -92,7 +110,7 @@ function ReaderPage() {
   );
 
   const scheduleProgressSave = () => {
-    if (!isFb2()) {
+    if (!canTrackProgress()) {
       return;
     }
 
@@ -129,7 +147,7 @@ function ReaderPage() {
   });
 
   createEffect(() => {
-    if (!isFb2()) {
+    if (!canTrackProgress()) {
       return;
     }
 
@@ -142,13 +160,16 @@ function ReaderPage() {
   });
 
   createEffect(() => {
-    if (restoredProgress() || !isFb2() || !fb2FileQuery.data || !progressQuery.data) {
+    if (restoredProgress() || !canRestoreProgress() || !progressQuery.data) {
       return;
     }
 
     setRestoredProgress(true);
-    window.setTimeout(() => restoreScrollProgress(progressQuery.data?.progress_percent ?? 0), 350);
-    window.setTimeout(() => restoreScrollProgress(progressQuery.data?.progress_percent ?? 0), 900);
+    const restoreDelayMs = isPdf() ? 80 : 350;
+    const confirmRestoreDelayMs = isPdf() ? 260 : 900;
+
+    window.setTimeout(() => restoreScrollProgress(progressQuery.data?.progress_percent ?? 0), restoreDelayMs);
+    window.setTimeout(() => restoreScrollProgress(progressQuery.data?.progress_percent ?? 0), confirmRestoreDelayMs);
   });
 
   onCleanup(() => {
@@ -174,15 +195,12 @@ function ReaderPage() {
       </Show>
 
       <Show when={isPdf()}>
-        <main class={styles.pdfShell}>
-          <iframe title={book()?.title ?? t("reader")} src={getBookFileUrl(bookId())} />
-          <div class={styles.pdfFallback}>
-            <FileText />
-            <a href={getBookFileUrl(bookId())} target="_blank" rel="noreferrer">
-              {t("openFile")}
-            </a>
-          </div>
-        </main>
+        <PdfReader
+          fileUrl={getBookFileUrl(bookId())}
+          title={book()?.title ?? t("reader")}
+          class={styles.pdfReader}
+          onReady={() => setPdfReady(true)}
+        />
       </Show>
     </div>
   );

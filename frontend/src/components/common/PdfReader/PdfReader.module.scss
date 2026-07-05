@@ -1,0 +1,105 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.reader {
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, rgba(20, 23, 31, 0.06), transparent 30%, transparent 70%, rgba(36, 82, 122, 0.06)),
+    $color-paper-100;
+  overflow-anchor: none;
+}
+
+.hoverZone {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 38;
+  height: 28px;
+}
+
+.header {
+  @include compact-shadow;
+
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 40;
+  border-bottom: 1px solid rgba(20, 23, 31, 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  transform: translateY(-100%);
+  transition:
+    transform $duration-base $ease-standard,
+    opacity $duration-base $ease-standard;
+  opacity: 0;
+}
+
+.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.headerBar {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  padding: $space-1 $space-5;
+}
+
+.bookTitle {
+  @include truncate;
+
+  width: 100%;
+  color: $color-ink-700;
+  font-size: 14px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.state {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: $color-ink-600;
+}
+
+.document {
+  display: grid;
+  justify-items: center;
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 32px 20px 72px;
+  gap: 18px;
+  overflow-anchor: none;
+}
+
+.page {
+  width: min(100%, var(--pdf-page-width));
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(20, 23, 31, 0.12);
+  border-radius: $radius-xs;
+  background: $color-paper-0;
+  box-shadow: 0 12px 36px rgba(20, 23, 31, 0.16);
+  overflow-anchor: none;
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: $color-paper-0;
+  }
+}
+
+@media (max-width: 720px) {
+  .headerBar {
+    padding: $space-2 $space-4;
+  }
+
+  .document {
+    padding: 20px 10px 56px;
+    gap: 12px;
+  }
+}
