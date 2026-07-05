@@ -2,7 +2,10 @@ import { Navigate, Route, Router } from "@solidjs/router";
 import { type JSX, Show } from "solid-js";
 import { createCurrentUserQuery } from "@/api/user";
 import AuthPage from "@/components/pages/AuthPage/AuthPage";
-import TodoPage from "@/components/pages/TodoPage/TodoPage";
+import LibraryPage from "@/components/pages/LibraryPage/LibraryPage";
+import ReaderPage from "@/components/pages/ReaderPage/ReaderPage";
+import SettingsPage from "@/components/pages/SettingsPage/SettingsPage";
+import UploadPage from "@/components/pages/UploadPage/UploadPage";
 
 function AuthGate(props: {
   children: JSX.Element;
@@ -68,7 +71,7 @@ export function App() {
         path="/library"
         component={() => (
           <PrivateRoute>
-            <TodoPage titleKey="library" />
+            <LibraryPage />
           </PrivateRoute>
         )}
       />
@@ -76,7 +79,7 @@ export function App() {
         path="/upload"
         component={() => (
           <PrivateRoute>
-            <TodoPage titleKey="upload" />
+            <UploadPage />
           </PrivateRoute>
         )}
       />
@@ -84,7 +87,7 @@ export function App() {
         path="/settings"
         component={() => (
           <PrivateRoute>
-            <TodoPage titleKey="settings" />
+            <SettingsPage />
           </PrivateRoute>
         )}
       />
@@ -92,7 +95,7 @@ export function App() {
         path="/reader/:bookId"
         component={() => (
           <PrivateRoute>
-            <TodoPage titleKey="reader" />
+            <ReaderPage />
           </PrivateRoute>
         )}
       />
@@ -100,7 +103,7 @@ export function App() {
         path="*404"
         component={() => (
           <PrivateRoute>
-            <TodoPage titleKey="dashboard" />
+            <Navigate href="/library" />
           </PrivateRoute>
         )}
       />

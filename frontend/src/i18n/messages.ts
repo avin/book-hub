@@ -85,10 +85,6 @@ export const messages = {
     ru: "English",
     en: "English",
   },
-  dashboard: {
-    ru: "Обзор",
-    en: "Dashboard",
-  },
   library: {
     ru: "Библиотека",
     en: "Library",
@@ -105,14 +101,6 @@ export const messages = {
     ru: "Чтение",
     en: "Reader",
   },
-  todo: {
-    ru: "TODO",
-    en: "TODO",
-  },
-  sectionPreparedImplementationLater: {
-    ru: "Раздел подготовлен, реализация будет добавлена позже.",
-    en: "The section is prepared. Implementation will be added later.",
-  },
   tags: {
     ru: "Теги",
     en: "Tags",
@@ -128,6 +116,214 @@ export const messages = {
   noOptions: {
     ru: "Нет вариантов",
     en: "No options",
+  },
+  yourBooks: {
+    ru: "Ваши книги",
+    en: "Your books",
+  },
+  uploadBook: {
+    ru: "Загрузить книгу",
+    en: "Upload book",
+  },
+  searchBooks: {
+    ru: "Поиск книг",
+    en: "Search books",
+  },
+  sort: {
+    ru: "Сортировка",
+    en: "Sort",
+  },
+  updatedNewest: {
+    ru: "Сначала обновлённые",
+    en: "Recently updated",
+  },
+  addedNewest: {
+    ru: "Сначала добавленные",
+    en: "Recently added",
+  },
+  titleAZ: {
+    ru: "Название А-Я",
+    en: "Title A-Z",
+  },
+  titleZA: {
+    ru: "Название Я-А",
+    en: "Title Z-A",
+  },
+  progressHigh: {
+    ru: "Прогресс выше",
+    en: "Highest progress",
+  },
+  progressLow: {
+    ru: "Прогресс ниже",
+    en: "Lowest progress",
+  },
+  favoritesFilter: {
+    ru: "Фильтр избранного",
+    en: "Favorites filter",
+  },
+  all: {
+    ru: "Все",
+    en: "All",
+  },
+  favorites: {
+    ru: "Избранные",
+    en: "Favorites",
+  },
+  other: {
+    ru: "Остальные",
+    en: "Other",
+  },
+  loading: {
+    ru: "Загрузка",
+    en: "Loading",
+  },
+  libraryEmpty: {
+    ru: "Библиотека пуста",
+    en: "Library is empty",
+  },
+  read: {
+    ru: "Читать",
+    en: "Read",
+  },
+  edit: {
+    ru: "Изменить",
+    en: "Edit",
+  },
+  delete: {
+    ru: "Удалить",
+    en: "Delete",
+  },
+  addToFavorites: {
+    ru: "Добавить в избранное",
+    en: "Add to favorites",
+  },
+  removeFromFavorites: {
+    ru: "Убрать из избранного",
+    en: "Remove from favorites",
+  },
+  back: {
+    ru: "Назад",
+    en: "Back",
+  },
+  forward: {
+    ru: "Вперёд",
+    en: "Forward",
+  },
+  editBook: {
+    ru: "Изменить книгу",
+    en: "Edit book",
+  },
+  close: {
+    ru: "Закрыть",
+    en: "Close",
+  },
+  title: {
+    ru: "Название",
+    en: "Title",
+  },
+  favorite: {
+    ru: "Избранное",
+    en: "Favorite",
+  },
+  uploadCover: {
+    ru: "Загрузить обложку",
+    en: "Upload cover",
+  },
+  deleteCover: {
+    ru: "Удалить обложку",
+    en: "Delete cover",
+  },
+  cancel: {
+    ru: "Отмена",
+    en: "Cancel",
+  },
+  save: {
+    ru: "Сохранить",
+    en: "Save",
+  },
+  deleteBookConfirm: {
+    ru: "Удалить книгу из библиотеки?",
+    en: "Delete this book from the library?",
+  },
+  addBook: {
+    ru: "Добавить книгу",
+    en: "Add book",
+  },
+  fileNotSelected: {
+    ru: "Файл не выбран",
+    en: "No file selected",
+  },
+  supportedBookFormats: {
+    ru: "FB2 или PDF",
+    en: "FB2 or PDF",
+  },
+  selectBookFile: {
+    ru: "Выберите файл книги",
+    en: "Select a book file",
+  },
+  accountSettings: {
+    ru: "Настройки аккаунта",
+    en: "Account settings",
+  },
+  profile: {
+    ru: "Профиль",
+    en: "Profile",
+  },
+  accountStatus: {
+    ru: "Статус аккаунта",
+    en: "Account status",
+  },
+  active: {
+    ru: "Активен",
+    en: "Active",
+  },
+  inactive: {
+    ru: "Не активен",
+    en: "Inactive",
+  },
+  storage: {
+    ru: "Хранилище",
+    en: "Storage",
+  },
+  changePassword: {
+    ru: "Смена пароля",
+    en: "Change password",
+  },
+  currentPassword: {
+    ru: "Текущий пароль",
+    en: "Current password",
+  },
+  newPassword: {
+    ru: "Новый пароль",
+    en: "New password",
+  },
+  passwordChanged: {
+    ru: "Пароль изменён",
+    en: "Password changed",
+  },
+  savePassword: {
+    ru: "Сохранить пароль",
+    en: "Save password",
+  },
+  frontendSettings: {
+    ru: "Frontend-настройки",
+    en: "Frontend settings",
+  },
+  invalidJson: {
+    ru: "Некорректный JSON",
+    en: "Invalid JSON",
+  },
+  settingsMustBeObject: {
+    ru: "Настройки должны быть JSON-объектом",
+    en: "Settings must be a JSON object",
+  },
+  settingsSaved: {
+    ru: "Настройки сохранены",
+    en: "Settings saved",
+  },
+  openFile: {
+    ru: "Открыть файл",
+    en: "Open file",
   },
 } satisfies Record<string, Translation>;
 
