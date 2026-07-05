@@ -1,70 +1,6 @@
 @use "@/styles/_variables.scss" as *;
 @use "@/styles/_mixins.scss" as *;
 
-.header {
-  @include compact-shadow;
-
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 40;
-  border-bottom: 1px solid rgba(20, 23, 31, 0.12);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(14px);
-  transform: translateY(-100%);
-  transition:
-    transform $duration-base $ease-standard,
-    opacity $duration-base $ease-standard;
-  opacity: 0;
-}
-
-.rulerBar {
-  @include compact-shadow;
-
-  position: fixed;
-  top: 48px;
-  right: 0;
-  left: 0;
-  z-index: 41;
-  padding: 0;
-  border-bottom: 1px solid rgba(20, 23, 31, 0.12);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(14px);
-  transform: translateY(-80px);
-  transition:
-    transform $duration-base $ease-standard,
-    opacity $duration-base $ease-standard;
-  opacity: 0;
-}
-
-.visible {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.headerBar {
-  display: flex;
-  gap: $space-4;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 48px;
-  padding: $space-1 $space-5;
-}
-
-.headerContent {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.bookTitle {
-  @include truncate;
-
-  color: $color-ink-700;
-  font-size: 14px;
-  font-weight: 650;
-}
-
 .ruler {
   position: relative;
   width: 100%;
@@ -78,7 +14,6 @@
   cursor: ew-resize;
   touch-action: none;
   user-select: none;
-
 }
 
 .ruler::before {
@@ -126,10 +61,6 @@
 }
 
 @media (max-width: 720px) {
-  .headerBar {
-    padding: $space-2 $space-4;
-  }
-
   .ruler {
     min-width: 0;
   }

@@ -1,7 +1,8 @@
 import * as pdfjs from "pdfjs-dist";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
+import ReaderFloatingChrome from "@/components/common/ReaderFloatingChrome/ReaderFloatingChrome";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./PdfReader.module.scss";
 
@@ -27,7 +28,8 @@ function isRenderCancelled(error: unknown) {
 
 function PdfReader(props: {
   fileUrl: string;
-  title: string;
+  title?: string;
+  headerContent?: JSX.Element;
   class?: string;
   onReady?: () => void;
 }) {
@@ -324,17 +326,12 @@ function PdfReader(props: {
 
   return (
     <div ref={rootRef} class={`${styles.reader} ${props.class ?? ""}`}>
-      <div class={styles.hoverZone} aria-hidden="true" onPointerEnter={() => setHeaderVisible(true)} />
-
-      <header
-        class={styles.header}
-        classList={{ [styles.visible]: headerVisible() }}
-        onPointerEnter={() => setHeaderVisible(true)}
-      >
-        <div class={styles.headerBar}>
-          <div class={styles.bookTitle}>{props.title}</div>
-        </div>
-      </header>
+      <ReaderFloatingChrome
+        visible={headerVisible()}
+        title={props.title}
+        headerContent={props.headerContent}
+        onShow={() => setHeaderVisible(true)}
+      />
 
       <Show when={loading()}>
         <div class={styles.state}>{t("loading")}</div>

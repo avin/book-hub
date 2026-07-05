@@ -589,7 +589,6 @@ function Fb2Reader(props: {
 
   return (
     <div ref={rootRef} class={`${styles.reader} ${props.class ?? ""}`} style={cssVars()}>
-      <div class={styles.hoverZone} aria-hidden="true" />
       <ReaderChrome
         visible={headerVisible() || panelOpen() || draggingWidth()}
         title={documentTitle()}

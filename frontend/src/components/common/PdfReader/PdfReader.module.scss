@@ -9,55 +9,6 @@
   overflow-anchor: none;
 }
 
-.hoverZone {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 38;
-  height: 28px;
-}
-
-.header {
-  @include compact-shadow;
-
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 40;
-  border-bottom: 1px solid rgba(20, 23, 31, 0.12);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(14px);
-  transform: translateY(-100%);
-  transition:
-    transform $duration-base $ease-standard,
-    opacity $duration-base $ease-standard;
-  opacity: 0;
-}
-
-.visible {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.headerBar {
-  display: flex;
-  min-height: 48px;
-  align-items: center;
-  padding: $space-1 $space-5;
-}
-
-.bookTitle {
-  @include truncate;
-
-  width: 100%;
-  color: $color-ink-700;
-  font-size: 14px;
-  font-weight: 650;
-  text-align: center;
-}
-
 .state {
   display: grid;
   min-height: 100vh;
@@ -94,10 +45,6 @@
 }
 
 @media (max-width: 720px) {
-  .headerBar {
-    padding: $space-2 $space-4;
-  }
-
   .document {
     padding: 20px 10px 56px;
     gap: 12px;

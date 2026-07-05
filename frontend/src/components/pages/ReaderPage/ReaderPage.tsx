@@ -197,8 +197,8 @@ function ReaderPage() {
       <Show when={isPdf()}>
         <PdfReader
           fileUrl={getBookFileUrl(bookId())}
-          title={book()?.title ?? t("reader")}
           class={styles.pdfReader}
+          headerContent={chromeContent()}
           onReady={() => setPdfReady(true)}
         />
       </Show>

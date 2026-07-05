@@ -1,6 +1,7 @@
 import { Settings } from "lucide-solid";
 import { For, type JSX } from "solid-js";
 import Button from "@/components/common/Button/Button";
+import ReaderFloatingChrome from "@/components/common/ReaderFloatingChrome/ReaderFloatingChrome";
 import styles from "./ReaderChrome.module.scss";
 
 function ReaderChrome(props: {
@@ -22,23 +23,23 @@ function ReaderChrome(props: {
   onRulerPointerUp: (event: PointerEvent) => void;
 }) {
   return (
-    <>
-      <header class={styles.header} classList={{ [styles.visible]: props.visible }} onPointerEnter={props.onShow}>
-        <div class={styles.headerBar}>
-          <div class={styles.headerContent}>{props.headerContent ?? <div class={styles.bookTitle}>{props.title}</div>}</div>
-          <Button
-            variant="secondary"
-            type="button"
-            iconOnly
-            iconStart={<Settings />}
-            title="Настройки внешнего вида"
-            aria-label="Настройки внешнего вида"
-            onClick={props.onToggleSettings}
-          />
-        </div>
-      </header>
-
-      <div class={styles.rulerBar} classList={{ [styles.visible]: props.visible }} onPointerEnter={props.onShow}>
+    <ReaderFloatingChrome
+      visible={props.visible}
+      title={props.title}
+      headerContent={props.headerContent}
+      onShow={props.onShow}
+      actions={
+        <Button
+          variant="secondary"
+          type="button"
+          iconOnly
+          iconStart={<Settings />}
+          title="Настройки внешнего вида"
+          aria-label="Настройки внешнего вида"
+          onClick={props.onToggleSettings}
+        />
+      }
+      secondaryBar={
         <div
           ref={props.onRulerRef}
           class={styles.ruler}
@@ -85,8 +86,8 @@ function ReaderChrome(props: {
             />
           </svg>
         </div>
-      </div>
-    </>
+      }
+    />
   );
 }
 
