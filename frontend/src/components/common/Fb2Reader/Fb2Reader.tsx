@@ -1,5 +1,7 @@
 import { createEffect, createMemo, createSignal, For, JSX, onCleanup, onMount, Show } from "solid-js";
+import { X } from "lucide-solid";
 import BlockView from "./BlockView/BlockView";
+import Button from "@/components/common/Button/Button";
 import { findBlockIndex, buildVirtualLayout } from "./fb2Layout";
 import { binaryToDataUrl, parseFb2 } from "./fb2Parser";
 import { defaultSettings } from "./fb2ReaderSettings";
@@ -42,6 +44,7 @@ function Fb2Reader(props: Fb2ReaderProps) {
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [pendingScrollAnchor, setPendingScrollAnchor] = createSignal<ScrollAnchor>();
+  const [activeFootnoteId, setActiveFootnoteId] = createSignal<string>();
   const parsed = createMemo(() => parseFb2(props.fb2));
   const availableTextWidth = createMemo(() => Math.max(320, readerWidth() - settings().pagePadding * 2));
   const textWidth = createMemo(() => Math.min(availableTextWidth(), settings().maxTextWidth ?? availableTextWidth()));
@@ -110,6 +113,11 @@ function Fb2Reader(props: Fb2ReaderProps) {
     const authors = parsed().authors.join(", ");
 
     return [parsed().title, authors].filter(Boolean).join(" · ") || "FB2";
+  });
+  const activeFootnote = createMemo(() => {
+    const id = activeFootnoteId();
+
+    return id ? parsed().notes.get(id) : undefined;
   });
   const anchorIndex = createMemo(() => {
     const index = new Map<string, number>();
@@ -190,6 +198,17 @@ function Fb2Reader(props: Fb2ReaderProps) {
     }
 
     scrollToBlockIndex(blockIndex);
+  };
+  const isFootnoteTarget = (targetId: string) => parsed().notes.has(targetId);
+  const onFootnoteLink = (targetId: string) => {
+    if (isFootnoteTarget(targetId)) {
+      setActiveFootnoteId(targetId);
+    }
+  };
+  const closeFootnote = () => setActiveFootnoteId(undefined);
+  const onFootnoteInternalLink = (targetId: string) => {
+    closeFootnote();
+    onInternalLink(targetId);
   };
 
   const lockResizeScrollAnchor = () => {
@@ -285,6 +304,11 @@ function Fb2Reader(props: Fb2ReaderProps) {
     const resizeObserver = new ResizeObserver(() => measureReader(true));
     const onScroll = () => measureReader();
     const onResize = () => measureReader(true);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeFootnote();
+      }
+    };
     const onPointerMove = (event: PointerEvent) => {
       if (event.clientY < 88) {
         setHeaderVisible(true);
@@ -300,12 +324,14 @@ function Fb2Reader(props: Fb2ReaderProps) {
     measureReader();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
+    window.addEventListener("keydown", onKeyDown);
     window.addEventListener("pointermove", onPointerMove);
 
     onCleanup(() => {
       resizeObserver.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointermove", onPointerMove);
     });
   });
@@ -397,13 +423,62 @@ function Fb2Reader(props: Fb2ReaderProps) {
           <For each={visibleBlocks()}>
             {(item) => (
               <div class={styles.blockSlot} style={{ height: `${item.height}px` }}>
-                <BlockView block={item.block} imageSrc={imageSrc} onInternalLink={onInternalLink} />
+                <BlockView
+                  block={item.block}
+                  imageSrc={imageSrc}
+                  onInternalLink={onInternalLink}
+                  onFootnoteLink={onFootnoteLink}
+                  isFootnoteTarget={isFootnoteTarget}
+                />
               </div>
             )}
           </For>
           <div style={{ height: `${bottomSpacer()}px` }} aria-hidden="true" />
         </article>
       </main>
+
+      <Show when={activeFootnote()}>
+        {(note) => (
+          <div
+            class={styles.footnoteOverlay}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                closeFootnote();
+              }
+            }}
+          >
+            <section class={styles.footnoteDialog} role="dialog" aria-modal="true" aria-label="Сноска">
+              <header class={styles.footnoteHeader}>
+                <h2>Сноска</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  iconOnly
+                  type="button"
+                  aria-label="Закрыть сноску"
+                  iconStart={<X />}
+                  onClick={closeFootnote}
+                />
+              </header>
+              <div class={styles.footnoteContent}>
+                <For each={note().blocks}>
+                  {(block) => (
+                    <div class={styles.footnoteBlock}>
+                      <BlockView
+                        block={block}
+                        imageSrc={imageSrc}
+                        onInternalLink={onFootnoteInternalLink}
+                        onFootnoteLink={onFootnoteLink}
+                        isFootnoteTarget={isFootnoteTarget}
+                      />
+                    </div>
+                  )}
+                </For>
+              </div>
+            </section>
+          </div>
+        )}
+      </Show>
     </div>
   );
 }

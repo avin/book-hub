@@ -7,17 +7,27 @@ type BlockViewProps = {
   block: Fb2Block;
   imageSrc: (id: string | undefined) => string | undefined;
   onInternalLink: (targetId: string) => void;
+  onFootnoteLink: (targetId: string) => void;
+  isFootnoteTarget: (targetId: string) => boolean;
 };
 
 type TableCellProps = {
   cell: Fb2TableCell;
   imageSrc: (id: string | undefined) => string | undefined;
   onInternalLink: (targetId: string) => void;
+  onFootnoteLink: (targetId: string) => void;
+  isFootnoteTarget: (targetId: string) => boolean;
 };
 
 function TableCell(props: TableCellProps) {
   const content = () => (
-    <RenderInlines inlines={props.cell.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+    <RenderInlines
+      inlines={props.cell.inlines}
+      imageSrc={props.imageSrc}
+      onInternalLink={props.onInternalLink}
+      onFootnoteLink={props.onFootnoteLink}
+      isFootnoteTarget={props.isFootnoteTarget}
+    />
   );
 
   return (
@@ -41,12 +51,24 @@ function BlockView(props: BlockViewProps) {
     <Switch>
       <Match when={props.block.kind === "title"}>
         <h2 class={styles.title} data-level={props.block.level}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+          <RenderInlines
+            inlines={props.block.inlines}
+            imageSrc={props.imageSrc}
+            onInternalLink={props.onInternalLink}
+            onFootnoteLink={props.onFootnoteLink}
+            isFootnoteTarget={props.isFootnoteTarget}
+          />
         </h2>
       </Match>
       <Match when={props.block.kind === "subtitle"}>
         <h3 class={styles.subtitle}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+          <RenderInlines
+            inlines={props.block.inlines}
+            imageSrc={props.imageSrc}
+            onInternalLink={props.onInternalLink}
+            onFootnoteLink={props.onFootnoteLink}
+            isFootnoteTarget={props.isFootnoteTarget}
+          />
         </h3>
       </Match>
       <Match when={props.block.kind === "paragraph"}>
@@ -57,22 +79,46 @@ function BlockView(props: BlockViewProps) {
             [styles.quote]: props.block.role === "cite" || props.block.role === "epigraph",
           }}
         >
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+          <RenderInlines
+            inlines={props.block.inlines}
+            imageSrc={props.imageSrc}
+            onInternalLink={props.onInternalLink}
+            onFootnoteLink={props.onFootnoteLink}
+            isFootnoteTarget={props.isFootnoteTarget}
+          />
         </p>
       </Match>
       <Match when={props.block.kind === "poemLine"}>
         <p class={styles.poemLine}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+          <RenderInlines
+            inlines={props.block.inlines}
+            imageSrc={props.imageSrc}
+            onInternalLink={props.onInternalLink}
+            onFootnoteLink={props.onFootnoteLink}
+            isFootnoteTarget={props.isFootnoteTarget}
+          />
         </p>
       </Match>
       <Match when={props.block.kind === "textAuthor"}>
         <p class={styles.textAuthor}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+          <RenderInlines
+            inlines={props.block.inlines}
+            imageSrc={props.imageSrc}
+            onInternalLink={props.onInternalLink}
+            onFootnoteLink={props.onFootnoteLink}
+            isFootnoteTarget={props.isFootnoteTarget}
+          />
         </p>
       </Match>
       <Match when={props.block.kind === "date"}>
         <p class={styles.date}>
-          <RenderInlines inlines={props.block.inlines} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />
+          <RenderInlines
+            inlines={props.block.inlines}
+            imageSrc={props.imageSrc}
+            onInternalLink={props.onInternalLink}
+            onFootnoteLink={props.onFootnoteLink}
+            isFootnoteTarget={props.isFootnoteTarget}
+          />
         </p>
       </Match>
       <Match when={props.block.kind === "emptyLine"}>
@@ -93,7 +139,15 @@ function BlockView(props: BlockViewProps) {
                 {(row) => (
                   <tr>
                     <For each={row.cells}>
-                      {(cell) => <TableCell cell={cell} imageSrc={props.imageSrc} onInternalLink={props.onInternalLink} />}
+                      {(cell) => (
+                        <TableCell
+                          cell={cell}
+                          imageSrc={props.imageSrc}
+                          onInternalLink={props.onInternalLink}
+                          onFootnoteLink={props.onFootnoteLink}
+                          isFootnoteTarget={props.isFootnoteTarget}
+                        />
+                      )}
                     </For>
                   </tr>
                 )}

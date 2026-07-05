@@ -59,8 +59,69 @@
   overflow: hidden;
 }
 
+.footnoteOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 23, 31, 0.34);
+}
+
+.footnoteDialog {
+  display: flex;
+  width: min(560px, 100%);
+  max-height: min(640px, 72vh);
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--fb2-text) 14%, transparent);
+  border-radius: $radius-md;
+  background: var(--fb2-bg);
+  box-shadow: 0 20px 60px rgba(20, 23, 31, 0.24);
+  color: var(--fb2-text);
+}
+
+.footnoteHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 10px 20px;
+  gap: $space-3;
+  border-bottom: 1px solid color-mix(in srgb, var(--fb2-text) 12%, transparent);
+
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+}
+
+.footnoteContent {
+  overflow: auto;
+  padding: 18px 20px 20px;
+}
+
+.footnoteBlock {
+  margin-bottom: calc(var(--fb2-font-size) * 0.82);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
 @media (max-width: 720px) {
   .documentShell {
     padding: 116px max(20px, calc(var(--fb2-content-padding) / 2)) 56px;
+  }
+
+  .footnoteOverlay {
+    align-items: flex-end;
+    padding: 16px;
+  }
+
+  .footnoteDialog {
+    max-height: 78vh;
   }
 }

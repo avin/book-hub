@@ -17,6 +17,7 @@ export type Fb2Inline = {
   text?: string;
   children?: Fb2Inline[];
   href?: string;
+  linkType?: string;
   imageId?: string;
   styleName?: string;
 };
@@ -32,7 +33,7 @@ export type Fb2BlockKind =
   | "date"
   | "table";
 
-export type Fb2BlockRole = "body" | "annotation" | "epigraph" | "cite" | "poem" | "metadata";
+export type Fb2BlockRole = "body" | "annotation" | "epigraph" | "cite" | "poem" | "metadata" | "note";
 
 export type Fb2TableCell = {
   header: boolean;
@@ -62,10 +63,16 @@ export type Fb2Binary = {
   data: string;
 };
 
+export type Fb2Note = {
+  id: string;
+  blocks: Fb2Block[];
+};
+
 export type Fb2Document = {
   title: string;
   authors: string[];
   blocks: Fb2Block[];
+  notes: Map<string, Fb2Note>;
   binaries: Map<string, Fb2Binary>;
 };
 

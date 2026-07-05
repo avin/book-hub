@@ -4,6 +4,7 @@ import {
   Fb2BlockRole,
   Fb2Document,
   Fb2Inline,
+  Fb2Note,
   Fb2TableCell,
 } from "./fb2Types";
 
@@ -100,7 +101,7 @@ function parseInlineNodes(parent: Element): Fb2Inline[] {
         result.push({ kind: "code", children });
         break;
       case "a":
-        result.push({ kind: "link", href: hrefAttr(element), children });
+        result.push({ kind: "link", href: hrefAttr(element), linkType: attr(element, "type") ?? undefined, children });
         break;
       case "style":
         result.push({ kind: "style", styleName: attr(element, "name") ?? undefined, children });
@@ -346,6 +347,27 @@ function parseDescriptionBlocks(blocks: Fb2Block[], description: Element | undef
   }
 }
 
+function parseNotes(body: Element) {
+  const notes = new Map<string, Fb2Note>();
+
+  ownElementChildren(body)
+    .filter((child) => localName(child) === "section")
+    .forEach((section) => {
+      const id = section.getAttribute("id");
+
+      if (!id) {
+        return;
+      }
+
+      const noteBlocks: Fb2Block[] = [];
+
+      parseBlocks(noteBlocks, section, 1, "note");
+      notes.set(id, { id, blocks: noteBlocks });
+    });
+
+  return notes;
+}
+
 export function binaryToDataUrl(binary: Fb2Binary | undefined) {
   if (!binary) {
     return undefined;
@@ -367,17 +389,27 @@ export function parseFb2(source: string): Fb2Document {
     ? ownElementChildren(description).find((child) => localName(child) === "title-info")
     : undefined;
   const blocks: Fb2Block[] = [];
+  const notes = new Map<string, Fb2Note>();
 
   parseDescriptionBlocks(blocks, description);
 
   ownElementChildren(root)
     .filter((child) => localName(child) === "body")
-    .forEach((body) => parseBlocks(blocks, body, 1, "body"));
+    .forEach((body) => {
+      const bodyName = body.getAttribute("name");
+
+      if (bodyName === "notes") {
+        parseNotes(body).forEach((note, id) => notes.set(id, note));
+      }
+
+      parseBlocks(blocks, body, 1, bodyName === "notes" ? "note" : "body");
+    });
 
   return {
     title: titleInfo ? textContent(titleInfo, "book-title") : "",
     authors: parseAuthors(titleInfo),
     blocks,
+    notes,
     binaries: parseBinaries(root),
   };
 }
