@@ -451,7 +451,7 @@ function PdfReader(props: {
     setFailed(false);
     setMaxPageWidth(undefined);
     setPages([]);
-    setVisiblePages(new Set());
+    setVisiblePages(new Set<number>());
     pageRefs.clear();
     canvasRefs.clear();
     pageCache.clear();

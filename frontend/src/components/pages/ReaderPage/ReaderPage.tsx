@@ -38,7 +38,7 @@ function restoreScrollProgress(progressPercent: number) {
 function ReaderPage() {
   const { t } = useI18n();
   const params = useParams();
-  const bookId = () => params.bookId;
+  const bookId = () => params.bookId ?? "";
   const bookQuery = createBookQuery(bookId);
   const progressQuery = createReadingProgressQuery(bookId);
   const fb2FileQuery = createBookFileTextQuery(bookId, () => bookQuery.data?.format === "fb2");
