@@ -70,14 +70,20 @@ function TagBadge(props: {
   measure?: boolean;
   disabled?: boolean;
   ref?: (element: HTMLSpanElement) => void;
+  onClick?: () => void;
   onRemove?: () => void;
 }) {
+  const handleClick = (event: MouseEvent) => {
+    preventLabelActivation(event);
+    props.onClick?.();
+  };
+
   return (
     <span
       ref={props.ref}
       class={styles.badge}
       data-tag-badge
-      onClick={preventLabelActivation}
+      onClick={handleClick}
     >
       <span class={styles.badgeContent}>
         {props.tag}
@@ -143,6 +149,7 @@ function TagsSelect(props: {
   let resizeObserver: ResizeObserver | undefined;
   let shouldOpenOptionsAfterSearch = false;
   let lastEmptyInputBackspaceAt = 0;
+  let knownOptions: string[] = [];
   const tagMeasureEls: (HTMLSpanElement | undefined)[] = [];
 
   const placeholder = () => props.placeholder ?? t("findOrAddTag");
@@ -153,6 +160,16 @@ function TagsSelect(props: {
   const closeDropdown = () => {
     shouldOpenOptionsAfterSearch = false;
     setDropdownMode(null);
+  };
+
+  const openOptions = () => {
+    if (props.disabled || !(props.showOptionsOnFocus ?? true)) {
+      return;
+    }
+
+    inputEl?.focus();
+    shouldOpenOptionsAfterSearch = true;
+    debouncedSearchOptions(query(), true);
   };
 
   const toggleCollapsedDropdown = () => {
@@ -177,10 +194,23 @@ function TagsSelect(props: {
     return sortTagsByRecent(availableOptions, loadRecentTags());
   };
 
+  const rememberOptions = (nextOptions: string[]) => {
+    const knownOptionsSet = new Set(knownOptions);
+    for (const option of nextOptions) {
+      if (knownOptionsSet.has(option)) {
+        continue;
+      }
+
+      knownOptionsSet.add(option);
+      knownOptions.push(option);
+    }
+  };
+
   const searchLocalOptions = (searchQuery: string) => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
+    const localOptions = [...(props.options ?? []), ...knownOptions];
 
-    return (props.options ?? []).filter((option) => {
+    return localOptions.filter((option) => {
       if (!normalizedQuery) {
         return true;
       }
@@ -204,6 +234,8 @@ function TagsSelect(props: {
     if (requestId !== searchRequestId) {
       return;
     }
+
+    rememberOptions(nextOptions);
 
     const normalizedOptions = normalizeOptions(nextOptions);
     setOptions(normalizedOptions);
@@ -368,6 +400,7 @@ function TagsSelect(props: {
     }
 
     inputEl?.focus();
+    openOptions();
   };
 
   const handleEmptyInputBackspace = (event: KeyboardEvent) => {
@@ -564,6 +597,7 @@ function TagsSelect(props: {
                 <TagBadge
                   tag={tag}
                   disabled={props.disabled}
+                  onClick={openOptions}
                   onRemove={() => removeTag(tag)}
                 />
               )}
