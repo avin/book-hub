@@ -104,6 +104,7 @@ function LibraryPage() {
           <InputContainer label={t("searchBooks")} endContent={<Search />}>
             <TextInput
               value={search()}
+              placeholder={t("findByTitle")}
               onInput={(event) => {
                 setSearch(event.currentTarget.value);
                 resetToFirstPage();
@@ -116,6 +117,7 @@ function LibraryPage() {
             <TagsSelect
               value={selectedTags()}
               options={tagOptions()}
+              placeholder={t("findByTag")}
               onChange={(nextTags) => {
                 setSelectedTags(nextTags);
                 resetToFirstPage();
