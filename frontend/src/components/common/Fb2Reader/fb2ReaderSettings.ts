@@ -9,7 +9,6 @@ export const defaultSettings: Fb2ReaderSettings = {
   lineHeight: 1.62,
   paragraphSpacing: 14,
   paragraphIndent: 28,
-  pagePadding: 56,
 };
 
 export const fontOptions = [

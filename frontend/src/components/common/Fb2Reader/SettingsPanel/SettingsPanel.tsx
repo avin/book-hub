@@ -101,15 +101,6 @@ function SettingsPanel(props: {
             onInput={(event) => props.onUpdateSetting("paragraphSpacing", Number(event.currentTarget.value))}
           />
         </InputContainer>
-        <InputContainer label="Поля документа" labelEnd={`${props.settings.pagePadding}px`}>
-          <input
-            type="range"
-            min="20"
-            max="120"
-            value={props.settings.pagePadding}
-            onInput={(event) => props.onUpdateSetting("pagePadding", Number(event.currentTarget.value))}
-          />
-        </InputContainer>
       </section>
 
       <section class={styles.settingGroup}>

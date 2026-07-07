@@ -26,7 +26,7 @@
   display: flex;
   justify-content: center;
   min-height: 100vh;
-  padding: var(--fb2-content-padding) var(--fb2-content-padding) 80px;
+  padding: 24px 24px 80px;
   overflow-anchor: none;
 }
 
@@ -120,7 +120,7 @@
 
 @media (max-width: 720px) {
   .documentShell {
-    padding: max(20px, calc(var(--fb2-content-padding) / 2)) max(20px, calc(var(--fb2-content-padding) / 2)) 56px;
+    padding: 20px 20px 56px;
   }
 
   .footnoteOverlay {

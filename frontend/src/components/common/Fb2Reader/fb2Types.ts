@@ -89,7 +89,6 @@ export type Fb2ReaderSettings = {
   lineHeight: number;
   paragraphSpacing: number;
   paragraphIndent: number;
-  pagePadding: number;
   maxTextWidth?: number;
 };
 
@@ -113,5 +112,4 @@ export type CssVars = JSX.CSSProperties & {
   "--fb2-font-size": string;
   "--fb2-line-height": string;
   "--fb2-paragraph-indent": string;
-  "--fb2-content-padding": string;
 };

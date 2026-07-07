@@ -152,7 +152,6 @@ function sanitizeFb2ReaderSettings(settings: unknown): Partial<Fb2ReaderSettings
   const lineHeight = finiteNumber(settings.lineHeight);
   const paragraphSpacing = finiteNumber(settings.paragraphSpacing);
   const paragraphIndent = finiteNumber(settings.paragraphIndent);
-  const pagePadding = finiteNumber(settings.pagePadding);
   const maxTextWidth = finiteNumber(settings.maxTextWidth);
 
   if (backgroundColor !== undefined) sanitized.backgroundColor = backgroundColor;
@@ -163,7 +162,6 @@ function sanitizeFb2ReaderSettings(settings: unknown): Partial<Fb2ReaderSettings
   if (lineHeight !== undefined) sanitized.lineHeight = lineHeight;
   if (paragraphSpacing !== undefined) sanitized.paragraphSpacing = paragraphSpacing;
   if (paragraphIndent !== undefined) sanitized.paragraphIndent = paragraphIndent;
-  if (pagePadding !== undefined) sanitized.pagePadding = pagePadding;
   if (maxTextWidth !== undefined) sanitized.maxTextWidth = maxTextWidth;
 
   return sanitized;
