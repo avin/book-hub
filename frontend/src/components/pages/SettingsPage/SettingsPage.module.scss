@@ -25,9 +25,14 @@
   text-transform: uppercase;
 }
 
+.accountName {
+  color: $color-ink-500;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 16px;
 }
 
@@ -61,25 +66,6 @@
   }
 }
 
-.profileRows {
-  display: grid;
-  gap: 10px;
-
-  div {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  span {
-    color: $color-ink-600;
-  }
-
-  strong {
-    color: $color-ink-950;
-  }
-}
-
 .storageBar {
   height: 10px;
   overflow: hidden;
@@ -98,23 +84,6 @@
   margin: 0;
   color: $color-ink-700;
   font-size: 15px;
-}
-
-.textarea {
-  min-height: 220px;
-  resize: vertical;
-  padding: 12px;
-  border: 1px solid $color-border;
-  border-radius: $radius-sm;
-  background: $color-paper-0;
-  color: $color-ink-900;
-  font-family: Cousine, ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 13px;
-  line-height: 20px;
-
-  &:focus-visible {
-    @include focus-ring;
-  }
 }
 
 .panelActions {

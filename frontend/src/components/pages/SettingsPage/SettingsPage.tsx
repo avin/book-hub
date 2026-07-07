@@ -1,10 +1,8 @@
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
-import { Database, KeyRound, Save, User } from "lucide-solid";
-import { createCurrentUserSettingsQuery, createUpdateCurrentUserSettingsMutation } from "@/api/settings";
+import { createMemo, createSignal, Show } from "solid-js";
+import { Database, KeyRound } from "lucide-solid";
 import { createChangePasswordMutation, createCurrentUserQuery } from "@/api/user";
 import Button from "@/components/common/Button/Button";
 import InputContainer from "@/components/common/InputContainer/InputContainer";
-import LanguageSelect from "@/components/common/LanguageSelect/LanguageSelect";
 import TextInput from "@/components/common/TextInput/TextInput";
 import AppLayout from "@/components/layouts/AppLayout/AppLayout";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -42,16 +40,10 @@ function errorMessage(error: unknown, fallback: string) {
 function SettingsPage() {
   const { t } = useI18n();
   const currentUserQuery = createCurrentUserQuery();
-  const settingsQuery = createCurrentUserSettingsQuery();
-  const updateSettingsMutation = createUpdateCurrentUserSettingsMutation();
   const changePasswordMutation = createChangePasswordMutation();
-  const [settingsJson, setSettingsJson] = createSignal("{}");
   const [currentPassword, setCurrentPassword] = createSignal("");
   const [newPassword, setNewPassword] = createSignal("");
   const [repeatPassword, setRepeatPassword] = createSignal("");
-  const [settingsError, setSettingsError] = createSignal("");
-  const [settingsSaved, setSettingsSaved] = createSignal(false);
-  const [settingsDirty, setSettingsDirty] = createSignal(false);
   const [passwordError, setPasswordError] = createSignal("");
   const [passwordSaved, setPasswordSaved] = createSignal(false);
   const user = createMemo(() => currentUserQuery.data);
@@ -63,42 +55,6 @@ function SettingsPage() {
 
     return Math.min(100, (currentUser.used_bytes / currentUser.quota_bytes) * 100);
   });
-
-  createEffect(() => {
-    const settings = settingsQuery.data;
-    if (!settings || settingsDirty()) {
-      return;
-    }
-
-    setSettingsJson(JSON.stringify(settings, null, 2));
-  });
-
-  const handleSaveSettings = (event: Event) => {
-    event.preventDefault();
-    setSettingsError("");
-    setSettingsSaved(false);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(settingsJson());
-    } catch {
-      setSettingsError(t("invalidJson"));
-      return;
-    }
-
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      setSettingsError(t("settingsMustBeObject"));
-      return;
-    }
-
-    updateSettingsMutation.mutate(parsed as Record<string, unknown>, {
-      onSuccess: () => {
-        setSettingsDirty(false);
-        setSettingsSaved(true);
-      },
-      onError: (nextError) => setSettingsError(errorMessage(nextError, t("requestFailedTryAgain"))),
-    });
-  };
 
   const updatePasswordField = (setter: (value: string) => void, value: string) => {
     setter(value);
@@ -143,56 +99,15 @@ function SettingsPage() {
       <section class={styles.settingsPage}>
         <header class={styles.header}>
           <p class={styles.kicker}>{t("settings")}</p>
-          <h1>{t("accountSettings")}</h1>
+          <h1>
+            {t("accountSettings")}
+            <Show when={user()}>
+              {(currentUser) => <span class={styles.accountName}> {currentUser().login}</span>}
+            </Show>
+          </h1>
         </header>
 
         <div class={styles.grid}>
-          <section class={styles.panel}>
-            <header class={styles.panelHeader}>
-              <User />
-              <h2>{t("profile")}</h2>
-            </header>
-
-            <Show when={user()}>
-              {(currentUser) => (
-                <div class={styles.profileRows}>
-                  <div>
-                    <span>{t("login")}</span>
-                    <strong>{currentUser().login}</strong>
-                  </div>
-                  <div>
-                    <span>{t("accountStatus")}</span>
-                    <strong>{currentUser().is_active ? t("active") : t("inactive")}</strong>
-                  </div>
-                </div>
-              )}
-            </Show>
-
-            <InputContainer label={t("language")}>
-              <LanguageSelect placement="bottom-start" />
-            </InputContainer>
-          </section>
-
-          <section class={styles.panel}>
-            <header class={styles.panelHeader}>
-              <Database />
-              <h2>{t("storage")}</h2>
-            </header>
-
-            <Show when={user()}>
-              {(currentUser) => (
-                <>
-                  <div class={styles.storageBar}>
-                    <span style={{ width: `${usedPercent()}%` }} />
-                  </div>
-                  <p class={styles.storageText}>
-                    {formatBytes(currentUser().used_bytes)} / {formatBytes(currentUser().quota_bytes)}
-                  </p>
-                </>
-              )}
-            </Show>
-          </section>
-
           <form class={styles.panel} onSubmit={handleChangePassword}>
             <header class={styles.panelHeader}>
               <KeyRound />
@@ -235,39 +150,25 @@ function SettingsPage() {
             </footer>
           </form>
 
-          <form class={styles.panel} onSubmit={handleSaveSettings}>
+          <section class={styles.panel}>
             <header class={styles.panelHeader}>
-              <Save />
-              <h2>{t("frontendSettings")}</h2>
+              <Database />
+              <h2>{t("storage")}</h2>
             </header>
 
-            <InputContainer label={t("frontendSettings")}>
-              <textarea
-                class={styles.textarea}
-                value={settingsJson()}
-                spellcheck={false}
-                onInput={(event) => {
-                  setSettingsJson(event.currentTarget.value);
-                  setSettingsDirty(true);
-                  setSettingsError("");
-                  setSettingsSaved(false);
-                }}
-              />
-            </InputContainer>
-
-            <Show when={settingsError()}>
-              <p class={styles.error}>{settingsError()}</p>
+            <Show when={user()}>
+              {(currentUser) => (
+                <>
+                  <div class={styles.storageBar}>
+                    <span style={{ width: `${usedPercent()}%` }} />
+                  </div>
+                  <p class={styles.storageText}>
+                    {formatBytes(currentUser().used_bytes)} / {formatBytes(currentUser().quota_bytes)}
+                  </p>
+                </>
+              )}
             </Show>
-            <Show when={settingsSaved()}>
-              <p class={styles.success}>{t("settingsSaved")}</p>
-            </Show>
-
-            <footer class={styles.panelActions}>
-              <Button type="submit" loading={updateSettingsMutation.isPending}>
-                {t("save")}
-              </Button>
-            </footer>
-          </form>
+          </section>
         </div>
       </section>
     </AppLayout>

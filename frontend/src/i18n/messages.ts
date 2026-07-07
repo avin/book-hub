@@ -325,22 +325,6 @@ export const messages = {
     ru: "Настройки аккаунта",
     en: "Account settings",
   },
-  profile: {
-    ru: "Профиль",
-    en: "Profile",
-  },
-  accountStatus: {
-    ru: "Статус аккаунта",
-    en: "Account status",
-  },
-  active: {
-    ru: "Активен",
-    en: "Active",
-  },
-  inactive: {
-    ru: "Не активен",
-    en: "Inactive",
-  },
   storage: {
     ru: "Хранилище",
     en: "Storage",
@@ -364,22 +348,6 @@ export const messages = {
   savePassword: {
     ru: "Сохранить пароль",
     en: "Save password",
-  },
-  frontendSettings: {
-    ru: "Frontend-настройки",
-    en: "Frontend settings",
-  },
-  invalidJson: {
-    ru: "Некорректный JSON",
-    en: "Invalid JSON",
-  },
-  settingsMustBeObject: {
-    ru: "Настройки должны быть JSON-объектом",
-    en: "Settings must be a JSON object",
-  },
-  settingsSaved: {
-    ru: "Настройки сохранены",
-    en: "Settings saved",
   },
 } satisfies Record<string, Translation>;
 
