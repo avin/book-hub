@@ -21,6 +21,11 @@
   }
 }
 
+.booksTotal {
+  color: $color-ink-500;
+  font-weight: 500;
+}
+
 .kicker {
   margin: 0;
   color: $color-sage-700;
@@ -118,17 +123,29 @@
   gap: 16px;
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: $color-ink-600;
-  font-size: 14px;
+.loadMoreSentinel {
+  height: 1px;
+}
 
-  div {
-    display: flex;
-    gap: 8px;
+.loadingMore {
+  display: grid;
+  min-height: 96px;
+  place-items: center;
+  color: $color-sage-700;
+}
+
+.loadingMoreSpinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba($color-sage-700, 0.22);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 720ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -143,8 +160,7 @@
 }
 
 @media (max-width: 720px) {
-  .header,
-  .pagination {
+  .header {
     align-items: stretch;
     flex-direction: column;
   }

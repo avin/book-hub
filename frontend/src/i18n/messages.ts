@@ -129,6 +129,14 @@ export const messages = {
     ru: "Ваши книги",
     en: "Your books",
   },
+  total: {
+    ru: "всего",
+    en: "total",
+  },
+  filtered: {
+    ru: "отфильтровано",
+    en: "filtered",
+  },
   uploadBook: {
     ru: "Загрузить книгу",
     en: "Upload book",

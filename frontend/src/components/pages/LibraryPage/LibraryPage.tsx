@@ -1,14 +1,17 @@
 import { A } from "@solidjs/router";
-import { batch, createEffect, createMemo, createSignal, Index, onCleanup, Show } from "solid-js";
-import { Library, Plus, Search } from "lucide-solid";
+import { createInfiniteQuery } from "@tanstack/solid-query";
+import { createEffect, createMemo, createSignal, Index, onCleanup, onMount, Show } from "solid-js";
+import { Library, Search, Upload } from "lucide-solid";
 import {
   type Book,
+  type BookListResponse,
+  type BookQueryRequest,
   type BookSort,
-  createBooksQuery,
+  booksQueryKey,
   createDeleteBookMutation,
   createUpdateBookMutation,
+  queryBooks,
 } from "@/api/books";
-import Button from "@/components/common/Button/Button";
 import InputContainer from "@/components/common/InputContainer/InputContainer";
 import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
 import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
@@ -40,32 +43,28 @@ function uniqueTags(books: Book[], selectedTags: string[]) {
 
 function LibraryPage() {
   const { t } = useI18n();
+  let loadMoreRef: HTMLDivElement | undefined;
   const [search, setSearch] = createSignal("");
   const [debouncedSearch, setDebouncedSearch] = createSignal("");
   const [sort, setSort] = createSignal<BookSort>("created_at_desc");
   const [favoriteFilter, setFavoriteFilter] = createSignal<"all" | "favorite" | "regular">("all");
   const [selectedTags, setSelectedTags] = createSignal<string[]>([]);
-  const [offset, setOffset] = createSignal(0);
   const [editingBook, setEditingBook] = createSignal<Book>();
   const updateBookMutation = createUpdateBookMutation();
   const deleteBookMutation = createDeleteBookMutation();
-  const resetToFirstPage = () => setOffset(0);
 
   createEffect(() => {
     const nextSearch = search();
     const timeoutId = window.setTimeout(() => {
-      batch(() => {
-        setDebouncedSearch(nextSearch);
-        resetToFirstPage();
-      });
+      setDebouncedSearch(nextSearch);
     }, searchDebounceMs);
 
     onCleanup(() => clearTimeout(timeoutId));
   });
 
-  const booksQuery = createBooksQuery(() => ({
+  const booksQueryRequest = createMemo<BookQueryRequest>(() => ({
     limit: pageLimit,
-    offset: offset(),
+    offset: 0,
     sort: sort(),
     tags: selectedTags(),
     favorite:
@@ -76,12 +75,81 @@ function LibraryPage() {
           : null,
     q: debouncedSearch().trim(),
   }));
-  const books = createMemo(() => booksQuery.data?.items ?? []);
+
+  const booksQuery = createInfiniteQuery<
+    BookListResponse,
+    Error,
+    { pages: BookListResponse[]; pageParams: number[] },
+    [string, BookQueryRequest],
+    number
+  >(() => {
+    const request = booksQueryRequest();
+
+    return {
+      queryKey: [booksQueryKey[0], request],
+      queryFn: ({ pageParam }) =>
+        queryBooks({
+          ...request,
+          offset: pageParam,
+        }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage) => {
+        const nextOffset = lastPage.offset + lastPage.items.length;
+
+        return nextOffset < lastPage.total ? nextOffset : undefined;
+      },
+    };
+  });
+  const books = createMemo(() => booksQuery.data?.pages.flatMap((page) => page.items) ?? []);
   const tagOptions = createMemo(() => uniqueTags(books(), selectedTags()));
-  const pageStart = createMemo(() => Math.min(offset() + 1, booksQuery.data?.total ?? 0));
-  const pageEnd = createMemo(() => Math.min(offset() + pageLimit, booksQuery.data?.total ?? 0));
-  const canGoBack = createMemo(() => offset() > 0);
-  const canGoForward = createMemo(() => offset() + pageLimit < (booksQuery.data?.total ?? 0));
+  const booksTotal = createMemo(() => booksQuery.data?.pages[0]?.total);
+  const hasActiveFilters = createMemo(
+    () => debouncedSearch().trim() !== "" || selectedTags().length > 0 || favoriteFilter() !== "all",
+  );
+  const canLoadMore = createMemo(
+    () =>
+      Boolean(booksQuery.hasNextPage) &&
+      !booksQuery.isLoading &&
+      !booksQuery.isError &&
+      !booksQuery.isFetchingNextPage,
+  );
+
+  const loadMoreIfNeeded = () => {
+    if (!loadMoreRef || !canLoadMore()) {
+      return;
+    }
+
+    const bounds = loadMoreRef.getBoundingClientRect();
+
+    if (bounds.top <= window.innerHeight + 640) {
+      void booksQuery.fetchNextPage();
+    }
+  };
+
+  createEffect(() => {
+    const loadedCount = books().length;
+
+    if (loadedCount >= 0 && canLoadMore()) {
+      loadMoreIfNeeded();
+    }
+  });
+
+  onMount(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMoreIfNeeded();
+        }
+      },
+      { root: null, rootMargin: "640px 0px" },
+    );
+
+    if (loadMoreRef) {
+      observer.observe(loadMoreRef);
+    }
+
+    onCleanup(() => observer.disconnect());
+  });
 
   const handleFavoriteToggle = (book: Book) => {
     updateBookMutation.mutate({
@@ -107,10 +175,18 @@ function LibraryPage() {
         <header class={styles.header}>
           <div>
             <p class={styles.kicker}>{t("library")}</p>
-            <h1>{t("yourBooks")}</h1>
+            <h1>
+              {t("yourBooks")}
+              <Show when={booksTotal() !== undefined}>
+                <span class={styles.booksTotal}>
+                  {" - "}
+                  {booksTotal()} {hasActiveFilters() ? t("filtered") : t("total")}
+                </span>
+              </Show>
+            </h1>
           </div>
           <A href="/upload" class={styles.uploadLink}>
-            <Plus />
+            <Upload />
             {t("uploadBook")}
           </A>
         </header>
@@ -134,7 +210,6 @@ function LibraryPage() {
               placeholder={t("findByTag")}
               onChange={(nextTags) => {
                 setSelectedTags(nextTags);
-                resetToFirstPage();
               }}
             />
           </label>
@@ -146,11 +221,9 @@ function LibraryPage() {
                 favoriteFilter={favoriteFilter()}
                 onSortChange={(nextSort) => {
                   setSort(nextSort);
-                  resetToFirstPage();
                 }}
                 onFavoriteFilterChange={(nextFavoriteFilter) => {
                   setFavoriteFilter(nextFavoriteFilter);
-                  resetToFirstPage();
                 }}
               />
             </InputContainer>
@@ -188,30 +261,12 @@ function LibraryPage() {
           </div>
         </Show>
 
-        <Show when={(booksQuery.data?.total ?? 0) > pageLimit}>
-          <footer class={styles.pagination}>
-            <span>{pageStart()}-{pageEnd()} / {booksQuery.data?.total}</span>
-            <div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={!canGoBack()}
-                onClick={() => setOffset(Math.max(0, offset() - pageLimit))}
-              >
-                {t("back")}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={!canGoForward()}
-                onClick={() => setOffset(offset() + pageLimit)}
-              >
-                {t("forward")}
-              </Button>
-            </div>
-          </footer>
+        <div ref={loadMoreRef} class={styles.loadMoreSentinel} aria-hidden="true" />
+
+        <Show when={booksQuery.isFetchingNextPage}>
+          <div class={styles.loadingMore} role="status" aria-label={t("loading")}>
+            <span class={styles.loadingMoreSpinner} aria-hidden="true" />
+          </div>
         </Show>
 
         <Show when={editingBook()}>

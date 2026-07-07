@@ -1,4 +1,10 @@
-import { createMutation, createQuery, type QueryClient, useQueryClient } from "@tanstack/solid-query";
+import {
+  createMutation,
+  createQuery,
+  type InfiniteData,
+  type QueryClient,
+  useQueryClient,
+} from "@tanstack/solid-query";
 import type { components } from "@/api/generated/schema";
 import { apiClient, getCsrfToken } from "./client";
 import { getApiBaseUrl } from "./baseUrl";
@@ -85,14 +91,39 @@ function updateBookListCache(list: BookListResponse | undefined, query: BookQuer
   };
 }
 
+function isInfiniteBookListResponse(data: unknown): data is InfiniteData<BookListResponse> {
+  return typeof data === "object" && data !== null && Array.isArray((data as { pages?: unknown }).pages);
+}
+
+function updateBooksCacheData(
+  data: BookListResponse | InfiniteData<BookListResponse> | undefined,
+  query: BookQueryRequest,
+  book: Book,
+) {
+  if (!data) {
+    return data;
+  }
+
+  if (isInfiniteBookListResponse(data)) {
+    return {
+      ...data,
+      pages: data.pages.map((page) => updateBookListCache(page, query, book) ?? page),
+    };
+  }
+
+  return updateBookListCache(data, query, book);
+}
+
 function updateCachedBookLists(queryClient: QueryClient, book: Book) {
-  for (const [queryKey] of queryClient.getQueriesData<BookListResponse>({ queryKey: booksQueryKey })) {
+  for (const [queryKey] of queryClient.getQueriesData<BookListResponse | InfiniteData<BookListResponse>>({
+    queryKey: booksQueryKey,
+  })) {
     if (!isBooksQueryKey(queryKey)) {
       continue;
     }
 
-    queryClient.setQueryData<BookListResponse>(queryKey, (list) =>
-      updateBookListCache(list, queryKey[1], book),
+    queryClient.setQueryData<BookListResponse | InfiniteData<BookListResponse>>(queryKey, (data) =>
+      updateBooksCacheData(data, queryKey[1], book),
     );
   }
 }
