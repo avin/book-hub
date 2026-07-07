@@ -205,6 +205,10 @@ export const messages = {
     ru: "Убрать из избранного",
     en: "Remove from favorites",
   },
+  showFullCover: {
+    ru: "Вызовите контекстное меню, чтобы показать обложку целиком",
+    en: "Open the context menu to show the full cover",
+  },
   back: {
     ru: "Назад",
     en: "Back",
