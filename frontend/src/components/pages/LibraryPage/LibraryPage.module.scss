@@ -8,9 +8,14 @@
 
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
+
+  > div {
+    min-width: 0;
+  }
 
   h1 {
     margin: 4px 0 0;
@@ -78,6 +83,8 @@
   @include control-text;
 
   display: inline-flex;
+  max-width: 100%;
+  flex: 0 0 auto;
   min-height: 42px;
   align-items: center;
   justify-content: center;
@@ -189,6 +196,10 @@
 }
 
 @media (max-width: 1120px) {
+  .uploadLink {
+    display: none;
+  }
+
   .toolbar {
     grid-template-columns: 1fr;
   }
