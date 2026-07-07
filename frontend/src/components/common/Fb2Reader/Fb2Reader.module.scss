@@ -1,5 +1,6 @@
 @use "@/styles/_variables.scss" as *;
 @use "@/styles/_mixins.scss" as *;
+@use "@/styles/reader-fonts";
 
 .reader {
   min-height: 100vh;

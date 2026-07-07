@@ -1,5 +1,5 @@
 import { A, useParams } from "@solidjs/router";
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, lazy, onCleanup, Show, Suspense } from "solid-js";
 import { ArrowLeft, Heart } from "lucide-solid";
 import {
   createBookFileTextQuery,
@@ -10,10 +10,12 @@ import {
   getBookFileUrl,
 } from "@/api/books";
 import Button from "@/components/common/Button/Button";
-import Fb2Reader from "@/components/common/Fb2Reader/Fb2Reader";
-import PdfReader from "@/components/common/PdfReader/PdfReader";
+import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./ReaderPage.module.scss";
+
+const Fb2Reader = lazy(() => import("@/components/common/Fb2Reader/Fb2Reader"));
+const PdfReader = lazy(() => import("@/components/common/PdfReader/PdfReader"));
 
 const progressSaveDelayMs = 1000;
 
@@ -225,22 +227,28 @@ function ReaderPage() {
       </Show>
 
       <Show when={bookQuery.isLoading}>
-        <div class={styles.state}>{t("loading")}</div>
+        <LoadingScreen label={t("loading")} />
       </Show>
 
       <Show when={isFb2()}>
-        <Show when={fb2FileQuery.data} fallback={<div class={styles.state}>{t("loading")}</div>}>
-          {(fb2) => <Fb2Reader fb2={fb2()} class={styles.fb2Reader} headerContent={chromeContent()} />}
+        <Show when={fb2FileQuery.data} fallback={<LoadingScreen label={t("loading")} />}>
+          {(fb2) => (
+            <Suspense fallback={<LoadingScreen label={t("loading")} />}>
+              <Fb2Reader fb2={fb2()} class={styles.fb2Reader} headerContent={chromeContent()} />
+            </Suspense>
+          )}
         </Show>
       </Show>
 
       <Show when={isPdf()}>
-        <PdfReader
-          fileUrl={getBookFileUrl(bookId())}
-          class={styles.pdfReader}
-          headerContent={chromeContent()}
-          onReady={() => setPdfReady(true)}
-        />
+        <Suspense fallback={<LoadingScreen label={t("loading")} />}>
+          <PdfReader
+            fileUrl={getBookFileUrl(bookId())}
+            class={styles.pdfReader}
+            headerContent={chromeContent()}
+            onReady={() => setPdfReady(true)}
+          />
+        </Suspense>
       </Show>
     </div>
   );

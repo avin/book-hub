@@ -9,7 +9,6 @@ import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
 import TextInput from "@/components/common/TextInput/TextInput";
 import AppLayout from "@/components/layouts/AppLayout/AppLayout";
 import { useI18n } from "@/i18n/I18nProvider";
-import { extractBookTitle, prepareBookFile, prepareCoverFile } from "./coverExtraction";
 import styles from "./UploadPage.module.scss";
 
 type CoverStatus = "pending" | "ready" | "missing" | "failed";
@@ -33,6 +32,13 @@ type BookDraft = {
 };
 
 const tagOptionsLimit = 200;
+let coverExtractionModule: Promise<typeof import("./coverExtraction")> | undefined;
+
+function loadCoverExtraction() {
+  coverExtractionModule ??= import("./coverExtraction");
+
+  return coverExtractionModule;
+}
 
 function uniqueTags(books: Book[], drafts: BookDraft[]) {
   const tags = new Map<string, string>();
@@ -139,6 +145,7 @@ function UploadPage() {
 
   const prepareDraft = async (draft: BookDraft) => {
     try {
+      const { prepareBookFile } = await loadCoverExtraction();
       const prepared = await prepareBookFile(draft.file);
       updateDraft(draft.id, (currentDraft) => {
         if (currentDraft.coverSource === "manual") {
@@ -210,6 +217,7 @@ function UploadPage() {
     }));
 
     try {
+      const { extractBookTitle } = await loadCoverExtraction();
       const extractedTitle = (await extractBookTitle(draft.file)).trim();
       updateDraft(id, (currentDraft) => ({
         ...currentDraft,
@@ -270,6 +278,7 @@ function UploadPage() {
     const bookFileName = draft?.file.name ?? file.name;
 
     try {
+      const { prepareCoverFile } = await loadCoverExtraction();
       const preparedCover = await prepareCoverFile(file, bookFileName);
       updateDraft(id, (currentDraft) => {
         if (currentDraft.coverFile !== file) {

@@ -1,11 +1,26 @@
 import { Navigate, Route, Router } from "@solidjs/router";
-import AuthPage from "@/components/pages/AuthPage/AuthPage";
-import LibraryPage from "@/components/pages/LibraryPage/LibraryPage";
-import ReaderPage from "@/components/pages/ReaderPage/ReaderPage";
-import SettingsPage from "@/components/pages/SettingsPage/SettingsPage";
-import UploadPage from "@/components/pages/UploadPage/UploadPage";
+import { lazy, Suspense } from "solid-js";
+import type { JSX } from "solid-js";
+import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
+import { useI18n } from "@/i18n/I18nProvider";
 import PrivateRoute from "./PrivateRoute/PrivateRoute";
 import PublicOnlyRoute from "./PublicOnlyRoute/PublicOnlyRoute";
+
+const AuthPage = lazy(() => import("@/components/pages/AuthPage/AuthPage"));
+const LibraryPage = lazy(() => import("@/components/pages/LibraryPage/LibraryPage"));
+const ReaderPage = lazy(() => import("@/components/pages/ReaderPage/ReaderPage"));
+const SettingsPage = lazy(() => import("@/components/pages/SettingsPage/SettingsPage"));
+const UploadPage = lazy(() => import("@/components/pages/UploadPage/UploadPage"));
+
+function PageFallback() {
+  const { t } = useI18n();
+
+  return <LoadingScreen label={t("loading")} />;
+}
+
+function LazyPage(props: { children: JSX.Element }) {
+  return <Suspense fallback={<PageFallback />}>{props.children}</Suspense>;
+}
 
 function App() {
   return (
@@ -22,7 +37,9 @@ function App() {
         path="/login"
         component={() => (
           <PublicOnlyRoute>
-            <AuthPage mode="login" />
+            <LazyPage>
+              <AuthPage mode="login" />
+            </LazyPage>
           </PublicOnlyRoute>
         )}
       />
@@ -30,7 +47,9 @@ function App() {
         path="/register"
         component={() => (
           <PublicOnlyRoute>
-            <AuthPage mode="register" />
+            <LazyPage>
+              <AuthPage mode="register" />
+            </LazyPage>
           </PublicOnlyRoute>
         )}
       />
@@ -38,7 +57,9 @@ function App() {
         path="/library"
         component={() => (
           <PrivateRoute>
-            <LibraryPage />
+            <LazyPage>
+              <LibraryPage />
+            </LazyPage>
           </PrivateRoute>
         )}
       />
@@ -46,7 +67,9 @@ function App() {
         path="/upload"
         component={() => (
           <PrivateRoute>
-            <UploadPage />
+            <LazyPage>
+              <UploadPage />
+            </LazyPage>
           </PrivateRoute>
         )}
       />
@@ -54,7 +77,9 @@ function App() {
         path="/settings"
         component={() => (
           <PrivateRoute>
-            <SettingsPage />
+            <LazyPage>
+              <SettingsPage />
+            </LazyPage>
           </PrivateRoute>
         )}
       />
@@ -62,7 +87,9 @@ function App() {
         path="/reader/:bookId"
         component={() => (
           <PrivateRoute>
-            <ReaderPage />
+            <LazyPage>
+              <ReaderPage />
+            </LazyPage>
           </PrivateRoute>
         )}
       />

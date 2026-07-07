@@ -10,6 +10,7 @@ import {
 } from "@/api/books";
 import Button from "@/components/common/Button/Button";
 import InputContainer from "@/components/common/InputContainer/InputContainer";
+import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
 import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
 import TextInput from "@/components/common/TextInput/TextInput";
 import AppLayout from "@/components/layouts/AppLayout/AppLayout";
@@ -157,7 +158,7 @@ function LibraryPage() {
         </section>
 
         <Show when={booksQuery.isLoading}>
-          <div class={styles.state}>{t("loading")}</div>
+          <LoadingScreen label={t("loading")} />
         </Show>
 
         <Show when={booksQuery.isError}>

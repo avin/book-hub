@@ -2,6 +2,7 @@ import * as pdfjs from "pdfjs-dist";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
+import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
 import ReaderFloatingChrome from "@/components/common/ReaderFloatingChrome/ReaderFloatingChrome";
 import WidthRuler from "@/components/common/WidthRuler/WidthRuler";
 import { clampWidth, computeWidthRulerMarkers } from "@/components/common/WidthRuler/widthRulerUtils";
@@ -685,14 +686,14 @@ function PdfReader(props: {
       </Show>
 
       <Show when={loading()}>
-        <div class={styles.state}>{t("loading")}</div>
+        <LoadingScreen label={t("loading")} />
       </Show>
 
       <Show when={failed()}>
         <div class={styles.state}>{t("requestFailedTryAgain")}</div>
       </Show>
 
-      <Show when={!failed()}>
+      <Show when={!failed() && !loading()}>
         <main
           ref={documentRef}
           class={styles.document}
