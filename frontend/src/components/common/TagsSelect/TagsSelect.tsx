@@ -1,12 +1,5 @@
 import { X } from "lucide-solid";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import Dropdown from "@/components/common/Dropdown/Dropdown";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./TagsSelect.module.scss";
@@ -66,6 +59,11 @@ function sortTagsByRecent(tags: string[], recentTags: string[]) {
   return [...recentInList, ...rest];
 }
 
+function preventLabelActivation(event: MouseEvent) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
 function TagBadge(props: {
   tag: string;
   measure?: boolean;
@@ -73,40 +71,41 @@ function TagBadge(props: {
   ref?: (element: HTMLSpanElement) => void;
   onRemove?: () => void;
 }) {
-  const preventLabelActivation = (event: MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
   return (
     <span
       ref={props.ref}
       class={styles.badge}
-      classList={{ [styles.measureItem]: props.measure }}
       data-tag-badge
       onClick={preventLabelActivation}
     >
       <span class={styles.badgeContent}>
         {props.tag}
-        <button
-          type="button"
-          class={styles.removeButton}
-          tabIndex={props.measure ? -1 : undefined}
-          aria-hidden={props.measure ? "true" : undefined}
-          aria-label={`Remove ${props.tag}`}
-          disabled={props.disabled}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (props.disabled) {
-              return;
-            }
-
-            props.onRemove?.();
-          }}
+        <Show
+          when={!props.measure}
+          fallback={
+            <span class={styles.removeButton} aria-hidden="true">
+              <X />
+            </span>
+          }
         >
-          <X />
-        </button>
+          <button
+            type="button"
+            class={styles.removeButton}
+            aria-label={`Remove ${props.tag}`}
+            disabled={props.disabled}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (props.disabled) {
+                return;
+              }
+
+              props.onRemove?.();
+            }}
+          >
+            <X />
+          </button>
+        </Show>
       </span>
     </span>
   );
@@ -125,8 +124,6 @@ function TagsSelect(props: {
   const [query, setQuery] = createSignal("");
   const [options, setOptions] = createSignal<string[]>([]);
   const [dropdownMode, setDropdownMode] = createSignal<"options" | "collapsed" | null>(null);
-  const [requestedDropdownMode, setRequestedDropdownMode] =
-    createSignal<"options" | "collapsed" | null>(null);
   const [focusedOptionIndex, setFocusedOptionIndex] = createSignal<number | null>(null);
   const [arrowScrolling, setArrowScrolling] = createSignal(false);
   const [inputWidth, setInputWidth] = createSignal(100);
@@ -143,6 +140,7 @@ function TagsSelect(props: {
   let searchTimeout: ReturnType<typeof setTimeout> | undefined;
   let searchRequestId = 0;
   let resizeObserver: ResizeObserver | undefined;
+  let shouldOpenOptionsAfterSearch = false;
   const tagMeasureEls: (HTMLSpanElement | undefined)[] = [];
 
   const placeholder = () => props.placeholder ?? t("findOrAddTag");
@@ -151,8 +149,13 @@ function TagsSelect(props: {
   const isDropdownOpen = () => dropdownMode() !== null;
 
   const closeDropdown = () => {
-    setRequestedDropdownMode(null);
+    shouldOpenOptionsAfterSearch = false;
     setDropdownMode(null);
+  };
+
+  const toggleCollapsedDropdown = () => {
+    shouldOpenOptionsAfterSearch = false;
+    setDropdownMode((previousMode) => (previousMode === "collapsed" ? null : "collapsed"));
   };
 
   const normalizeOptions = (nextOptions: string[]) => {
@@ -175,15 +178,13 @@ function TagsSelect(props: {
   const searchLocalOptions = (searchQuery: string) => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    return (props.options ?? [])
-      .filter((option) => !props.value.includes(option))
-      .filter((option) => {
-        if (!normalizedQuery) {
-          return true;
-        }
+    return (props.options ?? []).filter((option) => {
+      if (!normalizedQuery) {
+        return true;
+      }
 
-        return option.toLowerCase().includes(normalizedQuery);
-      });
+      return option.toLowerCase().includes(normalizedQuery);
+    });
   };
 
   const searchOptions = async (searchQuery: string) => {
@@ -204,7 +205,7 @@ function TagsSelect(props: {
 
     const normalizedOptions = normalizeOptions(nextOptions);
     setOptions(normalizedOptions);
-    if (requestedDropdownMode() === "options") {
+    if (shouldOpenOptionsAfterSearch) {
       setDropdownMode(normalizedOptions.length ? "options" : null);
     }
   };
@@ -290,11 +291,8 @@ function TagsSelect(props: {
 
     const focusedIndex = focusedOptionIndex();
     const option = focusedIndex === null ? undefined : options()[focusedIndex];
-    if (option && !props.value.includes(option)) {
-      props.onChange([...props.value, option]);
-      updateRecentTags([option]);
-      setQuery("");
-      closeDropdown();
+    if (option) {
+      addTag(option);
       return;
     }
 
@@ -304,7 +302,7 @@ function TagsSelect(props: {
   const handleChangeQuery = (nextQuery: string) => {
     setQuery(nextQuery);
     setFocusedOptionIndex(null);
-    setRequestedDropdownMode("options");
+    shouldOpenOptionsAfterSearch = true;
     if (!isOptionsOpen()) {
       setDropdownMode(null);
     }
@@ -317,7 +315,7 @@ function TagsSelect(props: {
       return;
     }
 
-    setRequestedDropdownMode("options");
+    shouldOpenOptionsAfterSearch = true;
     if (!isOptionsOpen()) {
       setDropdownMode(null);
     }
@@ -502,7 +500,7 @@ function TagsSelect(props: {
       open={isDropdownOpen()}
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
-          setDropdownMode(requestedDropdownMode() ?? "options");
+          setDropdownMode("options");
           return;
         }
 
@@ -541,11 +539,7 @@ function TagsSelect(props: {
                     return;
                   }
 
-                  setDropdownMode((previousMode) => {
-                    const nextMode = previousMode === "collapsed" ? null : "collapsed";
-                    setRequestedDropdownMode(nextMode);
-                    return nextMode;
-                  });
+                  toggleCollapsedDropdown();
                 }}
                 onKeyDown={(event) => {
                   if (props.disabled || (event.key !== "Enter" && event.key !== " ")) {
@@ -553,11 +547,7 @@ function TagsSelect(props: {
                   }
 
                   event.preventDefault();
-                  setDropdownMode((previousMode) => {
-                    const nextMode = previousMode === "collapsed" ? null : "collapsed";
-                    setRequestedDropdownMode(nextMode);
-                    return nextMode;
-                  });
+                  toggleCollapsedDropdown();
                 }}
               >
                 +{hiddenTags().length}
@@ -625,7 +615,7 @@ function TagsSelect(props: {
                 />
               )}
             </For>
-            <span ref={collapsedBadgeMeasureEl} class={`${styles.badge} ${styles.measureItem}`} />
+            <span ref={collapsedBadgeMeasureEl} class={styles.badge} />
           </div>
         </>
       }
@@ -652,10 +642,6 @@ function TagsSelect(props: {
                   </button>
                 )}
               </For>
-
-              <Show when={options().length === 0}>
-                <div class={styles.empty}>{t("noOptions")}</div>
-              </Show>
             </div>
           </div>
         }

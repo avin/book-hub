@@ -157,11 +157,6 @@
   pointer-events: none;
 }
 
-.measureItem {
-  display: inline-flex;
-  align-items: center;
-}
-
 .menu {
   box-sizing: border-box;
   padding: 8px 0;
@@ -197,12 +192,6 @@
     background: $color-ink-900;
     color: $color-paper-0;
   }
-}
-
-.empty {
-  padding: 10px 16px;
-  color: $color-ink-500;
-  font-size: 14px;
 }
 
 .collapsedTagsDropdownArea {
