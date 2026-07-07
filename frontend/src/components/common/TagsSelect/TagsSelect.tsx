@@ -562,9 +562,13 @@ function TagsSelect(props: {
   });
 
   createEffect(() => {
-    if (arrowScrolling() && isOptionsOpen() && options().length > 0) {
-      scrollToFocused();
+    const focusedIndex = focusedOptionIndex();
+    if (!arrowScrolling() || !isOptionsOpen() || focusedIndex === null || !options().length) {
+      return;
     }
+
+    const animationFrameId = requestAnimationFrame(scrollToFocused);
+    onCleanup(() => cancelAnimationFrame(animationFrameId));
   });
 
   onCleanup(() => {
