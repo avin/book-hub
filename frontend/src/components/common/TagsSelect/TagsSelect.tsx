@@ -2,9 +2,9 @@ import { X } from "lucide-solid";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import Dropdown from "@/components/common/Dropdown/Dropdown";
 import { useI18n } from "@/i18n/I18nProvider";
+import { getRecentTagsPreference, setRecentTagsPreference } from "@/storage/browserPreferences";
 import styles from "./TagsSelect.module.scss";
 
-const RECENT_TAGS_STORAGE_KEY = "book-hub-tags-recent";
 const MAX_RECENT_TAGS = 20;
 const SEARCH_DEBOUNCE_MS = 200;
 const DOUBLE_BACKSPACE_MS = 450;
@@ -14,34 +14,12 @@ function normalizeTag(tag: string) {
   return tag.trim();
 }
 
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
 function loadRecentTags() {
-  try {
-    const raw = localStorage.getItem(RECENT_TAGS_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isStringArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter((tag) => tag.trim().length > 0);
-  } catch {
-    return [];
-  }
+  return getRecentTagsPreference();
 }
 
 function saveRecentTags(tags: string[]) {
-  try {
-    localStorage.setItem(RECENT_TAGS_STORAGE_KEY, JSON.stringify(tags));
-  } catch {
-    // localStorage can be unavailable in private mode or restricted contexts.
-  }
+  setRecentTagsPreference(tags);
 }
 
 function sortTagsByRecent(tags: string[], recentTags: string[]) {

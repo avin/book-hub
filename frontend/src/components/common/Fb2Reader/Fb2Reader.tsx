@@ -18,6 +18,7 @@ import type {
 import ReaderChrome from "./ReaderChrome/ReaderChrome";
 import SettingsPanel from "./SettingsPanel/SettingsPanel";
 import { applyWidthRulerPointer, computeWidthRulerMarkers } from "@/components/common/WidthRuler/widthRulerUtils";
+import { getFb2ReaderSettingsPreference, setFb2ReaderSettingsPreference } from "@/storage/browserPreferences";
 import styles from "./Fb2Reader.module.scss";
 
 type ScrollAnchor = {
@@ -100,7 +101,11 @@ function Fb2Reader(props: {
   let viewportResizeEndTimeout: number | undefined;
   let lastMeasuredReaderWidth = 0;
   let disposed = false;
-  const [settings, setSettings] = createSignal<Fb2ReaderSettings>({ ...defaultSettings, ...props.initialSettings });
+  const [settings, setSettings] = createSignal<Fb2ReaderSettings>({
+    ...defaultSettings,
+    ...getFb2ReaderSettingsPreference(),
+    ...props.initialSettings,
+  });
   const [viewportHeight, setViewportHeight] = createSignal(900);
   const [scrollTop, setScrollTop] = createSignal(0);
   const [readerWidth, setReaderWidth] = createSignal(960);
@@ -437,6 +442,10 @@ function Fb2Reader(props: {
     }
 
     flushLayoutTextWidth();
+  });
+
+  createEffect(() => {
+    setFb2ReaderSettingsPreference(settings());
   });
 
   createEffect(() => {

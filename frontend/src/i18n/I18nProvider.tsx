@@ -1,7 +1,6 @@
 import { createContext, createSignal, type JSX, useContext } from "solid-js";
+import { getLanguagePreference, setLanguagePreference } from "@/storage/browserPreferences";
 import { type Language, languages, type MessageKey, messages } from "./messages";
-
-const storageKey = "book-hub-language";
 
 export type SetLanguageOptions = {
   saveToProfile?: boolean;
@@ -22,10 +21,10 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue>();
 
 function detectLanguage(): Language {
-  const stored = localStorage.getItem(storageKey);
+  const stored = getLanguagePreference();
 
-  if (stored && languages.includes(stored as Language)) {
-    return stored as Language;
+  if (stored) {
+    return stored;
   }
 
   const browserLanguage = navigator.languages
@@ -43,7 +42,7 @@ export function I18nProvider(props: {
   let nextLanguageSaveRequestVersion = 0;
 
   const setLanguage = (nextLanguage: Language, options?: SetLanguageOptions) => {
-    localStorage.setItem(storageKey, nextLanguage);
+    setLanguagePreference(nextLanguage);
     setLanguageSignal(nextLanguage);
 
     if (options?.saveToProfile === false) {

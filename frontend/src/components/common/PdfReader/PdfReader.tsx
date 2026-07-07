@@ -7,6 +7,7 @@ import ReaderFloatingChrome from "@/components/common/ReaderFloatingChrome/Reade
 import WidthRuler from "@/components/common/WidthRuler/WidthRuler";
 import { clampWidth, computeWidthRulerMarkers } from "@/components/common/WidthRuler/widthRulerUtils";
 import { useI18n } from "@/i18n/I18nProvider";
+import { getPdfReaderContentWidthPreference, setPdfReaderContentWidthPreference } from "@/storage/browserPreferences";
 import styles from "./PdfReader.module.scss";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
@@ -109,7 +110,7 @@ function PdfReader(props: {
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
-  const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>();
+  const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(getPdfReaderContentWidthPreference());
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
 
@@ -285,6 +286,7 @@ function PdfReader(props: {
     }
 
     setMaxPageWidth(width);
+    setPdfReaderContentWidthPreference(width);
     renderedKeys.clear();
   };
 
@@ -451,7 +453,6 @@ function PdfReader(props: {
     loadGeneration = generation;
     setLoading(true);
     setFailed(false);
-    setMaxPageWidth(undefined);
     setPages([]);
     setVisiblePages(new Set<number>());
     pageRefs.clear();

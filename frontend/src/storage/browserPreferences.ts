@@ -1,0 +1,229 @@
+import type { Fb2ReaderSettings } from "@/components/common/Fb2Reader/fb2Types";
+import { type Language, languages } from "@/i18n/messages";
+
+const preferencesStorageKey = "book-hub-preferences";
+const legacyLanguageStorageKey = "book-hub-language";
+const legacyRecentTagsStorageKey = "book-hub-tags-recent";
+
+type BrowserPreferences = {
+  version: 1;
+  language?: Language;
+  recentTags?: string[];
+  readers?: {
+    fb2?: {
+      settings?: Partial<Fb2ReaderSettings>;
+    };
+    pdf?: {
+      contentWidth?: number;
+    };
+  };
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isLanguage(value: unknown): value is Language {
+  return typeof value === "string" && languages.includes(value as Language);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function finiteNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : undefined;
+}
+
+function parseJson(value: string | null) {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function readRawPreferences(): BrowserPreferences {
+  try {
+    const parsed = parseJson(localStorage.getItem(preferencesStorageKey));
+
+    if (!isRecord(parsed)) {
+      return { version: 1 };
+    }
+
+    return {
+      ...parsed,
+      version: 1,
+    } as BrowserPreferences;
+  } catch {
+    return { version: 1 };
+  }
+}
+
+function removeLegacyPreferences() {
+  try {
+    localStorage.removeItem(legacyLanguageStorageKey);
+    localStorage.removeItem(legacyRecentTagsStorageKey);
+  } catch {
+    // Keep storage failures non-fatal for reader and form controls.
+  }
+}
+
+function writeRawPreferences(preferences: BrowserPreferences) {
+  try {
+    localStorage.setItem(preferencesStorageKey, JSON.stringify(preferences));
+    return true;
+  } catch {
+    // localStorage can be unavailable in private mode or restricted contexts.
+    return false;
+  }
+}
+
+function migrateLegacyPreferences(preferences: BrowserPreferences) {
+  let migrated = preferences;
+
+  try {
+    if (!migrated.language) {
+      const language = localStorage.getItem(legacyLanguageStorageKey);
+      if (isLanguage(language)) {
+        migrated = { ...migrated, language };
+      }
+    }
+
+    if (!migrated.recentTags) {
+      const recentTags = parseJson(localStorage.getItem(legacyRecentTagsStorageKey));
+      if (isStringArray(recentTags)) {
+        migrated = {
+          ...migrated,
+          recentTags: recentTags.filter((tag) => tag.trim().length > 0),
+        };
+      }
+    }
+  } catch {
+    return migrated;
+  }
+
+  if (migrated !== preferences && writeRawPreferences(migrated)) {
+    removeLegacyPreferences();
+  }
+
+  return migrated;
+}
+
+function readPreferences() {
+  return migrateLegacyPreferences(readRawPreferences());
+}
+
+function updatePreferences(update: (preferences: BrowserPreferences) => BrowserPreferences) {
+  const nextPreferences = update(readPreferences());
+
+  writeRawPreferences(nextPreferences);
+}
+
+function readReaderPreferences() {
+  const readers = readPreferences().readers;
+
+  return isRecord(readers) ? readers : undefined;
+}
+
+function readerPreferencesForWrite(preferences: BrowserPreferences) {
+  return isRecord(preferences.readers) ? preferences.readers : undefined;
+}
+
+function sanitizeFb2ReaderSettings(settings: unknown): Partial<Fb2ReaderSettings> | undefined {
+  if (!isRecord(settings)) {
+    return undefined;
+  }
+
+  const sanitized: Partial<Fb2ReaderSettings> = {};
+  const backgroundColor = stringValue(settings.backgroundColor);
+  const textColor = stringValue(settings.textColor);
+  const linkColor = stringValue(settings.linkColor);
+  const fontFamily = stringValue(settings.fontFamily);
+  const fontSize = finiteNumber(settings.fontSize);
+  const lineHeight = finiteNumber(settings.lineHeight);
+  const paragraphSpacing = finiteNumber(settings.paragraphSpacing);
+  const paragraphIndent = finiteNumber(settings.paragraphIndent);
+  const pagePadding = finiteNumber(settings.pagePadding);
+  const maxTextWidth = finiteNumber(settings.maxTextWidth);
+
+  if (backgroundColor !== undefined) sanitized.backgroundColor = backgroundColor;
+  if (textColor !== undefined) sanitized.textColor = textColor;
+  if (linkColor !== undefined) sanitized.linkColor = linkColor;
+  if (fontFamily !== undefined) sanitized.fontFamily = fontFamily;
+  if (fontSize !== undefined) sanitized.fontSize = fontSize;
+  if (lineHeight !== undefined) sanitized.lineHeight = lineHeight;
+  if (paragraphSpacing !== undefined) sanitized.paragraphSpacing = paragraphSpacing;
+  if (paragraphIndent !== undefined) sanitized.paragraphIndent = paragraphIndent;
+  if (pagePadding !== undefined) sanitized.pagePadding = pagePadding;
+  if (maxTextWidth !== undefined) sanitized.maxTextWidth = maxTextWidth;
+
+  return sanitized;
+}
+
+export function getLanguagePreference() {
+  const language = readPreferences().language;
+
+  return isLanguage(language) ? language : undefined;
+}
+
+export function setLanguagePreference(language: Language) {
+  updatePreferences((preferences) => ({ ...preferences, language }));
+}
+
+export function getRecentTagsPreference() {
+  const recentTags = readPreferences().recentTags;
+
+  if (!isStringArray(recentTags)) {
+    return [];
+  }
+
+  return recentTags.filter((tag) => tag.trim().length > 0);
+}
+
+export function setRecentTagsPreference(recentTags: string[]) {
+  updatePreferences((preferences) => ({
+    ...preferences,
+    recentTags: recentTags.filter((tag) => tag.trim().length > 0),
+  }));
+}
+
+export function getFb2ReaderSettingsPreference() {
+  const settings = readReaderPreferences()?.fb2?.settings;
+
+  return sanitizeFb2ReaderSettings(settings);
+}
+
+export function setFb2ReaderSettingsPreference(settings: Fb2ReaderSettings) {
+  updatePreferences((preferences) => ({
+    ...preferences,
+    readers: {
+      ...readerPreferencesForWrite(preferences),
+      fb2: { settings },
+    },
+  }));
+}
+
+export function getPdfReaderContentWidthPreference() {
+  const contentWidth = readReaderPreferences()?.pdf?.contentWidth;
+
+  return finiteNumber(contentWidth);
+}
+
+export function setPdfReaderContentWidthPreference(contentWidth: number | undefined) {
+  updatePreferences((preferences) => ({
+    ...preferences,
+    readers: {
+      ...readerPreferencesForWrite(preferences),
+      pdf: contentWidth === undefined ? {} : { contentWidth },
+    },
+  }));
+}
