@@ -1,5 +1,7 @@
+# Команда по умолчанию: показывает список доступных make-целей.
 .DEFAULT_GOAL := help
 
+# Базовые настройки путей и инструментов. Значения можно переопределять при запуске make.
 COMPOSE ?= docker compose
 BACKEND_DIR ?= backend
 FRONTEND_DIR ?= frontend
@@ -9,6 +11,7 @@ MIGRATE_ARGS ?= up
 COMPOSE_PROJECT_NAME ?= book-hub
 STORAGE_VOLUME ?= $(COMPOSE_PROJECT_NAME)_book_storage
 
+# Если .env уже создан, подключаем его, чтобы команды использовали реальные настройки проекта.
 ifneq (,$(wildcard .env))
 include .env
 export
@@ -19,6 +22,7 @@ DEV_DATABASE_URL ?=
 DEV_STORAGE_DIR ?= ./data/books
 endif
 
+# Настройки HTTP-проверки готовности приложения.
 BOOK_HUB_PUBLIC_PORT ?= 8080
 PUBLIC_PORT ?= $(BOOK_HUB_PUBLIC_PORT)
 BOOK_HUB_BASE_PATH ?= /
@@ -34,129 +38,158 @@ HEALTH_PATH ?= $(if $(HEALTH_BASE_PATH),$(HEALTH_BASE_PATH)/api/readyz,/api/read
 	ps logs backend-shell db-shell health-http \
 	backup-db backup-storage
 
+# Печатает краткую справку по основным командам.
 help:
-	@echo "Book Hub development commands"
+	@echo "Book Hub commands"
 	@echo ""
 	@echo "Setup:"
-	@echo "  make env                    Create .env from .env.example if missing"
+	@echo "  env                    Create .env from .env.example if it does not exist"
 	@echo ""
 	@echo "Local development:"
-	@echo "  make dev-db                 Start PostgreSQL and run migrations"
-	@echo "  make dev-backend            Run backend locally with .env-derived values"
-	@echo "  make dev-frontend           Run Vite dev server"
-	@echo "  make dev-storybook          Run Storybook"
+	@echo "  dev-db                 Start PostgreSQL and apply migrations"
+	@echo "  dev-backend            Start backend locally with .env settings"
+	@echo "  dev-frontend           Start Vite dev server"
+	@echo "  dev-storybook          Start Storybook"
 	@echo ""
 	@echo "Checks and generation:"
-	@echo "  make backend-test           Run Go tests"
-	@echo "  make frontend-generate      Regenerate frontend API types"
-	@echo "  make frontend-build         Type-check and build frontend"
-	@echo "  make test                   Run backend tests and frontend build"
+	@echo "  backend-test           Run Go tests"
+	@echo "  frontend-generate      Regenerate frontend API types"
+	@echo "  frontend-build         Type-check and build frontend"
+	@echo "  test                   Run Go tests and frontend build"
 	@echo ""
 	@echo "Docker and production:"
-	@echo "  make docker-up              Build and start the full stack"
-	@echo "  make docker-down            Stop and remove containers"
-	@echo "  make prod-deploy            Build images, migrate DB, start services"
-	@echo "  make prod-update            Pull images, build, migrate DB, start services"
+	@echo "  docker-up              Build and start the full stack"
+	@echo "  docker-down            Stop and remove containers"
+	@echo "  prod-deploy            Build images, apply migrations, and start services"
+	@echo "  prod-update            Pull images, build, apply migrations, and start services"
 	@echo ""
-	@echo "Operations and debugging:"
-	@echo "  make migrate-up             Apply migrations"
-	@echo "  make migrate-down           Roll back one migration"
-	@echo "  make admin                  Open admin CLI"
-	@echo "  make logs [SERVICE=name]    Follow logs"
-	@echo "  make ps                     Show compose status"
-	@echo "  make db-shell               Open psql in postgres container"
-	@echo "  make backend-shell          Open shell in backend container"
-	@echo "  make backup-db              Dump PostgreSQL into $(BACKUP_DIR)"
-	@echo "  make backup-storage         Archive book storage into $(BACKUP_DIR)"
+	@echo "Operations and debug:"
+	@echo "  migrate-up             Apply migrations"
+	@echo "  migrate-down           Roll back one migration"
+	@echo "  admin                  Open admin CLI"
+	@echo "  logs [SERVICE=name]    Follow logs for all services or one service"
+	@echo "  ps                     Show compose service status"
+	@echo "  db-shell               Open psql in the PostgreSQL container"
+	@echo "  backend-shell          Open shell in the backend container"
+	@echo "  backup-db              Save PostgreSQL dump to $(BACKUP_DIR)"
+	@echo "  backup-storage         Save book storage archive to $(BACKUP_DIR)"
 
+# Создает .env из примера, но не перезаписывает существующий файл.
 env:
 	@test -f .env || cp .env.example .env
 
+# Запускает PostgreSQL в Docker, применяет миграции и освобождает порт frontend.
 dev-db:
 	$(COMPOSE) up -d postgres
 	$(COMPOSE) run --rm migrate up
 	$(COMPOSE) stop frontend
 
+# Запускает Go backend локально; URL базы меняется с docker-host postgres на localhost.
 dev-backend:
 	BOOK_HUB_DATABASE_URL="$(DEV_DATABASE_URL)" BOOK_HUB_STORAGE_DIR="$(DEV_STORAGE_DIR)" go -C $(BACKEND_DIR) run ./cmd/book-hub-server
 
+# Запускает frontend в режиме разработки через Vite.
 dev-frontend:
 	npm --prefix $(FRONTEND_DIR) run dev
 
+# Запускает Storybook для разработки и проверки UI-компонентов.
 dev-storybook:
 	npm --prefix $(FRONTEND_DIR) run storybook
 
+# Запускает все Go-тесты backend.
 backend-test:
 	go -C $(BACKEND_DIR) test ./...
 
+# Генерирует TypeScript-типы API из api/openapi.yaml.
 frontend-generate:
 	npm --prefix $(FRONTEND_DIR) run generate:api
 
+# Проверяет TypeScript и собирает production-версию frontend.
 frontend-build:
 	npm --prefix $(FRONTEND_DIR) run build
 
+# Выполняет основные проверки проекта: backend-тесты и frontend-сборку.
 test: backend-test frontend-build
 
+# Собирает Docker-образы без запуска сервисов.
 docker-build:
 	$(COMPOSE) build
 
+# Собирает и запускает полный Docker-стек в фоне.
 docker-up:
 	$(COMPOSE) up -d --build
 
+# Останавливает и удаляет compose-контейнеры, сохраняя volumes.
 docker-down:
 	$(COMPOSE) down
 
+# Останавливает compose-сервисы без удаления контейнеров.
 docker-stop:
 	$(COMPOSE) stop
 
+# Перезапускает текущие compose-сервисы.
 docker-restart:
 	$(COMPOSE) restart
 
+# Production-запуск из локального исходного кода: сборка, миграции, старт сервисов.
 prod-deploy:
 	$(COMPOSE) build
 	$(COMPOSE) run --rm migrate up
 	$(COMPOSE) up -d
 
+# Production-обновление: подтянуть доступные образы, пересобрать локальные, применить миграции и запустить сервисы.
 prod-update:
 	$(COMPOSE) pull --ignore-buildable
 	$(COMPOSE) build
 	$(COMPOSE) run --rm migrate up
 	$(COMPOSE) up -d
 
+# Универсальный запуск мигратора; аргументы передаются через MIGRATE_ARGS, например make migrate MIGRATE_ARGS=version.
 migrate:
 	$(COMPOSE) run --rm migrate $(MIGRATE_ARGS)
 
+# Применяет все новые миграции базы данных.
 migrate-up:
 	$(COMPOSE) run --rm migrate up
 
+# Откатывает одну миграцию базы данных.
 migrate-down:
 	$(COMPOSE) run --rm migrate down
 
+# Показывает текущую версию миграций базы данных.
 migrate-version:
 	$(COMPOSE) run --rm migrate version
 
+# Открывает интерактивный admin CLI внутри Docker.
 admin:
 	$(COMPOSE) run --rm admin
 
+# Показывает состояние compose-сервисов.
 ps:
 	$(COMPOSE) ps
 
+# Показывает последние логи и продолжает следить за ними; SERVICE ограничивает вывод одним сервисом.
 logs:
 	$(COMPOSE) logs -f --tail=200 $(SERVICE)
 
+# Открывает shell внутри запущенного backend-контейнера.
 backend-shell:
 	$(COMPOSE) exec backend sh
 
+# Открывает psql внутри PostgreSQL-контейнера с настройками из окружения контейнера.
 db-shell:
 	$(COMPOSE) exec postgres sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
 
+# Проверяет HTTP readiness endpoint через опубликованный frontend/nginx порт.
 health-http:
 	curl -fsS "http://localhost:$(PUBLIC_PORT)$(HEALTH_PATH)"
 
+# Создает SQL dump PostgreSQL в директории backups.
 backup-db:
 	mkdir -p "$(BACKUP_DIR)"
 	$(COMPOSE) exec -T postgres sh -c 'pg_dump -U "$$POSTGRES_USER" "$$POSTGRES_DB"' > "$(BACKUP_DIR)/bookhub-$$(date +%Y%m%d-%H%M%S).sql"
 
+# Архивирует Docker volume с файлами книг и обложек в директорию backups.
 backup-storage:
 	mkdir -p "$(BACKUP_DIR)"
 	docker run --rm -v $(STORAGE_VOLUME):/data/books:ro -v "$$(pwd)/$(BACKUP_DIR):/backup" alpine tar -czf /backup/book-storage-$$(date +%Y%m%d-%H%M%S).tar.gz -C /data/books .
