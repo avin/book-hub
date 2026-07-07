@@ -18,7 +18,13 @@ function SettingsPanel(props: {
   onClose: () => void;
   onReset: () => void;
   onUpdateSetting: UpdateSetting;
+  onBeginAdjustLayout: () => void;
+  onEndAdjustLayout: () => void;
 }) {
+  const captureLayoutAdjust = (event: PointerEvent) => {
+    (event.currentTarget as HTMLInputElement).setPointerCapture(event.pointerId);
+    props.onBeginAdjustLayout();
+  };
   return (
     <aside class={styles.settingsPanel} classList={{ [styles.panelOpen]: props.open }}>
       <div class={styles.panelHeader}>
@@ -45,6 +51,9 @@ function SettingsPanel(props: {
             min="14"
             max="30"
             value={props.settings.fontSize}
+            onPointerDown={captureLayoutAdjust}
+            onPointerUp={props.onEndAdjustLayout}
+            onPointerCancel={props.onEndAdjustLayout}
             onInput={(event) => props.onUpdateSetting("fontSize", Number(event.currentTarget.value))}
           />
         </InputContainer>
@@ -55,6 +64,9 @@ function SettingsPanel(props: {
             max="2.2"
             step="0.02"
             value={props.settings.lineHeight}
+            onPointerDown={captureLayoutAdjust}
+            onPointerUp={props.onEndAdjustLayout}
+            onPointerCancel={props.onEndAdjustLayout}
             onInput={(event) => props.onUpdateSetting("lineHeight", Number(event.currentTarget.value))}
           />
         </InputContainer>
@@ -71,6 +83,9 @@ function SettingsPanel(props: {
             min="0"
             max="64"
             value={props.settings.paragraphIndent}
+            onPointerDown={captureLayoutAdjust}
+            onPointerUp={props.onEndAdjustLayout}
+            onPointerCancel={props.onEndAdjustLayout}
             onInput={(event) => props.onUpdateSetting("paragraphIndent", Number(event.currentTarget.value))}
           />
         </InputContainer>
@@ -80,6 +95,9 @@ function SettingsPanel(props: {
             min="4"
             max="36"
             value={props.settings.paragraphSpacing}
+            onPointerDown={captureLayoutAdjust}
+            onPointerUp={props.onEndAdjustLayout}
+            onPointerCancel={props.onEndAdjustLayout}
             onInput={(event) => props.onUpdateSetting("paragraphSpacing", Number(event.currentTarget.value))}
           />
         </InputContainer>

@@ -144,6 +144,7 @@ function Fb2Reader(props: {
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [pendingMaxTextWidth, setPendingMaxTextWidth] = createSignal<number | undefined>();
+  const [adjustingLayoutSettings, setAdjustingLayoutSettings] = createSignal(false);
   const [pendingScrollAnchor, setPendingScrollAnchor] = createSignal<ScrollAnchor>();
   const [activeFootnoteId, setActiveFootnoteId] = createSignal<string>();
   const [layoutGeneration, setLayoutGeneration] = createSignal(0);
@@ -188,7 +189,17 @@ function Fb2Reader(props: {
     }, layoutWidthDebounceMs);
   };
 
-  const layoutSettings = createMemo(() => settings(), undefined, {
+  let frozenLayoutSettings: Fb2ReaderSettings | undefined;
+  const layoutSettings = createMemo(() => {
+    const s = settings();
+
+    if (adjustingLayoutSettings() && frozenLayoutSettings) {
+      return frozenLayoutSettings;
+    }
+
+    frozenLayoutSettings = s;
+    return s;
+  }, undefined, {
     equals: (prev, next) =>
       !!prev &&
       prev.fontFamily === next.fontFamily &&
@@ -669,6 +680,16 @@ function Fb2Reader(props: {
         onClose={() => setPanelOpen(false)}
         onReset={() => setSettings(defaultSettings)}
         onUpdateSetting={updateSetting}
+        onBeginAdjustLayout={() => setAdjustingLayoutSettings(true)}
+        onEndAdjustLayout={() => {
+          const anchor = captureScrollAnchor();
+
+          if (anchor) {
+            setPendingScrollAnchor(anchor);
+          }
+
+          setAdjustingLayoutSettings(false);
+        }}
       />
 
       <main
