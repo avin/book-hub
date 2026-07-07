@@ -230,13 +230,32 @@ function UploadPage() {
 
   const removeDraft = (id: string) => {
     coverInputByDraftId.delete(id);
+    const draft = drafts().find((currentDraft) => currentDraft.id === id);
+    if (draft) {
+      revokePreviewUrl(draft);
+    }
+
+    const nextDrafts = drafts().filter((currentDraft) => currentDraft.id !== id);
+    setDrafts(nextDrafts);
+    if (nextDrafts.length === 0) {
+      setError("");
+    }
+  };
+
+  const removeUploadedDrafts = () => {
     setDrafts((currentDrafts) => {
-      const draft = currentDrafts.find((currentDraft) => currentDraft.id === id);
-      if (draft) {
-        revokePreviewUrl(draft);
+      const remainingDrafts: BookDraft[] = [];
+
+      for (const draft of currentDrafts) {
+        if (draft.uploadStatus === "done") {
+          coverInputByDraftId.delete(draft.id);
+          revokePreviewUrl(draft);
+        } else {
+          remainingDrafts.push(draft);
+        }
       }
 
-      return currentDrafts.filter((currentDraft) => currentDraft.id !== id);
+      return remainingDrafts;
     });
   };
 
@@ -355,6 +374,7 @@ function UploadPage() {
       return;
     }
 
+    removeUploadedDrafts();
     setError(t("someBooksNotUploaded"));
   };
 
