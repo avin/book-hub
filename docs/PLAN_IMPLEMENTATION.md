@@ -53,8 +53,8 @@
 
 1. Выбрать migration tool.
 2. Добавить initial migration up/down.
-3. Создать таблицы users, book_files, user_books, reading_progress и sessions,
-   если нужны server-side sessions.
+3. Создать таблицы users, book_files, user_books, tags, user_book_tags,
+   reading_progress и sessions, если нужны server-side sessions.
 4. Добавить constraints и индексы.
 5. Добавить `backend/cmd/book-hub-migrate` с командами `up`, `down`, `version`.
 6. Проверить up/down на чистой БД.
@@ -146,14 +146,16 @@
 Шаги:
 
 1. Реализовать `POST /api/v1/books/query` для списка книг с параметрами в body.
-2. Реализовать get book metadata.
-3. Реализовать patch metadata.
-4. Реализовать tags validation.
-5. Реализовать favorite flag.
-6. Реализовать delete book.
-7. Реализовать physical file cleanup when unused.
-8. Реализовать file download endpoint с ownership check.
-9. Реализовать upload/get/delete cover endpoints с ownership check.
+2. Реализовать `GET /api/v1/books/tags` для списка тегов текущего пользователя.
+3. Реализовать get book metadata.
+4. Реализовать patch metadata.
+5. Реализовать tags validation и lowercase-нормализацию.
+6. Реализовать favorite flag.
+7. Реализовать delete book.
+8. Реализовать physical file cleanup when unused.
+9. Реализовать cleanup неиспользуемых тегов.
+10. Реализовать file download endpoint с ownership check.
+11. Реализовать upload/get/delete cover endpoints с ownership check.
 
 Критерии готовности:
 
