@@ -3,9 +3,19 @@ import { type Language, languages, type MessageKey, messages } from "./messages"
 
 const storageKey = "book-hub-language";
 
+export type SetLanguageOptions = {
+  saveToProfile?: boolean;
+};
+
+export type LanguageSaveRequest = {
+  language: Language;
+  version: number;
+};
+
 type I18nContextValue = {
   language: () => Language;
-  setLanguage: (language: Language) => void;
+  languageSaveRequest: () => LanguageSaveRequest | undefined;
+  setLanguage: (language: Language, options?: SetLanguageOptions) => void;
   t: (key: MessageKey) => string;
 };
 
@@ -29,16 +39,28 @@ export function I18nProvider(props: {
   children: JSX.Element;
 }) {
   const [language, setLanguageSignal] = createSignal<Language>(detectLanguage());
+  const [languageSaveRequest, setLanguageSaveRequest] = createSignal<LanguageSaveRequest>();
+  let nextLanguageSaveRequestVersion = 0;
 
-  const setLanguage = (nextLanguage: Language) => {
+  const setLanguage = (nextLanguage: Language, options?: SetLanguageOptions) => {
     localStorage.setItem(storageKey, nextLanguage);
     setLanguageSignal(nextLanguage);
+
+    if (options?.saveToProfile === false) {
+      return;
+    }
+
+    nextLanguageSaveRequestVersion += 1;
+    setLanguageSaveRequest({
+      language: nextLanguage,
+      version: nextLanguageSaveRequestVersion,
+    });
   };
 
   const t = (key: MessageKey) => messages[key][language()];
 
   return (
-    <I18nContext.Provider value={{ language, setLanguage, t }}>
+    <I18nContext.Provider value={{ language, languageSaveRequest, setLanguage, t }}>
       {props.children}
     </I18nContext.Provider>
   );

@@ -16,11 +16,12 @@ export async function getCurrentUserSettings() {
   return data;
 }
 
-export function createCurrentUserSettingsQuery() {
+export function createCurrentUserSettingsQuery(enabled: () => boolean = () => true) {
   return createQuery(() => ({
     queryKey: settingsQueryKey,
     queryFn: getCurrentUserSettings,
     retry: false,
+    enabled: enabled(),
   }));
 }
 
@@ -47,6 +48,24 @@ export function createUpdateCurrentUserSettingsMutation() {
 
   return createMutation(() => ({
     mutationFn: updateCurrentUserSettings,
+    onSuccess: (settings) => {
+      queryClient.setQueryData(settingsQueryKey, settings);
+    },
+  }));
+}
+
+export function createMergeCurrentUserSettingsMutation() {
+  const queryClient = useQueryClient();
+
+  return createMutation(() => ({
+    mutationFn: async (settingsPatch: Settings) => {
+      const settings = queryClient.getQueryData<Settings>(settingsQueryKey) ?? (await getCurrentUserSettings());
+
+      return updateCurrentUserSettings({
+        ...settings,
+        ...settingsPatch,
+      });
+    },
     onSuccess: (settings) => {
       queryClient.setQueryData(settingsQueryKey, settings);
     },
