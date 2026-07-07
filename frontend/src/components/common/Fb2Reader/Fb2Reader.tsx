@@ -188,9 +188,19 @@ function Fb2Reader(props: {
     }, layoutWidthDebounceMs);
   };
 
+  const layoutSettings = createMemo(() => settings(), undefined, {
+    equals: (prev, next) =>
+      !!prev &&
+      prev.fontFamily === next.fontFamily &&
+      prev.fontSize === next.fontSize &&
+      prev.lineHeight === next.lineHeight &&
+      prev.paragraphSpacing === next.paragraphSpacing &&
+      prev.paragraphIndent === next.paragraphIndent,
+  });
+
   const layout = createMemo(() => {
     layoutGeneration();
-    const currentSettings = settings();
+    const currentSettings = layoutSettings();
 
     if (typeof document !== "undefined" && !isReaderLayoutFontReady(currentSettings)) {
       return lastMeasuredLayout;
