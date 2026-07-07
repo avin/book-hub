@@ -16,6 +16,7 @@ import AppLayout from "@/components/layouts/AppLayout/AppLayout";
 import { useI18n } from "@/i18n/I18nProvider";
 import BookCard from "./BookCard/BookCard";
 import EditBookDialog from "./EditBookDialog/EditBookDialog";
+import LibraryFiltersDropdown from "./LibraryFiltersDropdown/LibraryFiltersDropdown";
 import styles from "./LibraryPage.module.scss";
 
 const pageLimit = 24;
@@ -110,58 +111,6 @@ function LibraryPage() {
             />
           </InputContainer>
 
-          <InputContainer label={t("sort")}>
-            <select
-              class={styles.selectControl}
-              value={sort()}
-              onChange={(event) => {
-                setSort(event.currentTarget.value as BookSort);
-                resetToFirstPage();
-              }}
-            >
-              <option value="created_at_desc">{t("recentlyAdded")}</option>
-              <option value="title_asc">{t("titleAZ")}</option>
-              <option value="title_desc">{t("titleZA")}</option>
-              <option value="progress_desc">{t("progressHigh")}</option>
-              <option value="progress_asc">{t("progressLow")}</option>
-            </select>
-          </InputContainer>
-
-          <InputContainer label={t("favoritesFilter")}>
-            <div class={styles.segmented} role="group" aria-label={t("favoritesFilter")}>
-              <button
-                type="button"
-                classList={{ [styles.activeSegment]: favoriteFilter() === "all" }}
-                onClick={() => {
-                  setFavoriteFilter("all");
-                  resetToFirstPage();
-                }}
-              >
-                {t("all")}
-              </button>
-              <button
-                type="button"
-                classList={{ [styles.activeSegment]: favoriteFilter() === "favorite" }}
-                onClick={() => {
-                  setFavoriteFilter("favorite");
-                  resetToFirstPage();
-                }}
-              >
-                {t("favorites")}
-              </button>
-              <button
-                type="button"
-                classList={{ [styles.activeSegment]: favoriteFilter() === "regular" }}
-                onClick={() => {
-                  setFavoriteFilter("regular");
-                  resetToFirstPage();
-                }}
-              >
-                {t("other")}
-              </button>
-            </div>
-          </InputContainer>
-
           <label class={styles.tagsFilter}>
             <span>{t("tags")}</span>
             <TagsSelect
@@ -173,6 +122,23 @@ function LibraryPage() {
               }}
             />
           </label>
+
+          <div class={styles.filtersField}>
+            <InputContainer label="">
+              <LibraryFiltersDropdown
+                sort={sort()}
+                favoriteFilter={favoriteFilter()}
+                onSortChange={(nextSort) => {
+                  setSort(nextSort);
+                  resetToFirstPage();
+                }}
+                onFavoriteFilterChange={(nextFavoriteFilter) => {
+                  setFavoriteFilter(nextFavoriteFilter);
+                  resetToFirstPage();
+                }}
+              />
+            </InputContainer>
+          </div>
         </section>
 
         <Show when={booksQuery.isLoading}>

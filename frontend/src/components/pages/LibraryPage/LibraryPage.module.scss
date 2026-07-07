@@ -61,7 +61,7 @@
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) minmax(180px, 0.7fr) auto minmax(220px, 1fr);
+  grid-template-columns: minmax(220px, 1.5fr) minmax(220px, 1fr) auto;
   align-items: end;
   gap: 12px;
 }
@@ -74,69 +74,8 @@
   font-weight: 650;
 }
 
-.selectControl {
-  @include control-text;
-
-  width: 100%;
-  min-height: 42px;
-  padding: 0 12px;
-  border: 1px solid $color-border;
-  border-radius: $radius-sm;
-  background: $color-paper-0;
-  color: $color-ink-900;
-  letter-spacing: 0;
-  transition:
-    border-color $duration-fast $ease-standard,
-    box-shadow $duration-fast $ease-standard,
-    background $duration-fast $ease-standard;
-
-  &:focus {
-    border-color: $color-focus;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.14);
-  }
-}
-
-.segmented {
-  display: inline-grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  width: 100%;
-  min-height: 42px;
-  padding: 3px;
-  border: 1px solid $color-border;
-  border-radius: $radius-sm;
-  background: $color-paper-0;
-  transition:
-    border-color $duration-fast $ease-standard,
-    box-shadow $duration-fast $ease-standard,
-    background $duration-fast $ease-standard;
-
-  &:focus-within {
-    border-color: $color-focus;
-    box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.14);
-  }
-
-  button {
-    @include control-text;
-
-    min-width: 82px;
-    padding: 0 10px;
-    border: 0;
-    border-radius: $radius-xs;
-    background: transparent;
-    color: $color-ink-700;
-    font-weight: 700;
-    cursor: pointer;
-
-    &:focus-visible {
-      outline: none;
-    }
-  }
-}
-
-.activeSegment {
-  background: $color-blue-100 !important;
-  color: $color-blue-700 !important;
+.filtersField {
+  justify-self: end;
 }
 
 .state,
@@ -195,7 +134,11 @@
 
 @media (max-width: 1120px) {
   .toolbar {
-    grid-template-columns: minmax(220px, 1fr) minmax(180px, 1fr);
+    grid-template-columns: minmax(220px, 1fr) auto;
+  }
+
+  .tagsFilter {
+    grid-column: 1 / -1;
   }
 }
 
@@ -208,6 +151,10 @@
 
   .toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .tagsFilter {
+    grid-column: auto;
   }
 
 }
