@@ -52,6 +52,31 @@
     font-size: 15px;
     line-height: 20px;
   }
+
+  input,
+  select {
+    min-height: 38px;
+  }
+
+  select {
+    padding: 0 $space-3;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    background: $color-paper-0;
+    color: $color-ink-900;
+  }
+
+  input[type="range"] {
+    width: 100%;
+  }
+
+  input[type="color"] {
+    width: 100%;
+    padding: 2px;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    background: $color-paper-0;
+  }
 }
 
 .panelActions {

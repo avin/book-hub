@@ -4,6 +4,7 @@ import styles from "./InputContainer.module.scss";
 function InputContainer(props: {
   children: JSX.Element;
   label: string;
+  labelEnd?: JSX.Element;
   error?: JSX.Element;
   subtext?: JSX.Element;
   hideErrorText?: boolean;
@@ -15,7 +16,10 @@ function InputContainer(props: {
       [styles.withEndContent]: Boolean(props.endContent),
     }}>
       <div class={styles.label}>
-        {props.label}
+        <span class={styles.labelText}>{props.label}</span>
+        <Show when={props.labelEnd}>
+          <span class={styles.labelEnd}>{props.labelEnd}</span>
+        </Show>
       </div>
 
       <div class={styles.control}>

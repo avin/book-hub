@@ -80,14 +80,6 @@
   }
 }
 
-.languageRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: $color-ink-600;
-}
-
 .storageBar {
   height: 10px;
   overflow: hidden;
@@ -106,14 +98,6 @@
   margin: 0;
   color: $color-ink-700;
   font-size: 15px;
-}
-
-.textareaLabel {
-  display: grid;
-  gap: 6px;
-  color: $color-ink-700;
-  font-size: 13px;
-  font-weight: 650;
 }
 
 .textarea {

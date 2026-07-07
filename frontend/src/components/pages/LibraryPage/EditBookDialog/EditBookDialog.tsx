@@ -122,14 +122,13 @@ function EditBookDialog(props: {
             <TagsSelect value={tags()} options={props.tagOptions} onChange={setTags} />
           </InputContainer>
 
-          <div class={styles.checkboxRow}>
+          <InputContainer label={t("favorite")}>
             <input
               type="checkbox"
               checked={favorite()}
               onChange={(event) => setFavorite(event.currentTarget.checked)}
             />
-            <span>{t("favorite")}</span>
-          </div>
+          </InputContainer>
 
           <div class={styles.coverActions}>
             <input

@@ -168,10 +168,9 @@ function SettingsPage() {
               )}
             </Show>
 
-            <div class={styles.languageRow}>
-              <span>{t("language")}</span>
+            <InputContainer label={t("language")}>
               <LanguageSelect placement="bottom-start" />
-            </div>
+            </InputContainer>
           </section>
 
           <section class={styles.panel}>
@@ -242,8 +241,7 @@ function SettingsPage() {
               <h2>{t("frontendSettings")}</h2>
             </header>
 
-            <div class={styles.textareaLabel}>
-              <span>{t("frontendSettings")}</span>
+            <InputContainer label={t("frontendSettings")}>
               <textarea
                 class={styles.textarea}
                 value={settingsJson()}
@@ -255,7 +253,7 @@ function SettingsPage() {
                   setSettingsSaved(false);
                 }}
               />
-            </div>
+            </InputContainer>
 
             <Show when={settingsError()}>
               <p class={styles.error}>{settingsError()}</p>
