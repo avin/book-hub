@@ -51,6 +51,7 @@ function SettingsPage() {
   const [repeatPassword, setRepeatPassword] = createSignal("");
   const [settingsError, setSettingsError] = createSignal("");
   const [settingsSaved, setSettingsSaved] = createSignal(false);
+  const [settingsDirty, setSettingsDirty] = createSignal(false);
   const [passwordError, setPasswordError] = createSignal("");
   const [passwordSaved, setPasswordSaved] = createSignal(false);
   const user = createMemo(() => currentUserQuery.data);
@@ -65,7 +66,7 @@ function SettingsPage() {
 
   createEffect(() => {
     const settings = settingsQuery.data;
-    if (!settings) {
+    if (!settings || settingsDirty()) {
       return;
     }
 
@@ -91,9 +92,18 @@ function SettingsPage() {
     }
 
     updateSettingsMutation.mutate(parsed as Record<string, unknown>, {
-      onSuccess: () => setSettingsSaved(true),
+      onSuccess: () => {
+        setSettingsDirty(false);
+        setSettingsSaved(true);
+      },
       onError: (nextError) => setSettingsError(errorMessage(nextError, t("requestFailedTryAgain"))),
     });
+  };
+
+  const updatePasswordField = (setter: (value: string) => void, value: string) => {
+    setter(value);
+    setPasswordError("");
+    setPasswordSaved(false);
   };
 
   const handleChangePassword = (event: Event) => {
@@ -194,21 +204,21 @@ function SettingsPage() {
               <TextInput
                 type="password"
                 value={currentPassword()}
-                onInput={(event) => setCurrentPassword(event.currentTarget.value)}
+                onInput={(event) => updatePasswordField(setCurrentPassword, event.currentTarget.value)}
               />
             </InputContainer>
             <InputContainer label={t("newPassword")}>
               <TextInput
                 type="password"
                 value={newPassword()}
-                onInput={(event) => setNewPassword(event.currentTarget.value)}
+                onInput={(event) => updatePasswordField(setNewPassword, event.currentTarget.value)}
               />
             </InputContainer>
             <InputContainer label={t("repeatPassword")}>
               <TextInput
                 type="password"
                 value={repeatPassword()}
-                onInput={(event) => setRepeatPassword(event.currentTarget.value)}
+                onInput={(event) => updatePasswordField(setRepeatPassword, event.currentTarget.value)}
               />
             </InputContainer>
 
@@ -240,6 +250,8 @@ function SettingsPage() {
                 spellcheck={false}
                 onInput={(event) => {
                   setSettingsJson(event.currentTarget.value);
+                  setSettingsDirty(true);
+                  setSettingsError("");
                   setSettingsSaved(false);
                 }}
               />

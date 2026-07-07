@@ -99,6 +99,7 @@ function Fb2Reader(props: {
   let layoutWidthDebounceTimeout: number | undefined;
   let viewportResizeEndTimeout: number | undefined;
   let lastMeasuredReaderWidth = 0;
+  let disposed = false;
   const [settings, setSettings] = createSignal<Fb2ReaderSettings>({ ...defaultSettings, ...props.initialSettings });
   const [viewportHeight, setViewportHeight] = createSignal(900);
   const [scrollTop, setScrollTop] = createSignal(0);
@@ -450,6 +451,10 @@ function Fb2Reader(props: {
     const anchor = captureScrollAnchor();
 
     void loadReaderLayoutFonts(currentSettings).then(() => {
+      if (disposed) {
+        return;
+      }
+
       if (anchor) {
         setPendingScrollAnchor(anchor);
       }
@@ -550,6 +555,8 @@ function Fb2Reader(props: {
   });
 
   onCleanup(() => {
+    disposed = true;
+
     if (scrollAnchorFrame !== undefined) {
       cancelAnimationFrame(scrollAnchorFrame);
     }

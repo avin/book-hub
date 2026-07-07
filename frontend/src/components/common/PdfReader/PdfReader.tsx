@@ -91,6 +91,7 @@ function PdfReader(props: {
   let resizeObserver: ResizeObserver | undefined;
   let observer: IntersectionObserver | undefined;
   let observeFrame: number | undefined;
+  let readyFrame: number | undefined;
   let destroyed = false;
   let loadGeneration = 0;
   let lockedScrollAnchor: ScrollAnchor | undefined;
@@ -457,6 +458,10 @@ function PdfReader(props: {
     pageCache.clear();
     renderedKeys.clear();
     cancelRenderTasks();
+    if (readyFrame !== undefined) {
+      cancelAnimationFrame(readyFrame);
+      readyFrame = undefined;
+    }
     const previousLoadingTask = loadingTask;
     const previousDocument = pdfDocument;
 
@@ -497,7 +502,12 @@ function PdfReader(props: {
       pdfDocument = document;
       setPages(nextPages);
       setLoading(false);
-      requestAnimationFrame(() => {
+      readyFrame = requestAnimationFrame(() => {
+        readyFrame = undefined;
+        if (destroyed || generation !== loadGeneration) {
+          return;
+        }
+
         measureDocument();
         props.onReady?.();
       });
@@ -630,6 +640,10 @@ function PdfReader(props: {
 
     if (observeFrame !== undefined) {
       cancelAnimationFrame(observeFrame);
+    }
+
+    if (readyFrame !== undefined) {
+      cancelAnimationFrame(readyFrame);
     }
 
     if (resizeAnchorTimeout !== undefined) {

@@ -43,12 +43,23 @@ function EditBookDialog(props: {
     updateBookMutation.isPending || uploadCoverMutation.isPending || deleteCoverMutation.isPending;
 
   const handleSave = () => {
+    if (busy()) {
+      return;
+    }
+
+    const nextTitle = title().trim();
+
+    if (!nextTitle) {
+      setError(t("fillField"));
+      return;
+    }
+
     setError("");
     updateBookMutation.mutate(
       {
         bookId: props.book.id,
         patch: {
-          title: title().trim(),
+          title: nextTitle,
           tags: tags(),
           favorite: favorite(),
         },
@@ -61,6 +72,10 @@ function EditBookDialog(props: {
   };
 
   const handleCoverChange = (file: File | undefined) => {
+    if (busy()) {
+      return;
+    }
+
     if (!file) {
       return;
     }
@@ -75,6 +90,10 @@ function EditBookDialog(props: {
   };
 
   const handleDeleteCover = () => {
+    if (busy()) {
+      return;
+    }
+
     setError("");
     deleteCoverMutation.mutate(props.book.id, {
       onError: (nextError) => setError(errorMessage(nextError, t("requestFailedTryAgain"))),
@@ -116,7 +135,10 @@ function EditBookDialog(props: {
               class={styles.fileInput}
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              onChange={(event) => handleCoverChange(event.currentTarget.files?.[0])}
+              onChange={(event) => {
+                handleCoverChange(event.currentTarget.files?.[0]);
+                event.currentTarget.value = "";
+              }}
             />
             <Button
               type="button"

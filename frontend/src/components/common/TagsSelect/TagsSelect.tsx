@@ -255,6 +255,7 @@ function TagsSelect(props: {
     }
 
     searchTimeout = setTimeout(() => {
+      searchTimeout = undefined;
       void searchOptions(searchQuery);
     }, SEARCH_DEBOUNCE_MS);
   };

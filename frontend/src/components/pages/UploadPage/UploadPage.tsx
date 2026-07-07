@@ -55,6 +55,11 @@ function titleFromFile(file: File) {
   return file.name.replace(/\.[^.]+$/, "");
 }
 
+function isSupportedBookFile(file: File) {
+  const fileName = file.name.toLowerCase();
+  return file.type === "application/pdf" || fileName.endsWith(".pdf") || fileName.endsWith(".fb2");
+}
+
 function createDraftId() {
   return typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 }
@@ -86,7 +91,7 @@ function UploadPage() {
   const [uploading, setUploading] = createSignal(false);
   const [error, setError] = createSignal("");
   let fileInputEl: HTMLInputElement | undefined;
-  const coverInputByIndex = new Map<number, HTMLInputElement>();
+  const coverInputByDraftId = new Map<string, HTMLInputElement>();
   const booksQuery = createBooksQuery(() => ({
     limit: tagOptionsLimit,
     offset: 0,
@@ -164,7 +169,14 @@ function UploadPage() {
   };
 
   const addFiles = (fileList: FileList | File[]) => {
-    const nextDrafts = Array.from(fileList).map((file) => ({
+    const selectedFiles = Array.from(fileList).filter(isSupportedBookFile);
+
+    if (!selectedFiles.length) {
+      setError(t("selectBookFile"));
+      return;
+    }
+
+    const nextDrafts = selectedFiles.map((file) => ({
       id: createDraftId(),
       file,
       title: titleFromFile(file),
@@ -217,6 +229,7 @@ function UploadPage() {
   };
 
   const removeDraft = (id: string) => {
+    coverInputByDraftId.delete(id);
     setDrafts((currentDrafts) => {
       const draft = currentDrafts.find((currentDraft) => currentDraft.id === id);
       if (draft) {
@@ -261,9 +274,14 @@ function UploadPage() {
           return currentDraft;
         }
 
+        revokePreviewUrl(currentDraft);
+
         return {
           ...currentDraft,
-          coverStatus: "ready",
+          coverFile: undefined,
+          coverPreviewUrl: undefined,
+          coverSource: undefined,
+          coverStatus: "failed",
           coverError: errorMessage(nextError, t("coverCouldNotBeExtracted")),
         };
       });
@@ -344,6 +362,8 @@ function UploadPage() {
     for (const draft of drafts()) {
       revokePreviewUrl(draft);
     }
+
+    coverInputByDraftId.clear();
   });
 
   return (
@@ -394,7 +414,7 @@ function UploadPage() {
           <Show when={drafts().length > 0}>
             <div class={styles.bookDrafts}>
               <Index each={drafts()}>
-                {(draft, index) => (
+                {(draft) => (
                   <article class={styles.bookDraft}>
                     <div class={styles.coverColumn}>
                       <button
@@ -402,7 +422,7 @@ function UploadPage() {
                         class={styles.coverButton}
                         aria-label={t("uploadCover")}
                         disabled={uploading()}
-                        onClick={() => coverInputByIndex.get(index)?.click()}
+                        onClick={() => coverInputByDraftId.get(draft().id)?.click()}
                       >
                         <span class={styles.coverPreview}>
                           <Show
@@ -419,7 +439,7 @@ function UploadPage() {
                       </button>
 
                       <input
-                        ref={(element) => coverInputByIndex.set(index, element)}
+                        ref={(element) => coverInputByDraftId.set(draft().id, element)}
                         class={styles.fileInput}
                         type="file"
                         accept="image/jpeg,image/png,image/webp"

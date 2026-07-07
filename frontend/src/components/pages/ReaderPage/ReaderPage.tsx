@@ -44,10 +44,11 @@ function ReaderPage() {
   const fb2FileQuery = createBookFileTextQuery(bookId, () => bookQuery.data?.format === "fb2");
   const updateBookMutation = createUpdateBookMutation();
   const updateProgressMutation = createUpdateReadingProgressMutation();
-  const [restoredProgress, setRestoredProgress] = createSignal(false);
   const [pdfReady, setPdfReady] = createSignal(false);
   let saveTimeout: number | undefined;
+  let restoreTimeoutIds: number[] = [];
   let activeBookId = bookId();
+  let restoredBookId: string | undefined;
   let lastSavedProgress = progressQuery.data?.progress_percent ?? 0;
 
   const book = createMemo(() => bookQuery.data);
@@ -56,6 +57,23 @@ function ReaderPage() {
   const canTrackProgress = createMemo(() => isFb2() || (isPdf() && pdfReady()));
   const canRestoreProgress = createMemo(() => (isFb2() && fb2FileQuery.data) || (isPdf() && pdfReady()));
 
+  const clearScheduledProgressSave = () => {
+    if (saveTimeout === undefined) {
+      return;
+    }
+
+    window.clearTimeout(saveTimeout);
+    saveTimeout = undefined;
+  };
+
+  const clearScheduledProgressRestore = () => {
+    for (const timeoutId of restoreTimeoutIds) {
+      window.clearTimeout(timeoutId);
+    }
+
+    restoreTimeoutIds = [];
+  };
+
   createEffect(() => {
     const currentBookId = bookId();
 
@@ -63,10 +81,12 @@ function ReaderPage() {
       return;
     }
 
+    clearScheduledProgressSave();
+    clearScheduledProgressRestore();
     activeBookId = currentBookId;
+    restoredBookId = undefined;
     lastSavedProgress = 0;
     setPdfReady(false);
-    setRestoredProgress(false);
   });
 
   const toggleFavorite = () => {
@@ -114,20 +134,31 @@ function ReaderPage() {
       return;
     }
 
-    if (saveTimeout !== undefined) {
-      window.clearTimeout(saveTimeout);
-    }
+    clearScheduledProgressSave();
+
+    const targetBookId = bookId();
 
     saveTimeout = window.setTimeout(() => {
+      saveTimeout = undefined;
+
+      if (targetBookId !== bookId()) {
+        return;
+      }
+
       const nextProgress = scrollProgressPercent();
 
-      if (Math.abs(nextProgress - lastSavedProgress) < 1 || updateProgressMutation.isPending) {
+      if (Math.abs(nextProgress - lastSavedProgress) < 1) {
+        return;
+      }
+
+      if (updateProgressMutation.isPending) {
+        scheduleProgressSave();
         return;
       }
 
       updateProgressMutation.mutate(
         {
-          bookId: bookId(),
+          bookId: targetBookId,
           progressPercent: nextProgress,
         },
         {
@@ -160,22 +191,31 @@ function ReaderPage() {
   });
 
   createEffect(() => {
-    if (restoredProgress() || !canRestoreProgress() || !progressQuery.data) {
+    const currentBookId = bookId();
+    const progress = progressQuery.data;
+
+    if (restoredBookId === currentBookId || !canRestoreProgress() || !progress) {
       return;
     }
 
-    setRestoredProgress(true);
+    clearScheduledProgressRestore();
+    restoredBookId = currentBookId;
     const restoreDelayMs = isPdf() ? 80 : 350;
     const confirmRestoreDelayMs = isPdf() ? 260 : 900;
+    const progressPercent = progress.progress_percent;
 
-    window.setTimeout(() => restoreScrollProgress(progressQuery.data?.progress_percent ?? 0), restoreDelayMs);
-    window.setTimeout(() => restoreScrollProgress(progressQuery.data?.progress_percent ?? 0), confirmRestoreDelayMs);
+    restoreTimeoutIds = [
+      window.setTimeout(() => restoreScrollProgress(progressPercent), restoreDelayMs),
+      window.setTimeout(
+        () => restoreScrollProgress(progressPercent),
+        confirmRestoreDelayMs,
+      ),
+    ];
   });
 
   onCleanup(() => {
-    if (saveTimeout !== undefined) {
-      window.clearTimeout(saveTimeout);
-    }
+    clearScheduledProgressSave();
+    clearScheduledProgressRestore();
   });
 
   return (

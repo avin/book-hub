@@ -1,11 +1,21 @@
-import { createMutation, useQueryClient } from "@tanstack/solid-query";
+import { createMutation, type QueryClient, useQueryClient } from "@tanstack/solid-query";
+import { booksQueryKey } from "./books";
 import { apiClient, getCsrfToken } from "./client";
+import { settingsQueryKey } from "./settings";
 import { currentUserQueryKey } from "./user";
 
 type Credentials = {
   login: string;
   password: string;
 };
+
+function removePrivateQueries(queryClient: QueryClient) {
+  queryClient.removeQueries({ queryKey: booksQueryKey });
+  queryClient.removeQueries({ queryKey: ["book"] });
+  queryClient.removeQueries({ queryKey: ["book-file-text"] });
+  queryClient.removeQueries({ queryKey: ["book-progress"] });
+  queryClient.removeQueries({ queryKey: settingsQueryKey });
+}
 
 export function createLoginMutation() {
   const queryClient = useQueryClient();
@@ -29,6 +39,7 @@ export function createLoginMutation() {
       return data;
     },
     onSuccess: (data) => {
+      removePrivateQueries(queryClient);
       queryClient.setQueryData(currentUserQueryKey, data.user);
     },
   }));
@@ -75,6 +86,7 @@ export function createLogoutMutation() {
       }
     },
     onSuccess: () => {
+      removePrivateQueries(queryClient);
       queryClient.setQueryData(currentUserQueryKey, null);
     },
   }));

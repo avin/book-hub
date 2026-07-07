@@ -42,6 +42,12 @@ function AuthPage(props: {
     return password() !== repeatPassword() ? t("passwordsDoNotMatch") : undefined;
   });
 
+  const updateField = (setter: (value: string) => void, value: string) => {
+    setter(value);
+    setFormError(null);
+    setSuccess(null);
+  };
+
   const validate = () => {
     if (!login().trim() || !password()) {
       setFormError(t("fillField"));
@@ -111,7 +117,7 @@ function AuthPage(props: {
               placeholder={t("login")}
               invalid={Boolean(loginError())}
               autocomplete="username"
-              onInput={(event) => setLogin(event.currentTarget.value)}
+              onInput={(event) => updateField(setLogin, event.currentTarget.value)}
             />
           </InputContainer>
 
@@ -139,7 +145,7 @@ function AuthPage(props: {
               placeholder={t("password")}
               invalid={Boolean(passwordError())}
               autocomplete={isRegister() ? "new-password" : "current-password"}
-              onInput={(event) => setPassword(event.currentTarget.value)}
+              onInput={(event) => updateField(setPassword, event.currentTarget.value)}
             />
           </InputContainer>
 
@@ -156,7 +162,7 @@ function AuthPage(props: {
                 placeholder={t("repeatPassword")}
                 invalid={Boolean(repeatPasswordError())}
                 autocomplete="new-password"
-                onInput={(event) => setRepeatPassword(event.currentTarget.value)}
+                onInput={(event) => updateField(setRepeatPassword, event.currentTarget.value)}
               />
             </InputContainer>
           </Show>

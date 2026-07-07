@@ -94,6 +94,29 @@ function updateCachedBookLists(queryClient: QueryClient, book: Book) {
   }
 }
 
+function updateBookProgressCache(queryClient: QueryClient, bookId: string, progressPercent: number) {
+  queryClient.setQueryData<Book>(["book", bookId], (book) =>
+    book ? { ...book, progress_percent: progressPercent } : book,
+  );
+
+  for (const [queryKey] of queryClient.getQueriesData<BookListResponse>({ queryKey: booksQueryKey })) {
+    if (!isBooksQueryKey(queryKey)) {
+      continue;
+    }
+
+    queryClient.setQueryData<BookListResponse>(queryKey, (list) =>
+      list
+        ? {
+            ...list,
+            items: list.items.map((book) =>
+              book.id === bookId ? { ...book, progress_percent: progressPercent } : book,
+            ),
+          }
+        : list,
+    );
+  }
+}
+
 export async function getBook(bookId: string) {
   const { data, error } = await apiClient.GET("/v1/books/{book_id}", {
     params: {
@@ -256,7 +279,7 @@ export function createUploadBookCoverMutation() {
   return createMutation(() => ({
     mutationFn: (input: { bookId: string; file: File }) => uploadBookCover(input.bookId, input.file),
     onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({ queryKey: ["book", input.bookId] });
+      void queryClient.invalidateQueries({ queryKey: ["book", input.bookId] });
       void queryClient.invalidateQueries({ queryKey: booksQueryKey });
     },
   }));
@@ -286,7 +309,7 @@ export function createDeleteBookCoverMutation() {
   return createMutation(() => ({
     mutationFn: deleteBookCover,
     onSuccess: (_data, bookId) => {
-      queryClient.invalidateQueries({ queryKey: ["book", bookId] });
+      void queryClient.invalidateQueries({ queryKey: ["book", bookId] });
       void queryClient.invalidateQueries({ queryKey: booksQueryKey });
     },
   }));
@@ -368,8 +391,7 @@ export function createUpdateReadingProgressMutation() {
       updateReadingProgress(input.bookId, input.progressPercent),
     onSuccess: (progress, input) => {
       queryClient.setQueryData(["book-progress", input.bookId], progress);
-      void queryClient.invalidateQueries({ queryKey: ["book", input.bookId] });
-      void queryClient.invalidateQueries({ queryKey: booksQueryKey });
+      updateBookProgressCache(queryClient, input.bookId, progress.progress_percent);
     },
   }));
 }
