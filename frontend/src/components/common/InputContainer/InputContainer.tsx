@@ -4,7 +4,6 @@ import styles from "./InputContainer.module.scss";
 function InputContainer(props: {
   children: JSX.Element;
   label: string;
-  htmlFor?: string;
   error?: JSX.Element;
   subtext?: JSX.Element;
   hideErrorText?: boolean;
@@ -15,9 +14,9 @@ function InputContainer(props: {
       [styles.invalid]: Boolean(props.error),
       [styles.withEndContent]: Boolean(props.endContent),
     }}>
-      <label class={styles.label} for={props.htmlFor}>
+      <div class={styles.label}>
         {props.label}
-      </label>
+      </div>
 
       <div class={styles.control}>
         {props.children}

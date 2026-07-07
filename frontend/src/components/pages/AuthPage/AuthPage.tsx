@@ -108,7 +108,6 @@ function AuthPage(props: {
         <form class={styles.form} onSubmit={submit}>
           <InputContainer
             label={t("login")}
-            htmlFor="login"
             error={loginError()}
           >
             <TextInput
@@ -123,7 +122,6 @@ function AuthPage(props: {
 
           <InputContainer
             label={t("password")}
-            htmlFor="password"
             error={passwordError()}
             endContent={
               <button
@@ -152,7 +150,6 @@ function AuthPage(props: {
           <Show when={isRegister()}>
             <InputContainer
               label={t("repeatPassword")}
-              htmlFor="repeat-password"
               error={repeatPasswordError()}
             >
               <TextInput

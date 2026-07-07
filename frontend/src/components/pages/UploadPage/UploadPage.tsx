@@ -478,8 +478,7 @@ function UploadPage() {
                         </div>
                       </InputContainer>
 
-                      <label class={styles.fieldLabel}>
-                        <span>{t("tags")}</span>
+                      <InputContainer label={t("tags")}>
                         <TagsSelect
                           value={draft().tags}
                           options={tagOptions()}
@@ -492,7 +491,7 @@ function UploadPage() {
                           }
                           disabled={uploading()}
                         />
-                      </label>
+                      </InputContainer>
 
                       <div class={styles.draftStatus}>
                         <Show when={draft().coverStatus === "pending"}>

@@ -285,8 +285,7 @@ function LibraryPage() {
             />
           </InputContainer>
 
-          <label class={styles.tagsFilter}>
-            <span>{t("tags")}</span>
+          <InputContainer label={t("tags")}>
             <TagsSelect
               value={selectedTags()}
               options={tagOptions()}
@@ -295,7 +294,7 @@ function LibraryPage() {
                 setSelectedTags(nextTags);
               }}
             />
-          </label>
+          </InputContainer>
 
           <div class={styles.filtersField}>
             <InputContainer label="">

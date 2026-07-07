@@ -32,7 +32,10 @@ function SettingsPanel(props: {
           Текст
         </h3>
         <SettingRow label="Шрифт">
-          <select value={props.settings.fontFamily} onInput={(event) => props.onUpdateSetting("fontFamily", event.currentTarget.value)}>
+          <select
+            value={props.settings.fontFamily}
+            onInput={(event) => props.onUpdateSetting("fontFamily", event.currentTarget.value)}
+          >
             <For each={fontOptions}>{(font) => <option value={font.value}>{font.label}</option>}</For>
           </select>
         </SettingRow>

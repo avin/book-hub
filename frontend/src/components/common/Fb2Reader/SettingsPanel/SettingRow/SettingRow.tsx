@@ -3,7 +3,7 @@ import styles from "./SettingRow.module.scss";
 
 function SettingRow(props: { label: string; value?: string; children: JSX.Element }) {
   return (
-    <label class={styles.settingRow}>
+    <div class={styles.settingRow}>
       <span>
         {props.label}
         <Show when={props.value}>
@@ -11,7 +11,7 @@ function SettingRow(props: { label: string; value?: string; children: JSX.Elemen
         </Show>
       </span>
       {props.children}
-    </label>
+    </div>
   );
 }
 

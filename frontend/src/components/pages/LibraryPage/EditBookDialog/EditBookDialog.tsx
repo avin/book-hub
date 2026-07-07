@@ -112,22 +112,24 @@ function EditBookDialog(props: {
 
         <div class={styles.dialogBody}>
           <InputContainer label={t("title")}>
-            <TextInput value={title()} onInput={(event) => setTitle(event.currentTarget.value)} />
+            <TextInput
+              value={title()}
+              onInput={(event) => setTitle(event.currentTarget.value)}
+            />
           </InputContainer>
 
-          <label class={styles.fieldLabel}>
-            <span>{t("tags")}</span>
+          <InputContainer label={t("tags")}>
             <TagsSelect value={tags()} options={props.tagOptions} onChange={setTags} />
-          </label>
+          </InputContainer>
 
-          <label class={styles.checkboxRow}>
+          <div class={styles.checkboxRow}>
             <input
               type="checkbox"
               checked={favorite()}
               onChange={(event) => setFavorite(event.currentTarget.checked)}
             />
             <span>{t("favorite")}</span>
-          </label>
+          </div>
 
           <div class={styles.coverActions}>
             <input

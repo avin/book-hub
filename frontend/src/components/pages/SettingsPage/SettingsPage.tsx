@@ -242,7 +242,7 @@ function SettingsPage() {
               <h2>{t("frontendSettings")}</h2>
             </header>
 
-            <label class={styles.textareaLabel}>
+            <div class={styles.textareaLabel}>
               <span>{t("frontendSettings")}</span>
               <textarea
                 class={styles.textarea}
@@ -255,7 +255,7 @@ function SettingsPage() {
                   setSettingsSaved(false);
                 }}
               />
-            </label>
+            </div>
 
             <Show when={settingsError()}>
               <p class={styles.error}>{settingsError()}</p>
