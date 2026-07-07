@@ -90,7 +90,7 @@ function UploadPage() {
   const booksQuery = createBooksQuery(() => ({
     limit: tagOptionsLimit,
     offset: 0,
-    sort: "updated_at_desc",
+    sort: "created_at_desc",
     tags: [],
     favorite: null,
     q: "",

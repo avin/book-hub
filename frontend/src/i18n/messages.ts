@@ -133,12 +133,8 @@ export const messages = {
     ru: "Сортировка",
     en: "Sort",
   },
-  updatedNewest: {
-    ru: "Сначала обновлённые",
-    en: "Recently updated",
-  },
-  addedNewest: {
-    ru: "Сначала добавленные",
+  recentlyAdded: {
+    ru: "Недавно добавленные",
     en: "Recently added",
   },
   titleAZ: {

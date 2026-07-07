@@ -38,7 +38,7 @@ function uniqueTags(books: Book[], selectedTags: string[]) {
 function LibraryPage() {
   const { t } = useI18n();
   const [search, setSearch] = createSignal("");
-  const [sort, setSort] = createSignal<BookSort>("updated_at_desc");
+  const [sort, setSort] = createSignal<BookSort>("created_at_desc");
   const [favoriteFilter, setFavoriteFilter] = createSignal<"all" | "favorite" | "regular">("all");
   const [selectedTags, setSelectedTags] = createSignal<string[]>([]);
   const [offset, setOffset] = createSignal(0);
@@ -119,8 +119,7 @@ function LibraryPage() {
                 resetToFirstPage();
               }}
             >
-              <option value="updated_at_desc">{t("updatedNewest")}</option>
-              <option value="created_at_desc">{t("addedNewest")}</option>
+              <option value="created_at_desc">{t("recentlyAdded")}</option>
               <option value="title_asc">{t("titleAZ")}</option>
               <option value="title_desc">{t("titleZA")}</option>
               <option value="progress_desc">{t("progressHigh")}</option>
