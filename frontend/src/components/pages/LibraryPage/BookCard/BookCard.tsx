@@ -1,7 +1,7 @@
 import { A } from "@solidjs/router";
 import { Edit3, Heart, Trash2 } from "lucide-solid";
-import { type Accessor, createMemo, For, Show } from "solid-js";
-import type { Book } from "@/api/books";
+import { type Accessor, createMemo, createSignal, For, Show } from "solid-js";
+import { type Book, getBookCoverUrl } from "@/api/books";
 import Button from "@/components/common/Button/Button";
 import { useI18n } from "@/i18n/I18nProvider";
 import BookCover from "../BookCover/BookCover";
@@ -23,6 +23,7 @@ function BookCard(props: {
   const favorite = createMemo(() => props.book().favorite);
   const format = createMemo(() => props.book().format);
   const progressPercent = createMemo(() => props.book().progress_percent);
+  const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const tags = createMemo<Book["tags"]>(
     (previousTags) => {
       const nextTags = props.book().tags;
@@ -32,59 +33,74 @@ function BookCard(props: {
     [],
   );
 
+  const handleCoverContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setCoverPreviewOpen(true);
+  };
+
   return (
     <article class={styles.bookCard}>
-      <A class={styles.coverLink} href={`/reader/${bookId()}`}>
-        <BookCover bookId={bookId()} format={format()} />
+      <A class={styles.bookMain} href={`/reader/${bookId()}`}>
+        <span class={styles.coverLink} onContextMenu={handleCoverContextMenu}>
+          <BookCover bookId={bookId()} format={format()} />
+        </span>
+        <div class={styles.bookContent}>
+          <div class={styles.bookTitleRow}>
+            <h2>{title()}</h2>
+          </div>
+
+          <Show when={tags().length > 0}>
+            <div class={styles.cardTags}>
+              <For each={tags()}>{(tag) => <span>{tag}</span>}</For>
+            </div>
+          </Show>
+        </div>
       </A>
-      <div class={styles.bookContent}>
-        <div class={styles.bookTitleRow}>
-          <h2>
-            <A href={`/reader/${bookId()}`}>{title()}</A>
-          </h2>
-          <div class={styles.bookActions}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              iconOnly
-              aria-label={favorite() ? t("removeFromFavorites") : t("addToFavorites")}
-              aria-pressed={favorite()}
-              iconStart={<Heart />}
-              classList={{ [styles.favoriteActive]: favorite() }}
-              onClick={() => props.onFavoriteToggle(props.book())}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              iconOnly
-              aria-label={t("edit")}
-              iconStart={<Edit3 />}
-              onClick={() => props.onEdit(props.book())}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              iconOnly
-              aria-label={t("delete")}
-              iconStart={<Trash2 />}
-              onClick={() => props.onDelete(props.book())}
-            />
-          </div>
-        </div>
 
-        <div class={styles.progress}>
-          <span style={{ width: `${progressPercent()}%` }} />
-        </div>
-
-        <Show when={tags().length > 0}>
-          <div class={styles.cardTags}>
-            <For each={tags()}>{(tag) => <span>{tag}</span>}</For>
-          </div>
-        </Show>
+      <div class={styles.bookActions}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          iconOnly
+          aria-label={favorite() ? t("removeFromFavorites") : t("addToFavorites")}
+          aria-pressed={favorite()}
+          iconStart={<Heart />}
+          classList={{ [styles.favoriteActive]: favorite() }}
+          onClick={() => props.onFavoriteToggle(props.book())}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          iconOnly
+          aria-label={t("edit")}
+          iconStart={<Edit3 />}
+          onClick={() => props.onEdit(props.book())}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          iconOnly
+          aria-label={t("delete")}
+          iconStart={<Trash2 />}
+          onClick={() => props.onDelete(props.book())}
+        />
       </div>
+
+      <div class={styles.progress}>
+        <span style={{ width: `${progressPercent()}%` }} />
+      </div>
+
+      <Show when={coverPreviewOpen()}>
+        <div class={styles.coverPreviewBackdrop} onClick={() => setCoverPreviewOpen(false)}>
+          <div class={styles.coverPreviewDialog}>
+            <img src={getBookCoverUrl(bookId())} alt="" />
+          </div>
+        </div>
+      </Show>
     </article>
   );
 }

@@ -2,13 +2,26 @@
 @use "@/styles/_mixins.scss" as *;
 
 .bookCard {
+  position: relative;
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 120px;
   overflow: hidden;
   border: 1px solid $color-border;
   border-radius: $radius-md;
   background: $color-paper-0;
+}
+
+.bookMain {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover h2 {
+    color: $color-blue-700;
+  }
 }
 
 .coverLink {
@@ -18,7 +31,6 @@
 }
 
 .bookContent {
-  position: relative;
   display: grid;
   min-width: 0;
   align-content: start;
@@ -27,10 +39,7 @@
 }
 
 .bookTitleRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 8px;
+  min-width: 0;
 
   h2 {
     margin: 0;
@@ -38,22 +47,16 @@
     font-size: 17px;
     line-height: 23px;
     letter-spacing: 0;
-  }
-
-  a {
-    color: inherit;
-    text-decoration: none;
-
-    &:hover {
-      color: $color-blue-700;
-    }
+    transition: color 0.15s ease;
   }
 }
 
 .bookActions {
   display: flex;
   align-items: center;
+  align-self: start;
   gap: 2px;
+  padding: 8px 8px 0 4px;
 }
 
 .favoriteActive {
@@ -68,7 +71,7 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  left: 0;
+  left: 92px;
   height: 4px;
   overflow: hidden;
   background: $color-paper-200;
@@ -96,8 +99,45 @@
   }
 }
 
+.coverPreviewBackdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(18, 24, 38, 0.24);
+}
+
+.coverPreviewDialog {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(18, 24, 38, 0.32), 0 8px 24px rgba(18, 24, 38, 0.22);
+  background: $color-paper-0;
+
+  img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+    object-fit: contain;
+  }
+}
+
 @media (max-width: 720px) {
-  .bookCard {
+  .bookMain {
     grid-template-columns: 82px minmax(0, 1fr);
+  }
+
+  .progress {
+    left: 82px;
+  }
+
+  .bookActions {
+    flex-direction: column;
+    padding-right: 6px;
+    padding-left: 2px;
   }
 }
