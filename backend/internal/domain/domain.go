@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	DefaultQuotaBytes    int64 = 314572800
+	DefaultQuotaBytes    int64 = 2147483648
 	DefaultMaxUpload     int64 = 314572800
 	DefaultMaxCoverBytes int64 = 1048576
 	MaxSettingsBytes           = 64 * 1024

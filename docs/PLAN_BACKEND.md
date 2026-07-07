@@ -44,7 +44,7 @@ PostgreSQL доступ выполняется через `pgx`/`pgxpool`, бе�
 
 Правила:
 
-- `BOOK_HUB_DEFAULT_QUOTA_BYTES` по умолчанию `314572800` байт, то есть 300 MB.
+- `BOOK_HUB_DEFAULT_QUOTA_BYTES` по умолчанию `2147483648` байт, то есть 2 GB.
 - `BOOK_HUB_MAX_UPLOAD_BYTES` по умолчанию `314572800` байт, то есть 300 MB.
 - `BOOK_HUB_MAX_COVER_UPLOAD_BYTES` по умолчанию `1048576` байт, то есть 1 MB.
 - При создании пользователя через сайт или CLI всегда используется default quota.

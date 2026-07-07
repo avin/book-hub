@@ -112,8 +112,8 @@ user login or id: user
 
 ## Квоты
 
-Квота по умолчанию задается `BOOK_HUB_DEFAULT_QUOTA_BYTES`. Для изменения квоты
-пользователя используйте CLI:
+Квота по умолчанию задается `BOOK_HUB_DEFAULT_QUOTA_BYTES` и составляет
+`2147483648` байт (2 GB). Для изменения квоты пользователя используйте CLI:
 
 ```text
 admin> set quota
