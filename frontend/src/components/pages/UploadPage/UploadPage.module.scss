@@ -180,8 +180,7 @@
 }
 
 .statusText,
-.warningText,
-.successText {
+.warningText {
   margin: 4px 0 0;
   font-size: 13px;
   line-height: 18px;
@@ -193,10 +192,6 @@
 
 .warningText {
   color: $color-red-700;
-}
-
-.successText {
-  color: $color-sage-700;
 }
 
 .draftStatus {

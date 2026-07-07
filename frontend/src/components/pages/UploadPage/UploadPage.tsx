@@ -12,7 +12,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./UploadPage.module.scss";
 
 type CoverStatus = "pending" | "ready" | "missing" | "failed";
-type UploadStatus = "idle" | "uploading" | "done" | "failed";
+type UploadStatus = "idle" | "uploading" | "failed";
 
 type BookDraft = {
   id: string;
@@ -116,7 +116,7 @@ function UploadPage() {
   const preparingTitles = createMemo(() => drafts().some((draft) => draft.titleExtracting));
   const canSubmit = createMemo(
     () =>
-      drafts().some((draft) => draft.uploadStatus !== "done") &&
+      drafts().length > 0 &&
       !uploading() &&
       !preparingCovers() &&
       !preparingTitles(),
@@ -137,7 +137,6 @@ function UploadPage() {
         coverSource: file ? "manual" : undefined,
         coverStatus: status,
         coverError,
-        uploadStatus: draft.uploadStatus === "done" ? "idle" : draft.uploadStatus,
         uploadError: undefined,
       };
     });
@@ -224,7 +223,6 @@ function UploadPage() {
         title: extractedTitle || currentDraft.title,
         titleExtracting: false,
         titleError: extractedTitle ? undefined : t("titleCouldNotBeExtracted"),
-        uploadStatus: currentDraft.uploadStatus === "done" ? "idle" : currentDraft.uploadStatus,
         uploadError: undefined,
       }));
     } catch (nextError) {
@@ -248,23 +246,6 @@ function UploadPage() {
     if (nextDrafts.length === 0) {
       setError("");
     }
-  };
-
-  const removeUploadedDrafts = () => {
-    setDrafts((currentDrafts) => {
-      const remainingDrafts: BookDraft[] = [];
-
-      for (const draft of currentDrafts) {
-        if (draft.uploadStatus === "done") {
-          coverInputByDraftId.delete(draft.id);
-          revokePreviewUrl(draft);
-        } else {
-          remainingDrafts.push(draft);
-        }
-      }
-
-      return remainingDrafts;
-    });
   };
 
   const handleCoverChange = async (id: string, file: File | undefined) => {
@@ -340,12 +321,7 @@ function UploadPage() {
         await uploadBookCover(uploadedBookId, draft.coverFile);
       }
 
-      updateDraft(draft.id, (currentDraft) => ({
-        ...currentDraft,
-        uploadedBookId,
-        uploadStatus: "done",
-        uploadError: undefined,
-      }));
+      removeDraft(draft.id);
       return true;
     } catch (nextError) {
       updateDraft(draft.id, (currentDraft) => ({
@@ -369,7 +345,7 @@ function UploadPage() {
     setUploading(true);
     setError("");
 
-    const uploadableDrafts = drafts().filter((draft) => draft.uploadStatus !== "done");
+    const uploadableDrafts = drafts();
     const results: boolean[] = [];
     for (const draft of uploadableDrafts) {
       results.push(await uploadDraft(draft));
@@ -383,7 +359,6 @@ function UploadPage() {
       return;
     }
 
-    removeUploadedDrafts();
     setError(t("someBooksNotUploaded"));
   };
 
@@ -492,7 +467,6 @@ function UploadPage() {
                                 ...currentDraft,
                                 title: event.currentTarget.value,
                                 titleError: undefined,
-                                uploadStatus: currentDraft.uploadStatus === "done" ? "idle" : currentDraft.uploadStatus,
                                 uploadError: undefined,
                               }))
                             }
@@ -522,7 +496,6 @@ function UploadPage() {
                             updateDraft(draft().id, (currentDraft) => ({
                               ...currentDraft,
                               tags,
-                              uploadStatus: currentDraft.uploadStatus === "done" ? "idle" : currentDraft.uploadStatus,
                               uploadError: undefined,
                             }))
                           }
@@ -542,9 +515,6 @@ function UploadPage() {
                         </Show>
                         <Show when={draft().titleError}>
                           <p class={styles.warningText}>{draft().titleError}</p>
-                        </Show>
-                        <Show when={draft().uploadStatus === "done"}>
-                          <p class={styles.successText}>{t("bookUploaded")}</p>
                         </Show>
                         <Show when={draft().uploadStatus === "failed"}>
                           <p class={styles.warningText}>{draft().uploadError}</p>

@@ -301,10 +301,6 @@ export const messages = {
     ru: "Загрузить книги",
     en: "Upload books",
   },
-  bookUploaded: {
-    ru: "Книга загружена",
-    en: "Book uploaded",
-  },
   someBooksNotUploaded: {
     ru: "Некоторые книги не удалось загрузить. Проверьте ошибки в списке.",
     en: "Some books could not be uploaded. Check errors in the list.",
