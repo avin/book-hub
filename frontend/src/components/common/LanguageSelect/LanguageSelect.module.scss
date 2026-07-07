@@ -54,6 +54,17 @@
   min-width: 0;
 }
 
+.fullWidth {
+  width: 100%;
+  max-width: none;
+  justify-content: flex-start;
+
+  .label {
+    flex: 1 1 auto;
+    text-align: left;
+  }
+}
+
 .chevron {
   transition: transform $duration-fast $ease-standard;
 }

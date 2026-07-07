@@ -13,6 +13,8 @@ const languageOptions: { value: Language; label: string }[] = [
 ];
 
 function LanguageSelect(props: {
+  class?: string;
+  fullWidth?: boolean;
   placement?: Placement;
 }) {
   const { language, setLanguage, t } = useI18n();
@@ -41,11 +43,12 @@ function LanguageSelect(props: {
       onOpenChange={setOpen}
       placement={props.placement ?? "bottom-end"}
       minWidth={180}
-      fitReferenceToContent
+      fitReferenceToContent={!props.fullWidth}
       trigger={
         <button
           type="button"
-          class={styles.trigger}
+          class={`${styles.trigger} ${props.class ?? ""}`}
+          classList={{ [styles.fullWidth]: props.fullWidth }}
           aria-label={t("language")}
           aria-haspopup="menu"
           aria-expanded={open()}
