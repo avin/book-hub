@@ -77,6 +77,10 @@ export const messages = {
     ru: "Язык",
     en: "Language",
   },
+  accountMenu: {
+    ru: "Меню аккаунта",
+    en: "Account menu",
+  },
   russian: {
     ru: "Русский",
     en: "Русский",
