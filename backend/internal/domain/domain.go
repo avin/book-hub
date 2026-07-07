@@ -66,6 +66,7 @@ type Book struct {
 	ProgressPercent float64
 	StoragePath     string
 	CoverPath       *string
+	CoverThumbPath  *string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
@@ -101,8 +102,14 @@ type BookFileInput struct {
 }
 
 type DeletedBookFiles struct {
-	BookPath  string
-	CoverPath string
+	BookPath       string
+	CoverPath      string
+	CoverThumbPath string
+}
+
+type CoverFiles struct {
+	CoverPath      string
+	CoverThumbPath string
 }
 
 type ReadingProgress struct {
@@ -208,6 +215,17 @@ func NormalizeCoverFormat(filename string) (string, error) {
 		return "webp", nil
 	default:
 		return "", ErrUnsupportedFormat
+	}
+}
+
+func NormalizeCoverVariant(variant string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(variant)) {
+	case "", "full":
+		return "full", nil
+	case "thumbnail":
+		return "thumbnail", nil
+	default:
+		return "", ErrValidation
 	}
 }
 

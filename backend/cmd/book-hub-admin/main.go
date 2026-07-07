@@ -179,6 +179,7 @@ func deleteUser(ctx context.Context, scanner *bufio.Scanner, store adminStore) e
 	}
 	for _, item := range deleted {
 		files.DeleteBestEffort(item.CoverPath)
+		files.DeleteBestEffort(item.CoverThumbPath)
 		files.DeleteBestEffort(item.BookPath)
 	}
 	return nil

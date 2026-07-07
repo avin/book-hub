@@ -3,6 +3,9 @@ package httpapi_test
 import (
 	"bytes"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -104,6 +107,37 @@ func TestSettingsAndProgressFlow(t *testing.T) {
 	}
 }
 
+func TestCoverUploadStoresFullAndThumbnailVariants(t *testing.T) {
+	app := newTestApp(t, true)
+	client := app.client(t)
+	csrf := app.csrf(t, client)
+	app.register(t, client, csrf, "reader", "password", http.StatusCreated)
+	app.login(t, client, csrf, "reader", "password", http.StatusOK)
+	bookID := app.uploadBook(t, client, csrf, "book.pdf", []byte("%PDF"))
+
+	app.uploadCover(t, client, csrf, bookID, "cover.png", testPNG(t, 300, 400), http.StatusNoContent)
+
+	full := app.requestRaw(t, client, http.MethodGet, "/v1/books/"+bookID+"/cover", "", nil, http.StatusOK)
+	if full.header.Get("Content-Type") != "image/png" {
+		t.Fatalf("expected full cover content type image/png, got %q", full.header.Get("Content-Type"))
+	}
+
+	thumbnail := app.requestRaw(t, client, http.MethodGet, "/v1/books/"+bookID+"/cover?variant=thumbnail", "", nil, http.StatusOK)
+	if thumbnail.header.Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("expected thumbnail content type image/jpeg, got %q", thumbnail.header.Get("Content-Type"))
+	}
+	decoded, _, err := image.Decode(bytes.NewReader(thumbnail.body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Bounds().Dx() > 184 || decoded.Bounds().Dy() > 240 {
+		t.Fatalf("thumbnail is too large: %dx%d", decoded.Bounds().Dx(), decoded.Bounds().Dy())
+	}
+
+	app.requestRaw(t, client, http.MethodGet, "/v1/books/"+bookID+"/cover?variant=small", "", nil, http.StatusBadRequest)
+	app.uploadCover(t, client, csrf, bookID, "bad.png", []byte("not an image"), http.StatusBadRequest)
+}
+
 type testApp struct {
 	server      *httptest.Server
 	storageRoot string
@@ -120,7 +154,7 @@ func newTestApp(t *testing.T, autoActivate bool) testApp {
 		SessionSecret:            "01234567890123456789012345678901",
 		SessionTTL:               time.Hour,
 		MaxUploadBytes:           1024 * 1024,
-		MaxCoverUploadBytes:      1024,
+		MaxCoverUploadBytes:      1024 * 1024,
 	}
 	fileStore := files.New(root)
 	handler := httpapi.New(cfg, memory.New(), fileStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -204,6 +238,35 @@ func (a testApp) requestJSON(t *testing.T, client *http.Client, method, path, cs
 	return decoded
 }
 
+type rawResponse struct {
+	header http.Header
+	body   []byte
+}
+
+func (a testApp) requestRaw(t *testing.T, client *http.Client, method, path, csrf string, body io.Reader, status int) rawResponse {
+	t.Helper()
+	req, err := http.NewRequest(method, a.server.URL+"/api"+path, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if csrf != "" {
+		req.Header.Set("X-CSRF-Token", csrf)
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != status {
+		t.Fatalf("%s %s: expected status %d, got %d: %s", method, path, status, res.StatusCode, data)
+	}
+	return rawResponse{header: res.Header.Clone(), body: data}
+}
+
 func (a testApp) uploadBook(t *testing.T, client *http.Client, csrf, filename string, content []byte) string {
 	t.Helper()
 	var body bytes.Buffer
@@ -245,6 +308,52 @@ func (a testApp) uploadBook(t *testing.T, client *http.Client, csrf, filename st
 		t.Fatalf("missing book id: %#v", decoded)
 	}
 	return id
+}
+
+func (a testApp) uploadCover(t *testing.T, client *http.Client, csrf, bookID, filename string, content []byte, status int) {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req, err := http.NewRequest(http.MethodPut, a.server.URL+"/api/v1/books/"+bookID+"/cover", &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("X-CSRF-Token", csrf)
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != status {
+		data, _ := io.ReadAll(res.Body)
+		t.Fatalf("cover upload: expected status %d, got %d: %s", status, res.StatusCode, data)
+	}
+}
+
+func testPNG(t *testing.T, width, height int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.Set(x, y, color.RGBA{R: 80, G: 120, B: 180, A: 255})
+		}
+	}
+	var body bytes.Buffer
+	if err := png.Encode(&body, img); err != nil {
+		t.Fatal(err)
+	}
+	return body.Bytes()
 }
 
 func countStoredFiles(t *testing.T, root string) int {

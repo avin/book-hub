@@ -233,6 +233,9 @@ export interface paths {
          * Upload or replace book cover
          * @description Uploads one JPG, PNG, or WEBP cover. Format is determined only from the
          *     original filename extension. The `jpeg` extension is normalized to `jpg`.
+         *     The uploaded content must be decodable as an image.
+         *     Backend stores the original cover and a JPEG thumbnail constrained to
+         *     184x240 pixels.
          */
         put: operations["uploadBookCover"];
         post?: never;
@@ -431,6 +434,11 @@ export interface components {
             /** Format: binary */
             file: string;
         };
+        /**
+         * @default full
+         * @enum {string}
+         */
+        CoverVariant: "full" | "thumbnail";
         ReadingProgress: {
             progress_percent: components["schemas"]["ProgressPercent"];
             /**
@@ -527,6 +535,8 @@ export interface components {
         BookId: string;
         /** @description CSRF token from `GET /v1/auth/csrf`. */
         CsrfToken: string;
+        /** @description Cover representation to return. Defaults to the original full-size cover. */
+        CoverVariant: components["schemas"]["CoverVariant"];
     };
     requestBodies: never;
     headers: {
@@ -936,7 +946,10 @@ export interface operations {
     };
     getBookCover: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Cover representation to return. Defaults to the original full-size cover. */
+                variant?: components["parameters"]["CoverVariant"];
+            };
             header?: never;
             path: {
                 /** @description User book identifier. */

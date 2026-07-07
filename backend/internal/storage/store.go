@@ -37,8 +37,8 @@ type Store interface {
 	GetBook(ctx context.Context, userID, bookID uuid.UUID) (domain.Book, error)
 	UpdateBook(ctx context.Context, userID, bookID uuid.UUID, patch BookPatch) (domain.Book, error)
 	DeleteBook(ctx context.Context, userID, bookID uuid.UUID) (domain.DeletedBookFiles, error)
-	SetCover(ctx context.Context, userID, bookID uuid.UUID, coverPath string) (oldCoverPath string, err error)
-	DeleteCover(ctx context.Context, userID, bookID uuid.UUID) (oldCoverPath string, err error)
+	SetCover(ctx context.Context, userID, bookID uuid.UUID, coverFiles domain.CoverFiles) (domain.CoverFiles, error)
+	DeleteCover(ctx context.Context, userID, bookID uuid.UUID) (domain.CoverFiles, error)
 
 	GetProgress(ctx context.Context, userID, bookID uuid.UUID) (domain.ReadingProgress, error)
 	PutProgress(ctx context.Context, userID, bookID uuid.UUID, progress float64) (domain.ReadingProgress, error)

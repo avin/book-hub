@@ -133,7 +133,7 @@ func (s *Store) DeleteUser(ctx context.Context, userID uuid.UUID) ([]domain.Dele
 	defer tx.Rollback(ctx)
 
 	rows, err := tx.Query(ctx, `
-		select ub.book_file_id, bf.storage_path, ub.cover_path
+		select ub.book_file_id, bf.storage_path, ub.cover_path, ub.cover_thumbnail_path
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
 		where ub.user_id = $1
@@ -145,11 +145,12 @@ func (s *Store) DeleteUser(ctx context.Context, userID uuid.UUID) ([]domain.Dele
 		fileID    uuid.UUID
 		bookPath  string
 		coverPath *string
+		thumbPath *string
 	}
 	var candidates []candidate
 	for rows.Next() {
 		var item candidate
-		if err := rows.Scan(&item.fileID, &item.bookPath, &item.coverPath); err != nil {
+		if err := rows.Scan(&item.fileID, &item.bookPath, &item.coverPath, &item.thumbPath); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -177,6 +178,9 @@ func (s *Store) DeleteUser(ctx context.Context, userID uuid.UUID) ([]domain.Dele
 		files := domain.DeletedBookFiles{}
 		if item.coverPath != nil {
 			files.CoverPath = *item.coverPath
+		}
+		if item.thumbPath != nil {
+			files.CoverThumbPath = *item.thumbPath
 		}
 		if refs == 0 {
 			if _, err := tx.Exec(ctx, `delete from book_files where id = $1`, item.fileID); err != nil {
@@ -374,7 +378,7 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 	}
 	rows, err := s.pool.Query(ctx, `
 		select ub.id, ub.title, ub.tags, ub.favorite, bf.format, bf.size_bytes,
-			coalesce(rp.progress_percent, 0), bf.storage_path, ub.cover_path, ub.created_at, ub.updated_at
+			coalesce(rp.progress_percent, 0), bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.updated_at
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
 		left join reading_progress rp on rp.user_book_id = ub.id
@@ -436,12 +440,13 @@ func (s *Store) DeleteBook(ctx context.Context, userID, bookID uuid.UUID) (domai
 	var fileID uuid.UUID
 	var bookPath string
 	var coverPath *string
+	var thumbPath *string
 	err = tx.QueryRow(ctx, `
-		select ub.book_file_id, bf.storage_path, ub.cover_path
+		select ub.book_file_id, bf.storage_path, ub.cover_path, ub.cover_thumbnail_path
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
 		where ub.user_id = $1 and ub.id = $2
-	`, userID, bookID).Scan(&fileID, &bookPath, &coverPath)
+	`, userID, bookID).Scan(&fileID, &bookPath, &coverPath, &thumbPath)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.DeletedBookFiles{}, domain.ErrNotFound
 	}
@@ -459,6 +464,9 @@ func (s *Store) DeleteBook(ctx context.Context, userID, bookID uuid.UUID) (domai
 	if coverPath != nil {
 		files.CoverPath = *coverPath
 	}
+	if thumbPath != nil {
+		files.CoverThumbPath = *thumbPath
+	}
 	if refs == 0 {
 		if _, err := tx.Exec(ctx, `delete from book_files where id = $1`, fileID); err != nil {
 			return domain.DeletedBookFiles{}, err
@@ -468,29 +476,41 @@ func (s *Store) DeleteBook(ctx context.Context, userID, bookID uuid.UUID) (domai
 	return files, tx.Commit(ctx)
 }
 
-func (s *Store) SetCover(ctx context.Context, userID, bookID uuid.UUID, coverPath string) (string, error) {
+func (s *Store) SetCover(ctx context.Context, userID, bookID uuid.UUID, coverFiles domain.CoverFiles) (domain.CoverFiles, error) {
 	current, err := s.GetBook(ctx, userID, bookID)
 	if err != nil {
-		return "", err
+		return domain.CoverFiles{}, err
 	}
-	old := ""
+	old := domain.CoverFiles{}
 	if current.CoverPath != nil {
-		old = *current.CoverPath
+		old.CoverPath = *current.CoverPath
 	}
-	_, err = s.pool.Exec(ctx, `update user_books set cover_path = $3, updated_at = now() where user_id = $1 and id = $2`, userID, bookID, coverPath)
+	if current.CoverThumbPath != nil {
+		old.CoverThumbPath = *current.CoverThumbPath
+	}
+	_, err = s.pool.Exec(ctx, `
+		update user_books set cover_path = $3, cover_thumbnail_path = $4, updated_at = now()
+		where user_id = $1 and id = $2
+	`, userID, bookID, coverFiles.CoverPath, coverFiles.CoverThumbPath)
 	return old, err
 }
 
-func (s *Store) DeleteCover(ctx context.Context, userID, bookID uuid.UUID) (string, error) {
+func (s *Store) DeleteCover(ctx context.Context, userID, bookID uuid.UUID) (domain.CoverFiles, error) {
 	current, err := s.GetBook(ctx, userID, bookID)
 	if err != nil {
-		return "", err
+		return domain.CoverFiles{}, err
 	}
-	old := ""
+	old := domain.CoverFiles{}
 	if current.CoverPath != nil {
-		old = *current.CoverPath
+		old.CoverPath = *current.CoverPath
 	}
-	_, err = s.pool.Exec(ctx, `update user_books set cover_path = null, updated_at = now() where user_id = $1 and id = $2`, userID, bookID)
+	if current.CoverThumbPath != nil {
+		old.CoverThumbPath = *current.CoverThumbPath
+	}
+	_, err = s.pool.Exec(ctx, `
+		update user_books set cover_path = null, cover_thumbnail_path = null, updated_at = now()
+		where user_id = $1 and id = $2
+	`, userID, bookID)
 	return old, err
 }
 
@@ -538,7 +558,7 @@ func scanBook(ctx context.Context, q bookQuerier, userID, bookID uuid.UUID) (dom
 		Query(context.Context, string, ...any) (pgx.Rows, error)
 	}).Query(ctx, `
 		select ub.id, ub.title, ub.tags, ub.favorite, bf.format, bf.size_bytes,
-			coalesce(rp.progress_percent, 0), bf.storage_path, ub.cover_path, ub.created_at, ub.updated_at
+			coalesce(rp.progress_percent, 0), bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.updated_at
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
 		left join reading_progress rp on rp.user_book_id = ub.id
@@ -572,6 +592,7 @@ func scanBooks(rows pgx.Rows) ([]domain.Book, error) {
 			&book.ProgressPercent,
 			&book.StoragePath,
 			&book.CoverPath,
+			&book.CoverThumbPath,
 			&book.CreatedAt,
 			&book.UpdatedAt,
 		); err != nil {

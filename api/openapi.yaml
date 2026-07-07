@@ -454,6 +454,9 @@ paths:
       description: |
         Uploads one JPG, PNG, or WEBP cover. Format is determined only from the
         original filename extension. The `jpeg` extension is normalized to `jpg`.
+        The uploaded content must be decodable as an image.
+        Backend stores the original cover and a JPEG thumbnail constrained to
+        184x240 pixels.
       security:
         - cookieAuth: []
           csrfHeader: []
@@ -488,6 +491,8 @@ paths:
       summary: Get book cover
       security:
         - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CoverVariant"
       responses:
         "200":
           description: Book cover.
@@ -695,6 +700,13 @@ components:
       schema:
         type: string
         minLength: 1
+    CoverVariant:
+      name: variant
+      in: query
+      required: false
+      description: Cover representation to return. Defaults to the original full-size cover.
+      schema:
+        $ref: "#/components/schemas/CoverVariant"
 
   headers:
     RequestId:
@@ -1043,6 +1055,13 @@ components:
         file:
           type: string
           format: binary
+
+    CoverVariant:
+      type: string
+      default: full
+      enum:
+        - full
+        - thumbnail
 
     ReadingProgress:
       type: object

@@ -162,6 +162,9 @@ func (s *Store) DeleteUser(_ context.Context, userID uuid.UUID) ([]domain.Delete
 		if record.Book.CoverPath != nil {
 			files.CoverPath = *record.Book.CoverPath
 		}
+		if record.Book.CoverThumbPath != nil {
+			files.CoverThumbPath = *record.Book.CoverThumbPath
+		}
 		if s.fileRefCountLocked(record.BookFileID) == 0 {
 			if file, ok := s.files[record.BookFileID]; ok {
 				files.BookPath = file.StoragePath
@@ -403,6 +406,9 @@ func (s *Store) DeleteBook(_ context.Context, userID, bookID uuid.UUID) (domain.
 	if record.Book.CoverPath != nil {
 		files.CoverPath = *record.Book.CoverPath
 	}
+	if record.Book.CoverThumbPath != nil {
+		files.CoverThumbPath = *record.Book.CoverThumbPath
+	}
 	if s.fileRefCountLocked(record.BookFileID) == 0 {
 		file := s.files[record.BookFileID]
 		files.BookPath = file.StoragePath
@@ -412,35 +418,43 @@ func (s *Store) DeleteBook(_ context.Context, userID, bookID uuid.UUID) (domain.
 	return files, nil
 }
 
-func (s *Store) SetCover(_ context.Context, userID, bookID uuid.UUID, coverPath string) (string, error) {
+func (s *Store) SetCover(_ context.Context, userID, bookID uuid.UUID, coverFiles domain.CoverFiles) (domain.CoverFiles, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	record, ok := s.books[bookID]
 	if !ok || record.UserID != userID {
-		return "", domain.ErrNotFound
+		return domain.CoverFiles{}, domain.ErrNotFound
 	}
-	old := ""
+	old := domain.CoverFiles{}
 	if record.Book.CoverPath != nil {
-		old = *record.Book.CoverPath
+		old.CoverPath = *record.Book.CoverPath
 	}
-	record.Book.CoverPath = &coverPath
+	if record.Book.CoverThumbPath != nil {
+		old.CoverThumbPath = *record.Book.CoverThumbPath
+	}
+	record.Book.CoverPath = &coverFiles.CoverPath
+	record.Book.CoverThumbPath = &coverFiles.CoverThumbPath
 	record.Book.UpdatedAt = time.Now().UTC()
 	s.books[bookID] = record
 	return old, nil
 }
 
-func (s *Store) DeleteCover(_ context.Context, userID, bookID uuid.UUID) (string, error) {
+func (s *Store) DeleteCover(_ context.Context, userID, bookID uuid.UUID) (domain.CoverFiles, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	record, ok := s.books[bookID]
 	if !ok || record.UserID != userID {
-		return "", domain.ErrNotFound
+		return domain.CoverFiles{}, domain.ErrNotFound
 	}
-	old := ""
+	old := domain.CoverFiles{}
 	if record.Book.CoverPath != nil {
-		old = *record.Book.CoverPath
+		old.CoverPath = *record.Book.CoverPath
+	}
+	if record.Book.CoverThumbPath != nil {
+		old.CoverThumbPath = *record.Book.CoverThumbPath
 	}
 	record.Book.CoverPath = nil
+	record.Book.CoverThumbPath = nil
 	record.Book.UpdatedAt = time.Now().UTC()
 	s.books[bookID] = record
 	return old, nil

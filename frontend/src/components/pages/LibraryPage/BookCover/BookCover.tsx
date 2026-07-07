@@ -26,7 +26,7 @@ function BookCover(props: {
         }
       >
         <img
-          src={getBookCoverUrl(props.bookId)}
+          src={getBookCoverUrl(props.bookId, "thumbnail")}
           alt=""
           loading="lazy"
           onError={() => setFailed(true)}

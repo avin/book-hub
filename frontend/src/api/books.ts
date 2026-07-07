@@ -16,8 +16,11 @@ export function getBookFileUrl(bookId: string) {
   return `${getApiBaseUrl()}/v1/books/${encodeURIComponent(bookId)}/file`;
 }
 
-export function getBookCoverUrl(bookId: string) {
-  return `${getApiBaseUrl()}/v1/books/${encodeURIComponent(bookId)}/cover`;
+export type BookCoverVariant = "full" | "thumbnail";
+
+export function getBookCoverUrl(bookId: string, variant: BookCoverVariant = "full") {
+  const url = `${getApiBaseUrl()}/v1/books/${encodeURIComponent(bookId)}/cover`;
+  return variant === "full" ? url : `${url}?variant=${variant}`;
 }
 
 async function responseError(response: Response) {

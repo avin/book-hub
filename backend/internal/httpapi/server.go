@@ -480,6 +480,7 @@ func (s *Server) handleDeleteBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	files.DeleteBestEffort(deleted.CoverPath)
+	files.DeleteBestEffort(deleted.CoverThumbPath)
 	files.DeleteBestEffort(deleted.BookPath)
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -529,18 +530,18 @@ func (s *Server) handleUploadCover(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	coverPath, err := s.files.SaveCover(bookID.String(), format, file, s.cfg.MaxCoverUploadBytes)
+	coverFiles, err := s.files.SaveCover(bookID.String(), format, file, s.cfg.MaxCoverUploadBytes)
 	if err != nil {
 		s.writeError(w, r, err)
 		return
 	}
-	oldCover, err := s.store.SetCover(r.Context(), userID, bookID, coverPath)
+	oldCoverFiles, err := s.store.SetCover(r.Context(), userID, bookID, coverFiles)
 	if err != nil {
-		files.DeleteBestEffort(coverPath)
+		deleteCoverFiles(coverFiles)
 		s.writeError(w, r, err)
 		return
 	}
-	files.DeleteBestEffort(oldCover)
+	deleteCoverFiles(oldCoverFiles)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -554,14 +555,23 @@ func (s *Server) handleGetCover(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, domain.ErrNotFound)
 		return
 	}
-	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(*book.CoverPath), "."))
+	coverPath := *book.CoverPath
+	variant, err := domain.NormalizeCoverVariant(r.URL.Query().Get("variant"))
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	if variant == "thumbnail" && book.CoverThumbPath != nil {
+		coverPath = *book.CoverThumbPath
+	}
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(coverPath), "."))
 	if ext == "jpg" {
 		w.Header().Set("Content-Type", "image/jpeg")
 	} else {
 		w.Header().Set("Content-Type", mime.TypeByExtension("."+ext))
 	}
 	w.Header().Set("Content-Disposition", `inline; filename="cover.`+ext+`"`)
-	http.ServeFile(w, r, *book.CoverPath)
+	http.ServeFile(w, r, coverPath)
 }
 
 func (s *Server) handleDeleteCover(w http.ResponseWriter, r *http.Request) {
@@ -574,12 +584,12 @@ func (s *Server) handleDeleteCover(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	oldCover, err := s.store.DeleteCover(r.Context(), userID, bookID)
+	oldCoverFiles, err := s.store.DeleteCover(r.Context(), userID, bookID)
 	if err != nil {
 		s.writeError(w, r, err)
 		return
 	}
-	files.DeleteBestEffort(oldCover)
+	deleteCoverFiles(oldCoverFiles)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -843,6 +853,11 @@ func sanitizeFilename(value string) string {
 		return "book"
 	}
 	return b.String()
+}
+
+func deleteCoverFiles(coverFiles domain.CoverFiles) {
+	files.DeleteBestEffort(coverFiles.CoverPath)
+	files.DeleteBestEffort(coverFiles.CoverThumbPath)
 }
 
 func hasPathPrefix(path, prefix string) bool {
