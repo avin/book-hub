@@ -76,33 +76,26 @@
 
 .removeButton {
   display: inline-flex;
-  width: 20px;
-  height: 20px;
+  width: 14px;
+  height: 14px;
   align-items: center;
   justify-content: center;
-  margin: -4px;
-  padding: 4px;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: 0;
   background: transparent;
   color: currentColor;
   cursor: pointer;
-
-  &:hover {
-    background: rgba(36, 82, 122, 0.12);
-  }
 
   &:disabled {
     cursor: not-allowed;
   }
 
-  &:disabled:hover {
-    background: transparent;
-  }
-
   :global(svg) {
     width: 14px;
     height: 14px;
+    pointer-events: none;
   }
 }
 

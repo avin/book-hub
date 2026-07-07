@@ -72,15 +72,19 @@ function TagBadge(props: {
   disabled?: boolean;
   ref?: (element: HTMLSpanElement) => void;
   onRemove?: () => void;
-  onClick?: (event: MouseEvent) => void;
 }) {
+  const preventLabelActivation = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   return (
     <span
       ref={props.ref}
       class={styles.badge}
       classList={{ [styles.measureItem]: props.measure }}
       data-tag-badge
-      onClick={props.onClick}
+      onClick={preventLabelActivation}
     >
       <span class={styles.badgeContent}>
         {props.tag}
@@ -92,6 +96,7 @@ function TagBadge(props: {
           aria-label={`Remove ${props.tag}`}
           disabled={props.disabled}
           onClick={(event) => {
+            event.preventDefault();
             event.stopPropagation();
             if (props.disabled) {
               return;
@@ -346,6 +351,11 @@ function TagsSelect(props: {
       return;
     }
 
+    if (target !== inputEl) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
     inputEl?.focus();
   };
 
@@ -512,7 +522,6 @@ function TagsSelect(props: {
                 <TagBadge
                   tag={tag}
                   disabled={props.disabled}
-                  onClick={(event) => event.stopPropagation()}
                   onRemove={() => removeTag(tag)}
                 />
               )}
@@ -526,6 +535,7 @@ function TagsSelect(props: {
                 aria-disabled={props.disabled ? "true" : undefined}
                 tabIndex={props.disabled ? undefined : 0}
                 onClick={(event) => {
+                  event.preventDefault();
                   event.stopPropagation();
                   if (props.disabled) {
                     return;
@@ -660,7 +670,6 @@ function TagsSelect(props: {
               <TagBadge
                 tag={tag}
                 disabled={props.disabled}
-                onClick={(event) => event.stopPropagation()}
                 onRemove={() => removeTag(tag)}
               />
             )}
