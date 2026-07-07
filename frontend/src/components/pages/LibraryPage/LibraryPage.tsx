@@ -1,5 +1,5 @@
 import { A } from "@solidjs/router";
-import { createMemo, createSignal, Index, Show } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, Index, onCleanup, Show } from "solid-js";
 import { Library, Plus, Search } from "lucide-solid";
 import {
   type Book,
@@ -20,6 +20,7 @@ import LibraryFiltersDropdown from "./LibraryFiltersDropdown/LibraryFiltersDropd
 import styles from "./LibraryPage.module.scss";
 
 const pageLimit = 24;
+const searchDebounceMs = 400;
 
 function uniqueTags(books: Book[], selectedTags: string[]) {
   const tags = new Map<string, string>();
@@ -39,6 +40,7 @@ function uniqueTags(books: Book[], selectedTags: string[]) {
 function LibraryPage() {
   const { t } = useI18n();
   const [search, setSearch] = createSignal("");
+  const [debouncedSearch, setDebouncedSearch] = createSignal("");
   const [sort, setSort] = createSignal<BookSort>("created_at_desc");
   const [favoriteFilter, setFavoriteFilter] = createSignal<"all" | "favorite" | "regular">("all");
   const [selectedTags, setSelectedTags] = createSignal<string[]>([]);
@@ -46,6 +48,20 @@ function LibraryPage() {
   const [editingBook, setEditingBook] = createSignal<Book>();
   const updateBookMutation = createUpdateBookMutation();
   const deleteBookMutation = createDeleteBookMutation();
+  const resetToFirstPage = () => setOffset(0);
+
+  createEffect(() => {
+    const nextSearch = search();
+    const timeoutId = window.setTimeout(() => {
+      batch(() => {
+        setDebouncedSearch(nextSearch);
+        resetToFirstPage();
+      });
+    }, searchDebounceMs);
+
+    onCleanup(() => clearTimeout(timeoutId));
+  });
+
   const booksQuery = createBooksQuery(() => ({
     limit: pageLimit,
     offset: offset(),
@@ -57,7 +73,7 @@ function LibraryPage() {
         : favoriteFilter() === "regular"
           ? false
           : null,
-    q: search().trim(),
+    q: debouncedSearch().trim(),
   }));
   const books = createMemo(() => booksQuery.data?.items ?? []);
   const tagOptions = createMemo(() => uniqueTags(books(), selectedTags()));
@@ -65,8 +81,6 @@ function LibraryPage() {
   const pageEnd = createMemo(() => Math.min(offset() + pageLimit, booksQuery.data?.total ?? 0));
   const canGoBack = createMemo(() => offset() > 0);
   const canGoForward = createMemo(() => offset() + pageLimit < (booksQuery.data?.total ?? 0));
-
-  const resetToFirstPage = () => setOffset(0);
 
   const handleFavoriteToggle = (book: Book) => {
     updateBookMutation.mutate({
@@ -107,7 +121,6 @@ function LibraryPage() {
               placeholder={t("findByTitle")}
               onInput={(event) => {
                 setSearch(event.currentTarget.value);
-                resetToFirstPage();
               }}
             />
           </InputContainer>
