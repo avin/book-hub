@@ -113,6 +113,14 @@ export const messages = {
     ru: "Найти или добавить тег",
     en: "Find or add tag",
   },
+  findByTag: {
+    ru: "Найти по тегу",
+    en: "Find by tag",
+  },
+  findByTitle: {
+    ru: "Найти по названию",
+    en: "Find by title",
+  },
   noOptions: {
     ru: "Нет вариантов",
     en: "No options",

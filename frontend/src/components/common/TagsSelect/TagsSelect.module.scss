@@ -4,16 +4,20 @@
 .inputContainer {
   @include control-text;
 
+  box-sizing: border-box;
   display: flex;
   width: 100%;
-  min-height: 42px;
+  min-width: 0;
+  height: 42px;
   align-items: center;
   padding: 5px 10px;
-  gap: 8px;
+  overflow: hidden;
+  gap: 4px;
   border: 1px solid $color-border;
   border-radius: $radius-sm;
   background: $color-paper-0;
   color: $color-ink-900;
+  line-height: 20px;
   text-align: left;
   cursor: text;
   transition:
@@ -25,10 +29,6 @@
     box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.12);
   }
 
-  &:focus-visible {
-    @include focus-ring;
-  }
-
   &:hover {
     border-color: $color-border-strong;
   }
@@ -38,49 +38,66 @@
   background: $color-paper-100;
   color: $color-ink-500;
   cursor: not-allowed;
+
+  .badge {
+    color: $color-ink-500;
+  }
+
+  .collapsedBadge {
+    cursor: not-allowed;
+  }
 }
 
-.tags {
-  display: flex;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.tag {
+.badge {
+  box-sizing: border-box;
   display: inline-flex;
-  min-height: 26px;
   max-width: 100%;
+  flex: 0 0 auto;
   align-items: center;
-  padding: 3px 6px 3px 9px;
-  gap: 6px;
-  border: 1px solid $color-blue-100;
-  border-radius: 999px;
+  padding: 4px 8px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 24px;
   background: $color-blue-100;
-  color: $color-blue-700;
-  font-size: 13px;
-  line-height: 18px;
+  color: $color-ink-900;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.badgeContent {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
 }
 
 .removeButton {
   display: inline-flex;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  margin: -4px;
+  padding: 4px;
   border: 0;
   border-radius: 50%;
   background: transparent;
   color: currentColor;
   cursor: pointer;
 
-  &:hover:not(:disabled) {
+  &:hover {
     background: rgba(36, 82, 122, 0.12);
   }
 
   &:disabled {
     cursor: not-allowed;
+  }
+
+  &:disabled:hover {
+    background: transparent;
   }
 
   :global(svg) {
@@ -89,17 +106,29 @@
   }
 }
 
+.collapsedBadge {
+  background: $color-amber-100;
+  cursor: pointer;
+  user-select: none;
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
+
 .input {
   @include control-text;
 
-  min-width: 120px;
-  flex: 1 1 140px;
-  height: 30px;
+  min-width: 100px;
+  flex: 0 0 auto;
+  height: auto;
   padding: 0;
   border: 0;
-  background: transparent;
-  color: $color-ink-900;
   outline: none;
+  background: transparent;
+  box-shadow: none;
+  color: $color-ink-900;
+  line-height: inherit;
 
   &::placeholder {
     color: $color-ink-500;
@@ -110,44 +139,83 @@
   }
 }
 
-.menu {
-  width: 100%;
-  padding: 6px;
+.measureInputWidth {
+  visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 30px;
+  white-space: pre;
 }
 
-.options {
-  display: grid;
-  gap: 2px;
+.measureContainer {
+  visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: -9999px;
+  height: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.measureItem {
+  display: inline-flex;
+  align-items: center;
+}
+
+.menu {
+  box-sizing: border-box;
+  padding: 8px 0;
+}
+
+.optionsList {
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .option {
-  display: flex;
+  @include control-text;
+
+  box-sizing: border-box;
+  display: block;
   width: 100%;
-  min-height: 34px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  gap: 12px;
+  padding: 8px 24px 8px 16px;
   border: 0;
-  border-radius: $radius-sm;
+  border-radius: 0;
+  outline: none;
   background: transparent;
+  box-shadow: none;
   color: $color-ink-900;
+  font-weight: 400;
   text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
 
   &:hover,
-  &:focus-visible {
-    background: $color-paper-100;
-    outline: none;
+  &:focus-visible,
+  &.focusedOption {
+    background: $color-ink-900;
+    color: $color-paper-0;
   }
 }
 
-.focusedOption {
-  background: $color-paper-100;
-}
-
 .empty {
-  padding: 12px 8px;
+  padding: 10px 16px;
   color: $color-ink-500;
   font-size: 14px;
+}
+
+.collapsedTagsDropdownArea {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8px;
+  gap: 4px;
 }
