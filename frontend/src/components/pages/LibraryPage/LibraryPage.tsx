@@ -1,7 +1,7 @@
-import { A } from "@solidjs/router";
+import { A, useNavigate } from "@solidjs/router";
 import { createInfiniteQuery } from "@tanstack/solid-query";
 import { createEffect, createMemo, createSignal, Index, onCleanup, onMount, Show } from "solid-js";
-import { Library, Search, Upload } from "lucide-solid";
+import { Library, Search, Upload, X } from "lucide-solid";
 import {
   type Book,
   type BookListResponse,
@@ -22,10 +22,20 @@ import { useI18n } from "@/i18n/I18nProvider";
 import BookCard from "./BookCard/BookCard";
 import EditBookDialog from "./EditBookDialog/EditBookDialog";
 import LibraryFiltersDropdown from "./LibraryFiltersDropdown/LibraryFiltersDropdown";
+import {
+  buildLibraryListStateUrl,
+  getDefaultLibraryListState,
+  type LibraryFavoriteFilter,
+  type LibraryListState,
+  readInitialLibraryListState,
+  readLibraryListStateFromSearch,
+  rememberLibraryListState,
+} from "./libraryListState";
 import styles from "./LibraryPage.module.scss";
 
 const pageLimit = 24;
 const searchDebounceMs = 400;
+const libraryRoutePath = "/library";
 
 function uniqueTags(existingTags: string[], selectedTags: string[]) {
   const tags = new Map<string, string>();
@@ -42,16 +52,29 @@ function uniqueTags(existingTags: string[], selectedTags: string[]) {
 
 function LibraryPage() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   let loadMoreRef: HTMLDivElement | undefined;
-  const [search, setSearch] = createSignal("");
-  const [debouncedSearch, setDebouncedSearch] = createSignal("");
-  const [sort, setSort] = createSignal<BookSort>("created_at_desc");
-  const [favoriteFilter, setFavoriteFilter] = createSignal<"all" | "favorite" | "regular">("all");
-  const [selectedTags, setSelectedTags] = createSignal<string[]>([]);
+  const initialListState = readInitialLibraryListState();
+  const [search, setSearch] = createSignal(initialListState.search);
+  const [debouncedSearch, setDebouncedSearch] = createSignal(initialListState.search);
+  const [sort, setSort] = createSignal<BookSort>(initialListState.sort);
+  const [favoriteFilter, setFavoriteFilter] = createSignal<LibraryFavoriteFilter>(initialListState.favoriteFilter);
+  const [selectedTags, setSelectedTags] = createSignal<string[]>(initialListState.tags);
   const [editingBook, setEditingBook] = createSignal<Book>();
   const updateBookMutation = createUpdateBookMutation();
   const deleteBookMutation = createDeleteBookMutation();
   const bookTagsQuery = createBookTagsQuery();
+
+  const applyListState = (state: LibraryListState, options?: { immediateSearch?: boolean }) => {
+    setSearch(state.search);
+    setSort(state.sort);
+    setFavoriteFilter(state.favoriteFilter);
+    setSelectedTags(state.tags);
+
+    if (options?.immediateSearch) {
+      setDebouncedSearch(state.search);
+    }
+  };
 
   createEffect(() => {
     const nextSearch = search();
@@ -60,6 +83,28 @@ function LibraryPage() {
     }, searchDebounceMs);
 
     onCleanup(() => clearTimeout(timeoutId));
+  });
+
+  createEffect(() => {
+    const state = {
+      search: search(),
+      sort: sort(),
+      favoriteFilter: favoriteFilter(),
+      tags: selectedTags(),
+    };
+
+    rememberLibraryListState(state);
+
+    const nextUrl = buildLibraryListStateUrl(state, {
+      pathname: libraryRoutePath,
+      search: "",
+      hash: "",
+    });
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+    if (nextUrl !== currentUrl) {
+      navigate(nextUrl, { replace: true, scroll: false });
+    }
   });
 
   const booksQueryRequest = createMemo<BookQueryRequest>(() => ({
@@ -93,6 +138,7 @@ function LibraryPage() {
           offset: pageParam,
         }),
       initialPageParam: 0,
+      placeholderData: (previousData) => previousData,
       getNextPageParam: (lastPage) => {
         const nextOffset = lastPage.offset + lastPage.items.length;
 
@@ -103,6 +149,7 @@ function LibraryPage() {
   const books = createMemo(() => booksQuery.data?.pages.flatMap((page) => page.items) ?? []);
   const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], selectedTags()));
   const booksTotal = createMemo(() => booksQuery.data?.pages[0]?.total);
+  const showInitialLoading = createMemo(() => booksQuery.isLoading && books().length === 0);
   const hasActiveFilters = createMemo(
     () => debouncedSearch().trim() !== "" || selectedTags().length > 0 || favoriteFilter() !== "all",
   );
@@ -135,6 +182,11 @@ function LibraryPage() {
   });
 
   onMount(() => {
+    const handlePopState = () => {
+      applyListState(readLibraryListStateFromSearch(window.location.search) ?? getDefaultLibraryListState(), {
+        immediateSearch: true,
+      });
+    };
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -148,7 +200,12 @@ function LibraryPage() {
       observer.observe(loadMoreRef);
     }
 
-    onCleanup(() => observer.disconnect());
+    window.addEventListener("popstate", handlePopState);
+
+    onCleanup(() => {
+      observer.disconnect();
+      window.removeEventListener("popstate", handlePopState);
+    });
   });
 
   const handleFavoriteToggle = (book: Book) => {
@@ -169,6 +226,18 @@ function LibraryPage() {
     deleteBookMutation.mutate(book.id);
   };
 
+  const resetFilters = () => {
+    const defaultState = getDefaultLibraryListState();
+
+    applyListState(
+      {
+        ...defaultState,
+        sort: sort(),
+      },
+      { immediateSearch: true },
+    );
+  };
+
   return (
     <AppLayout>
       <section class={styles.library}>
@@ -178,10 +247,24 @@ function LibraryPage() {
             <h1>
               {t("yourBooks")}
               <Show when={booksTotal() !== undefined}>
-                <span class={styles.booksTotal}>
+                <span
+                  class={styles.booksTotal}
+                  classList={{ [styles.booksTotalFiltered]: hasActiveFilters() }}
+                >
                   {" - "}
                   {booksTotal()} {hasActiveFilters() ? t("filtered") : t("total")}
                 </span>
+                <Show when={hasActiveFilters()}>
+                  <button
+                    type="button"
+                    class={styles.resetFiltersButton}
+                    aria-label={t("resetFilters")}
+                    title={t("resetFilters")}
+                    onClick={resetFilters}
+                  >
+                    <X />
+                  </button>
+                </Show>
               </Show>
             </h1>
           </div>
@@ -230,7 +313,7 @@ function LibraryPage() {
           </div>
         </section>
 
-        <Show when={booksQuery.isLoading}>
+        <Show when={showInitialLoading()}>
           <LoadingScreen label={t("loading")} />
         </Show>
 
@@ -238,7 +321,7 @@ function LibraryPage() {
           <div class={styles.state}>{t("requestFailedTryAgain")}</div>
         </Show>
 
-        <Show when={!booksQuery.isLoading && !booksQuery.isError && books().length === 0}>
+        <Show when={!showInitialLoading() && !booksQuery.isError && books().length === 0}>
           <div class={styles.emptyState}>
             <Library />
             <h2>{t("libraryEmpty")}</h2>

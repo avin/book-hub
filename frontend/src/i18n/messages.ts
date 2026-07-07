@@ -137,6 +137,10 @@ export const messages = {
     ru: "отфильтровано",
     en: "filtered",
   },
+  resetFilters: {
+    ru: "Сбросить фильтр",
+    en: "Reset filters",
+  },
   uploadBook: {
     ru: "Загрузить книгу",
     en: "Upload book",
