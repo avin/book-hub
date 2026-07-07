@@ -1,6 +1,7 @@
 import * as pdfjs from "pdfjs-dist";
 import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { parseFb2 } from "@/components/common/Fb2Reader/fb2Parser";
+import { readFb2BlobText } from "@/components/common/Fb2Reader/fb2TextDecoder";
 import type { Fb2Binary } from "@/components/common/Fb2Reader/fb2Types";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
@@ -120,7 +121,7 @@ async function compressCover(blob: Blob, bookFileName: string) {
 }
 
 async function extractFb2Cover(file: File): Promise<PreparedBookFile> {
-  const fb2Document = parseFb2(await file.text());
+  const fb2Document = parseFb2(await readFb2BlobText(file));
   const coverImageId = fb2Document.blocks.find((block) => block.kind === "image" && block.role === "metadata")
     ?.imageId;
   const coverBinary =
@@ -178,7 +179,7 @@ export async function prepareCoverFile(file: File, bookFileName: string) {
 
 export async function extractBookTitle(file: File) {
   if (isFb2(file)) {
-    const fb2Document = parseFb2(await file.text());
+    const fb2Document = parseFb2(await readFb2BlobText(file));
     return bookTitle(fb2Document.authors, fb2Document.title);
   }
 

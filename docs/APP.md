@@ -131,7 +131,7 @@ Frontend - SolidJS SPA с маршрутизацией на стороне кл�
 
 Клиент использует OpenAPI-generated TypeScript types для API-моделей, TanStack Query для серверного состояния и lazy loading для страниц/reader-компонентов.
 
-PDF читается через PDF reader, FB2 - через собственный parser/layout/render pipeline во frontend. Backend отдает исходный файл после проверки доступа.
+PDF читается через PDF reader, FB2 - через собственный parser/layout/render pipeline во frontend. Backend отдает исходный файл после проверки доступа. При декодировании FB2 учитывается кодировка из XML-декларации (UTF-8 по умолчанию, windows-1251 и др.), чтобы корректно читались файлы в legacy-кодировках.
 
 ## Backend
 

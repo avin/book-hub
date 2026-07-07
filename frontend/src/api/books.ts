@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/solid-query";
 import type { components } from "@/api/generated/schema";
+import { readFb2BlobText } from "@/components/common/Fb2Reader/fb2TextDecoder";
 import { apiClient, getCsrfToken } from "./client";
 import { getApiBaseUrl } from "./baseUrl";
 
@@ -372,7 +373,7 @@ export async function fetchBookFileText(bookId: string) {
     throw await responseError(response);
   }
 
-  return response.text();
+  return readFb2BlobText(await response.blob());
 }
 
 export function createBookFileTextQuery(bookId: () => string, enabled: () => boolean) {
