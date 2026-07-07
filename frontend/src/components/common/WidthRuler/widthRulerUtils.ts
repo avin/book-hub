@@ -9,17 +9,17 @@ export function clampWidth(value: number, min: number, max: number) {
 export function computeWidthRulerMarkers(
   rulerElement: HTMLDivElement | undefined,
   customWidth: number | undefined,
-  availableWidth: number,
+  layoutWidth: number,
   minHalfWidth = 140,
-  maxHalfWidth?: number,
 ): { left: JSX.CSSProperties; right: JSX.CSSProperties } {
+  void layoutWidth;
+
   if (!customWidth || !rulerElement) {
     return { left: { display: "none" }, right: { display: "none" } };
   }
 
   const rulerRect = rulerElement.getBoundingClientRect();
-  const halfCap = maxHalfWidth ?? availableWidth / 2;
-  const halfWidth = clampWidth(customWidth / 2, minHalfWidth, halfCap);
+  const halfWidth = Math.max(minHalfWidth, customWidth / 2);
   const centerX = rulerRect.width / 2;
 
   return {

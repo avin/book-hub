@@ -48,6 +48,14 @@ function pageHeightAtWidth(descriptor: PdfPageDescriptor, widthPx: number) {
   return widthPx * (descriptor.height / descriptor.width);
 }
 
+function pageWidthForAvailableWidth(customWidth: number | undefined, availableWidth: number) {
+  if (customWidth === undefined) {
+    return availableWidth;
+  }
+
+  return Math.min(availableWidth, Math.max(minPageWidth, customWidth));
+}
+
 function scrollYForAnchor(
   anchor: ScrollAnchor,
   pageList: PdfPageDescriptor[],
@@ -87,7 +95,6 @@ function PdfReader(props: {
   const { t } = useI18n();
   let rootRef: HTMLDivElement | undefined;
   let documentRef: HTMLElement | undefined;
-  let rulerRef: HTMLDivElement | undefined;
   let loadingTask: PDFDocumentLoadingTask | undefined;
   let pdfDocument: PDFDocumentProxy | undefined;
   let resizeObserver: ResizeObserver | undefined;
@@ -113,41 +120,28 @@ function PdfReader(props: {
   const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(getPdfReaderContentWidthPreference());
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
+  const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
-  const rulerMaxHalfWidth = createMemo(() => {
-    if (!rulerRef) {
-      return availablePageWidth() / 2;
-    }
-
-    return rulerRef.getBoundingClientRect().width / 2;
-  });
-  const pageWidth = createMemo(() => {
-    const customWidth = maxPageWidth();
-
-    if (customWidth === undefined) {
-      return availablePageWidth();
-    }
-
-    return Math.max(minPageWidth, customWidth);
-  });
+  const pageWidth = createMemo(() => pageWidthForAvailableWidth(maxPageWidth(), availablePageWidth()));
   const markerStyles = createMemo(() =>
     computeWidthRulerMarkers(
-      rulerRef,
+      rulerElement(),
       maxPageWidth(),
       availablePageWidth(),
       minPageHalfWidth,
-      rulerMaxHalfWidth(),
     ),
   );
 
   const handleRulerPointer = (event: PointerEvent) => {
-    if (!rulerRef || !rootRef) {
+    const currentRulerElement = rulerElement();
+
+    if (!currentRulerElement || !rootRef) {
       return;
     }
 
-    const rulerRect = rulerRef.getBoundingClientRect();
+    const rulerRect = currentRulerElement.getBoundingClientRect();
     const rootRect = rootRef.getBoundingClientRect();
     const rulerCenter = rulerRect.left + rulerRect.width / 2;
     const pageCenter = rootRect.left + rootRect.width / 2;
@@ -221,16 +215,18 @@ function PdfReader(props: {
     };
   };
 
-  const resolvePageWidthPx = (width: number | undefined) => {
-    if (width !== undefined) {
-      return Math.max(minPageWidth, Math.round(width));
-    }
-
+  const resolveAvailablePageWidthPx = () => {
     if (!rootRef) {
-      return Math.max(minPageWidth, documentWidth());
+      return availablePageWidth();
     }
 
     return Math.max(minPageWidth, Math.round(rootRef.clientWidth - documentPaddingX * 2));
+  };
+
+  const resolvePageWidthPx = (width: number | undefined) => {
+    const availableWidth = resolveAvailablePageWidthPx();
+
+    return pageWidthForAvailableWidth(width === undefined ? undefined : Math.round(width), availableWidth);
   };
 
   const currentScrollAnchor = () => lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
@@ -328,17 +324,20 @@ function PdfReader(props: {
       return;
     }
 
-    if (isFitWidth()) {
+    const nextAvailableWidth = Math.max(minPageWidth, nextWidth);
+    const nextPageWidth = pageWidthForAvailableWidth(maxPageWidth(), nextAvailableWidth);
+
+    if (Math.abs(nextPageWidth - pageWidth()) >= 0.5) {
       lockResizeScrollAnchor();
       const anchor = currentScrollAnchor();
 
       if (anchor) {
-        applySynchronizedScrollAnchor(anchor, nextWidth);
+        applySynchronizedScrollAnchor(anchor, nextPageWidth);
       }
+    }
 
-      setDocumentWidth(nextWidth);
+    if (isFitWidth()) {
       renderedKeys.clear();
-      return;
     }
 
     setDocumentWidth(nextWidth);
@@ -668,12 +667,11 @@ function PdfReader(props: {
           <WidthRuler
             availableWidth={availablePageWidth()}
             currentWidth={pageWidth()}
-            maxWidth={rulerMaxHalfWidth() * 2}
             markerStyles={markerStyles()}
             ariaLabel="Ширина страницы"
             minWidth={minPageWidth}
             onRulerRef={(element) => {
-              rulerRef = element;
+              setRulerElement(element);
             }}
             onPointerDown={onRulerPointerDown}
             onPointerMove={onRulerPointerMove}
@@ -711,7 +709,7 @@ function PdfReader(props: {
                 data-page-number={page.pageNumber}
                 style={{
                   width: `${Math.round(pageWidth())}px`,
-                  "max-width": isFitWidth() ? "100%" : undefined,
+                  "max-width": "100%",
                   "aspect-ratio": `${page.width} / ${page.height}`,
                 }}
                 aria-label={`Страница ${page.pageNumber}`}

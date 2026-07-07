@@ -45,6 +45,34 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function elementContentWidth(element: HTMLElement | undefined) {
+  if (!element) {
+    return 0;
+  }
+
+  const styles = getComputedStyle(element);
+  const paddingLeft = Number.parseFloat(styles.paddingLeft) || 0;
+  const paddingRight = Number.parseFloat(styles.paddingRight) || 0;
+
+  return Math.max(1, element.clientWidth - paddingLeft - paddingRight);
+}
+
+function elementContentBounds(element: HTMLElement | undefined) {
+  if (!element) {
+    return undefined;
+  }
+
+  const rect = element.getBoundingClientRect();
+  const styles = getComputedStyle(element);
+  const paddingLeft = Number.parseFloat(styles.paddingLeft) || 0;
+  const paddingRight = Number.parseFloat(styles.paddingRight) || 0;
+
+  return {
+    left: rect.left + paddingLeft,
+    right: rect.right - paddingRight,
+  };
+}
+
 function inlineText(inlines: Fb2Inline[] | undefined): string {
   return (
     inlines
@@ -91,8 +119,8 @@ function Fb2Reader(props: {
   headerContent?: JSX.Element;
 }) {
   let rootRef: HTMLDivElement | undefined;
+  let documentShellRef: HTMLElement | undefined;
   let documentRef: HTMLElement | undefined;
-  let rulerRef: HTMLDivElement | undefined;
   let scrollAnchorFrame: number | undefined;
   let lockedScrollAnchor: ScrollAnchor | undefined;
   let resizeScrollAnchor: ScrollAnchor | undefined;
@@ -118,9 +146,10 @@ function Fb2Reader(props: {
   const [pendingScrollAnchor, setPendingScrollAnchor] = createSignal<ScrollAnchor>();
   const [activeFootnoteId, setActiveFootnoteId] = createSignal<string>();
   const [layoutGeneration, setLayoutGeneration] = createSignal(0);
+  const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
   let lastMeasuredLayout: VirtualLayout = { offsets: [], heights: [], totalHeight: 0 };
   const parsed = createMemo(() => parseFb2(props.fb2));
-  const availableTextWidth = createMemo(() => Math.max(320, readerWidth() - settings().pagePadding * 2));
+  const availableTextWidth = createMemo(() => readerWidth());
   const textWidth = createMemo(() => Math.min(availableTextWidth(), settings().maxTextWidth ?? availableTextWidth()));
 
   const currentWidthChangeAnchor = () => lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
@@ -179,7 +208,7 @@ function Fb2Reader(props: {
     "--fb2-content-padding": `${settings().pagePadding}px`,
   }));
   const markerStyles = createMemo<{ left: JSX.CSSProperties; right: JSX.CSSProperties }>(() =>
-    computeWidthRulerMarkers(rulerRef, settings().maxTextWidth, availableTextWidth()),
+    computeWidthRulerMarkers(rulerElement(), settings().maxTextWidth, availableTextWidth()),
   );
   const visibleBlocks = createMemo<RenderedBlock[]>(() => {
     const currentLayout = layout();
@@ -361,7 +390,7 @@ function Fb2Reader(props: {
       markViewportResize();
     }
 
-    lastMeasuredReaderWidth = rootRef.getBoundingClientRect().width;
+    lastMeasuredReaderWidth = elementContentWidth(documentShellRef) || rootRef.getBoundingClientRect().width;
     setReaderWidth(lastMeasuredReaderWidth);
     setViewportHeight(visualViewportHeight());
     setScrollTop(documentScrollTop());
@@ -372,7 +401,7 @@ function Fb2Reader(props: {
       return;
     }
 
-    const nextReaderWidth = rootRef.getBoundingClientRect().width;
+    const nextReaderWidth = elementContentWidth(documentShellRef) || rootRef.getBoundingClientRect().width;
 
     if (Math.abs(nextReaderWidth - lastMeasuredReaderWidth) < 0.5) {
       return;
@@ -386,16 +415,18 @@ function Fb2Reader(props: {
   };
 
   const applyRulerPointer = (event: PointerEvent | MouseEvent) => {
-    if (!rootRef || !rulerRef) {
+    const currentRulerElement = rulerElement();
+
+    if (!rootRef || !currentRulerElement) {
       return;
     }
 
-    const rootRect = rootRef.getBoundingClientRect();
+    const contentBounds = elementContentBounds(documentShellRef);
 
     applyWidthRulerPointer(event, {
-      rulerElement: rulerRef,
-      contentLeft: rootRect.left + settings().pagePadding,
-      contentRight: rootRect.right - settings().pagePadding,
+      rulerElement: currentRulerElement,
+      contentLeft: contentBounds?.left,
+      contentRight: contentBounds?.right,
       availableWidth: availableTextWidth(),
       minHalfWidth: 140,
       onWidthChange: (width) => updateSetting("maxTextWidth", width, true),
@@ -502,6 +533,10 @@ function Fb2Reader(props: {
       resizeObserver.observe(rootRef);
     }
 
+    if (documentShellRef) {
+      resizeObserver.observe(documentShellRef);
+    }
+
     measureReader();
     flushLayoutTextWidth();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -591,11 +626,11 @@ function Fb2Reader(props: {
         headerContent={props.headerContent}
         markerStyles={markerStyles()}
         availableTextWidth={availableTextWidth()}
-        currentTextWidth={settings().maxTextWidth ?? availableTextWidth()}
+        currentTextWidth={textWidth()}
         onShow={() => setHeaderVisible(true)}
         onToggleSettings={() => setPanelOpen((value) => !value)}
         onRulerRef={(element) => {
-          rulerRef = element;
+          setRulerElement(element);
         }}
         onRulerPointerDown={onRulerPointerDown}
         onRulerPointerMove={onRulerPointerMove}
@@ -614,7 +649,12 @@ function Fb2Reader(props: {
         onUpdateSetting={updateSetting}
       />
 
-      <main class={styles.documentShell}>
+      <main
+        ref={(element) => {
+          documentShellRef = element;
+        }}
+        class={styles.documentShell}
+      >
         <article ref={documentRef} class={styles.document} style={{ width: `${layoutTextWidth()}px` }}>
           <div style={{ height: `${topSpacer()}px` }} aria-hidden="true" />
           <For each={visibleBlocks()}>
