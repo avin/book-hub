@@ -17,6 +17,7 @@ export type BookSort = components["schemas"]["BookSort"];
 export type ReadingProgress = components["schemas"]["ReadingProgress"];
 
 export const booksQueryKey = ["books"] as const;
+export const bookTagsQueryKey = ["book-tags"] as const;
 
 export function getBookFileUrl(bookId: string) {
   return `${getApiBaseUrl()}/v1/books/${encodeURIComponent(bookId)}/file`;
@@ -55,10 +56,20 @@ export async function queryBooks(query: BookQueryRequest) {
   return data;
 }
 
-export function createBooksQuery(query: () => BookQueryRequest) {
+export async function listBookTags() {
+  const { data, error } = await apiClient.GET("/v1/books/tags");
+
+  if (error || !data) {
+    throw error ?? new Error("Book tags response is empty");
+  }
+
+  return data;
+}
+
+export function createBookTagsQuery() {
   return createQuery(() => ({
-    queryKey: [...booksQueryKey, query()],
-    queryFn: () => queryBooks(query()),
+    queryKey: bookTagsQueryKey,
+    queryFn: listBookTags,
   }));
 }
 
@@ -216,6 +227,7 @@ export function createUploadBookMutation() {
     mutationFn: uploadBook,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: booksQueryKey });
+      void queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
     },
   }));
 }
@@ -255,6 +267,7 @@ export function createUpdateBookMutation() {
       }
 
       void queryClient.invalidateQueries({ queryKey: booksQueryKey });
+      void queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
     },
   }));
 }
@@ -284,6 +297,7 @@ export function createDeleteBookMutation() {
     mutationFn: deleteBook,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: booksQueryKey });
+      void queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
     },
   }));
 }

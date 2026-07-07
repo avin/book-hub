@@ -11,11 +11,22 @@ const DOUBLE_BACKSPACE_MS = 450;
 const TAG_GAP = 4;
 
 function normalizeTag(tag: string) {
-  return tag.trim();
+  return tag.trim().toLowerCase();
 }
 
 function loadRecentTags() {
-  return getRecentTagsPreference();
+  const seen = new Set<string>();
+
+  return getRecentTagsPreference()
+    .map(normalizeTag)
+    .filter((tag) => {
+      if (!tag || seen.has(tag)) {
+        return false;
+      }
+
+      seen.add(tag);
+      return true;
+    });
 }
 
 function saveRecentTags(tags: string[]) {
@@ -323,7 +334,9 @@ function TagsSelect(props: {
   };
 
   const handleChangeQuery = (nextQuery: string) => {
-    setQuery(nextQuery);
+    const normalizedQuery = nextQuery.toLowerCase();
+
+    setQuery(normalizedQuery);
     lastEmptyInputBackspaceAt = 0;
     setFocusedOptionIndex(null);
     shouldOpenOptionsAfterSearch = true;
@@ -331,7 +344,7 @@ function TagsSelect(props: {
       setDropdownMode(null);
     }
 
-    debouncedSearchOptions(nextQuery);
+    debouncedSearchOptions(normalizedQuery);
   };
 
   const handleInputFocus = () => {

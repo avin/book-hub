@@ -153,7 +153,7 @@ func NormalizeTags(tags []string) []string {
 	result := make([]string, 0, min(len(tags), 50))
 	seen := make(map[string]struct{}, len(tags))
 	for _, tag := range tags {
-		normalized := strings.TrimSpace(tag)
+		normalized := strings.ToLower(strings.TrimSpace(tag))
 		if normalized == "" {
 			continue
 		}

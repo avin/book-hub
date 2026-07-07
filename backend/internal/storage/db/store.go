@@ -331,13 +331,16 @@ func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, file domain.Bo
 
 	bookID := uuid.New()
 	_, err = tx.Exec(ctx, `
-		insert into user_books (id, user_id, book_file_id, title, favorite, tags)
-		values ($1, $2, $3, $4, $5, $6)
-	`, bookID, userID, fileID, domain.NormalizeTitle(book.Title), book.Favorite, domain.NormalizeTags(book.Tags))
+		insert into user_books (id, user_id, book_file_id, title, favorite)
+		values ($1, $2, $3, $4, $5)
+	`, bookID, userID, fileID, domain.NormalizeTitle(book.Title), book.Favorite)
 	if err != nil {
 		if strings.Contains(err.Error(), "user_books_user_id_book_file_id_key") {
 			return domain.Book{}, domain.ErrDuplicateBook
 		}
+		return domain.Book{}, err
+	}
+	if err := replaceBookTags(ctx, tx, userID, bookID, book.Tags); err != nil {
 		return domain.Book{}, err
 	}
 	created, err := scanBook(ctx, tx, userID, bookID)
@@ -368,7 +371,10 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		and not exists (
 			select 1 from unnest($4::text[]) qtag
 			where not exists (
-				select 1 from unnest(ub.tags) btag where lower(btag) = lower(qtag)
+				select 1
+				from user_book_tags ubt
+				join tags t on t.id = ubt.tag_id
+				where ubt.user_book_id = ub.id and t.name = qtag
 			)
 		)
 	`
@@ -377,12 +383,17 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		return domain.BookPage{}, err
 	}
 	rows, err := s.pool.Query(ctx, `
-		select ub.id, ub.title, ub.tags, ub.favorite, bf.format, bf.size_bytes,
+		select ub.id, ub.title,
+			coalesce(array_agg(t.name order by t.name) filter (where t.name is not null), '{}'::text[]) as tags,
+			ub.favorite, bf.format, bf.size_bytes,
 			coalesce(rp.progress_percent, 0), bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.updated_at
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
 		left join reading_progress rp on rp.user_book_id = ub.id
+		left join user_book_tags ubt on ubt.user_book_id = ub.id
+		left join tags t on t.id = ubt.tag_id
 		where `+where+`
+		group by ub.id, bf.id, rp.progress_percent
 		order by `+orderBy+`
 		limit $5 offset $6
 	`, userID, query.Q, query.Favorite, query.Tags, query.Limit, query.Offset)
@@ -395,6 +406,31 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		return domain.BookPage{}, err
 	}
 	return domain.BookPage{Items: items, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
+}
+
+func (s *Store) ListBookTags(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		select distinct t.name
+		from tags t
+		join user_book_tags ubt on ubt.tag_id = t.id
+		join user_books ub on ub.id = ubt.user_book_id
+		where ub.user_id = $1
+		order by t.name
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tags := make([]string, 0)
+	for rows.Next() {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+	return tags, rows.Err()
 }
 
 func (s *Store) GetBook(ctx context.Context, userID, bookID uuid.UUID) (domain.Book, error) {
@@ -412,23 +448,39 @@ func (s *Store) UpdateBook(ctx context.Context, userID, bookID uuid.UUID, patch 
 	if patch.Title != nil {
 		title = domain.NormalizeTitle(*patch.Title)
 	}
-	if patch.Tags != nil {
-		tags = domain.NormalizeTags(*patch.Tags)
-	}
 	if patch.Favorite != nil {
 		favorite = *patch.Favorite
 	}
-	tag, err := s.pool.Exec(ctx, `
-		update user_books set title = $3, tags = $4, favorite = $5, updated_at = now()
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Book{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `
+		update user_books set title = $3, favorite = $4, updated_at = now()
 		where id = $2 and user_id = $1
-	`, userID, bookID, title, tags, favorite)
+	`, userID, bookID, title, favorite)
 	if err != nil {
 		return domain.Book{}, err
 	}
 	if tag.RowsAffected() == 0 {
 		return domain.Book{}, domain.ErrNotFound
 	}
-	return s.GetBook(ctx, userID, bookID)
+	if patch.Tags != nil {
+		tags = domain.NormalizeTags(*patch.Tags)
+		if err := replaceBookTags(ctx, tx, userID, bookID, tags); err != nil {
+			return domain.Book{}, err
+		}
+		if err := deleteUnusedTags(ctx, tx, userID); err != nil {
+			return domain.Book{}, err
+		}
+	}
+	updated, err := scanBook(ctx, tx, userID, bookID)
+	if err != nil {
+		return domain.Book{}, err
+	}
+	return updated, tx.Commit(ctx)
 }
 
 func (s *Store) DeleteBook(ctx context.Context, userID, bookID uuid.UUID) (domain.DeletedBookFiles, error) {
@@ -454,6 +506,9 @@ func (s *Store) DeleteBook(ctx context.Context, userID, bookID uuid.UUID) (domai
 		return domain.DeletedBookFiles{}, err
 	}
 	if _, err := tx.Exec(ctx, `delete from user_books where id = $1`, bookID); err != nil {
+		return domain.DeletedBookFiles{}, err
+	}
+	if err := deleteUnusedTags(ctx, tx, userID); err != nil {
 		return domain.DeletedBookFiles{}, err
 	}
 	var refs int
@@ -549,6 +604,45 @@ func (s *Store) DeleteProgress(ctx context.Context, userID, bookID uuid.UUID) er
 	return err
 }
 
+func replaceBookTags(ctx context.Context, tx pgx.Tx, userID, bookID uuid.UUID, tags []string) error {
+	if _, err := tx.Exec(ctx, `delete from user_book_tags where user_book_id = $1`, bookID); err != nil {
+		return err
+	}
+	for _, name := range domain.NormalizeTags(tags) {
+		tagID := uuid.New()
+		err := tx.QueryRow(ctx, `
+			insert into tags (id, user_id, name)
+			values ($1, $2, $3)
+			on conflict (user_id, name) do update set name = excluded.name
+			returning id
+		`, tagID, userID, name).Scan(&tagID)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			insert into user_book_tags (user_book_id, tag_id)
+			values ($1, $2)
+			on conflict do nothing
+		`, bookID, tagID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func deleteUnusedTags(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
+	_, err := tx.Exec(ctx, `
+		delete from tags t
+		where t.user_id = $1
+			and not exists (
+				select 1
+				from user_book_tags ubt
+				where ubt.tag_id = t.id
+			)
+	`, userID)
+	return err
+}
+
 type bookQuerier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
@@ -557,12 +651,17 @@ func scanBook(ctx context.Context, q bookQuerier, userID, bookID uuid.UUID) (dom
 	rows, err := q.(interface {
 		Query(context.Context, string, ...any) (pgx.Rows, error)
 	}).Query(ctx, `
-		select ub.id, ub.title, ub.tags, ub.favorite, bf.format, bf.size_bytes,
+		select ub.id, ub.title,
+			coalesce(array_agg(t.name order by t.name) filter (where t.name is not null), '{}'::text[]) as tags,
+			ub.favorite, bf.format, bf.size_bytes,
 			coalesce(rp.progress_percent, 0), bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.updated_at
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
 		left join reading_progress rp on rp.user_book_id = ub.id
+		left join user_book_tags ubt on ubt.user_book_id = ub.id
+		left join tags t on t.id = ubt.tag_id
 		where ub.user_id = $1 and ub.id = $2
+		group by ub.id, bf.id, rp.progress_percent
 	`, userID, bookID)
 	if err != nil {
 		return domain.Book{}, err

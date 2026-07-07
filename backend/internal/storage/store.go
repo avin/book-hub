@@ -34,6 +34,7 @@ type Store interface {
 	UserHasBookFile(ctx context.Context, userID, bookFileID uuid.UUID) (bool, error)
 	CreateBook(ctx context.Context, userID uuid.UUID, file domain.BookFileInput, book domain.BookInput) (domain.Book, error)
 	QueryBooks(ctx context.Context, userID uuid.UUID, query domain.BookQuery) (domain.BookPage, error)
+	ListBookTags(ctx context.Context, userID uuid.UUID) ([]string, error)
 	GetBook(ctx context.Context, userID, bookID uuid.UUID) (domain.Book, error)
 	UpdateBook(ctx context.Context, userID, bookID uuid.UUID, patch BookPatch) (domain.Book, error)
 	DeleteBook(ctx context.Context, userID, bookID uuid.UUID) (domain.DeletedBookFiles, error)

@@ -154,6 +154,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/books/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List current user's book tags
+         * @description Returns unique lowercase tags attached to the current user's books.
+         */
+        get: operations["listBookTags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/books": {
         parameters: {
             query?: never;
@@ -393,6 +413,10 @@ export interface components {
             limit: number;
             /** Format: int32 */
             offset: number;
+        };
+        BookTagsResponse: {
+            /** @description Unique lowercase tags attached to the current user's books, sorted ascending. */
+            items: string[];
         };
         Book: {
             /** Format: uuid */
@@ -791,6 +815,28 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listBookTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current user's book tags. */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookTagsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     uploadBook: {

@@ -14,7 +14,7 @@ func TestNormalizeTagsTrimsDeduplicatesAndLimits(t *testing.T) {
 	if len(normalized) != 3 {
 		t.Fatalf("expected 3 tags, got %d: %#v", len(normalized), normalized)
 	}
-	if normalized[0] != "Go" || normalized[1] != strings.Repeat("x", 64) || normalized[2] != "PDF" {
+	if normalized[0] != "go" || normalized[1] != strings.Repeat("x", 64) || normalized[2] != "pdf" {
 		t.Fatalf("unexpected tags: %#v", normalized)
 	}
 }

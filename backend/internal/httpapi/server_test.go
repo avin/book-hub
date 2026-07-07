@@ -107,6 +107,36 @@ func TestSettingsAndProgressFlow(t *testing.T) {
 	}
 }
 
+func TestBookTagsAreLowercaseScopedAndCleanedUp(t *testing.T) {
+	app := newTestApp(t, true)
+	firstClient := app.client(t)
+	firstCSRF := app.csrf(t, firstClient)
+	app.register(t, firstClient, firstCSRF, "first", "password", http.StatusCreated)
+	app.login(t, firstClient, firstCSRF, "first", "password", http.StatusOK)
+
+	secondClient := app.client(t)
+	secondCSRF := app.csrf(t, secondClient)
+	app.register(t, secondClient, secondCSRF, "second", "password", http.StatusCreated)
+	app.login(t, secondClient, secondCSRF, "second", "password", http.StatusOK)
+
+	bookID := app.uploadBookWithTags(t, firstClient, firstCSRF, "first.pdf", []byte("%PDF first"), []string{" Go ", "PDF"})
+	app.uploadBookWithTags(t, secondClient, secondCSRF, "second.pdf", []byte("%PDF second"), []string{"private"})
+
+	book := app.requestJSON(t, firstClient, http.MethodGet, "/v1/books/"+bookID, "", nil, http.StatusOK)
+	assertStringItems(t, book["tags"], []string{"go", "pdf"})
+
+	tags := app.requestJSON(t, firstClient, http.MethodGet, "/v1/books/tags", "", nil, http.StatusOK)
+	assertStringItems(t, tags["items"], []string{"go", "pdf"})
+
+	app.requestJSON(t, firstClient, http.MethodPatch, "/v1/books/"+bookID, firstCSRF, map[string]any{"tags": []string{"Go"}}, http.StatusOK)
+	tags = app.requestJSON(t, firstClient, http.MethodGet, "/v1/books/tags", "", nil, http.StatusOK)
+	assertStringItems(t, tags["items"], []string{"go"})
+
+	app.requestJSON(t, firstClient, http.MethodDelete, "/v1/books/"+bookID, firstCSRF, nil, http.StatusNoContent)
+	tags = app.requestJSON(t, firstClient, http.MethodGet, "/v1/books/tags", "", nil, http.StatusOK)
+	assertStringItems(t, tags["items"], []string{})
+}
+
 func TestCoverUploadStoresFullAndThumbnailVariants(t *testing.T) {
 	app := newTestApp(t, true)
 	client := app.client(t)
@@ -268,6 +298,10 @@ func (a testApp) requestRaw(t *testing.T, client *http.Client, method, path, csr
 }
 
 func (a testApp) uploadBook(t *testing.T, client *http.Client, csrf, filename string, content []byte) string {
+	return a.uploadBookWithTags(t, client, csrf, filename, content, nil)
+}
+
+func (a testApp) uploadBookWithTags(t *testing.T, client *http.Client, csrf, filename string, content []byte, tags []string) string {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -280,6 +314,11 @@ func (a testApp) uploadBook(t *testing.T, client *http.Client, csrf, filename st
 	}
 	if err := writer.WriteField("title", "Uploaded"); err != nil {
 		t.Fatal(err)
+	}
+	for _, tag := range tags {
+		if err := writer.WriteField("tags", tag); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatal(err)
@@ -308,6 +347,22 @@ func (a testApp) uploadBook(t *testing.T, client *http.Client, csrf, filename st
 		t.Fatalf("missing book id: %#v", decoded)
 	}
 	return id
+}
+
+func assertStringItems(t *testing.T, value any, want []string) {
+	t.Helper()
+	items, ok := value.([]any)
+	if !ok {
+		t.Fatalf("expected array, got %#v", value)
+	}
+	if len(items) != len(want) {
+		t.Fatalf("expected %d items, got %d: %#v", len(want), len(items), items)
+	}
+	for index, item := range items {
+		if item != want[index] {
+			t.Fatalf("expected item %d to be %q, got %#v", index, want[index], item)
+		}
+	}
 }
 
 func (a testApp) uploadCover(t *testing.T, client *http.Client, csrf, bookID, filename string, content []byte, status int) {

@@ -366,6 +366,27 @@ func (s *Store) QueryBooks(_ context.Context, userID uuid.UUID, query domain.Boo
 	return domain.BookPage{Items: items, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
 }
 
+func (s *Store) ListBookTags(_ context.Context, userID uuid.UUID) ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tagsSet := make(map[string]struct{})
+	for _, record := range s.books {
+		if record.UserID != userID {
+			continue
+		}
+		for _, tag := range record.Book.Tags {
+			tagsSet[tag] = struct{}{}
+		}
+	}
+	tags := make([]string, 0, len(tagsSet))
+	for tag := range tagsSet {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	return tags, nil
+}
+
 func (s *Store) GetBook(_ context.Context, userID, bookID uuid.UUID) (domain.Book, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

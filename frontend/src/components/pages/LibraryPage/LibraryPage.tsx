@@ -8,6 +8,7 @@ import {
   type BookQueryRequest,
   type BookSort,
   booksQueryKey,
+  createBookTagsQuery,
   createDeleteBookMutation,
   createUpdateBookMutation,
   queryBooks,
@@ -26,16 +27,14 @@ import styles from "./LibraryPage.module.scss";
 const pageLimit = 24;
 const searchDebounceMs = 400;
 
-function uniqueTags(books: Book[], selectedTags: string[]) {
+function uniqueTags(existingTags: string[], selectedTags: string[]) {
   const tags = new Map<string, string>();
 
-  for (const tag of selectedTags) {
-    tags.set(tag.toLowerCase(), tag);
+  for (const tag of existingTags) {
+    tags.set(tag, tag);
   }
-  for (const book of books) {
-    for (const tag of book.tags) {
-      tags.set(tag.toLowerCase(), tag);
-    }
+  for (const tag of selectedTags) {
+    tags.set(tag, tag);
   }
 
   return [...tags.values()].sort((left, right) => left.localeCompare(right));
@@ -52,6 +51,7 @@ function LibraryPage() {
   const [editingBook, setEditingBook] = createSignal<Book>();
   const updateBookMutation = createUpdateBookMutation();
   const deleteBookMutation = createDeleteBookMutation();
+  const bookTagsQuery = createBookTagsQuery();
 
   createEffect(() => {
     const nextSearch = search();
@@ -101,7 +101,7 @@ function LibraryPage() {
     };
   });
   const books = createMemo(() => booksQuery.data?.pages.flatMap((page) => page.items) ?? []);
-  const tagOptions = createMemo(() => uniqueTags(books(), selectedTags()));
+  const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], selectedTags()));
   const booksTotal = createMemo(() => booksQuery.data?.pages[0]?.total);
   const hasActiveFilters = createMemo(
     () => debouncedSearch().trim() !== "" || selectedTags().length > 0 || favoriteFilter() !== "all",

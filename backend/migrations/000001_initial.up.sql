@@ -28,8 +28,8 @@ create table user_books (
     book_file_id uuid not null references book_files(id) on delete restrict,
     title text not null,
     favorite boolean not null default false,
-    tags text[] not null default '{}',
     cover_path text,
+    cover_thumbnail_path text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     unique (user_id, book_file_id),
@@ -38,7 +38,25 @@ create table user_books (
 
 create index user_books_user_id_idx on user_books (user_id);
 create index user_books_book_file_id_idx on user_books (book_file_id);
-create index user_books_tags_gin_idx on user_books using gin (tags);
+
+create table tags (
+    id uuid primary key,
+    user_id uuid not null references users(id) on delete cascade,
+    name text not null,
+    created_at timestamptz not null default now(),
+    unique (user_id, name),
+    constraint tags_name_check check (char_length(name) between 1 and 64 and name = lower(name))
+);
+
+create index tags_user_id_idx on tags (user_id);
+
+create table user_book_tags (
+    user_book_id uuid not null references user_books(id) on delete cascade,
+    tag_id uuid not null references tags(id) on delete cascade,
+    primary key (user_book_id, tag_id)
+);
+
+create index user_book_tags_tag_id_idx on user_book_tags (tag_id);
 
 create table reading_progress (
     user_book_id uuid primary key references user_books(id) on delete cascade,

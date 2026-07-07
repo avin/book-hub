@@ -72,6 +72,7 @@ func (s *Server) buildHandler() http.Handler {
 	mux.HandleFunc("GET /v1/me/settings", s.handleGetSettings)
 	mux.HandleFunc("PUT /v1/me/settings", s.handlePutSettings)
 	mux.HandleFunc("POST /v1/books/query", s.handleQueryBooks)
+	mux.HandleFunc("GET /v1/books/tags", s.handleListBookTags)
 	mux.HandleFunc("POST /v1/books", s.handleUploadBook)
 	mux.HandleFunc("GET /v1/books/{book_id}", s.handleGetBook)
 	mux.HandleFunc("PATCH /v1/books/{book_id}", s.handlePatchBook)
@@ -333,6 +334,20 @@ func (s *Server) handleQueryBooks(w http.ResponseWriter, r *http.Request) {
 		items = append(items, bookDTO(book))
 	}
 	s.writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": page.Total, "limit": page.Limit, "offset": page.Offset})
+}
+
+func (s *Server) handleListBookTags(w http.ResponseWriter, r *http.Request) {
+	userID, err := s.requireUserID(r)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	tags, err := s.store.ListBookTags(r.Context(), userID)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, tagsResponse{Items: tags})
 }
 
 func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
@@ -891,6 +906,10 @@ type bookPatchRequest struct {
 
 type progressRequest struct {
 	ProgressPercent float64 `json:"progress_percent"`
+}
+
+type tagsResponse struct {
+	Items []string `json:"items"`
 }
 
 type userDTO struct {

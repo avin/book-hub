@@ -287,6 +287,28 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /v1/books/tags:
+    get:
+      tags:
+        - Books
+      operationId: listBookTags
+      summary: List current user's book tags
+      description: Returns unique lowercase tags attached to the current user's books.
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current user's book tags.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookTagsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /v1/books:
     post:
       tags:
@@ -956,6 +978,19 @@ components:
           type: integer
           format: int32
           minimum: 0
+
+    BookTagsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            type: string
+            maxLength: 64
+          description: Unique lowercase tags attached to the current user's books, sorted ascending.
 
     Book:
       type: object

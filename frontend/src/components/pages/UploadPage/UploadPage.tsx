@@ -2,7 +2,7 @@ import { useNavigate } from "@solidjs/router";
 import { useQueryClient } from "@tanstack/solid-query";
 import { createMemo, createSignal, Index, onCleanup, Show } from "solid-js";
 import { FileUp, ImagePlus, ScanText, Trash2, Upload } from "lucide-solid";
-import { type Book, booksQueryKey, createBooksQuery, uploadBook, uploadBookCover } from "@/api/books";
+import { bookTagsQueryKey, booksQueryKey, createBookTagsQuery, uploadBook, uploadBookCover } from "@/api/books";
 import Button from "@/components/common/Button/Button";
 import InputContainer from "@/components/common/InputContainer/InputContainer";
 import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
@@ -31,7 +31,6 @@ type BookDraft = {
   uploadedBookId?: string;
 };
 
-const tagOptionsLimit = 200;
 let coverExtractionModule: Promise<typeof import("./coverExtraction")> | undefined;
 
 function loadCoverExtraction() {
@@ -40,17 +39,15 @@ function loadCoverExtraction() {
   return coverExtractionModule;
 }
 
-function uniqueTags(books: Book[], drafts: BookDraft[]) {
+function uniqueTags(existingTags: string[], drafts: BookDraft[]) {
   const tags = new Map<string, string>();
 
-  for (const book of books) {
-    for (const tag of book.tags) {
-      tags.set(tag.toLowerCase(), tag);
-    }
+  for (const tag of existingTags) {
+    tags.set(tag, tag);
   }
   for (const draft of drafts) {
     for (const tag of draft.tags) {
-      tags.set(tag.toLowerCase(), tag);
+      tags.set(tag, tag);
     }
   }
 
@@ -98,20 +95,13 @@ function UploadPage() {
   const [error, setError] = createSignal("");
   let fileInputEl: HTMLInputElement | undefined;
   const coverInputByDraftId = new Map<string, HTMLInputElement>();
-  const booksQuery = createBooksQuery(() => ({
-    limit: tagOptionsLimit,
-    offset: 0,
-    sort: "created_at_desc",
-    tags: [],
-    favorite: null,
-    q: "",
-  }));
+  const bookTagsQuery = createBookTagsQuery();
 
   const selectedBooksText = createMemo(() => {
     const count = drafts().length;
     return count > 0 ? t("booksSelected").replace("{count}", String(count)) : t("fileNotSelected");
   });
-  const tagOptions = createMemo(() => uniqueTags(booksQuery.data?.items ?? [], drafts()));
+  const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], drafts()));
   const preparingCovers = createMemo(() => drafts().some((draft) => draft.coverStatus === "pending"));
   const preparingTitles = createMemo(() => drafts().some((draft) => draft.titleExtracting));
   const canSubmit = createMemo(
@@ -353,6 +343,7 @@ function UploadPage() {
 
     setUploading(false);
     await queryClient.invalidateQueries({ queryKey: booksQueryKey });
+    await queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
 
     if (results.every(Boolean)) {
       navigate("/library");
