@@ -285,30 +285,32 @@ function LibraryPage() {
             />
           </InputContainer>
 
-          <InputContainer label={t("tags")}>
-            <TagsSelect
-              value={selectedTags()}
-              options={tagOptions()}
-              placeholder={t("findByTag")}
-              onChange={(nextTags) => {
-                setSelectedTags(nextTags);
-              }}
-            />
-          </InputContainer>
-
-          <div class={styles.filtersField}>
-            <InputContainer label="">
-              <LibraryFiltersDropdown
-                sort={sort()}
-                favoriteFilter={favoriteFilter()}
-                onSortChange={(nextSort) => {
-                  setSort(nextSort);
-                }}
-                onFavoriteFilterChange={(nextFavoriteFilter) => {
-                  setFavoriteFilter(nextFavoriteFilter);
+          <div class={styles.secondaryFilters}>
+            <InputContainer label={t("tags")}>
+              <TagsSelect
+                value={selectedTags()}
+                options={tagOptions()}
+                placeholder={t("findByTag")}
+                onChange={(nextTags) => {
+                  setSelectedTags(nextTags);
                 }}
               />
             </InputContainer>
+
+            <div class={styles.filtersField}>
+              <InputContainer label="">
+                <LibraryFiltersDropdown
+                  sort={sort()}
+                  favoriteFilter={favoriteFilter()}
+                  onSortChange={(nextSort) => {
+                    setSort(nextSort);
+                  }}
+                  onFavoriteFilterChange={(nextFavoriteFilter) => {
+                    setFavoriteFilter(nextFavoriteFilter);
+                  }}
+                />
+              </InputContainer>
+            </div>
           </div>
         </section>
 

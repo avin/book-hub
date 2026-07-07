@@ -105,9 +105,17 @@
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(274px, 1fr);
   align-items: end;
   gap: 12px;
+}
+
+.secondaryFilters {
+  display: grid;
+  min-width: 0;
+  align-items: end;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 1fr) auto;
 }
 
 .filtersField {
@@ -182,9 +190,8 @@
 
 @media (max-width: 1120px) {
   .toolbar {
-    grid-template-columns: minmax(220px, 1fr) auto;
+    grid-template-columns: 1fr;
   }
-
 }
 
 @media (max-width: 720px) {
@@ -193,8 +200,7 @@
     flex-direction: column;
   }
 
-  .toolbar {
-    grid-template-columns: 1fr;
+  .secondaryFilters {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
-
 }
