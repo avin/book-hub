@@ -7,6 +7,7 @@ import styles from "./TagsSelect.module.scss";
 const RECENT_TAGS_STORAGE_KEY = "book-hub-tags-recent";
 const MAX_RECENT_TAGS = 20;
 const SEARCH_DEBOUNCE_MS = 200;
+const DOUBLE_BACKSPACE_MS = 450;
 const TAG_GAP = 4;
 
 function normalizeTag(tag: string) {
@@ -141,6 +142,7 @@ function TagsSelect(props: {
   let searchRequestId = 0;
   let resizeObserver: ResizeObserver | undefined;
   let shouldOpenOptionsAfterSearch = false;
+  let lastEmptyInputBackspaceAt = 0;
   const tagMeasureEls: (HTMLSpanElement | undefined)[] = [];
 
   const placeholder = () => props.placeholder ?? t("findOrAddTag");
@@ -265,7 +267,17 @@ function TagsSelect(props: {
   };
 
   const removeTag = (tag: string) => {
+    lastEmptyInputBackspaceAt = 0;
     props.onChange(props.value.filter((selected) => selected !== tag));
+  };
+
+  const removeLastTag = () => {
+    const lastTag = props.value[props.value.length - 1];
+    if (!lastTag) {
+      return;
+    }
+
+    removeTag(lastTag);
   };
 
   const applyTypedInput = () => {
@@ -301,6 +313,7 @@ function TagsSelect(props: {
 
   const handleChangeQuery = (nextQuery: string) => {
     setQuery(nextQuery);
+    lastEmptyInputBackspaceAt = 0;
     setFocusedOptionIndex(null);
     shouldOpenOptionsAfterSearch = true;
     if (!isOptionsOpen()) {
@@ -355,6 +368,37 @@ function TagsSelect(props: {
     }
 
     inputEl?.focus();
+  };
+
+  const handleEmptyInputBackspace = (event: KeyboardEvent) => {
+    if (inputEl?.value.length) {
+      return;
+    }
+
+    if (!props.value.length) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.repeat) {
+      return;
+    }
+
+    const now = Date.now();
+    const isDoubleBackspace = now - lastEmptyInputBackspaceAt <= DOUBLE_BACKSPACE_MS;
+    lastEmptyInputBackspaceAt = isDoubleBackspace ? 0 : now;
+
+    if (!isDoubleBackspace) {
+      return;
+    }
+
+    if (hiddenTags().length > 0 && !isCollapsedOpen()) {
+      shouldOpenOptionsAfterSearch = false;
+      setDropdownMode("collapsed");
+      return;
+    }
+
+    removeLastTag();
   };
 
   const scrollToFocused = () => {
@@ -567,6 +611,11 @@ function TagsSelect(props: {
               onBlur={handleInputBlur}
               onInput={(event) => handleChangeQuery(event.currentTarget.value)}
               onKeyDown={(event) => {
+                if (event.key === "Backspace") {
+                  handleEmptyInputBackspace(event);
+                  return;
+                }
+
                 if (event.key === "ArrowDown") {
                   if (!isOptionsOpen() || !options().length) {
                     return;
