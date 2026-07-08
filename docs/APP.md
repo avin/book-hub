@@ -133,6 +133,8 @@ Frontend - SolidJS SPA с маршрутизацией на стороне кл�
 
 PDF читается через PDF reader, FB2 - через собственный parser/layout/render pipeline во frontend. Backend отдает исходный файл после проверки доступа. При декодировании FB2 учитывается кодировка из XML-декларации (UTF-8 по умолчанию, windows-1251 и др.), чтобы корректно читались файлы в legacy-кодировках.
 
+Для рендеринга PDF frontend раздает статические ресурсы pdf.js (worker, WASM-декодеры, стандартные шрифты, CMap'ы) из `public/pdfjs-assets/` по пути `<base>/pdfjs-assets/`. Файлы синхронизируются из `pdfjs-dist` скриптом `scripts/sync-pdfjs-assets.mjs` при `npm install` и сборке.
+
 ## Backend
 
 Backend - Go HTTP server с явным SQL-доступом к PostgreSQL через repository/storage слой.

@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "postinstall": "node scripts/sync-pdfjs-assets.mjs",
     "generate:api": "openapi-typescript ../api/openapi.yaml -o src/api/generated/schema.ts",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/sync-pdfjs-assets.mjs && tsc --noEmit && vite build",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"

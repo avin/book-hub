@@ -1,16 +1,16 @@
 import * as pdfjs from "pdfjs-dist";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
-import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
 import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
 import ReaderFloatingChrome from "@/components/common/ReaderFloatingChrome/ReaderFloatingChrome";
 import WidthRuler from "@/components/common/WidthRuler/WidthRuler";
 import { clampWidth, computeWidthRulerMarkers } from "@/components/common/WidthRuler/widthRulerUtils";
 import { useI18n } from "@/i18n/I18nProvider";
+import { pdfjsDocumentParams, pdfjsWorkerSrc } from "@/api/pdfjsConfig";
 import { getPdfReaderContentWidthPreference, setPdfReaderContentWidthPreference } from "@/storage/browserPreferences";
 import styles from "./PdfReader.module.scss";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
 
 type PdfPageDescriptor = {
   pageNumber: number;
@@ -470,7 +470,11 @@ function PdfReader(props: {
     pdfDocument = undefined;
     await previousLoadingTask?.destroy().catch(() => undefined);
     await previousDocument?.cleanup().catch(() => undefined);
-    loadingTask = pdfjs.getDocument({ url: props.fileUrl, withCredentials: true });
+    loadingTask = pdfjs.getDocument({
+      url: props.fileUrl,
+      withCredentials: true,
+      ...pdfjsDocumentParams,
+    });
 
     try {
       const document = await loadingTask.promise;

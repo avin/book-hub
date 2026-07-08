@@ -1,10 +1,10 @@
 import * as pdfjs from "pdfjs-dist";
-import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { pdfjsDocumentParams, pdfjsWorkerSrc } from "@/api/pdfjsConfig";
 import { parseFb2 } from "@/components/common/Fb2Reader/fb2Parser";
 import { readFb2BlobText } from "@/components/common/Fb2Reader/fb2TextDecoder";
 import type { Fb2Binary } from "@/components/common/Fb2Reader/fb2Types";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
 
 const MAX_COVER_WIDTH = 900;
 const MAX_COVER_HEIGHT = 1400;
@@ -136,7 +136,7 @@ async function extractFb2Cover(file: File): Promise<PreparedBookFile> {
 }
 
 async function extractPdfCover(file: File): Promise<PreparedBookFile> {
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), ...pdfjsDocumentParams });
   const pdfDocument = await loadingTask.promise;
 
   try {
@@ -187,7 +187,7 @@ export async function extractBookTitle(file: File) {
     return "";
   }
 
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), ...pdfjsDocumentParams });
   const pdfDocument = await loadingTask.promise;
 
   try {
