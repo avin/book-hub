@@ -492,6 +492,23 @@ function Fb2Reader(props: {
     setGuideX(undefined);
   };
 
+  const applyAutoWidth = () => {
+    // Та же механика, что при отпускании направляющих ширины за пределы экрана:
+    // фиксируем якорь по текущему layout, выставляем настройку с keepLockedAnchor
+    // и сразу пересчитываем ширину синхронно, пока lockedScrollAnchor ещё жив.
+    // Если полагаться на асинхронный эффект textWidth, он снимет якорь повторно
+    // в нестабильный момент смены layout — и позиция собьётся.
+    lockedScrollAnchor = captureScrollAnchor();
+
+    if (lockedScrollAnchor) {
+      setPendingScrollAnchor(lockedScrollAnchor);
+    }
+
+    updateSetting("maxTextWidth", undefined, true);
+    flushLayoutTextWidth();
+    lockedScrollAnchor = undefined;
+  };
+
   createEffect(() => {
     void textWidth();
 
@@ -718,6 +735,7 @@ function Fb2Reader(props: {
           setSettings(defaultSettings);
         }}
         onUpdateSetting={updateSetting}
+        onAutoWidth={applyAutoWidth}
         onBeginAdjustLayout={() => setAdjustingLayoutSettings(true)}
         onEndAdjustLayout={() => {
           const anchor = captureScrollAnchor();

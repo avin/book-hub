@@ -18,6 +18,7 @@ function SettingsPanel(props: {
   onClose: () => void;
   onReset: () => void;
   onUpdateSetting: UpdateSetting;
+  onAutoWidth: () => void;
   onBeginAdjustLayout: () => void;
   onEndAdjustLayout: () => void;
 }) {
@@ -140,7 +141,7 @@ function SettingsPanel(props: {
           variant="secondary"
           type="button"
           iconStart={<SlidersHorizontal />}
-          onClick={() => props.onUpdateSetting("maxTextWidth", undefined)}
+          onClick={props.onAutoWidth}
         >
           Автоширина
         </Button>
