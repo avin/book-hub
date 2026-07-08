@@ -1,6 +1,8 @@
 @use "@/styles/_variables.scss" as *;
 @use "@/styles/_mixins.scss" as *;
 
+// Scroll lives on the overlay, not the dialog: the tag-select dropdown renders
+// inline (no portal), so `overflow` on the dialog would clip it.
 .dialogOverlay {
   z-index: 50;
   position: fixed;
@@ -8,15 +10,15 @@
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(15, 23, 42, 0.5);
+  overflow-y: auto;
+  background: rgba(28, 25, 23, 0.5);
   backdrop-filter: blur(4px);
   animation: fade-in $duration-base $ease-standard;
 }
 
 .dialog {
   width: min(560px, 100%);
-  max-height: calc(100vh - 40px);
-  overflow: auto;
+  margin: auto;
   border: 1px solid $color-border;
   border-radius: $radius-lg;
   background: $color-paper-0;
@@ -24,13 +26,11 @@
   animation: slide-up $duration-base $ease-out;
 }
 
-.dialogHeader,
-.dialogFooter {
+.dialogHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px;
-  gap: 12px;
+  padding: 16px 16px 16px 20px;
   border-bottom: 1px solid $color-border;
 
   h2 {
@@ -45,20 +45,158 @@
 
 .dialogBody {
   display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: start;
   padding: 20px;
-  gap: 16px;
+  gap: 18px;
 }
 
 .dialogFooter {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
+  padding: 16px 20px;
   border-top: 1px solid $color-border;
-  border-bottom: 0;
+  gap: 10px;
 }
 
-.coverActions {
+// ── Cover column ────────────────────────────────────────────
+.coverColumn {
+  display: grid;
+  justify-items: center;
+  width: 120px;
+}
+
+.coverWrapper {
+  position: relative;
+  display: block;
+  width: 120px;
+  border: 0;
+  border-radius: $radius-sm;
+  background: transparent;
+  cursor: pointer;
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &:disabled,
+  &[aria-disabled="true"] {
+    cursor: default;
+    opacity: 0.72;
+  }
+}
+
+.coverPreview {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-paper-100;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.coverPlaceholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: $color-ink-400;
+
+  :global(svg) {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+// Centered circular hint icon revealed on hover. Decorative only — the whole
+// cover area opens the file picker.
+.coverHoverIcon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(28, 25, 23, 0.6);
+  color: $color-paper-0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.85);
+  transition:
+    opacity $duration-base $ease-standard,
+    transform $duration-base $ease-standard;
+
+  :global(svg) {
+    width: 22px;
+    height: 22px;
+  }
+
+  .coverWrapper:hover & {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+// Real delete button in the top-right corner.
+.coverRemove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(28, 25, 23, 0.7);
+  color: $color-paper-0;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity $duration-base $ease-standard,
+    background $duration-fast $ease-standard;
+
+  :global(svg) {
+    width: 16px;
+    height: 16px;
+  }
+
+  .coverWrapper:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: $color-danger-600;
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+    opacity: 1;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.fields {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  min-width: 0;
+  gap: 16px;
 }
 
 .fileInput {
@@ -70,4 +208,19 @@
   color: $color-danger-600;
   font-size: 14px;
   line-height: 20px;
+}
+
+@media (max-width: 520px) {
+  .dialogBody {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .coverColumn {
+    width: 96px;
+  }
+
+  .coverWrapper {
+    width: 96px;
+  }
 }

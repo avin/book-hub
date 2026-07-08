@@ -43,7 +43,7 @@ function BookCard(props: {
     <article class={styles.bookCard}>
       <A class={styles.bookMain} href={`/reader/${bookId()}`}>
         <span class={styles.coverLink} title={t("showFullCover")} onContextMenu={handleCoverContextMenu}>
-          <BookCover bookId={bookId()} format={format()} />
+          <BookCover bookId={bookId()} format={format()} version={props.book().updated_at} />
         </span>
         <div class={styles.bookContent}>
           <div class={styles.bookTitleRow}>

@@ -6,13 +6,22 @@ import styles from "./BookCover.module.scss";
 function BookCover(props: {
   bookId: string;
   format: Book["format"];
+  // Cache-buster: bumped whenever the cover actually changes (book.updated_at).
+  // Prevents the browser/img cache from serving a stale cover after upload/delete.
+  version?: string;
 }) {
   const [failed, setFailed] = createSignal(false);
 
   createEffect(() => {
     props.bookId;
+    props.version;
     setFailed(false);
   });
+
+  const src = () => {
+    const base = getBookCoverUrl(props.bookId, "thumbnail");
+    return props.version ? `${base}&v=${encodeURIComponent(props.version)}` : base;
+  };
 
   return (
     <div class={styles.cover}>
@@ -26,7 +35,7 @@ function BookCover(props: {
         }
       >
         <img
-          src={getBookCoverUrl(props.bookId, "thumbnail")}
+          src={src()}
           alt=""
           loading="lazy"
           onError={() => setFailed(true)}
