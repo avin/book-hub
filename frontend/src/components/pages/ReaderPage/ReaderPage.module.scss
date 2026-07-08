@@ -14,36 +14,6 @@
   gap: 12px;
 }
 
-.backLink {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: $radius-sm;
-  color: $color-accent-600;
-  font-weight: 700;
-  text-decoration: none;
-  transition:
-    background $duration-fast $ease-standard,
-    color $duration-fast $ease-standard;
-
-  &:hover {
-    background: $color-accent-100;
-    color: $color-accent-700;
-  }
-
-  &:focus-visible {
-    @include focus-ring;
-  }
-
-  :global(svg) {
-    width: 18px;
-    height: 18px;
-  }
-}
-
 .bookTitle {
   display: grid;
   min-width: 0;

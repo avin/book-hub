@@ -1,4 +1,4 @@
-import { A, useParams } from "@solidjs/router";
+import { useParams } from "@solidjs/router";
 import { createEffect, createMemo, createSignal, lazy, onCleanup, Show, Suspense } from "solid-js";
 import { ArrowLeft, Heart } from "lucide-solid";
 import {
@@ -106,9 +106,14 @@ function ReaderPage() {
 
   const chromeContent = () => (
     <div class={styles.chromeContent}>
-      <A href="/library" class={styles.backLink} aria-label={t("library")}>
-        <ArrowLeft />
-      </A>
+      <Button
+        href="/library"
+        variant="ghost"
+        size="sm"
+        iconOnly
+        iconStart={<ArrowLeft />}
+        aria-label={t("library")}
+      />
 
       <div class={styles.bookTitle}>
         <Show when={book()} fallback={<span>{t("loading")}</span>}>

@@ -1,4 +1,4 @@
-import { A, useNavigate } from "@solidjs/router";
+import { useNavigate } from "@solidjs/router";
 import { createInfiniteQuery } from "@tanstack/solid-query";
 import { createEffect, createMemo, createSignal, Index, onCleanup, onMount, Show } from "solid-js";
 import { Library, Search, Upload, X } from "lucide-solid";
@@ -14,6 +14,7 @@ import {
   queryBooks,
 } from "@/api/books";
 import InputContainer from "@/components/common/InputContainer/InputContainer";
+import Button from "@/components/common/Button/Button";
 import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
 import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
 import TextInput from "@/components/common/TextInput/TextInput";
@@ -255,23 +256,25 @@ function LibraryPage() {
                   {booksTotal()} {hasActiveFilters() ? t("filtered") : t("total")}
                 </span>
                 <Show when={hasActiveFilters()}>
-                  <button
+                  <Button
                     type="button"
-                    class={styles.resetFiltersButton}
+                    variant="ghost"
+                    size="sm"
+                    destructive
+                    iconOnly
+                    class={styles.resetFilters}
+                    iconStart={<X />}
                     aria-label={t("resetFilters")}
                     title={t("resetFilters")}
                     onClick={resetFilters}
-                  >
-                    <X />
-                  </button>
+                  />
                 </Show>
               </Show>
             </h1>
           </div>
-          <A href="/upload" class={styles.uploadLink}>
-            <Upload />
+          <Button href="/upload" class={styles.headerUpload} iconStart={<Upload />}>
             {t("uploadBook")}
-          </A>
+          </Button>
         </header>
 
         <section class={styles.toolbar}>
@@ -326,7 +329,7 @@ function LibraryPage() {
           <div class={styles.emptyState}>
             <Library />
             <h2>{t("libraryEmpty")}</h2>
-            <A href="/upload">{t("uploadBook")}</A>
+            <Button href="/upload">{t("uploadBook")}</Button>
           </div>
         </Show>
 

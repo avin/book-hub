@@ -1,6 +1,12 @@
 @use "@/styles/_variables.scss" as *;
 @use "@/styles/_mixins.scss" as *;
 
+@mixin interactive-hover {
+  &:hover:not(:disabled):not(.disabled):not([aria-disabled="true"]) {
+    @content;
+  }
+}
+
 .button {
   @include control-text;
 
@@ -20,14 +26,18 @@
     border-color $duration-fast $ease-standard,
     color $duration-fast $ease-standard,
     box-shadow $duration-fast $ease-standard;
+  text-decoration: none;
 
   &:focus-visible {
     @include focus-ring;
   }
 
-  &:disabled {
+  &:disabled,
+  &.disabled,
+  &[aria-disabled="true"] {
     cursor: not-allowed;
     opacity: 0.55;
+    pointer-events: none;
   }
 }
 
@@ -36,7 +46,7 @@
   color: $color-paper-0;
   box-shadow: $shadow-xs;
 
-  &:hover:not(:disabled) {
+  @include interactive-hover {
     background: $color-accent-700;
   }
 }
@@ -47,7 +57,7 @@
   color: $color-ink-900;
   box-shadow: $shadow-xs;
 
-  &:hover:not(:disabled) {
+  @include interactive-hover {
     border-color: $color-paper-300;
     background: $color-paper-50;
   }
@@ -57,9 +67,19 @@
   background: transparent;
   color: $color-ink-700;
 
-  &:hover:not(:disabled) {
+  @include interactive-hover {
     background: $color-paper-100;
     color: $color-ink-950;
+  }
+}
+
+.destructive {
+  color: $color-danger-600;
+
+  @include interactive-hover {
+    border-color: rgba($color-danger-600, 0.22);
+    background: transparent;
+    color: $color-danger-700;
   }
 }
 
@@ -68,7 +88,7 @@
   color: $color-paper-0;
   box-shadow: $shadow-xs;
 
-  &:hover:not(:disabled) {
+  @include interactive-hover {
     background: $color-danger-700;
   }
 }
@@ -88,7 +108,7 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 0.16em;
 
-  &:hover:not(:disabled) {
+  @include interactive-hover {
     background: transparent;
     color: var(--fb2-link, $color-accent-700);
     text-decoration-thickness: 2px;
@@ -121,6 +141,10 @@
     height: 34px;
     min-height: 34px;
   }
+}
+
+.fullWidth {
+  width: 100%;
 }
 
 .loading {

@@ -1,4 +1,3 @@
-import { Router } from "@solidjs/router";
 import type { Book } from "@/api/books";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import BookCard from "./BookCard";
@@ -18,16 +17,14 @@ const sampleBook: Book = {
 };
 
 export const Default = () => (
-  <Router>
-    <I18nProvider>
-      <div style={{ width: "620px" }}>
-        <BookCard
-          book={() => sampleBook}
-          onFavoriteToggle={() => undefined}
-          onEdit={() => undefined}
-          onDelete={() => undefined}
-        />
-      </div>
-    </I18nProvider>
-  </Router>
+  <I18nProvider>
+    <div style={{ width: "620px" }}>
+      <BookCard
+        book={() => sampleBook}
+        onFavoriteToggle={() => undefined}
+        onEdit={() => undefined}
+        onDelete={() => undefined}
+      />
+    </div>
+  </I18nProvider>
 );

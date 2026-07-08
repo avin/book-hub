@@ -76,6 +76,7 @@ function AppLayout(props: {
           <div class={styles.sidebarFooter}>
             <Button
               class={styles.logoutButton}
+              fullWidth
               type="button"
               variant="ghost"
               loading={logoutMutation.isPending}

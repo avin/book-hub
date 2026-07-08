@@ -133,11 +133,11 @@ function SettingsPanel(props: {
       </section>
 
       <div class={styles.panelActions}>
-        <Button class={styles.panelActionButton} variant="secondary" type="button" iconStart={<RotateCcw />} onClick={props.onReset}>
+        <Button fullWidth variant="secondary" type="button" iconStart={<RotateCcw />} onClick={props.onReset}>
           Сбросить
         </Button>
         <Button
-          class={styles.panelActionButton}
+          fullWidth
           variant="secondary"
           type="button"
           iconStart={<SlidersHorizontal />}

@@ -36,39 +36,14 @@
   color: $color-danger-600;
 }
 
-.resetFiltersButton {
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
+.resetFilters {
   margin-left: 8px;
-  border: 1px solid transparent;
-  border-radius: $radius-sm;
-  background: transparent;
-  color: $color-danger-600;
   vertical-align: 4px;
-  cursor: pointer;
-  transition:
-    background $duration-fast $ease-standard,
-    border-color $duration-fast $ease-standard,
-    color $duration-fast $ease-standard;
+}
 
-  &:hover {
-    border-color: rgba($color-danger-600, 0.22);
-    background: transparent;
-    color: $color-danger-700;
-  }
-
-  &:focus-visible {
-    @include focus-ring;
-  }
-
-  :global(svg) {
-    width: 16px;
-    height: 16px;
-  }
+.headerUpload {
+  max-width: 100%;
+  flex: 0 0 auto;
 }
 
 .kicker {
@@ -78,42 +53,6 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.uploadLink {
-  @include control-text;
-
-  display: inline-flex;
-  max-width: 100%;
-  flex: 0 0 auto;
-  min-height: 40px;
-  align-items: center;
-  justify-content: center;
-  padding: 0 16px;
-  gap: 8px;
-  border-radius: $radius-sm;
-  background: $color-accent-600;
-  box-shadow: $shadow-xs;
-  color: $color-paper-0;
-  font-weight: 600;
-  text-decoration: none;
-  transition:
-    background $duration-fast $ease-standard,
-    box-shadow $duration-fast $ease-standard;
-
-  &:hover {
-    background: $color-accent-700;
-    box-shadow: $shadow-sm;
-  }
-
-  &:focus-visible {
-    @include focus-ring;
-  }
-
-  :global(svg) {
-    width: 18px;
-    height: 18px;
-  }
 }
 
 .toolbar {
@@ -159,11 +98,6 @@
     letter-spacing: -0.01em;
   }
 
-  a {
-    color: $color-accent-600;
-    font-weight: 600;
-  }
-
   :global(svg) {
     width: 40px;
     height: 40px;
@@ -203,7 +137,7 @@
 }
 
 @media (max-width: 1120px) {
-  .uploadLink {
+  .headerUpload {
     display: none;
   }
 
