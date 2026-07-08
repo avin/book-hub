@@ -703,7 +703,20 @@ function Fb2Reader(props: {
         open={panelOpen()}
         settings={settings()}
         onClose={() => setPanelOpen(false)}
-        onReset={() => setSettings(defaultSettings)}
+        onReset={() => {
+          // Сброс настроек меняет layout (высоту блоков). Захватываем якорь по
+          // текущему layout ДО смены настроек, чтобы после пересчёта эффект
+          // pendingScrollAnchor вернул читателя на тот же блок — иначе позиция
+          // остаётся в прежнем абсолютном пикселе, и при изменившейся высоте
+          // документа это уже другой процент прочтения.
+          const anchor = captureScrollAnchor();
+
+          if (anchor) {
+            setPendingScrollAnchor(anchor);
+          }
+
+          setSettings(defaultSettings);
+        }}
         onUpdateSetting={updateSetting}
         onBeginAdjustLayout={() => setAdjustingLayoutSettings(true)}
         onEndAdjustLayout={() => {
