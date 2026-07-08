@@ -140,26 +140,49 @@ function updateCachedBookLists(queryClient: QueryClient, book: Book) {
   }
 }
 
+function updateBookListProgressCache(
+  list: BookListResponse | undefined,
+  bookId: string,
+  progressPercent: number,
+) {
+  if (!list || !list.items.some((item) => item.id === bookId)) {
+    return list;
+  }
+
+  return {
+    ...list,
+    items: list.items.map((book) =>
+      book.id === bookId ? { ...book, progress_percent: progressPercent } : book,
+    ),
+  };
+}
+
 function updateBookProgressCache(queryClient: QueryClient, bookId: string, progressPercent: number) {
   queryClient.setQueryData<Book>(["book", bookId], (book) =>
     book ? { ...book, progress_percent: progressPercent } : book,
   );
 
-  for (const [queryKey] of queryClient.getQueriesData<BookListResponse>({ queryKey: booksQueryKey })) {
+  for (const [queryKey] of queryClient.getQueriesData<BookListResponse | InfiniteData<BookListResponse>>({
+    queryKey: booksQueryKey,
+  })) {
     if (!isBooksQueryKey(queryKey)) {
       continue;
     }
 
-    queryClient.setQueryData<BookListResponse>(queryKey, (list) =>
-      list
-        ? {
-            ...list,
-            items: list.items.map((book) =>
-              book.id === bookId ? { ...book, progress_percent: progressPercent } : book,
-            ),
-          }
-        : list,
-    );
+    queryClient.setQueryData<BookListResponse | InfiniteData<BookListResponse>>(queryKey, (data) => {
+      if (!data) {
+        return data;
+      }
+
+      if (isInfiniteBookListResponse(data)) {
+        return {
+          ...data,
+          pages: data.pages.map((page) => updateBookListProgressCache(page, bookId, progressPercent) ?? page),
+        };
+      }
+
+      return updateBookListProgressCache(data, bookId, progressPercent);
+    });
   }
 }
 
