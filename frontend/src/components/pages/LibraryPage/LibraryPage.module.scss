@@ -99,17 +99,11 @@
   text-decoration: none;
   transition:
     background $duration-fast $ease-standard,
-    box-shadow $duration-fast $ease-standard,
-    transform $duration-fast $ease-standard;
+    box-shadow $duration-fast $ease-standard;
 
   &:hover {
     background: $color-accent-700;
     box-shadow: $shadow-sm;
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
   }
 
   &:focus-visible {

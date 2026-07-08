@@ -19,16 +19,7 @@
     background $duration-fast $ease-standard,
     border-color $duration-fast $ease-standard,
     color $duration-fast $ease-standard,
-    box-shadow $duration-fast $ease-standard,
-    transform $duration-fast $ease-standard;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
+    box-shadow $duration-fast $ease-standard;
 
   &:focus-visible {
     @include focus-ring;
@@ -99,7 +90,6 @@
 
   &:hover:not(:disabled) {
     background: transparent;
-    transform: none;
     color: var(--fb2-link, $color-accent-700);
     text-decoration-thickness: 2px;
   }
