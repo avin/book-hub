@@ -520,12 +520,16 @@ function Fb2Reader(props: {
       return;
     }
 
-    const anchor = captureScrollAnchor();
-
     void loadReaderLayoutFonts(currentSettings).then(() => {
       if (disposed) {
         return;
       }
+
+      // Якорь снимаем здесь, а не при запуске эффекта: к этому моменту позиция
+      // уже могла быть восстановлена из прогресса (ReaderPage.restoreScrollProgress).
+      // Снятый заранее якорь фиксирует scrollY=0 и после пересчёта layout
+      // отбрасывает читалку в начало книги.
+      const anchor = captureScrollAnchor();
 
       if (anchor) {
         setPendingScrollAnchor(anchor);
@@ -616,6 +620,28 @@ function Fb2Reader(props: {
     const blockHeight = Math.max(1, currentLayout.heights[blockIndex] ?? 1);
     const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
     const nextDocumentScrollTop = blockTop + blockHeight * anchor.offsetRatio;
+
+    // Защита от устаревшего якоря «начало книги».
+    //
+    // Несколько путей (font loadingdone/loadingerror, debounce пересчёта ширины,
+    // resize) снимают якорь по текущему window-скроллу асинхронно. Если в этот
+    // момент позиция ещё не восстановлена из прогресса, якорь получается
+    // {blockIndex: 0, offsetRatio: 0}. Применение такого якоря позже отбрасывает
+    // уже восстановленную позицию в начало книги.
+    //
+    // Легитимный «якорь = начало» идемпотентен: если читатель и так в начале,
+    // повторная прокрутка в 0 ничего не меняет. Поэтому различаем ситуации по
+    // реальной позиции документа: если она уже далеко от начала, а якорь
+    // указывает на начало — якорь устарел, игнорируем.
+    if (
+      blockIndex === 0 &&
+      anchor.offsetRatio < 1e-6 &&
+      documentScrollTop() > currentLayout.heights[0] + 1
+    ) {
+      setPendingScrollAnchor(undefined);
+      return;
+    }
+
     const nextScrollTop = documentTop + nextDocumentScrollTop;
 
     if (scrollAnchorFrame !== undefined) {
