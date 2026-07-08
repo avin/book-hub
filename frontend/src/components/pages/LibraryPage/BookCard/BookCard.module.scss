@@ -5,22 +5,32 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 120px;
+  min-height: 128px;
   overflow: hidden;
   border: 1px solid $color-border;
   border-radius: $radius-md;
   background: $color-paper-0;
+  box-shadow: $shadow-xs;
+  transition:
+    box-shadow $duration-base $ease-standard,
+    border-color $duration-base $ease-standard,
+    transform $duration-base $ease-standard;
+
+  &:hover {
+    border-color: $color-paper-300;
+    box-shadow: $shadow-md;
+  }
 }
 
 .bookMain {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 96px minmax(0, 1fr);
   min-width: 0;
   color: inherit;
   text-decoration: none;
 
   &:hover h2 {
-    color: $color-blue-700;
+    color: $color-accent-600;
   }
 }
 
@@ -28,13 +38,17 @@
   display: block;
   min-width: 0;
   border-right: 1px solid $color-border;
+
+  :global(.cover) {
+    border-radius: 0;
+  }
 }
 
 .bookContent {
   display: grid;
   min-width: 0;
   align-content: start;
-  padding: 12px 12px 18px;
+  padding: 14px 14px 20px;
   gap: 10px;
 }
 
@@ -44,10 +58,11 @@
   h2 {
     margin: 0;
     color: $color-ink-950;
-    font-size: 17px;
-    line-height: 23px;
-    letter-spacing: 0;
-    transition: color 0.15s ease;
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 22px;
+    letter-spacing: -0.005em;
+    transition: color $duration-fast $ease-standard;
   }
 }
 
@@ -60,7 +75,7 @@
 }
 
 .favoriteActive {
-  color: $color-red-700 !important;
+  color: $color-danger-600 !important;
 
   :global(svg) {
     fill: currentColor;
@@ -71,15 +86,16 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  left: 92px;
-  height: 4px;
+  left: 96px;
+  height: 3px;
   overflow: hidden;
-  background: $color-paper-200;
+  background: $color-paper-100;
 
   span {
     display: block;
     height: 100%;
-    background: $color-sage-700;
+    background: $color-accent-500;
+    transition: width $duration-base $ease-standard;
   }
 }
 
@@ -90,11 +106,12 @@
 
   span {
     max-width: 100%;
-    padding: 3px 7px;
-    border-radius: 999px;
-    background: $color-blue-100;
-    color: $color-blue-700;
+    padding: 3px 8px;
+    border-radius: $radius-pill;
+    background: $color-accent-100;
+    color: $color-accent-700;
     font-size: 12px;
+    font-weight: 550;
     line-height: 16px;
   }
 }
@@ -106,14 +123,17 @@
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(18, 24, 38, 0.24);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  animation: fade-in $duration-base $ease-standard;
 }
 
 .coverPreviewDialog {
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
   overflow: hidden;
-  box-shadow: 0 24px 80px rgba(18, 24, 38, 0.32), 0 8px 24px rgba(18, 24, 38, 0.22);
+  border-radius: $radius-md;
+  box-shadow: $shadow-lg;
   background: $color-paper-0;
 
   img {
@@ -128,11 +148,11 @@
 
 @media (max-width: 720px) {
   .bookMain {
-    grid-template-columns: 82px minmax(0, 1fr);
+    grid-template-columns: 84px minmax(0, 1fr);
   }
 
   .progress {
-    left: 82px;
+    left: 84px;
   }
 
   .bookActions {

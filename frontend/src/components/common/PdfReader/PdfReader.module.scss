@@ -13,7 +13,7 @@
   bottom: 0;
   z-index: 39;
   width: 0;
-  border-left: 2px dashed $color-red-700;
+  border-left: 2px dashed $color-accent-500;
   pointer-events: none;
 }
 
@@ -21,7 +21,7 @@
   display: grid;
   min-height: 100vh;
   place-items: center;
-  color: $color-ink-600;
+  color: $color-ink-500;
 }
 
 .document {
@@ -42,10 +42,10 @@
 .page {
   flex-shrink: 0;
   overflow: hidden;
-  border: 1px solid rgba(20, 23, 31, 0.12);
-  border-radius: $radius-xs;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: $radius-sm;
   background: $color-paper-0;
-  box-shadow: 0 12px 36px rgba(20, 23, 31, 0.16);
+  box-shadow: $shadow-lg;
   overflow-anchor: none;
 
   canvas {

@@ -15,7 +15,7 @@
     height: 8px;
     border: 2px solid $color-paper-0;
     border-radius: 50%;
-    background: $color-red-700;
+    background: $color-danger-600;
     opacity: 0;
     transform: scale(0.75);
     transition:
@@ -71,8 +71,8 @@
 }
 
 .activeFavoriteButton {
-  background: $color-red-100;
-  color: $color-red-700;
+  background: $color-danger-100;
+  color: $color-danger-700;
 }
 
 .heart {
@@ -82,5 +82,5 @@
 }
 
 .filledHeart {
-  color: $color-red-700;
+  color: $color-danger-600;
 }

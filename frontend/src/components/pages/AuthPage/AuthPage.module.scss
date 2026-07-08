@@ -6,9 +6,9 @@
   margin: 0 auto;
   padding: 32px;
   border: 1px solid $color-border;
-  border-radius: $radius-md;
+  border-radius: $radius-lg;
   background: $color-paper-0;
-  box-shadow: 0 18px 48px rgba(31, 41, 36, 0.08);
+  box-shadow: $shadow-lg;
 }
 
 .header {
@@ -19,8 +19,9 @@
     margin: 0;
     color: $color-ink-950;
     font-size: 28px;
+    font-weight: 750;
     line-height: 36px;
-    letter-spacing: 0;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -30,19 +31,22 @@
   margin-bottom: 24px;
   padding: 4px;
   border: 1px solid $color-border;
-  border-radius: $radius-md;
+  border-radius: $radius-sm;
   background: $color-paper-100;
 
   a {
     display: flex;
-    min-height: 38px;
+    min-height: 36px;
     align-items: center;
     justify-content: center;
-    border-radius: $radius-sm;
-    color: $color-ink-600;
+    border-radius: $radius-xs;
+    color: $color-ink-500;
     font-size: 14px;
-    font-weight: 650;
+    font-weight: 600;
     text-decoration: none;
+    transition:
+      background $duration-fast $ease-standard,
+      color $duration-fast $ease-standard;
 
     &:focus-visible {
       @include focus-ring;
@@ -51,10 +55,10 @@
 }
 
 .active {
-  @include compact-shadow;
+  @include card-shadow;
 
   background: $color-paper-0;
-  color: $color-ink-950 !important;
+  color: $color-accent-600 !important;
 }
 
 .form {
@@ -72,11 +76,15 @@
   border: 0;
   border-radius: $radius-sm;
   background: transparent;
-  color: $color-ink-600;
+  color: $color-ink-400;
   cursor: pointer;
+  transition:
+    background $duration-fast $ease-standard,
+    color $duration-fast $ease-standard;
 
   &:hover {
     background: $color-paper-100;
+    color: $color-ink-600;
   }
 
   &:focus-visible {
@@ -98,18 +106,18 @@
 }
 
 .alert {
-  background: $color-red-100;
-  color: $color-red-700;
+  background: $color-danger-100;
+  color: $color-danger-700;
 }
 
 .success {
-  background: $color-sage-100;
-  color: $color-sage-700;
+  background: $color-success-100;
+  color: $color-success-700;
 }
 
 .hint {
   margin: 18px 0 0;
-  color: $color-ink-600;
+  color: $color-ink-500;
   font-size: 14px;
   line-height: 22px;
 }

@@ -22,12 +22,16 @@
   justify-content: center;
   gap: 8px;
   border-radius: $radius-sm;
-  color: $color-blue-700;
+  color: $color-accent-600;
   font-weight: 700;
   text-decoration: none;
+  transition:
+    background $duration-fast $ease-standard,
+    color $duration-fast $ease-standard;
 
   &:hover {
-    background: $color-paper-100;
+    background: $color-accent-100;
+    color: $color-accent-700;
   }
 
   &:focus-visible {
@@ -57,7 +61,7 @@
 }
 
 .favoriteActive {
-  color: $color-red-700 !important;
+  color: $color-danger-600 !important;
 }
 
 .state {

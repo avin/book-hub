@@ -2,7 +2,7 @@
 @use "@/styles/_mixins.scss" as *;
 
 .settingsPanel {
-  @include compact-shadow;
+  @include elevated;
 
   position: fixed;
   top: 0;
@@ -19,7 +19,7 @@
   color: $color-ink-900;
   overflow-y: auto;
   transform: translateX(105%);
-  transition: transform $duration-base $ease-standard;
+  transition: transform $duration-base $ease-out;
 }
 
 .panelOpen {
@@ -34,8 +34,11 @@
 
   h2 {
     margin: 0;
+    color: $color-ink-950;
     font-size: 20px;
+    font-weight: 700;
     line-height: 1.3;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -48,34 +51,122 @@
     gap: $space-2;
     align-items: center;
     margin: 0;
-    color: $color-ink-700;
-    font-size: 15px;
+    color: $color-accent-600;
+    font-size: 13px;
+    font-weight: 700;
     line-height: 20px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
   }
 
-  input,
   select {
     min-height: 38px;
-  }
-
-  select {
     padding: 0 $space-3;
     border: 1px solid $color-border;
     border-radius: $radius-sm;
     background: $color-paper-0;
     color: $color-ink-900;
+    cursor: pointer;
+    transition:
+      border-color $duration-fast $ease-standard,
+      box-shadow $duration-fast $ease-standard;
+
+    &:focus {
+      border-color: $color-accent-500;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba($color-accent-500, 0.16);
+    }
   }
 
+  // ── Styled range slider ──────────────────────────────────
   input[type="range"] {
     width: 100%;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+
+    &:focus {
+      outline: none;
+    }
+
+    // WebKit track
+    &::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: $radius-pill;
+      background: $color-paper-100;
+    }
+
+    &::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      margin-top: -6px;
+      border: 2px solid $color-paper-0;
+      border-radius: 50%;
+      background: $color-accent-600;
+      box-shadow: $shadow-xs;
+      transition:
+        background $duration-fast $ease-standard,
+        transform $duration-fast $ease-standard;
+
+      &:hover {
+        background: $color-accent-700;
+        transform: scale(1.1);
+      }
+    }
+
+    // Firefox track
+    &::-moz-range-track {
+      height: 6px;
+      border-radius: $radius-pill;
+      background: $color-paper-100;
+    }
+
+    &::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border: 2px solid $color-paper-0;
+      border-radius: 50%;
+      background: $color-accent-600;
+      box-shadow: $shadow-xs;
+      transition:
+        background $duration-fast $ease-standard,
+        transform $duration-fast $ease-standard;
+
+      &:hover {
+        background: $color-accent-700;
+        transform: scale(1.1);
+      }
+    }
   }
 
+  // ── Color picker ─────────────────────────────────────────
   input[type="color"] {
     width: 100%;
+    height: 38px;
     padding: 2px;
     border: 1px solid $color-border;
     border-radius: $radius-sm;
     background: $color-paper-0;
+    cursor: pointer;
+    transition:
+      border-color $duration-fast $ease-standard,
+      box-shadow $duration-fast $ease-standard;
+
+    &:hover {
+      border-color: $color-paper-300;
+    }
+
+    &:focus {
+      border-color: $color-accent-500;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba($color-accent-500, 0.16);
+    }
   }
 }
 

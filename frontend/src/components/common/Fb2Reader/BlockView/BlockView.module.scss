@@ -93,13 +93,13 @@
 .annotation,
 .quote {
   padding-left: $space-5;
-  border-left: 3px solid rgba(47, 95, 82, 0.34);
+  border-left: 3px solid color-mix(in srgb, var(--fb2-link) 40%, transparent);
   color: color-mix(in srgb, var(--fb2-text) 84%, $color-ink-500);
   text-indent: 0;
 }
 
 .quote {
-  border-left-color: rgba(122, 87, 31, 0.44);
+  border-left-color: color-mix(in srgb, var(--fb2-text) 30%, transparent);
   font-style: italic;
 }
 
@@ -146,9 +146,9 @@
   justify-content: center;
   width: min(100%, 420px);
   height: 180px;
-  border: 1px dashed $color-border-strong;
+  border: 1px dashed $color-paper-300;
   border-radius: $radius-sm;
-  color: $color-ink-500;
+  color: color-mix(in srgb, var(--fb2-text) 50%, transparent);
 }
 
 .tableScroller {
@@ -169,7 +169,7 @@
   }
 
   th {
-    background: rgba(47, 95, 82, 0.12);
+    background: color-mix(in srgb, var(--fb2-link) 12%, transparent);
     font-weight: 700;
     text-align: left;
   }

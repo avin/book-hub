@@ -18,9 +18,9 @@
   right: 0;
   left: 0;
   z-index: 40;
-  border-bottom: 1px solid rgba(20, 23, 31, 0.12);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px) saturate(180%);
   transform: translateY(-100%);
   transition:
     transform $duration-base $ease-standard,
@@ -37,9 +37,9 @@
   left: 0;
   z-index: 41;
   padding: 0;
-  border-bottom: 1px solid rgba(20, 23, 31, 0.12);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px) saturate(180%);
   transform: translateY(-80px);
   transition:
     transform $duration-base $ease-standard,
@@ -71,7 +71,7 @@
 
   color: $color-ink-700;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 @media (max-width: 720px) {

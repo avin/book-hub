@@ -11,7 +11,7 @@
 }
 
 .content {
-  @include compact-shadow;
+  @include elevated;
 
   box-sizing: border-box;
   z-index: $z-dropdown;
@@ -23,4 +23,5 @@
   border-radius: $radius-md;
   background: $color-paper-0;
   color: $color-ink-900;
+  animation: fade-in $duration-fast $ease-standard;
 }

@@ -11,18 +11,19 @@
   h1 {
     margin: 4px 0 0;
     color: $color-ink-950;
-    font-size: 34px;
-    line-height: 42px;
-    letter-spacing: 0;
+    font-size: 32px;
+    font-weight: 750;
+    line-height: 40px;
+    letter-spacing: -0.02em;
   }
 }
 
 .kicker {
   margin: 0;
-  color: $color-sage-700;
-  font-size: 13px;
-  font-weight: 750;
-  letter-spacing: 0;
+  color: $color-accent-600;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -37,10 +38,10 @@
   place-items: center;
   padding: 28px;
   gap: 8px;
-  border: 1px dashed $color-border-strong;
+  border: 2px dashed $color-paper-300;
   border-radius: $radius-md;
   background: $color-paper-0;
-  color: $color-ink-700;
+  color: $color-ink-600;
   cursor: pointer;
   transition:
     border-color $duration-fast $ease-standard,
@@ -49,9 +50,10 @@
 
   &:hover,
   &:focus-visible {
-    border-color: $color-blue-600;
+    border-color: $color-accent-500;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.12);
+    background: $color-accent-100;
+    box-shadow: 0 0 0 3px rgba($color-accent-500, 0.1);
   }
 
   &:disabled {
@@ -64,24 +66,24 @@
     overflow-wrap: anywhere;
     color: $color-ink-950;
     font-size: 18px;
-    font-weight: 750;
+    font-weight: 700;
   }
 
   small {
-    color: $color-ink-600;
+    color: $color-ink-500;
     font-size: 14px;
   }
 
   :global(svg) {
     width: 40px;
     height: 40px;
-    color: $color-sage-700;
+    color: $color-accent-500;
   }
 }
 
 .dragActive {
-  border-color: $color-sage-700;
-  background: $color-sage-100;
+  border-color: $color-accent-600;
+  background: $color-accent-100;
 }
 
 .fileInput {
@@ -101,7 +103,7 @@
   border: 1px solid $color-border;
   border-radius: $radius-md;
   background: $color-paper-0;
-  box-shadow: 0 8px 24px rgba(24, 32, 42, 0.05);
+  box-shadow: $shadow-xs;
 }
 
 .coverColumn {
@@ -149,7 +151,7 @@
   width: 100%;
   height: 100%;
   place-items: center;
-  color: $color-ink-500;
+  color: $color-ink-400;
 
   :global(svg) {
     width: 36px;
@@ -187,11 +189,11 @@
 }
 
 .statusText {
-  color: $color-ink-600;
+  color: $color-ink-500;
 }
 
 .warningText {
-  color: $color-red-700;
+  color: $color-danger-600;
 }
 
 .draftStatus {
@@ -207,7 +209,7 @@
 
 .error {
   margin: 0;
-  color: $color-red-700;
+  color: $color-danger-600;
   font-size: 14px;
   line-height: 20px;
 }

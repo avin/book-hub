@@ -5,7 +5,7 @@
   @include control-text;
 
   width: 100%;
-  min-height: 42px;
+  min-height: 40px;
   padding: 0 12px;
   border: 1px solid $color-border;
   border-radius: $radius-sm;
@@ -18,27 +18,35 @@
     background $duration-fast $ease-standard;
 
   &::placeholder {
-    color: $color-ink-500;
+    color: $color-ink-400;
+  }
+
+  &:hover:not(:disabled):not(:focus) {
+    border-color: $color-paper-300;
   }
 
   &:focus {
-    border-color: $color-focus;
+    border-color: $color-accent-500;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.14);
+    box-shadow: 0 0 0 3px rgba($color-accent-500, 0.16);
   }
 
   &:disabled {
     background: $color-paper-100;
-    color: $color-ink-500;
+    color: $color-ink-400;
     cursor: not-allowed;
   }
 }
 
 .invalid {
-  border-color: $color-red-700;
+  border-color: $color-danger-600;
+
+  &:hover:not(:disabled):not(:focus) {
+    border-color: $color-danger-600;
+  }
 
   &:focus {
-    border-color: $color-red-700;
-    box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.14);
+    border-color: $color-danger-600;
+    box-shadow: 0 0 0 3px rgba($color-danger-600, 0.16);
   }
 }

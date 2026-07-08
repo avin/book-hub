@@ -26,12 +26,12 @@
     box-shadow $duration-fast $ease-standard;
 
   &:focus-within {
-    border-color: $color-focus;
-    box-shadow: 0 0 0 3px rgba(47, 111, 159, 0.12);
+    border-color: $color-accent-500;
+    box-shadow: 0 0 0 3px rgba($color-accent-500, 0.16);
   }
 
-  &:hover {
-    border-color: $color-border-strong;
+  &:hover:not(:focus-within) {
+    border-color: $color-paper-300;
   }
 }
 
@@ -59,8 +59,8 @@
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 24px;
-  background: $color-blue-100;
-  color: $color-ink-900;
+  background: $color-accent-100;
+  color: $color-accent-700;
   font-size: 12px;
   font-weight: 400;
   line-height: 1;
@@ -125,7 +125,7 @@
   line-height: inherit;
 
   &::placeholder {
-    color: $color-ink-500;
+    color: $color-ink-400;
   }
 
   &:disabled {
@@ -190,8 +190,8 @@
   &:hover,
   &:focus-visible,
   &.focusedOption {
-    background: $color-ink-900;
-    color: $color-paper-0;
+    background: $color-accent-100;
+    color: $color-accent-700;
   }
 }
 

@@ -20,19 +20,20 @@
   h1 {
     margin: 4px 0 0;
     color: $color-ink-950;
-    font-size: 34px;
-    line-height: 42px;
-    letter-spacing: 0;
+    font-size: 32px;
+    font-weight: 750;
+    line-height: 40px;
+    letter-spacing: -0.02em;
   }
 }
 
 .booksTotal {
-  color: $color-ink-500;
+  color: $color-ink-400;
   font-weight: 500;
 }
 
 .booksTotalFiltered {
-  color: #d14367;
+  color: $color-danger-600;
 }
 
 .resetFiltersButton {
@@ -46,7 +47,7 @@
   border: 1px solid transparent;
   border-radius: $radius-sm;
   background: transparent;
-  color: #d14367;
+  color: $color-danger-600;
   vertical-align: 4px;
   cursor: pointer;
   transition:
@@ -55,9 +56,9 @@
     color $duration-fast $ease-standard;
 
   &:hover {
-    border-color: rgba($color-red-700, 0.22);
+    border-color: rgba($color-danger-600, 0.22);
     background: transparent;
-    color: $color-red-700;
+    color: $color-danger-700;
   }
 
   &:focus-visible {
@@ -72,10 +73,10 @@
 
 .kicker {
   margin: 0;
-  color: $color-sage-700;
-  font-size: 13px;
-  font-weight: 750;
-  letter-spacing: 0;
+  color: $color-accent-600;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -85,19 +86,30 @@
   display: inline-flex;
   max-width: 100%;
   flex: 0 0 auto;
-  min-height: 42px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
-  padding: 0 18px;
+  padding: 0 16px;
   gap: 8px;
   border-radius: $radius-sm;
-  background: $color-sage-700;
+  background: $color-accent-600;
+  box-shadow: $shadow-xs;
   color: $color-paper-0;
-  font-weight: 650;
+  font-weight: 600;
   text-decoration: none;
+  transition:
+    background $duration-fast $ease-standard,
+    box-shadow $duration-fast $ease-standard,
+    transform $duration-fast $ease-standard;
 
   &:hover {
-    background: $color-sage-600;
+    background: $color-accent-700;
+    box-shadow: $shadow-sm;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 
   &:focus-visible {
@@ -134,39 +146,40 @@
   display: grid;
   min-height: 260px;
   place-items: center;
-  border: 1px dashed $color-border-strong;
+  border: 1px dashed $color-paper-300;
   border-radius: $radius-md;
   background: $color-paper-0;
-  color: $color-ink-600;
+  color: $color-ink-500;
 }
 
 .emptyState {
   align-content: center;
-  gap: 12px;
+  gap: 14px;
   text-align: center;
 
   h2 {
     margin: 0;
     color: $color-ink-950;
-    font-size: 22px;
-    letter-spacing: 0;
+    font-size: 20px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
   }
 
   a {
-    color: $color-blue-700;
-    font-weight: 700;
+    color: $color-accent-600;
+    font-weight: 600;
   }
 
   :global(svg) {
-    width: 36px;
-    height: 36px;
-    color: $color-sage-700;
+    width: 40px;
+    height: 40px;
+    color: $color-accent-500;
   }
 }
 
 .bookList {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .loadMoreSentinel {
@@ -177,13 +190,13 @@
   display: grid;
   min-height: 96px;
   place-items: center;
-  color: $color-sage-700;
+  color: $color-accent-500;
 }
 
 .loadingMoreSpinner {
   width: 28px;
   height: 28px;
-  border: 3px solid rgba($color-sage-700, 0.22);
+  border: 3px solid rgba($color-accent-500, 0.18);
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 720ms linear infinite;

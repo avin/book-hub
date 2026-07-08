@@ -3,7 +3,7 @@
 :root {
   font-family: $font-family-base;
   color: $color-ink-900;
-  background: $color-paper-100;
+  background: $color-paper-50;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -41,4 +41,49 @@ a {
 
 #root {
   min-height: 100vh;
+}
+
+// Smooth, subtle scrollbar to match the neutral palette.
+* {
+  scrollbar-width: thin;
+  scrollbar-color: $color-paper-300 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: $color-paper-300;
+  border: 3px solid transparent;
+  border-radius: $radius-pill;
+  background-clip: padding-box;
+
+  &:hover {
+    background: $color-ink-400;
+    background-clip: padding-box;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

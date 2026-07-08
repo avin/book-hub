@@ -4,7 +4,7 @@
 .layout {
   display: grid;
   min-height: 100vh;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
   background: $color-paper-50;
 }
 
@@ -26,22 +26,25 @@
 
 .sidebarHeader {
   flex: 0 0 auto;
-  padding: 20px 20px 12px;
+  padding: 22px 18px 14px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   min-height: 40px;
-  padding: 0 4px;
+  padding: 0 8px;
   gap: 10px;
+  border-radius: $radius-sm;
   color: $color-ink-950;
   font-size: 18px;
-  font-weight: 750;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   text-decoration: none;
+  transition: background $duration-fast $ease-standard;
 
   &:hover {
-    color: $color-ink-950;
+    background: $color-paper-50;
   }
 
   &:focus-visible {
@@ -49,9 +52,9 @@
   }
 
   :global(svg) {
-    width: 24px;
-    height: 24px;
-    color: $color-sage-700;
+    width: 22px;
+    height: 22px;
+    color: $color-accent-600;
   }
 }
 
@@ -59,7 +62,7 @@
   display: grid;
   min-height: 0;
   flex: 1 1 auto;
-  gap: 4px;
+  gap: 2px;
   align-content: start;
   overflow-y: auto;
   padding: 0 12px 16px;
@@ -67,16 +70,29 @@
   a {
     display: flex;
     align-items: center;
-    padding: 10px 12px;
-    gap: 10px;
+    padding: 9px 12px;
+    gap: 11px;
     border-radius: $radius-sm;
-    color: $color-ink-700;
+    color: $color-ink-600;
+    font-weight: 550;
     text-decoration: none;
+    transition:
+      background $duration-fast $ease-standard,
+      color $duration-fast $ease-standard;
 
-    &:hover,
-    &:global(.active) {
+    &:hover {
       background: $color-paper-100;
-      color: $color-ink-950;
+      color: $color-ink-900;
+    }
+
+    &:global(.active) {
+      background: $color-accent-100;
+      color: $color-accent-700;
+      font-weight: 650;
+
+      :global(svg) {
+        color: $color-accent-600;
+      }
     }
 
     &:focus-visible {
@@ -85,8 +101,9 @@
   }
 
   :global(svg) {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+    transition: color $duration-fast $ease-standard;
   }
 }
 
@@ -103,14 +120,14 @@
 .sidebarActions {
   display: grid;
   flex: 0 0 auto;
-  padding: 0 12px 16px;
+  padding: 0 12px 14px;
   background: $color-paper-0;
 }
 
 .sidebarFooter {
   display: grid;
   flex: 0 0 auto;
-  padding: 16px 12px;
+  padding: 14px 12px;
   border-top: 1px solid $color-border;
   background: $color-paper-0;
 }
@@ -154,6 +171,11 @@
 
   .brand {
     min-height: 36px;
+    padding: 0 4px;
+
+    &:hover {
+      background: transparent;
+    }
 
     span {
       @include truncate;

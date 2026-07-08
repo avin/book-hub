@@ -37,13 +37,13 @@
 
 .invalid {
   .label {
-    color: $color-red-700;
+    color: $color-danger-600;
   }
 
   :global(input),
   :global(textarea),
   :global(select) {
-    border-color: $color-red-700;
+    border-color: $color-danger-600;
   }
 }
 
@@ -78,5 +78,5 @@
 }
 
 .error {
-  color: $color-red-700;
+  color: $color-danger-600;
 }
