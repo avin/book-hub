@@ -54,9 +54,16 @@
 .dialogFooter {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding: 16px 20px;
   border-top: 1px solid var(--border-default);
+  gap: 10px;
+}
+
+.footerActions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
   gap: 10px;
 }
 
@@ -202,12 +209,6 @@
 
 .fileInput {
   display: none;
-}
-
-.restoreCover {
-  justify-self: stretch;
-  margin-top: 4px;
-  text-align: center;
 }
 
 .error {

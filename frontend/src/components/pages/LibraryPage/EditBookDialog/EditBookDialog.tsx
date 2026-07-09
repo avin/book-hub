@@ -80,6 +80,7 @@ function EditBookDialog(props: {
     return pending?.kind === "upload" ? pending.previewUrl : getBookCoverUrl(props.book.id);
   };
 
+  const savingChanges = () => saving() || updateBookMutation.isPending;
   const busy = () => saving() || updateBookMutation.isPending || extracting();
 
   // Re-download the book file and re-extract a cover from it, mirroring the
@@ -288,20 +289,6 @@ function EditBookDialog(props: {
               }}
             />
 
-            <Show when={!coverVisible()}>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                class={styles.restoreCover}
-                iconStart={<RefreshCw />}
-                loading={extracting()}
-                disabled={busy()}
-                onClick={() => void handleRestoreCover()}
-              >
-                {t("restoreCover")}
-              </Button>
-            </Show>
           </div>
 
           <div class={styles.fields}>
@@ -326,12 +313,28 @@ function EditBookDialog(props: {
         </div>
 
         <footer class={styles.dialogFooter}>
-          <Button type="button" variant="secondary" onClick={handleClose}>
-            {t("cancel")}
-          </Button>
-          <Button type="button" loading={busy()} onClick={handleSave}>
-            {t("save")}
-          </Button>
+          <Show when={!coverVisible()}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              iconStart={<RefreshCw />}
+              loading={extracting()}
+              disabled={busy()}
+              onClick={() => void handleRestoreCover()}
+            >
+              {t("restoreCover")}
+            </Button>
+          </Show>
+
+          <div class={styles.footerActions}>
+            <Button type="button" variant="secondary" onClick={handleClose}>
+              {t("cancel")}
+            </Button>
+            <Button type="button" loading={savingChanges()} disabled={extracting()} onClick={handleSave}>
+              {t("save")}
+            </Button>
+          </div>
         </footer>
       </section>
     </div>
