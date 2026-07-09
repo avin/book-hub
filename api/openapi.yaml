@@ -648,6 +648,29 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /v1/me/progress:
+    delete:
+      tags:
+        - ReadingProgress
+      operationId: deleteAllReadingProgress
+      summary: Reset reading progress for all books of the current user
+      description: Idempotent. Atomically deletes every reading progress row owned by the user.
+      security:
+        - cookieAuth: []
+          csrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: All reading progress reset.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /healthz:
     get:
       tags:
@@ -941,8 +964,9 @@ components:
 
     BookSort:
       type: string
-      default: created_at_desc
+      default: relevance
       enum:
+        - relevance
         - created_at_desc
         - created_at_asc
         - title_asc

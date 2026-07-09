@@ -1,0 +1,131 @@
+@use "@/styles/_variables.scss" as *;
+@use "@/styles/_mixins.scss" as *;
+
+.gridCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-paper-0;
+  box-shadow: $shadow-xs;
+  transition:
+    box-shadow $duration-base $ease-standard,
+    border-color $duration-base $ease-standard,
+    transform $duration-base $ease-standard;
+
+  &:hover {
+    border-color: $color-paper-300;
+    box-shadow: $shadow-md;
+  }
+}
+
+.coverLink {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+
+  // When the book has no cover, show the title in place of the image.
+  :global(.cover) {
+    border-radius: 0;
+    height: 100%;
+  }
+}
+
+.titleFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  border-radius: 0;
+  background: $color-paper-100;
+
+  span {
+    display: -webkit-box;
+    overflow: hidden;
+    color: $color-ink-900;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 19px;
+    text-align: center;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+  }
+}
+
+.menuTrigger {
+  display: inline-flex;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: $radius-sm;
+  background: $color-shadow;
+  color: $color-paper-0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity $duration-fast $ease-standard, background $duration-fast $ease-standard;
+
+  .gridCard:hover &,
+  &:focus-visible {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: $color-shadow-strong;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($color-accent-500, 0.2);
+  }
+}
+
+.progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  overflow: hidden;
+  background: $color-paper-100;
+
+  span {
+    display: block;
+    height: 100%;
+    background: $color-accent-500;
+    transition: width $duration-base $ease-standard;
+  }
+}
+
+.favoriteBadge {
+  display: inline-flex;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: $radius-pill;
+  background: $color-shadow;
+  color: $color-danger-600;
+
+  :global(svg) {
+    fill: currentColor;
+  }
+}

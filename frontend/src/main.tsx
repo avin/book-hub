@@ -3,6 +3,7 @@ import { render } from "solid-js/web";
 import App from "./components/App/App";
 import { I18nProvider } from "./i18n/I18nProvider";
 import ProfileLanguageSync from "./i18n/ProfileLanguageSync";
+import ThemeSync from "./styles/ThemeSync";
 import "./styles/app.scss";
 
 const root = document.getElementById("root");
@@ -18,6 +19,7 @@ render(
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
         <ProfileLanguageSync />
+        <ThemeSync />
         <App />
       </I18nProvider>
     </QueryClientProvider>

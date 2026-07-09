@@ -125,6 +125,22 @@ export const messages = {
     ru: "Найти по названию",
     en: "Find by title",
   },
+  clearSearch: {
+    ru: "Очистить поиск",
+    en: "Clear search",
+  },
+  bookActions: {
+    ru: "Действия с книгой",
+    en: "Book actions",
+  },
+  viewList: {
+    ru: "Список",
+    en: "List",
+  },
+  viewGrid: {
+    ru: "Сетка",
+    en: "Grid",
+  },
   noOptions: {
     ru: "Нет вариантов",
     en: "No options",
@@ -156,6 +172,10 @@ export const messages = {
   sort: {
     ru: "Сортировка",
     en: "Sort",
+  },
+  relevanceSort: {
+    ru: "Релевантные",
+    en: "Relevant",
   },
   recentlyAdded: {
     ru: "Недавно добавленные",
@@ -305,6 +325,14 @@ export const messages = {
     ru: "Не удалось извлечь обложку",
     en: "Cover could not be extracted",
   },
+  restoreCover: {
+    ru: "Извлечь обложку из файла",
+    en: "Extract cover from file",
+  },
+  coverExtracting: {
+    ru: "Извлечение обложки…",
+    en: "Extracting cover…",
+  },
   extractTitle: {
     ru: "Извлечь название",
     en: "Extract title",
@@ -332,6 +360,58 @@ export const messages = {
   storage: {
     ru: "Хранилище",
     en: "Storage",
+  },
+  data: {
+    ru: "Данные",
+    en: "Data",
+  },
+  resetAllProgress: {
+    ru: "Сбросить прогресс",
+    en: "Reset progress",
+  },
+  resetAllProgressDescription: {
+    ru: "Сбросить прогресс чтения всех книг до нуля. Сами книги не удаляются.",
+    en: "Reset reading progress for all books to zero. The books themselves are not removed.",
+  },
+  resetAllProgressConfirm: {
+    ru: "Сбросить прогресс чтения всех книг? Это действие нельзя отменить.",
+    en: "Reset reading progress for all books? This cannot be undone.",
+  },
+  resetAllProgressDone: {
+    ru: "Прогресс сброшен",
+    en: "Progress reset",
+  },
+  appearance: {
+    ru: "Оформление",
+    en: "Appearance",
+  },
+  theme: {
+    ru: "Тема",
+    en: "Theme",
+  },
+  themeLightClay: {
+    ru: "Глина",
+    en: "Clay",
+  },
+  themeLightSlate: {
+    ru: "Сланец",
+    en: "Slate",
+  },
+  themeLightSage: {
+    ru: "Шалфей",
+    en: "Sage",
+  },
+  themeDarkInk: {
+    ru: "Чернила",
+    en: "Ink",
+  },
+  themeDarkGreen: {
+    ru: "Малахит",
+    en: "Green",
+  },
+  themeDarkGraphite: {
+    ru: "Графит",
+    en: "Graphite",
   },
   changePassword: {
     ru: "Смена пароля",

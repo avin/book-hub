@@ -11,13 +11,14 @@ export type LibraryListState = {
 
 const defaultLibraryListState: LibraryListState = {
   search: "",
-  sort: "created_at_desc",
+  sort: "relevance",
   favoriteFilter: "all",
   tags: [],
 };
 
 const listQueryParamNames = ["q", "tag", "sort", "favorite"] as const;
 const sortValues = new Set<BookSort>([
+  "relevance",
   "created_at_desc",
   "title_asc",
   "title_desc",

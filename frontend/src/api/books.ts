@@ -485,3 +485,33 @@ export async function resetReadingProgress(bookId: string) {
     throw error;
   }
 }
+
+export async function resetAllReadingProgress() {
+  const csrfToken = await getCsrfToken();
+  const { error } = await apiClient.DELETE("/v1/me/progress", {
+    params: {
+      header: {
+        "X-CSRF-Token": csrfToken,
+      },
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export function createResetAllReadingProgressMutation() {
+  const queryClient = useQueryClient();
+
+  return createMutation(() => ({
+    mutationFn: resetAllReadingProgress,
+    onSuccess: () => {
+      // Every book's progress is now 0. Drop the books list (so progress bars
+      // and relevance ordering re-fetch server-side) and invalidate any cached
+      // single-book progress entries.
+      queryClient.invalidateQueries({ queryKey: booksQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["book-progress"] });
+    },
+  }));
+}

@@ -44,6 +44,7 @@ type Store interface {
 	GetProgress(ctx context.Context, userID, bookID uuid.UUID) (domain.ReadingProgress, error)
 	PutProgress(ctx context.Context, userID, bookID uuid.UUID, progress float64) (domain.ReadingProgress, error)
 	DeleteProgress(ctx context.Context, userID, bookID uuid.UUID) error
+	DeleteAllProgress(ctx context.Context, userID uuid.UUID) error
 }
 
 type BookPatch struct {

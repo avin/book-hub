@@ -294,6 +294,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Reset reading progress for all books of the current user
+         * @description Idempotent. Atomically deletes every reading progress row owned by the user.
+         */
+        delete: operations["deleteAllReadingProgress"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -401,10 +421,10 @@ export interface components {
             q?: string;
         };
         /**
-         * @default created_at_desc
+         * @default relevance
          * @enum {string}
          */
-        BookSort: "created_at_desc" | "created_at_asc" | "title_asc" | "title_desc" | "updated_at_desc" | "updated_at_asc" | "progress_desc" | "progress_asc";
+        BookSort: "relevance" | "created_at_desc" | "created_at_asc" | "title_asc" | "title_desc" | "updated_at_desc" | "updated_at_asc" | "progress_desc" | "progress_asc";
         BookListResponse: {
             items: components["schemas"]["Book"][];
             /** Format: int64 */
@@ -1172,6 +1192,30 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAllReadingProgress: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description CSRF token from `GET /v1/auth/csrf`. */
+                "X-CSRF-Token": components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All reading progress reset. */
+            204: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getHealth: {

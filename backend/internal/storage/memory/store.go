@@ -355,7 +355,7 @@ func (s *Store) QueryBooks(_ context.Context, userID uuid.UUID, query domain.Boo
 		}
 		items = append(items, book)
 	}
-	sortBooks(items, query.Sort)
+	sortBooks(items, query.Sort, s.progress)
 	total := int64(len(items))
 	end := min(query.Offset+query.Limit, len(items))
 	if query.Offset > len(items) {
@@ -515,6 +515,18 @@ func (s *Store) DeleteProgress(_ context.Context, userID, bookID uuid.UUID) erro
 	return nil
 }
 
+func (s *Store) DeleteAllProgress(_ context.Context, userID uuid.UUID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, record := range s.books {
+		if record.UserID != userID {
+			continue
+		}
+		delete(s.progress, id)
+	}
+	return nil
+}
+
 func (s *Store) getBookLocked(userID, bookID uuid.UUID) (domain.Book, error) {
 	record, ok := s.books[bookID]
 	if !ok || record.UserID != userID {
@@ -569,11 +581,21 @@ func matchesQuery(book domain.Book, query domain.BookQuery) bool {
 	return true
 }
 
-func sortBooks(items []domain.Book, sortName string) {
+func sortBooks(items []domain.Book, sortName string, progress map[uuid.UUID]domain.ReadingProgress) {
+	// relevance: most recent of created_at and progress updated_at, descending.
+	relevanceOf := func(book domain.Book) time.Time {
+		if p, ok := progress[book.ID]; ok && p.UpdatedAt != nil && p.UpdatedAt.After(book.CreatedAt) {
+			return *p.UpdatedAt
+		}
+		return book.CreatedAt
+	}
+
 	sort.SliceStable(items, func(i, j int) bool {
 		a := items[i]
 		b := items[j]
 		switch sortName {
+		case "relevance":
+			return relevanceOf(a).After(relevanceOf(b))
 		case "created_at_asc":
 			return a.CreatedAt.Before(b.CreatedAt)
 		case "title_asc":
@@ -589,7 +611,7 @@ func sortBooks(items []domain.Book, sortName string) {
 		case "progress_desc":
 			return a.ProgressPercent > b.ProgressPercent
 		default:
-			return a.CreatedAt.After(b.CreatedAt)
+			return relevanceOf(a).After(relevanceOf(b))
 		}
 	})
 }

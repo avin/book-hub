@@ -9,13 +9,11 @@ import styles from "./LibraryFiltersDropdown.module.scss";
 
 const sortOptions: {
   value: BookSort;
-  labelKey: "recentlyAdded" | "titleAZ" | "titleZA" | "progressHigh" | "progressLow";
+  labelKey: "relevanceSort" | "titleAZ" | "titleZA";
 }[] = [
-  { value: "created_at_desc", labelKey: "recentlyAdded" },
+  { value: "relevance", labelKey: "relevanceSort" },
   { value: "title_asc", labelKey: "titleAZ" },
   { value: "title_desc", labelKey: "titleZA" },
-  { value: "progress_desc", labelKey: "progressHigh" },
-  { value: "progress_asc", labelKey: "progressLow" },
 ];
 
 function FavoriteIcon(props: { filled?: boolean }) {

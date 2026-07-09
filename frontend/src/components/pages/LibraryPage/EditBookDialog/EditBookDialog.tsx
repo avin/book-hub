@@ -1,12 +1,13 @@
 import { useQueryClient } from "@tanstack/solid-query";
 import { createMemo, createSignal, onCleanup, Show } from "solid-js";
-import { ImagePlus, X } from "lucide-solid";
+import { ImagePlus, RefreshCw, X } from "lucide-solid";
 import {
   booksQueryKey,
   type Book,
   createUpdateBookMutation,
   deleteBookCover,
   getBookCoverUrl,
+  getBookFileUrl,
   uploadBookCover,
 } from "@/api/books";
 import Button from "@/components/common/Button/Button";
@@ -15,6 +16,15 @@ import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
 import TextInput from "@/components/common/TextInput/TextInput";
 import { useI18n } from "@/i18n/I18nProvider";
 import styles from "./EditBookDialog.module.scss";
+
+// Lazy-loaded cover extraction (same logic as the upload screen). Bundling it
+// eagerly would pull pdf.js into the edit dialog chunk.
+let coverExtractionModule: Promise<typeof import("@/components/pages/UploadPage/coverExtraction")> | undefined;
+
+function loadCoverExtraction() {
+  coverExtractionModule ??= import("@/components/pages/UploadPage/coverExtraction");
+  return coverExtractionModule;
+}
 
 function errorMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
@@ -53,6 +63,7 @@ function EditBookDialog(props: {
   const [tags, setTags] = createSignal<string[]>(props.book.tags);
   const [error, setError] = createSignal("");
   const [pendingCover, setPendingCover] = createSignal<PendingCover | undefined>(undefined);
+  const [extracting, setExtracting] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const updateBookMutation = createUpdateBookMutation();
   let coverInputEl: HTMLInputElement | undefined;
@@ -69,7 +80,46 @@ function EditBookDialog(props: {
     return pending?.kind === "upload" ? pending.previewUrl : getBookCoverUrl(props.book.id);
   };
 
-  const busy = () => saving() || updateBookMutation.isPending;
+  const busy = () => saving() || updateBookMutation.isPending || extracting();
+
+  // Re-download the book file and re-extract a cover from it, mirroring the
+  // upload screen. Used to recover a cover the user removed by accident.
+  const handleRestoreCover = async () => {
+    if (busy()) {
+      return;
+    }
+
+    setError("");
+    setExtracting(true);
+    try {
+      const response = await fetch(getBookFileUrl(props.book.id));
+      if (!response.ok) {
+        throw new Error("Book file could not be downloaded");
+      }
+      const blob = await response.blob();
+      const fileName = `${props.book.title}.${props.book.format}`;
+      const file = new File([blob], fileName, { type: blob.type || "application/octet-stream" });
+
+      const { prepareBookFile } = await loadCoverExtraction();
+      const prepared = await prepareBookFile(file);
+
+      if (!prepared.coverFile) {
+        setError(t("coverCouldNotBeExtracted"));
+        return;
+      }
+
+      revokePending(pendingCover());
+      setPendingCover({
+        kind: "upload",
+        file: prepared.coverFile,
+        previewUrl: URL.createObjectURL(prepared.coverFile),
+      });
+    } catch {
+      setError(t("coverCouldNotBeExtracted"));
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const openCoverPicker = () => {
     if (!busy()) {
@@ -237,6 +287,21 @@ function EditBookDialog(props: {
                 event.currentTarget.value = "";
               }}
             />
+
+            <Show when={!coverVisible()}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                class={styles.restoreCover}
+                iconStart={<RefreshCw />}
+                loading={extracting()}
+                disabled={busy()}
+                onClick={() => void handleRestoreCover()}
+              >
+                {t("restoreCover")}
+              </Button>
+            </Show>
           </div>
 
           <div class={styles.fields}>

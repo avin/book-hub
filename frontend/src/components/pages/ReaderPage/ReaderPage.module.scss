@@ -32,6 +32,10 @@
 
 .favoriteActive {
   color: $color-danger-600 !important;
+
+  :global(svg) {
+    fill: currentColor;
+  }
 }
 
 .state {

@@ -1,5 +1,5 @@
 import { FileText } from "lucide-solid";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, Show, type JSX } from "solid-js";
 import { type Book, getBookCoverUrl } from "@/api/books";
 import styles from "./BookCover.module.scss";
 
@@ -9,6 +9,8 @@ function BookCover(props: {
   // Cache-buster: bumped whenever the cover actually changes (book.updated_at).
   // Prevents the browser/img cache from serving a stale cover after upload/delete.
   version?: string;
+  // Optional override for the no-cover fallback. Defaults to a file icon + format.
+  fallback?: JSX.Element;
 }) {
   const [failed, setFailed] = createSignal(false);
 
@@ -28,10 +30,12 @@ function BookCover(props: {
       <Show
         when={!failed()}
         fallback={
-          <div class={styles.coverFallback}>
-            <FileText />
-            <span>{props.format.toUpperCase()}</span>
-          </div>
+          props.fallback ?? (
+            <div class={styles.coverFallback}>
+              <FileText />
+              <span>{props.format.toUpperCase()}</span>
+            </div>
+          )
         }
       >
         <img

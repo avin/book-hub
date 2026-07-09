@@ -1,11 +1,16 @@
-import { createMemo, createSignal, Show } from "solid-js";
-import { Database, KeyRound } from "lucide-solid";
+import { createMemo, createSignal, onMount, Show } from "solid-js";
+import { Database, KeyRound, Palette, RotateCcw } from "lucide-solid";
+import { createResetAllReadingProgressMutation } from "@/api/books";
 import { createChangePasswordMutation, createCurrentUserQuery } from "@/api/user";
 import Button from "@/components/common/Button/Button";
 import InputContainer from "@/components/common/InputContainer/InputContainer";
 import TextInput from "@/components/common/TextInput/TextInput";
+import ThemeSelect from "@/components/common/ThemeSelect/ThemeSelect";
 import AppLayout from "@/components/layouts/AppLayout/AppLayout";
 import { useI18n } from "@/i18n/I18nProvider";
+import { getThemePreference } from "@/storage/browserPreferences";
+import { changeTheme } from "@/styles/ThemeSync";
+import { defaultThemeId, type ThemeId } from "@/styles/themes";
 import styles from "./SettingsPage.module.scss";
 
 function formatBytes(value: number) {
@@ -41,12 +46,38 @@ function SettingsPage() {
   const { t } = useI18n();
   const currentUserQuery = createCurrentUserQuery();
   const changePasswordMutation = createChangePasswordMutation();
+  const resetAllProgressMutation = createResetAllReadingProgressMutation();
   const [currentPassword, setCurrentPassword] = createSignal("");
   const [newPassword, setNewPassword] = createSignal("");
   const [repeatPassword, setRepeatPassword] = createSignal("");
   const [passwordError, setPasswordError] = createSignal("");
   const [passwordSaved, setPasswordSaved] = createSignal(false);
+  const [progressResetError, setProgressResetError] = createSignal("");
+  const [progressResetDone, setProgressResetDone] = createSignal(false);
+  const [activeTheme, setActiveTheme] = createSignal<ThemeId>(defaultThemeId());
   const user = createMemo(() => currentUserQuery.data);
+
+  onMount(() => {
+    setActiveTheme(getThemePreference() ?? defaultThemeId());
+  });
+
+  const handleChangeTheme = (themeId: ThemeId) => {
+    setActiveTheme(themeId);
+    changeTheme(themeId);
+  };
+
+  const handleResetAllProgress = () => {
+    if (!window.confirm(t("resetAllProgressConfirm"))) {
+      return;
+    }
+
+    setProgressResetError("");
+    setProgressResetDone(false);
+    resetAllProgressMutation.mutate(undefined, {
+      onSuccess: () => setProgressResetDone(true),
+      onError: () => setProgressResetError(t("requestFailedTryAgain")),
+    });
+  };
   const usedPercent = createMemo(() => {
     const currentUser = user();
     if (!currentUser || currentUser.quota_bytes === 0) {
@@ -170,6 +201,44 @@ function SettingsPage() {
             </Show>
           </section>
         </div>
+
+        <section class={styles.panel}>
+          <header class={styles.panelHeader}>
+            <Palette />
+            <h2>{t("appearance")}</h2>
+          </header>
+
+          <ThemeSelect value={activeTheme()} onChange={handleChangeTheme} />
+        </section>
+
+        <section class={styles.panel}>
+          <header class={styles.panelHeader}>
+            <RotateCcw />
+            <h2>{t("data")}</h2>
+          </header>
+
+          <div class={styles.dangerRow}>
+            <div class={styles.dangerText}>
+              <p class={styles.dangerTitle}>{t("resetAllProgress")}</p>
+              <p class={styles.dangerHint}>{t("resetAllProgressDescription")}</p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              destructive
+              loading={resetAllProgressMutation.isPending}
+              onClick={handleResetAllProgress}
+            >
+              {t("resetAllProgress")}
+            </Button>
+          </div>
+          <Show when={progressResetError()}>
+            <p class={styles.error}>{progressResetError()}</p>
+          </Show>
+          <Show when={progressResetDone()}>
+            <p class={styles.success}>{t("resetAllProgressDone")}</p>
+          </Show>
+        </section>
       </section>
     </AppLayout>
   );

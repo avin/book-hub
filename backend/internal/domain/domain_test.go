@@ -47,7 +47,7 @@ func TestNormalizeBookQueryDefaultsAndRejectsInvalidValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if query.Limit != 50 || query.Sort != "created_at_desc" {
+	if query.Limit != 50 || query.Sort != "relevance" {
 		t.Fatalf("unexpected defaults: %#v", query)
 	}
 	if _, err := domain.NormalizeBookQuery(domain.BookQuery{Limit: 201}); !errors.Is(err, domain.ErrValidation) {

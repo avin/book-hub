@@ -1,13 +1,20 @@
 import type { Fb2ReaderSettings } from "@/components/common/Fb2Reader/fb2Types";
 import { type Language, languages } from "@/i18n/messages";
+import { type ThemeId, isThemeId } from "@/styles/themes";
 
 const preferencesStorageKey = "book-hub-preferences";
 const legacyLanguageStorageKey = "book-hub-language";
 const legacyRecentTagsStorageKey = "book-hub-tags-recent";
 
+export type LibraryView = "list" | "grid";
+
+const libraryViewValues = new Set<LibraryView>(["list", "grid"]);
+
 type BrowserPreferences = {
   version: 1;
   language?: Language;
+  theme?: ThemeId;
+  libraryView?: LibraryView;
   recentTags?: string[];
   readers?: {
     fb2?: {
@@ -25,6 +32,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isLanguage(value: unknown): value is Language {
   return typeof value === "string" && languages.includes(value as Language);
+}
+
+function isLibraryView(value: unknown): value is LibraryView {
+  return typeof value === "string" && libraryViewValues.has(value as LibraryView);
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -175,6 +186,26 @@ export function getLanguagePreference() {
 
 export function setLanguagePreference(language: Language) {
   updatePreferences((preferences) => ({ ...preferences, language }));
+}
+
+export function getThemePreference(): ThemeId | undefined {
+  const theme = readPreferences().theme;
+
+  return isThemeId(theme) ? theme : undefined;
+}
+
+export function setThemePreference(theme: ThemeId) {
+  updatePreferences((preferences) => ({ ...preferences, theme }));
+}
+
+export function getLibraryViewPreference(): LibraryView | undefined {
+  const view = readPreferences().libraryView;
+
+  return isLibraryView(view) ? view : undefined;
+}
+
+export function setLibraryViewPreference(view: LibraryView) {
+  updatePreferences((preferences) => ({ ...preferences, libraryView: view }));
 }
 
 export function getRecentTagsPreference() {

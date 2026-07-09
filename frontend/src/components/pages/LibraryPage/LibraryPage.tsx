@@ -1,7 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import { createInfiniteQuery } from "@tanstack/solid-query";
 import { createEffect, createMemo, createSignal, Index, onCleanup, onMount, Show } from "solid-js";
-import { Library, Search, Upload, X } from "lucide-solid";
+import { LayoutGrid, Library, List, Upload, X } from "lucide-solid";
 import {
   type Book,
   type BookListResponse,
@@ -20,7 +20,9 @@ import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
 import TextInput from "@/components/common/TextInput/TextInput";
 import AppLayout from "@/components/layouts/AppLayout/AppLayout";
 import { useI18n } from "@/i18n/I18nProvider";
+import { type LibraryView, getLibraryViewPreference, setLibraryViewPreference } from "@/storage/browserPreferences";
 import BookCard from "./BookCard/BookCard";
+import BookCardGrid from "./BookCardGrid/BookCardGrid";
 import EditBookDialog from "./EditBookDialog/EditBookDialog";
 import LibraryFiltersDropdown from "./LibraryFiltersDropdown/LibraryFiltersDropdown";
 import {
@@ -61,6 +63,7 @@ function LibraryPage() {
   const [sort, setSort] = createSignal<BookSort>(initialListState.sort);
   const [favoriteFilter, setFavoriteFilter] = createSignal<LibraryFavoriteFilter>(initialListState.favoriteFilter);
   const [selectedTags, setSelectedTags] = createSignal<string[]>(initialListState.tags);
+  const [view, setView] = createSignal<LibraryView>(getLibraryViewPreference() ?? "list");
   const [editingBook, setEditingBook] = createSignal<Book>();
   const updateBookMutation = createUpdateBookMutation();
   const deleteBookMutation = createDeleteBookMutation();
@@ -278,14 +281,30 @@ function LibraryPage() {
         </header>
 
         <section class={styles.toolbar}>
-          <InputContainer label={t("searchBooks")} endContent={<Search />}>
-            <TextInput
-              value={search()}
-              placeholder={t("findByTitle")}
-              onInput={(event) => {
-                setSearch(event.currentTarget.value);
-              }}
-            />
+          <InputContainer label={t("searchBooks")}>
+            <div class={styles.searchField} classList={{ [styles.searchFieldActive]: search() !== "" }}>
+              <TextInput
+                value={search()}
+                placeholder={t("findByTitle")}
+                onInput={(event) => {
+                  setSearch(event.currentTarget.value);
+                }}
+              />
+              <Show when={search() !== ""}>
+                <button
+                  type="button"
+                  class={styles.searchClear}
+                  aria-label={t("clearSearch")}
+                  title={t("clearSearch")}
+                  onClick={() => {
+                    setSearch("");
+                    setDebouncedSearch("");
+                  }}
+                >
+                  <X />
+                </button>
+              </Show>
+            </div>
           </InputContainer>
 
           <div class={styles.secondaryFilters}>
@@ -313,6 +332,37 @@ function LibraryPage() {
                   }}
                 />
               </InputContainer>
+
+              <div class={styles.viewToggle} role="group" aria-label={t("bookActions")}>
+                <Button
+                  type="button"
+                  variant={view() === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  iconOnly
+                  aria-label={t("viewList")}
+                  title={t("viewList")}
+                  aria-pressed={view() === "list"}
+                  onClick={() => {
+                    setView("list");
+                    setLibraryViewPreference("list");
+                  }}
+                  iconStart={<List />}
+                />
+                <Button
+                  type="button"
+                  variant={view() === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  iconOnly
+                  aria-label={t("viewGrid")}
+                  title={t("viewGrid")}
+                  aria-pressed={view() === "grid"}
+                  onClick={() => {
+                    setView("grid");
+                    setLibraryViewPreference("grid");
+                  }}
+                  iconStart={<LayoutGrid />}
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -334,15 +384,27 @@ function LibraryPage() {
         </Show>
 
         <Show when={books().length > 0}>
-          <div class={styles.bookList}>
+          <div class={styles.bookList} classList={{ [styles.bookListGrid]: view() === "grid" }}>
             <Index each={books()}>
               {(book) => (
-                <BookCard
-                  book={book}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  onEdit={setEditingBook}
-                  onDelete={handleDelete}
-                />
+                <Show
+                  when={view() === "grid"}
+                  fallback={
+                    <BookCard
+                      book={book}
+                      onFavoriteToggle={handleFavoriteToggle}
+                      onEdit={setEditingBook}
+                      onDelete={handleDelete}
+                    />
+                  }
+                >
+                  <BookCardGrid
+                    book={book}
+                    onFavoriteToggle={handleFavoriteToggle}
+                    onEdit={setEditingBook}
+                    onDelete={handleDelete}
+                  />
+                </Show>
               )}
             </Index>
           </div>

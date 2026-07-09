@@ -182,10 +182,10 @@ func NormalizeBookQuery(q BookQuery) (BookQuery, error) {
 		return BookQuery{}, ErrValidation
 	}
 	if q.Sort == "" {
-		q.Sort = "created_at_desc"
+		q.Sort = "relevance"
 	}
 	switch q.Sort {
-	case "created_at_desc", "created_at_asc", "title_asc", "title_desc", "updated_at_desc", "updated_at_asc", "progress_desc", "progress_asc":
+	case "relevance", "created_at_desc", "created_at_asc", "title_asc", "title_desc", "updated_at_desc", "updated_at_asc", "progress_desc", "progress_asc":
 	default:
 		return BookQuery{}, ErrValidation
 	}

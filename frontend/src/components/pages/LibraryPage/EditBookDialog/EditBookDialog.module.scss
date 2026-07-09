@@ -203,6 +203,12 @@
   display: none;
 }
 
+.restoreCover {
+  justify-self: stretch;
+  margin-top: 4px;
+  text-align: center;
+}
+
 .error {
   margin: 0;
   color: $color-danger-600;

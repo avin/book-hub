@@ -352,6 +352,7 @@ func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, file domain.Bo
 
 func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.BookQuery) (domain.BookPage, error) {
 	orderBy := map[string]string{
+		"relevance":       "greatest(ub.created_at, coalesce(rp.updated_at, '-infinity'::timestamptz)) desc",
 		"created_at_asc":  "ub.created_at asc",
 		"title_asc":       "lower(ub.title) asc",
 		"title_desc":      "lower(ub.title) desc",
@@ -361,7 +362,7 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		"progress_desc":   "coalesce(rp.progress_percent, 0) desc",
 	}[query.Sort]
 	if orderBy == "" {
-		orderBy = "ub.created_at desc"
+		orderBy = "greatest(ub.created_at, coalesce(rp.updated_at, '-infinity'::timestamptz)) desc"
 	}
 
 	where := `
@@ -393,7 +394,7 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		left join user_book_tags ubt on ubt.user_book_id = ub.id
 		left join tags t on t.id = ubt.tag_id
 		where `+where+`
-		group by ub.id, bf.id, rp.progress_percent
+		group by ub.id, bf.id, rp.progress_percent, rp.updated_at
 		order by `+orderBy+`
 		limit $5 offset $6
 	`, userID, query.Q, query.Favorite, query.Tags, query.Limit, query.Offset)
@@ -601,6 +602,16 @@ func (s *Store) DeleteProgress(ctx context.Context, userID, bookID uuid.UUID) er
 		return err
 	}
 	_, err := s.pool.Exec(ctx, `delete from reading_progress where user_book_id = $1`, bookID)
+	return err
+}
+
+func (s *Store) DeleteAllProgress(ctx context.Context, userID uuid.UUID) error {
+	// One statement: reading_progress rows are scoped to user_books owned by the
+	// user. Atomic, idempotent (no-op if nothing matches).
+	_, err := s.pool.Exec(ctx, `
+		delete from reading_progress
+		where user_book_id in (select id from user_books where user_id = $1)
+	`, userID)
 	return err
 }
 

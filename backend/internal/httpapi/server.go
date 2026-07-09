@@ -71,6 +71,7 @@ func (s *Server) buildHandler() http.Handler {
 	mux.HandleFunc("PUT /v1/me/password", s.handleChangePassword)
 	mux.HandleFunc("GET /v1/me/settings", s.handleGetSettings)
 	mux.HandleFunc("PUT /v1/me/settings", s.handlePutSettings)
+	mux.HandleFunc("DELETE /v1/me/progress", s.handleDeleteAllProgress)
 	mux.HandleFunc("POST /v1/books/query", s.handleQueryBooks)
 	mux.HandleFunc("GET /v1/books/tags", s.handleListBookTags)
 	mux.HandleFunc("POST /v1/books", s.handleUploadBook)
@@ -660,6 +661,23 @@ func (s *Server) handleDeleteProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.DeleteProgress(r.Context(), userID, bookID); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleDeleteAllProgress(w http.ResponseWriter, r *http.Request) {
+	if err := s.requireCSRF(r); err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	userID, err := s.requireUserID(r)
+	if err != nil {
+		s.writeError(w, r, err)
+		return
+	}
+	if err := s.store.DeleteAllProgress(r.Context(), userID); err != nil {
 		s.writeError(w, r, err)
 		return
 	}
