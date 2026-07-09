@@ -1,0 +1,5 @@
+dist
+storybook-static
+public/pdfjs-assets
+src/api/generated
+node_modules
