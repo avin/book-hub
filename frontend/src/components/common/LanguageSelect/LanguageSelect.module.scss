@@ -12,7 +12,7 @@
   gap: 8px;
   border: 1px solid $color-border;
   border-radius: $radius-sm;
-  background: rgba(255, 255, 255, 0.84);
+  background: color-mix(in srgb, $color-paper-0 84%, transparent);
   color: $color-ink-900;
   font-weight: 650;
   cursor: pointer;

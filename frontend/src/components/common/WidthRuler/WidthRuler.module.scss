@@ -9,8 +9,16 @@
   border: 1px solid $color-paper-300;
   border-radius: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(241, 245, 249, 0.88)),
-    repeating-linear-gradient(90deg, transparent 0 11px, rgba(15, 23, 42, 0.06) 11px 12px);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, $color-paper-0 90%, transparent),
+      color-mix(in srgb, $color-paper-200 88%, transparent)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 11px,
+      color-mix(in srgb, $color-ink-950 6%, transparent) 11px 12px
+    );
   cursor: ew-resize;
   touch-action: none;
   user-select: none;
@@ -22,7 +30,7 @@
   bottom: 0;
   left: 50%;
   width: 2px;
-  background: rgba($color-accent-600, 0.4);
+  background: color-mix(in srgb, $color-accent-600 40%, transparent);
   content: "";
 }
 
@@ -31,7 +39,7 @@
   bottom: 0;
   width: 1px;
   height: 6px;
-  background: rgba(15, 23, 42, 0.32);
+  background: color-mix(in srgb, $color-ink-950 32%, transparent);
 }
 
 .middleTick {
@@ -40,7 +48,7 @@
 
 .majorTick {
   height: 16px;
-  background: rgba(15, 23, 42, 0.5);
+  background: color-mix(in srgb, $color-ink-950 50%, transparent);
 }
 
 .centerTick {
@@ -58,6 +66,12 @@
   color: $color-accent-500;
   transform: translateX(-50%);
   pointer-events: none;
+
+  polygon {
+    // Marker fill: a translucent accent so the handle reads on both light and
+    // dark themes, with the full-strength accent reserved for the outline.
+    fill: color-mix(in srgb, $color-accent-500 40%, transparent);
+  }
 }
 
 @media (max-width: 720px) {
