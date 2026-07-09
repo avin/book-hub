@@ -1,6 +1,6 @@
-import type { BookSort } from "@/api/books";
+import type { BookSort } from '@/api/books';
 
-export type LibraryFavoriteFilter = "all" | "favorite" | "regular";
+export type LibraryFavoriteFilter = 'all' | 'favorite' | 'regular';
 
 export type LibraryListState = {
   search: string;
@@ -10,20 +10,15 @@ export type LibraryListState = {
 };
 
 const defaultLibraryListState: LibraryListState = {
-  search: "",
-  sort: "relevance",
-  favoriteFilter: "all",
+  search: '',
+  sort: 'relevance',
+  favoriteFilter: 'all',
   tags: [],
 };
 
-const listQueryParamNames = ["q", "tag", "sort", "favorite"] as const;
-const sortValues = new Set<BookSort>([
-  "relevance",
-  "created_at_desc",
-  "title_asc",
-  "title_desc",
-]);
-const favoriteFilterValues = new Set<LibraryFavoriteFilter>(["all", "favorite", "regular"]);
+const listQueryParamNames = ['q', 'tag', 'sort', 'favorite'] as const;
+const sortValues = new Set<BookSort>(['relevance', 'created_at_desc', 'title_asc', 'title_desc']);
+const favoriteFilterValues = new Set<LibraryFavoriteFilter>(['all', 'favorite', 'regular']);
 
 let lastLibraryListState: LibraryListState = cloneLibraryListState(defaultLibraryListState);
 
@@ -86,15 +81,18 @@ export function readLibraryListStateFromSearch(search: string) {
   }
 
   return {
-    search: params.get("q") ?? defaultLibraryListState.search,
-    sort: parseBookSort(params.get("sort")),
-    favoriteFilter: parseFavoriteFilter(params.get("favorite")),
-    tags: uniqueNonEmptyValues(params.getAll("tag")),
+    search: params.get('q') ?? defaultLibraryListState.search,
+    sort: parseBookSort(params.get('sort')),
+    favoriteFilter: parseFavoriteFilter(params.get('favorite')),
+    tags: uniqueNonEmptyValues(params.getAll('tag')),
   } satisfies LibraryListState;
 }
 
 export function readInitialLibraryListState() {
-  return readLibraryListStateFromSearch(window.location.search) ?? cloneLibraryListState(lastLibraryListState);
+  return (
+    readLibraryListStateFromSearch(window.location.search) ??
+    cloneLibraryListState(lastLibraryListState)
+  );
 }
 
 export function rememberLibraryListState(state: LibraryListState) {
@@ -103,7 +101,7 @@ export function rememberLibraryListState(state: LibraryListState) {
 
 export function buildLibraryListStateUrl(
   state: LibraryListState,
-  location: Pick<Location, "pathname" | "search" | "hash"> = window.location,
+  location: Pick<Location, 'pathname' | 'search' | 'hash'> = window.location,
 ) {
   const params = new URLSearchParams(location.search);
 
@@ -114,18 +112,18 @@ export function buildLibraryListStateUrl(
   const search = state.search.trim();
 
   if (search) {
-    params.set("q", search);
+    params.set('q', search);
   }
   if (state.sort !== defaultLibraryListState.sort) {
-    params.set("sort", state.sort);
+    params.set('sort', state.sort);
   }
   if (state.favoriteFilter !== defaultLibraryListState.favoriteFilter) {
-    params.set("favorite", state.favoriteFilter);
+    params.set('favorite', state.favoriteFilter);
   }
   for (const tag of uniqueNonEmptyValues(state.tags)) {
-    params.append("tag", tag);
+    params.append('tag', tag);
   }
 
   const nextSearch = params.toString();
-  return `${location.pathname}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`;
+  return `${location.pathname}${nextSearch ? `?${nextSearch}` : ''}${location.hash}`;
 }

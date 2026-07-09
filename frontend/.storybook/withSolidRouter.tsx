@@ -1,5 +1,5 @@
-import { MemoryRouter, Route } from "@solidjs/router";
-import type { Decorator } from "storybook-solidjs-vite";
+import { MemoryRouter, Route } from '@solidjs/router';
+import type { Decorator } from 'storybook-solidjs-vite';
 
 export const withSolidRouter: Decorator = (Story) => (
   <MemoryRouter>

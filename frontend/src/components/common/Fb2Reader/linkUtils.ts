@@ -7,5 +7,5 @@ export function isExternalHref(href: string | undefined) {
 }
 
 export function normalizeInternalHref(href: string | undefined) {
-  return href?.replace(/^#/, "");
+  return href?.replace(/^#/, '');
 }

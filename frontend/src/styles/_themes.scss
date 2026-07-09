@@ -12,28 +12,28 @@
 // the data-theme attribute is set (e.g. during HMR, or if the inline FOUC script
 // fails). The inline script in index.html always sets data-theme before first paint.
 :root,
-[data-theme="light-clay"] {
+[data-theme='light-clay'] {
   color-scheme: light;
 
   // ── Surfaces ───────────────────────────────────────────────
-  --surface-page: #fafaf9;        // app background
-  --surface-raised: #ffffff;      // cards, inputs
-  --surface-overlay: #ffffff;     // dropdowns, modals
-  --surface-sunken: #f5f5f4;      // inset zones, code
-  --surface-hover: #f5f5f4;       // interactive hover bg
-  --surface-inset: #f5f5f4;       // recessed inputs
+  --surface-page: #fafaf9; // app background
+  --surface-raised: #ffffff; // cards, inputs
+  --surface-overlay: #ffffff; // dropdowns, modals
+  --surface-sunken: #f5f5f4; // inset zones, code
+  --surface-hover: #f5f5f4; // interactive hover bg
+  --surface-inset: #f5f5f4; // recessed inputs
   --surface-accent-soft: #fff7ed; // accent-tinted panel
 
   // ── Text ───────────────────────────────────────────────────
-  --text-primary: #1c1917;       // headings, body
-  --text-secondary: #44403c;     // labels, supporting text
-  --text-muted: #78716c;         // captions, placeholders
-  --text-disabled: #a8a29e;      // disabled controls
-  --text-on-accent: #ffffff;     // text on accent fills
-  --text-on-danger: #ffffff;     // text on destructive fills
-  --text-on-scrim: #ffffff;      // icons/text on dark overlays
-  --text-on-raised: #1c1917;     // text on raised surfaces (= primary here)
-  --text-link: #9a3412;          // links, accent-reading text
+  --text-primary: #1c1917; // headings, body
+  --text-secondary: #44403c; // labels, supporting text
+  --text-muted: #78716c; // captions, placeholders
+  --text-disabled: #a8a29e; // disabled controls
+  --text-on-accent: #ffffff; // text on accent fills
+  --text-on-danger: #ffffff; // text on destructive fills
+  --text-on-scrim: #ffffff; // icons/text on dark overlays
+  --text-on-raised: #1c1917; // text on raised surfaces (= primary here)
+  --text-link: #9a3412; // links, accent-reading text
 
   // ── Accent ─────────────────────────────────────────────────
   --accent: #c2410c;
@@ -68,17 +68,17 @@
   --warning-soft-text: #b45309;
 
   // ── Shadow / scrim ─────────────────────────────────────────
-  --shadow-color: 28 25 23;       // rgb in space-separated form for rgba()
+  --shadow-color: 28 25 23; // rgb in space-separated form for rgba()
   --shadow-color-strong: 28 25 23;
   --scrim: rgba(28, 25, 23, 0.5);
 
   // ── Misc ───────────────────────────────────────────────────
   --focus-ring: #c2410c;
-  --favorite: #dc2626;            // filled heart color
+  --favorite: #dc2626; // filled heart color
 }
 
 // ── Light: Cool Slate ────────────────────────────────────────
-[data-theme="light-slate"] {
+[data-theme='light-slate'] {
   color-scheme: light;
 
   --surface-page: #f8fafc;
@@ -135,7 +135,7 @@
 }
 
 // ── Light: Sage Green ────────────────────────────────────────
-[data-theme="light-sage"] {
+[data-theme='light-sage'] {
   color-scheme: light;
 
   --surface-page: #f7faf7;
@@ -192,7 +192,7 @@
 }
 
 // ── Dark: Warm Ink ───────────────────────────────────────────
-[data-theme="dark-ink"] {
+[data-theme='dark-ink'] {
   color-scheme: dark;
 
   --surface-page: #1c1917;
@@ -249,7 +249,7 @@
 }
 
 // ── Dark: Charcoal Green ─────────────────────────────────────
-[data-theme="dark-green"] {
+[data-theme='dark-green'] {
   color-scheme: dark;
 
   --surface-page: #131a16;
@@ -306,7 +306,7 @@
 }
 
 // ── Dark: Neutral Graphite ───────────────────────────────────
-[data-theme="dark-graphite"] {
+[data-theme='dark-graphite'] {
   color-scheme: dark;
 
   --surface-page: #161616;

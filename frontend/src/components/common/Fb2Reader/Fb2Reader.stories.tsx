@@ -1,9 +1,9 @@
-import Fb2Reader from "./Fb2Reader";
+import Fb2Reader from './Fb2Reader';
 
 export default { component: Fb2Reader };
 
 const coverImage =
-  "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iOTAwIiB2aWV3Qm94PSIwIDAgNjQwIDkwMCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSI5MDAiIGZpbGw9IiMyNDUyN2EiLz48cmVjdCB4PSI5MCIgeT0iMTA0IiB3aWR0aD0iNDYwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2YwZGZiNyIvPjx0ZXh0IHg9IjMyMCIgeT0iMTc4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjQ2IiBmb250LWZhbWlseT0iR2VvcmdpYSIgZmlsbD0iIzE0MTcxZiI+RkIyPC90ZXh0Pjx0ZXh0IHg9IjMyMCIgeT0iMzMwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0iR2VvcmdpYSIgZmlsbD0iI2ZmZmZmZiI+Qm9vayBIdWI8L3RleHQ+PHRleHQgeD0iMzIwIiB5PSIzODgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhIiBmaWxsPSIjZGJlYWY0Ij5zYW1wbGUgY292ZXI8L3RleHQ+PC9zdmc+";
+  'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iOTAwIiB2aWV3Qm94PSIwIDAgNjQwIDkwMCI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSI5MDAiIGZpbGw9IiMyNDUyN2EiLz48cmVjdCB4PSI5MCIgeT0iMTA0IiB3aWR0aD0iNDYwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iI2YwZGZiNyIvPjx0ZXh0IHg9IjMyMCIgeT0iMTc4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjQ2IiBmb250LWZhbWlseT0iR2VvcmdpYSIgZmlsbD0iIzE0MTcxZiI+RkIyPC90ZXh0Pjx0ZXh0IHg9IjMyMCIgeT0iMzMwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0iR2VvcmdpYSIgZmlsbD0iI2ZmZmZmZiI+Qm9vayBIdWI8L3RleHQ+PHRleHQgeD0iMzIwIiB5PSIzODgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjIiIGZvbnQtZmFtaWx5PSJHZW9yZ2lhIiBmaWxsPSIjZGJlYWY0Ij5zYW1wbGUgY292ZXI8L3RleHQ+PC9zdmc+';
 
 const repeatedSections = Array.from(
   { length: 400 },
@@ -13,7 +13,7 @@ const repeatedSections = Array.from(
         <p>Это длинный проверочный абзац номер ${index + 1}: он содержит обычный текст, <strong>полужирный фрагмент</strong>, <emphasis>курсив</emphasis>, <a l:href="https://example.com">внешнюю ссылку</a>, мягкие переносы и достаточно слов, чтобы Pretext мог измерить несколько строк при разных настройках ширины.</p>
         <p>Второй абзац нужен для проверки отступов, межстрочного интервала, первой строки и стабильности виртуализированного списка при быстрой прокрутке документа.</p>
       </section>`,
-).join("");
+).join('');
 
 const sampleFb2 = `<?xml version="1.0" encoding="utf-8"?>
 <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink" xmlns:xlink="http://www.w3.org/1999/xlink">

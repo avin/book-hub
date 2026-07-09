@@ -1,6 +1,6 @@
-import { createContext, createSignal, type JSX, useContext } from "solid-js";
-import { getLanguagePreference, setLanguagePreference } from "@/storage/browserPreferences";
-import { type Language, languages, type MessageKey, messages } from "./messages";
+import { createContext, createSignal, type JSX, useContext } from 'solid-js';
+import { getLanguagePreference, setLanguagePreference } from '@/storage/browserPreferences';
+import { type Language, languages, type MessageKey, messages } from './messages';
 
 export type SetLanguageOptions = {
   saveToProfile?: boolean;
@@ -28,15 +28,13 @@ function detectLanguage(): Language {
   }
 
   const browserLanguage = navigator.languages
-    .map((language) => language.toLowerCase().split("-")[0])
+    .map((language) => language.toLowerCase().split('-')[0])
     .find((language) => languages.includes(language as Language));
 
-  return (browserLanguage as Language | undefined) ?? "en";
+  return (browserLanguage as Language | undefined) ?? 'en';
 }
 
-export function I18nProvider(props: {
-  children: JSX.Element;
-}) {
+export function I18nProvider(props: { children: JSX.Element }) {
   const [language, setLanguageSignal] = createSignal<Language>(detectLanguage());
   const [languageSaveRequest, setLanguageSaveRequest] = createSignal<LanguageSaveRequest>();
   let nextLanguageSaveRequestVersion = 0;
@@ -69,7 +67,7 @@ export function useI18n() {
   const context = useContext(I18nContext);
 
   if (!context) {
-    throw new Error("useI18n must be used inside I18nProvider");
+    throw new Error('useI18n must be used inside I18nProvider');
   }
 
   return context;

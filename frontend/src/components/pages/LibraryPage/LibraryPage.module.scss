@@ -1,5 +1,5 @@
-@use "@/styles/_variables.scss" as *;
-@use "@/styles/_mixins.scss" as *;
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
 
 .library {
   display: grid;
@@ -90,7 +90,9 @@
   color: var(--text-muted);
   cursor: pointer;
   transform: translateY(-50%);
-  transition: color $duration-fast $ease-standard, background $duration-fast $ease-standard;
+  transition:
+    color $duration-fast $ease-standard,
+    background $duration-fast $ease-standard;
 
   :global(svg) {
     width: 16px;

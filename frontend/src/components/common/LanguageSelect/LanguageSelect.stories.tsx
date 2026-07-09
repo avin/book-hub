@@ -1,5 +1,5 @@
-import { I18nProvider } from "@/i18n/I18nProvider";
-import LanguageSelect from "./LanguageSelect";
+import { I18nProvider } from '@/i18n/I18nProvider';
+import LanguageSelect from './LanguageSelect';
 
 export default { component: LanguageSelect };
 

@@ -1,5 +1,5 @@
-import { type JSX, Show } from "solid-js";
-import styles from "./InputContainer.module.scss";
+import { type JSX, Show } from 'solid-js';
+import styles from './InputContainer.module.scss';
 
 function InputContainer(props: {
   children: JSX.Element;
@@ -11,10 +11,13 @@ function InputContainer(props: {
   endContent?: JSX.Element;
 }) {
   return (
-    <div class={styles.container} classList={{
-      [styles.invalid]: Boolean(props.error),
-      [styles.withEndContent]: Boolean(props.endContent),
-    }}>
+    <div
+      class={styles.container}
+      classList={{
+        [styles.invalid]: Boolean(props.error),
+        [styles.withEndContent]: Boolean(props.endContent),
+      }}
+    >
       <div class={styles.label}>
         <span class={styles.labelText}>{props.label}</span>
         <Show when={props.labelEnd}>

@@ -1,4 +1,4 @@
-@use "@/styles/_variables.scss" as *;
+@use '@/styles/_variables.scss' as *;
 
 .themeGrid {
   display: grid;
@@ -42,8 +42,8 @@
   position: relative;
   display: grid;
   grid-template:
-    "surface" 1fr
-    "bar" auto / 1fr;
+    'surface' 1fr
+    'bar' auto / 1fr;
   height: 72px;
   overflow: hidden;
   background: var(--surface-page);

@@ -1,24 +1,24 @@
-import createClient from "openapi-fetch";
-import type { paths } from "@/api/generated/schema";
-import { getApiBaseUrl } from "./baseUrl";
+import createClient from 'openapi-fetch';
+import type { paths } from '@/api/generated/schema';
+import { getApiBaseUrl } from './baseUrl';
 
 export const apiClient = createClient<paths>({
   baseUrl: getApiBaseUrl(),
-  credentials: "include",
+  credentials: 'include',
 });
 
-const csrfCookieName = "book_hub_csrf";
+const csrfCookieName = 'book_hub_csrf';
 
 let csrfTokenRequest: Promise<string> | undefined;
 
 function getCookieValue(name: string) {
-  if (typeof document === "undefined") {
+  if (typeof document === 'undefined') {
     return undefined;
   }
 
   const cookiePrefix = `${name}=`;
   const cookie = document.cookie
-    .split(";")
+    .split(';')
     .map((part) => part.trim())
     .find((part) => part.startsWith(cookiePrefix));
 
@@ -36,10 +36,10 @@ function getCookieValue(name: string) {
 }
 
 async function requestCsrfToken() {
-  const { data, error } = await apiClient.GET("/v1/auth/csrf");
+  const { data, error } = await apiClient.GET('/v1/auth/csrf');
 
   if (error || !data) {
-    throw error ?? new Error("CSRF token response is empty");
+    throw error ?? new Error('CSRF token response is empty');
   }
 
   return data.csrf_token;

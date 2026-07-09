@@ -1,4 +1,4 @@
-@use "@/styles/_variables.scss" as *;
+@use '@/styles/_variables.scss' as *;
 
 @mixin focus-ring {
   outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);

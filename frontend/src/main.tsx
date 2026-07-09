@@ -1,15 +1,15 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
-import { render } from "solid-js/web";
-import App from "./components/App/App";
-import { I18nProvider } from "./i18n/I18nProvider";
-import ProfileLanguageSync from "./i18n/ProfileLanguageSync";
-import ThemeSync from "./styles/ThemeSync";
-import "./styles/app.scss";
+import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
+import { render } from 'solid-js/web';
+import App from './components/App/App';
+import { I18nProvider } from './i18n/I18nProvider';
+import ProfileLanguageSync from './i18n/ProfileLanguageSync';
+import ThemeSync from './styles/ThemeSync';
+import './styles/app.scss';
 
-const root = document.getElementById("root");
+const root = document.getElementById('root');
 
 if (!root) {
-  throw new Error("Root element not found");
+  throw new Error('Root element not found');
 }
 
 const queryClient = new QueryClient();

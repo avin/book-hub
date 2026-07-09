@@ -1,6 +1,14 @@
-import { autoUpdate, computePosition, flip, offset, type Placement, shift, size } from "@floating-ui/dom";
-import { createEffect, type JSX, onCleanup, Show } from "solid-js";
-import styles from "./Dropdown.module.scss";
+import {
+  autoUpdate,
+  computePosition,
+  flip,
+  offset,
+  type Placement,
+  shift,
+  size,
+} from '@floating-ui/dom';
+import { createEffect, type JSX, onCleanup, Show } from 'solid-js';
+import styles from './Dropdown.module.scss';
 
 function Dropdown(props: {
   trigger: JSX.Element;
@@ -22,8 +30,8 @@ function Dropdown(props: {
     }
 
     const { x, y } = await computePosition(referenceEl, floatingEl, {
-      strategy: "fixed",
-      placement: props.placement ?? "bottom-start",
+      strategy: 'fixed',
+      placement: props.placement ?? 'bottom-start',
       middleware: [
         offset(6),
         flip(),
@@ -68,17 +76,17 @@ function Dropdown(props: {
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         props.onOpenChange(false);
       }
     };
 
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
 
     onCleanup(() => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
     });
   });
 

@@ -1,9 +1,9 @@
-import { X } from "lucide-solid";
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import Dropdown from "@/components/common/Dropdown/Dropdown";
-import { useI18n } from "@/i18n/I18nProvider";
-import { getRecentTagsPreference, setRecentTagsPreference } from "@/storage/browserPreferences";
-import styles from "./TagsSelect.module.scss";
+import { X } from 'lucide-solid';
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js';
+import Dropdown from '@/components/common/Dropdown/Dropdown';
+import { useI18n } from '@/i18n/I18nProvider';
+import { getRecentTagsPreference, setRecentTagsPreference } from '@/storage/browserPreferences';
+import styles from './TagsSelect.module.scss';
 
 const MAX_RECENT_TAGS = 20;
 const SEARCH_DEBOUNCE_MS = 200;
@@ -68,12 +68,7 @@ function TagBadge(props: {
   };
 
   return (
-    <span
-      ref={props.ref}
-      class={styles.badge}
-      data-tag-badge
-      onClick={handleClick}
-    >
+    <span ref={props.ref} class={styles.badge} data-tag-badge onClick={handleClick}>
       <span class={styles.badgeContent}>
         {props.tag}
         <Show
@@ -117,9 +112,9 @@ function TagsSelect(props: {
   showOptionsOnFocus?: boolean;
 }) {
   const { t } = useI18n();
-  const [query, setQuery] = createSignal("");
+  const [query, setQuery] = createSignal('');
   const [options, setOptions] = createSignal<string[]>([]);
-  const [dropdownMode, setDropdownMode] = createSignal<"options" | "collapsed" | null>(null);
+  const [dropdownMode, setDropdownMode] = createSignal<'options' | 'collapsed' | null>(null);
   const [focusedOptionIndex, setFocusedOptionIndex] = createSignal<number | null>(null);
   const [arrowScrolling, setArrowScrolling] = createSignal(false);
   const [inputWidth, setInputWidth] = createSignal(100);
@@ -138,12 +133,12 @@ function TagsSelect(props: {
   let resizeObserver: ResizeObserver | undefined;
   let shouldOpenOptionsAfterSearch = false;
   let lastEmptyInputBackspaceAt = 0;
-  let knownOptions: string[] = [];
+  const knownOptions: string[] = [];
   const tagMeasureEls: (HTMLSpanElement | undefined)[] = [];
 
-  const placeholder = () => props.placeholder ?? t("findOrAddTag");
-  const isOptionsOpen = () => dropdownMode() === "options";
-  const isCollapsedOpen = () => dropdownMode() === "collapsed";
+  const placeholder = () => props.placeholder ?? t('findOrAddTag');
+  const isOptionsOpen = () => dropdownMode() === 'options';
+  const isCollapsedOpen = () => dropdownMode() === 'collapsed';
   const isDropdownOpen = () => dropdownMode() !== null;
 
   const closeDropdown = () => {
@@ -163,22 +158,20 @@ function TagsSelect(props: {
 
   const toggleCollapsedDropdown = () => {
     shouldOpenOptionsAfterSearch = false;
-    setDropdownMode((previousMode) => (previousMode === "collapsed" ? null : "collapsed"));
+    setDropdownMode((previousMode) => (previousMode === 'collapsed' ? null : 'collapsed'));
   };
 
   const normalizeOptions = (nextOptions: string[]) => {
     const seen = new Set<string>();
 
-    const availableOptions = nextOptions
-      .map(normalizeTag)
-      .filter((option) => {
-        if (!option || props.value.includes(option) || seen.has(option)) {
-          return false;
-        }
+    const availableOptions = nextOptions.map(normalizeTag).filter((option) => {
+      if (!option || props.value.includes(option) || seen.has(option)) {
+        return false;
+      }
 
-        seen.add(option);
-        return true;
-      });
+      seen.add(option);
+      return true;
+    });
 
     return sortTagsByRecent(availableOptions, loadRecentTags());
   };
@@ -229,7 +222,7 @@ function TagsSelect(props: {
     const normalizedOptions = normalizeOptions(nextOptions);
     setOptions(normalizedOptions);
     if (shouldOpenOptionsAfterSearch) {
-      setDropdownMode(normalizedOptions.length ? "options" : null);
+      setDropdownMode(normalizedOptions.length ? 'options' : null);
     }
   };
 
@@ -284,7 +277,7 @@ function TagsSelect(props: {
 
     props.onChange([...props.value, normalized]);
     updateRecentTags([normalized]);
-    setQuery("");
+    setQuery('');
     closeDropdown();
   };
 
@@ -316,7 +309,7 @@ function TagsSelect(props: {
       updateRecentTags([normalized]);
     }
 
-    setQuery("");
+    setQuery('');
     closeDropdown();
   };
 
@@ -382,7 +375,7 @@ function TagsSelect(props: {
       return;
     }
 
-    if (target.closest("[data-tag-badge]") || target.tagName === "BUTTON") {
+    if (target.closest('[data-tag-badge]') || target.tagName === 'BUTTON') {
       return;
     }
 
@@ -419,7 +412,7 @@ function TagsSelect(props: {
 
     if (hiddenTags().length > 0 && !isCollapsedOpen()) {
       shouldOpenOptionsAfterSearch = false;
-      setDropdownMode("collapsed");
+      setDropdownMode('collapsed');
       return;
     }
 
@@ -484,8 +477,8 @@ function TagsSelect(props: {
       return;
     }
 
-    const textToMeasure = query() || (props.value.length ? "" : placeholder()) || " ";
-    measureInputWidthEl.textContent = textToMeasure || " ";
+    const textToMeasure = query() || (props.value.length ? '' : placeholder()) || ' ';
+    measureInputWidthEl.textContent = textToMeasure || ' ';
     const measuredWidth = measureInputWidthEl.offsetWidth;
     const maxAvailableWidth = inputContainerEl.offsetWidth - 16;
     const nextInputWidth = Math.max(100, Math.min(measuredWidth + 10, maxAvailableWidth));
@@ -573,7 +566,7 @@ function TagsSelect(props: {
       open={isDropdownOpen()}
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
-          setDropdownMode("options");
+          setDropdownMode('options');
           return;
         }
 
@@ -604,7 +597,7 @@ function TagsSelect(props: {
                 class={`${styles.badge} ${styles.collapsedBadge}`}
                 data-tag-badge
                 role="button"
-                aria-disabled={props.disabled ? "true" : undefined}
+                aria-disabled={props.disabled ? 'true' : undefined}
                 tabIndex={props.disabled ? undefined : 0}
                 onClick={(event) => {
                   event.preventDefault();
@@ -616,7 +609,7 @@ function TagsSelect(props: {
                   toggleCollapsedDropdown();
                 }}
                 onKeyDown={(event) => {
-                  if (props.disabled || (event.key !== "Enter" && event.key !== " ")) {
+                  if (props.disabled || (event.key !== 'Enter' && event.key !== ' ')) {
                     return;
                   }
 
@@ -641,12 +634,12 @@ function TagsSelect(props: {
               onBlur={handleInputBlur}
               onInput={(event) => handleChangeQuery(event.currentTarget.value)}
               onKeyDown={(event) => {
-                if (event.key === "Backspace") {
+                if (event.key === 'Backspace') {
                   handleEmptyInputBackspace(event);
                   return;
                 }
 
-                if (event.key === "ArrowDown") {
+                if (event.key === 'ArrowDown') {
                   if (!isOptionsOpen() || !options().length) {
                     return;
                   }
@@ -660,7 +653,7 @@ function TagsSelect(props: {
                   );
                 }
 
-                if (event.key === "ArrowUp") {
+                if (event.key === 'ArrowUp') {
                   if (!isOptionsOpen() || !options().length) {
                     return;
                   }
@@ -674,7 +667,7 @@ function TagsSelect(props: {
                   );
                 }
 
-                if (event.key === "Enter") {
+                if (event.key === 'Enter') {
                   event.preventDefault();
                   applyCurrentInput();
                 }
@@ -709,7 +702,7 @@ function TagsSelect(props: {
                   <button
                     type="button"
                     class={styles.option}
-                    data-focused={focusedOptionIndex() === index() ? "1" : undefined}
+                    data-focused={focusedOptionIndex() === index() ? '1' : undefined}
                     classList={{ [styles.focusedOption]: focusedOptionIndex() === index() }}
                     onClick={() => addTag(option)}
                     onMouseEnter={() => {
@@ -732,11 +725,7 @@ function TagsSelect(props: {
         >
           <For each={hiddenTags()}>
             {(tag) => (
-              <TagBadge
-                tag={tag}
-                disabled={props.disabled}
-                onRemove={() => removeTag(tag)}
-              />
+              <TagBadge tag={tag} disabled={props.disabled} onRemove={() => removeTag(tag)} />
             )}
           </For>
         </div>

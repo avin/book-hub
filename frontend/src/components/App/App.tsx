@@ -1,21 +1,21 @@
-import { Navigate, Route, Router } from "@solidjs/router";
-import { lazy, Suspense } from "solid-js";
-import type { JSX } from "solid-js";
-import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
-import { useI18n } from "@/i18n/I18nProvider";
-import PrivateRoute from "./PrivateRoute/PrivateRoute";
-import PublicOnlyRoute from "./PublicOnlyRoute/PublicOnlyRoute";
+import { Navigate, Route, Router } from '@solidjs/router';
+import { lazy, Suspense } from 'solid-js';
+import type { JSX } from 'solid-js';
+import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
+import { useI18n } from '@/i18n/I18nProvider';
+import PrivateRoute from './PrivateRoute/PrivateRoute';
+import PublicOnlyRoute from './PublicOnlyRoute/PublicOnlyRoute';
 
-const AuthPage = lazy(() => import("@/components/pages/AuthPage/AuthPage"));
-const LibraryPage = lazy(() => import("@/components/pages/LibraryPage/LibraryPage"));
-const ReaderPage = lazy(() => import("@/components/pages/ReaderPage/ReaderPage"));
-const SettingsPage = lazy(() => import("@/components/pages/SettingsPage/SettingsPage"));
-const UploadPage = lazy(() => import("@/components/pages/UploadPage/UploadPage"));
+const AuthPage = lazy(() => import('@/components/pages/AuthPage/AuthPage'));
+const LibraryPage = lazy(() => import('@/components/pages/LibraryPage/LibraryPage'));
+const ReaderPage = lazy(() => import('@/components/pages/ReaderPage/ReaderPage'));
+const SettingsPage = lazy(() => import('@/components/pages/SettingsPage/SettingsPage'));
+const UploadPage = lazy(() => import('@/components/pages/UploadPage/UploadPage'));
 
 function PageFallback() {
   const { t } = useI18n();
 
-  return <LoadingScreen label={t("loading")} />;
+  return <LoadingScreen label={t('loading')} />;
 }
 
 function LazyPage(props: { children: JSX.Element }) {

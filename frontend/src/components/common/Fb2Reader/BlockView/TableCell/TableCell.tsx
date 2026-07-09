@@ -1,6 +1,6 @@
-import { Show } from "solid-js";
-import type { Fb2TableCell } from "../../fb2Types";
-import RenderInlines from "../../RenderInlines/RenderInlines";
+import { Show } from 'solid-js';
+import type { Fb2TableCell } from '../../fb2Types';
+import RenderInlines from '../../RenderInlines/RenderInlines';
 
 function TableCell(props: {
   cell: Fb2TableCell;
@@ -9,7 +9,7 @@ function TableCell(props: {
   onFootnoteLink: (targetId: string) => void;
   isFootnoteTarget: (targetId: string) => boolean;
 }) {
-  const alignmentStyle = () => (props.cell.align ? { "text-align": props.cell.align } : undefined);
+  const alignmentStyle = () => (props.cell.align ? { 'text-align': props.cell.align } : undefined);
   const content = () => (
     <RenderInlines
       inlines={props.cell.inlines}

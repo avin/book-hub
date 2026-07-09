@@ -1,22 +1,18 @@
-import { Check, ChevronDown, Languages } from "lucide-solid";
-import type { Placement } from "@floating-ui/dom";
-import { createMemo, createSignal } from "solid-js";
-import Dropdown from "@/components/common/Dropdown/Dropdown";
-import Menu, { type MenuItem } from "@/components/common/Menu/Menu";
-import { useI18n } from "@/i18n/I18nProvider";
-import type { Language } from "@/i18n/messages";
-import styles from "./LanguageSelect.module.scss";
+import { Check, ChevronDown, Languages } from 'lucide-solid';
+import type { Placement } from '@floating-ui/dom';
+import { createMemo, createSignal } from 'solid-js';
+import Dropdown from '@/components/common/Dropdown/Dropdown';
+import Menu, { type MenuItem } from '@/components/common/Menu/Menu';
+import { useI18n } from '@/i18n/I18nProvider';
+import type { Language } from '@/i18n/messages';
+import styles from './LanguageSelect.module.scss';
 
 const languageOptions: { value: Language; label: string }[] = [
-  { value: "ru", label: "Русский" },
-  { value: "en", label: "English" },
+  { value: 'ru', label: 'Русский' },
+  { value: 'en', label: 'English' },
 ];
 
-function LanguageSelect(props: {
-  class?: string;
-  fullWidth?: boolean;
-  placement?: Placement;
-}) {
+function LanguageSelect(props: { class?: string; fullWidth?: boolean; placement?: Placement }) {
   const { language, setLanguage, t } = useI18n();
   const [open, setOpen] = createSignal(false);
 
@@ -41,20 +37,20 @@ function LanguageSelect(props: {
     <Dropdown
       open={open()}
       onOpenChange={setOpen}
-      placement={props.placement ?? "bottom-end"}
+      placement={props.placement ?? 'bottom-end'}
       minWidth={180}
       fitReferenceToContent={!props.fullWidth}
       trigger={
         <button
           type="button"
-          class={`${styles.trigger} ${props.class ?? ""}`}
+          class={`${styles.trigger} ${props.class ?? ''}`}
           classList={{ [styles.fullWidth]: props.fullWidth }}
-          aria-label={t("language")}
+          aria-label={t('language')}
           aria-haspopup="menu"
           aria-expanded={open()}
           onClick={() => setOpen(!open())}
           onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
+            if (event.key === 'ArrowDown') {
               event.preventDefault();
               setOpen(true);
             }

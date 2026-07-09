@@ -1,4 +1,4 @@
-import type { Fb2ReaderSettings } from "./fb2Types";
+import type { Fb2ReaderSettings } from './fb2Types';
 
 function primaryFontFamily(fontFamily: string) {
   const trimmed = fontFamily.trim();
@@ -8,18 +8,18 @@ function primaryFontFamily(fontFamily: string) {
     return quoted[1];
   }
 
-  return trimmed.split(",")[0]?.trim() ?? trimmed;
+  return trimmed.split(',')[0]?.trim() ?? trimmed;
 }
 
 export function isSystemFontStack(fontFamily: string) {
   const primary = primaryFontFamily(fontFamily).toLowerCase();
 
   return (
-    primary === "system-ui" ||
-    primary === "ui-sans-serif" ||
-    primary === "sans-serif" ||
-    primary === "serif" ||
-    primary === "monospace"
+    primary === 'system-ui' ||
+    primary === 'ui-sans-serif' ||
+    primary === 'sans-serif' ||
+    primary === 'serif' ||
+    primary === 'monospace'
   );
 }
 
@@ -27,7 +27,7 @@ export function readerLayoutFontSpec(
   settings: Fb2ReaderSettings,
   fontSize = settings.fontSize,
   weight = 400,
-  style: "normal" | "italic" = "normal",
+  style: 'normal' | 'italic' = 'normal',
 ) {
   const family = isSystemFontStack(settings.fontFamily)
     ? settings.fontFamily
@@ -37,7 +37,7 @@ export function readerLayoutFontSpec(
 }
 
 export function isReaderLayoutFontReady(settings: Fb2ReaderSettings) {
-  if (typeof document === "undefined") {
+  if (typeof document === 'undefined') {
     return true;
   }
 
@@ -45,14 +45,14 @@ export function isReaderLayoutFontReady(settings: Fb2ReaderSettings) {
 }
 
 export function loadReaderLayoutFonts(settings: Fb2ReaderSettings) {
-  if (typeof document === "undefined") {
+  if (typeof document === 'undefined') {
     return Promise.resolve();
   }
 
   const loads = [
     document.fonts.load(readerLayoutFontSpec(settings)),
     document.fonts.load(readerLayoutFontSpec(settings, settings.fontSize, 700)),
-    document.fonts.load(readerLayoutFontSpec(settings, settings.fontSize, 500, "italic")),
+    document.fonts.load(readerLayoutFontSpec(settings, settings.fontSize, 500, 'italic')),
   ];
 
   return Promise.all(loads).then(() => undefined);
@@ -60,7 +60,7 @@ export function loadReaderLayoutFonts(settings: Fb2ReaderSettings) {
 
 export function fontFamilyForMeasurement(settings: Fb2ReaderSettings) {
   if (isSystemFontStack(settings.fontFamily)) {
-    return settings.fontFamily.includes(",") ? settings.fontFamily : `"${settings.fontFamily}"`;
+    return settings.fontFamily.includes(',') ? settings.fontFamily : `"${settings.fontFamily}"`;
   }
 
   return `"${primaryFontFamily(settings.fontFamily)}"`;

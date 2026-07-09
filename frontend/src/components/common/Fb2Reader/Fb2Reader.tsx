@@ -1,11 +1,20 @@
-import { createEffect, createMemo, createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
-import { X } from "lucide-solid";
-import BlockView from "./BlockView/BlockView";
-import Button from "@/components/common/Button/Button";
-import { findBlockIndex, buildVirtualLayout } from "./fb2Layout";
-import { isReaderLayoutFontReady, loadReaderLayoutFonts } from "./fb2FontMetrics";
-import { binaryToDataUrl, parseFb2 } from "./fb2Parser";
-import { defaultSettings } from "./fb2ReaderSettings";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js';
+import { X } from 'lucide-solid';
+import BlockView from './BlockView/BlockView';
+import Button from '@/components/common/Button/Button';
+import { findBlockIndex, buildVirtualLayout } from './fb2Layout';
+import { isReaderLayoutFontReady, loadReaderLayoutFonts } from './fb2FontMetrics';
+import { binaryToDataUrl, parseFb2 } from './fb2Parser';
+import { defaultSettings } from './fb2ReaderSettings';
 import type {
   CssVars,
   Fb2Block,
@@ -14,12 +23,18 @@ import type {
   Fb2ReaderSettings,
   RenderedBlock,
   VirtualLayout,
-} from "./fb2Types";
-import ReaderChrome from "./ReaderChrome/ReaderChrome";
-import SettingsPanel from "./SettingsPanel/SettingsPanel";
-import { applyWidthRulerPointer, computeWidthRulerMarkers } from "@/components/common/WidthRuler/widthRulerUtils";
-import { getFb2ReaderSettingsPreference, setFb2ReaderSettingsPreference } from "@/storage/browserPreferences";
-import styles from "./Fb2Reader.module.scss";
+} from './fb2Types';
+import ReaderChrome from './ReaderChrome/ReaderChrome';
+import SettingsPanel from './SettingsPanel/SettingsPanel';
+import {
+  applyWidthRulerPointer,
+  computeWidthRulerMarkers,
+} from '@/components/common/WidthRuler/widthRulerUtils';
+import {
+  getFb2ReaderSettingsPreference,
+  setFb2ReaderSettingsPreference,
+} from '@/storage/browserPreferences';
+import styles from './Fb2Reader.module.scss';
 
 type ScrollAnchor = {
   blockIndex: number;
@@ -77,13 +92,15 @@ function inlineText(inlines: Fb2Inline[] | undefined): string {
   return (
     inlines
       ?.map((inline) => inline.text ?? inlineText(inline.children))
-      .join("")
-      .replace(/\s+/g, " ")
-      .trim() ?? ""
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim() ?? ''
   );
 }
 
-function splitFootnote(note: Fb2Note | undefined): { title: string; blocks: Fb2Block[] } | undefined {
+function splitFootnote(
+  note: Fb2Note | undefined,
+): { title: string; blocks: Fb2Block[] } | undefined {
   if (!note) {
     return undefined;
   }
@@ -93,7 +110,8 @@ function splitFootnote(note: Fb2Note | undefined): { title: string; blocks: Fb2B
 
   while (
     contentStartIndex < note.blocks.length &&
-    (note.blocks[contentStartIndex].kind === "title" || note.blocks[contentStartIndex].kind === "subtitle")
+    (note.blocks[contentStartIndex].kind === 'title' ||
+      note.blocks[contentStartIndex].kind === 'subtitle')
   ) {
     const text = inlineText(note.blocks[contentStartIndex].inlines);
 
@@ -104,10 +122,10 @@ function splitFootnote(note: Fb2Note | undefined): { title: string; blocks: Fb2B
     contentStartIndex += 1;
   }
 
-  const title = titleParts.join(" ");
+  const title = titleParts.join(' ');
 
   return {
-    title: title || "Сноска",
+    title: title || 'Сноска',
     blocks: note.blocks.slice(contentStartIndex),
   };
 }
@@ -158,9 +176,12 @@ function Fb2Reader(props: {
   const effectiveMaxTextWidth = createMemo(() =>
     draggingWidth() ? pendingMaxTextWidth() : settings().maxTextWidth,
   );
-  const textWidth = createMemo(() => Math.min(availableTextWidth(), effectiveMaxTextWidth() ?? availableTextWidth()));
+  const textWidth = createMemo(() =>
+    Math.min(availableTextWidth(), effectiveMaxTextWidth() ?? availableTextWidth()),
+  );
 
-  const currentWidthChangeAnchor = () => lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
+  const currentWidthChangeAnchor = () =>
+    lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
 
   const restoreScrollAnchorAfterLayout = (anchor: ScrollAnchor | undefined) => {
     if (!anchor) {
@@ -177,7 +198,8 @@ function Fb2Reader(props: {
         }
 
         const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
-        const nextScrollTop = documentTop + (currentLayout.offsets[blockIndex] ?? 0) + anchor.offsetPx;
+        const nextScrollTop =
+          documentTop + (currentLayout.offsets[blockIndex] ?? 0) + anchor.offsetPx;
 
         window.scrollTo({ top: nextScrollTop });
         setScrollTop(nextScrollTop - documentTop);
@@ -217,30 +239,34 @@ function Fb2Reader(props: {
   };
 
   let frozenLayoutSettings: Fb2ReaderSettings | undefined;
-  const layoutSettings = createMemo(() => {
-    const s = settings();
+  const layoutSettings = createMemo(
+    () => {
+      const s = settings();
 
-    if (adjustingLayoutSettings() && frozenLayoutSettings) {
-      return frozenLayoutSettings;
-    }
+      if (adjustingLayoutSettings() && frozenLayoutSettings) {
+        return frozenLayoutSettings;
+      }
 
-    frozenLayoutSettings = s;
-    return s;
-  }, undefined, {
-    equals: (prev, next) =>
-      !!prev &&
-      prev.fontFamily === next.fontFamily &&
-      prev.fontSize === next.fontSize &&
-      prev.lineHeight === next.lineHeight &&
-      prev.paragraphSpacing === next.paragraphSpacing &&
-      prev.paragraphIndent === next.paragraphIndent,
-  });
+      frozenLayoutSettings = s;
+      return s;
+    },
+    undefined,
+    {
+      equals: (prev, next) =>
+        !!prev &&
+        prev.fontFamily === next.fontFamily &&
+        prev.fontSize === next.fontSize &&
+        prev.lineHeight === next.lineHeight &&
+        prev.paragraphSpacing === next.paragraphSpacing &&
+        prev.paragraphIndent === next.paragraphIndent,
+    },
+  );
 
   const layout = createMemo(() => {
     layoutGeneration();
     const currentSettings = layoutSettings();
 
-    if (typeof document !== "undefined" && !isReaderLayoutFontReady(currentSettings)) {
+    if (typeof document !== 'undefined' && !isReaderLayoutFontReady(currentSettings)) {
       return lastMeasuredLayout;
     }
 
@@ -248,15 +274,16 @@ function Fb2Reader(props: {
 
     return lastMeasuredLayout;
   });
-  const imageSrc = (id: string | undefined) => binaryToDataUrl(id ? parsed().binaries.get(id) : undefined);
+  const imageSrc = (id: string | undefined) =>
+    binaryToDataUrl(id ? parsed().binaries.get(id) : undefined);
   const cssVars = createMemo<CssVars>(() => ({
-    "--fb2-bg": settings().backgroundColor,
-    "--fb2-text": settings().textColor,
-    "--fb2-link": settings().linkColor,
-    "--fb2-font-family": settings().fontFamily,
-    "--fb2-font-size": `${settings().fontSize}px`,
-    "--fb2-line-height": String(settings().lineHeight),
-    "--fb2-paragraph-indent": `${settings().paragraphIndent}px`,
+    '--fb2-bg': settings().backgroundColor,
+    '--fb2-text': settings().textColor,
+    '--fb2-link': settings().linkColor,
+    '--fb2-font-family': settings().fontFamily,
+    '--fb2-font-size': `${settings().fontSize}px`,
+    '--fb2-line-height': String(settings().lineHeight),
+    '--fb2-paragraph-indent': `${settings().paragraphIndent}px`,
   }));
   const markerStyles = createMemo<{ left: JSX.CSSProperties; right: JSX.CSSProperties }>(() =>
     computeWidthRulerMarkers(rulerElement(), effectiveMaxTextWidth(), availableTextWidth()),
@@ -294,9 +321,9 @@ function Fb2Reader(props: {
     return Math.max(0, layout().totalHeight - layout().offsets[last.index] - last.height);
   });
   const documentTitle = createMemo(() => {
-    const authors = parsed().authors.join(", ");
+    const authors = parsed().authors.join(', ');
 
-    return [parsed().title, authors].filter(Boolean).join(" · ") || "FB2";
+    return [parsed().title, authors].filter(Boolean).join(' · ') || 'FB2';
   });
   const activeFootnote = createMemo(() => {
     const id = activeFootnoteId();
@@ -353,14 +380,15 @@ function Fb2Reader(props: {
     value: Fb2ReaderSettings[T],
     keepLockedAnchor = false,
   ) => {
-    const anchor = keepLockedAnchor && lockedScrollAnchor
-      ? lockedScrollAnchor
-      : layoutSettingsAnchor ?? captureScrollAnchor();
+    const anchor =
+      keepLockedAnchor && lockedScrollAnchor
+        ? lockedScrollAnchor
+        : (layoutSettingsAnchor ?? captureScrollAnchor());
 
     if (anchor) {
       setPendingScrollAnchor(anchor);
 
-      if (key === "fontFamily" || key === "fontSize") {
+      if (key === 'fontFamily' || key === 'fontSize') {
         fontLayoutAnchor ??= anchor;
       }
     }
@@ -383,7 +411,7 @@ function Fb2Reader(props: {
     const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
     const nextScrollTop = documentTop + blockTop;
 
-    window.scrollTo({ top: nextScrollTop, behavior: "smooth" });
+    window.scrollTo({ top: nextScrollTop, behavior: 'smooth' });
     setScrollTop(blockTop);
   };
 
@@ -471,7 +499,8 @@ function Fb2Reader(props: {
       markViewportResize();
     }
 
-    lastMeasuredReaderWidth = elementContentWidth(documentShellRef) || rootRef.getBoundingClientRect().width;
+    lastMeasuredReaderWidth =
+      elementContentWidth(documentShellRef) || rootRef.getBoundingClientRect().width;
     setReaderWidth(lastMeasuredReaderWidth);
     setViewportHeight(visualViewportHeight());
     setScrollTop(documentScrollTop());
@@ -482,7 +511,8 @@ function Fb2Reader(props: {
       return;
     }
 
-    const nextReaderWidth = elementContentWidth(documentShellRef) || rootRef.getBoundingClientRect().width;
+    const nextReaderWidth =
+      elementContentWidth(documentShellRef) || rootRef.getBoundingClientRect().width;
 
     if (Math.abs(nextReaderWidth - lastMeasuredReaderWidth) < 0.5) {
       return;
@@ -542,7 +572,7 @@ function Fb2Reader(props: {
     const anchor = lockedScrollAnchor;
 
     target?.releasePointerCapture(event.pointerId);
-    updateSetting("maxTextWidth", width, true);
+    updateSetting('maxTextWidth', width, true);
     flushLayoutTextWidth();
     restoreScrollAnchorAfterLayout(anchor);
     setDraggingWidth(false);
@@ -564,7 +594,7 @@ function Fb2Reader(props: {
       setPendingScrollAnchor(lockedScrollAnchor);
     }
 
-    updateSetting("maxTextWidth", undefined, true);
+    updateSetting('maxTextWidth', undefined, true);
     flushLayoutTextWidth();
     restoreScrollAnchorAfterLayout(anchor);
     lockedScrollAnchor = undefined;
@@ -624,7 +654,7 @@ function Fb2Reader(props: {
     const onScroll = () => updateScrollPosition();
     const onResize = () => measureReader(true);
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         closeFootnote();
       }
     };
@@ -655,23 +685,23 @@ function Fb2Reader(props: {
 
     measureReader();
     flushLayoutTextWidth();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
-    window.visualViewport?.addEventListener("resize", onResize);
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointermove", onPointerMove);
-    document.fonts.addEventListener("loadingdone", onFontsChanged);
-    document.fonts.addEventListener("loadingerror", onFontsChanged);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('resize', onResize);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('pointermove', onPointerMove);
+    document.fonts.addEventListener('loadingdone', onFontsChanged);
+    document.fonts.addEventListener('loadingerror', onFontsChanged);
 
     onCleanup(() => {
       resizeObserver.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-      window.visualViewport?.removeEventListener("resize", onResize);
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointermove", onPointerMove);
-      document.fonts.removeEventListener("loadingdone", onFontsChanged);
-      document.fonts.removeEventListener("loadingerror", onFontsChanged);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+      window.visualViewport?.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      document.fonts.removeEventListener('loadingdone', onFontsChanged);
+      document.fonts.removeEventListener('loadingerror', onFontsChanged);
     });
   });
 
@@ -760,7 +790,7 @@ function Fb2Reader(props: {
   });
 
   return (
-    <div ref={rootRef} class={`${styles.reader} ${props.class ?? ""}`} style={cssVars()}>
+    <div ref={rootRef} class={`${styles.reader} ${props.class ?? ''}`} style={cssVars()}>
       <ReaderChrome
         visible={headerVisible() || panelOpen() || draggingWidth()}
         title={documentTitle()}
@@ -853,7 +883,12 @@ function Fb2Reader(props: {
               }
             }}
           >
-            <section class={styles.footnoteDialog} role="dialog" aria-modal="true" aria-label={note().title}>
+            <section
+              class={styles.footnoteDialog}
+              role="dialog"
+              aria-modal="true"
+              aria-label={note().title}
+            >
               <header class={styles.footnoteHeader}>
                 <h2>{note().title}</h2>
                 <Button

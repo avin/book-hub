@@ -1,9 +1,9 @@
 function basePrefix() {
   const base = import.meta.env.BASE_URL;
-  if (!base || base === "/") {
-    return "/";
+  if (!base || base === '/') {
+    return '/';
   }
-  return `/${base.replace(/^\/+|\/+$/g, "")}/`;
+  return `/${base.replace(/^\/+|\/+$/g, '')}/`;
 }
 
 const assetsBase = `${basePrefix()}pdfjs-assets/`;

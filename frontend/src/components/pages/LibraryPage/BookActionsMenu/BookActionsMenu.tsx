@@ -1,8 +1,8 @@
-import { Edit3, Eye, Heart, RotateCcw, Trash2 } from "lucide-solid";
-import { type Accessor } from "solid-js";
-import type { Book } from "@/api/books";
-import Menu, { type MenuItem } from "@/components/common/Menu/Menu";
-import { useI18n } from "@/i18n/I18nProvider";
+import { Edit3, Eye, Heart, RotateCcw, Trash2 } from 'lucide-solid';
+import { type Accessor } from 'solid-js';
+import type { Book } from '@/api/books';
+import Menu, { type MenuItem } from '@/components/common/Menu/Menu';
+import { useI18n } from '@/i18n/I18nProvider';
 
 function BookActionsMenu(props: {
   book: Accessor<Book>;
@@ -17,33 +17,33 @@ function BookActionsMenu(props: {
 
   const menuItems = (): MenuItem[] => [
     {
-      id: "favorite",
-      label: props.book().favorite ? t("removeFromFavorites") : t("addToFavorites"),
+      id: 'favorite',
+      label: props.book().favorite ? t('removeFromFavorites') : t('addToFavorites'),
       iconStart: <Heart />,
       onClick: () => props.onFavoriteToggle(props.book()),
     },
     {
-      id: "edit",
-      label: t("edit"),
+      id: 'edit',
+      label: t('edit'),
       iconStart: <Edit3 />,
       onClick: () => props.onEdit(props.book()),
     },
     {
-      id: "reset-progress",
-      label: t("resetReadingProgress"),
+      id: 'reset-progress',
+      label: t('resetReadingProgress'),
       iconStart: <RotateCcw />,
       onClick: () => props.onResetProgress(props.book()),
     },
     {
-      id: "show-cover",
-      label: t("showFullCoverMenu"),
+      id: 'show-cover',
+      label: t('showFullCoverMenu'),
       iconStart: <Eye />,
       onClick: () => props.onShowCover(props.book()),
     },
-    { type: "separator" },
+    { type: 'separator' },
     {
-      id: "delete",
-      label: t("delete"),
+      id: 'delete',
+      label: t('delete'),
       iconStart: <Trash2 />,
       onClick: () => props.onDelete(props.book()),
     },

@@ -1,10 +1,10 @@
-import InputContainer from "./InputContainer";
-import TextInput from "@/components/common/TextInput/TextInput";
+import InputContainer from './InputContainer';
+import TextInput from '@/components/common/TextInput/TextInput';
 
 export default { component: InputContainer };
 
 export const Default = () => (
-  <div style={{ display: "grid", gap: "16px", width: "360px" }}>
+  <div style={{ display: 'grid', gap: '16px', width: '360px' }}>
     <InputContainer label="Login" subtext="Use letters, digits, dot, dash or underscore">
       <TextInput id="login" placeholder="Login" />
     </InputContainer>

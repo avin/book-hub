@@ -1,5 +1,5 @@
-import { Show, type JSX } from "solid-js";
-import styles from "./ReaderFloatingChrome.module.scss";
+import { Show, type JSX } from 'solid-js';
+import styles from './ReaderFloatingChrome.module.scss';
 
 function ReaderFloatingChrome(props: {
   visible: boolean;
@@ -13,7 +13,11 @@ function ReaderFloatingChrome(props: {
     <>
       <div class={styles.hoverZone} aria-hidden="true" onPointerEnter={props.onShow} />
 
-      <header class={styles.header} classList={{ [styles.visible]: props.visible }} onPointerEnter={props.onShow}>
+      <header
+        class={styles.header}
+        classList={{ [styles.visible]: props.visible }}
+        onPointerEnter={props.onShow}
+      >
         <div class={styles.headerBar}>
           <div class={styles.headerContent}>
             {props.headerContent ?? (

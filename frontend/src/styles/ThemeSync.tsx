@@ -1,6 +1,6 @@
-import { onMount } from "solid-js";
-import { applyTheme, defaultThemeId, type ThemeId } from "./themes";
-import { getThemePreference, setThemePreference } from "@/storage/browserPreferences";
+import { onMount } from 'solid-js';
+import { applyTheme, defaultThemeId, type ThemeId } from './themes';
+import { getThemePreference, setThemePreference } from '@/storage/browserPreferences';
 
 // Post-hydration theme reconciliation.
 //

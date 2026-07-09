@@ -11,24 +11,24 @@
       // ADR: docs/adr/0001-theme-system.md
       (function () {
         try {
-          var raw = localStorage.getItem("book-hub-preferences");
-          var theme = raw ? (JSON.parse(raw).theme || null) : null;
+          var raw = localStorage.getItem('book-hub-preferences');
+          var theme = raw ? JSON.parse(raw).theme || null : null;
           var known = [
-            "light-clay",
-            "light-slate",
-            "light-sage",
-            "dark-ink",
-            "dark-green",
-            "dark-graphite",
+            'light-clay',
+            'light-slate',
+            'light-sage',
+            'dark-ink',
+            'dark-green',
+            'dark-graphite',
           ];
           if (!theme || known.indexOf(theme) === -1) {
-            theme = window.matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark-ink"
-              : "light-clay";
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark-ink'
+              : 'light-clay';
           }
-          document.documentElement.setAttribute("data-theme", theme);
+          document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {
-          document.documentElement.setAttribute("data-theme", "light-clay");
+          document.documentElement.setAttribute('data-theme', 'light-clay');
         }
       })();
     </script>

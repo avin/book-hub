@@ -1,10 +1,10 @@
-import { AlignLeft, Palette, RotateCcw, SlidersHorizontal, Type, X } from "lucide-solid";
-import { For } from "solid-js";
-import Button from "@/components/common/Button/Button";
-import InputContainer from "@/components/common/InputContainer/InputContainer";
-import { fontOptions } from "../fb2ReaderSettings";
-import type { Fb2ReaderSettings } from "../fb2Types";
-import styles from "./SettingsPanel.module.scss";
+import { AlignLeft, Palette, RotateCcw, SlidersHorizontal, Type, X } from 'lucide-solid';
+import { For } from 'solid-js';
+import Button from '@/components/common/Button/Button';
+import InputContainer from '@/components/common/InputContainer/InputContainer';
+import { fontOptions } from '../fb2ReaderSettings';
+import type { Fb2ReaderSettings } from '../fb2Types';
+import styles from './SettingsPanel.module.scss';
 
 type UpdateSetting = <T extends keyof Fb2ReaderSettings>(
   key: T,
@@ -30,7 +30,15 @@ function SettingsPanel(props: {
     <aside class={styles.settingsPanel} classList={{ [styles.panelOpen]: props.open }}>
       <div class={styles.panelHeader}>
         <h2>Внешний вид</h2>
-        <Button variant="secondary" type="button" iconOnly iconStart={<X />} title="Закрыть" aria-label="Закрыть" onClick={props.onClose} />
+        <Button
+          variant="secondary"
+          type="button"
+          iconOnly
+          iconStart={<X />}
+          title="Закрыть"
+          aria-label="Закрыть"
+          onClick={props.onClose}
+        />
       </div>
 
       <section class={styles.settingGroup}>
@@ -41,9 +49,11 @@ function SettingsPanel(props: {
         <InputContainer label="Шрифт">
           <select
             value={props.settings.fontFamily}
-            onInput={(event) => props.onUpdateSetting("fontFamily", event.currentTarget.value)}
+            onInput={(event) => props.onUpdateSetting('fontFamily', event.currentTarget.value)}
           >
-            <For each={fontOptions}>{(font) => <option value={font.value}>{font.label}</option>}</For>
+            <For each={fontOptions}>
+              {(font) => <option value={font.value}>{font.label}</option>}
+            </For>
           </select>
         </InputContainer>
         <InputContainer label="Размер" labelEnd={`${props.settings.fontSize}px`}>
@@ -55,7 +65,9 @@ function SettingsPanel(props: {
             onPointerDown={captureLayoutAdjust}
             onPointerUp={props.onEndAdjustLayout}
             onPointerCancel={props.onEndAdjustLayout}
-            onInput={(event) => props.onUpdateSetting("fontSize", Number(event.currentTarget.value))}
+            onInput={(event) =>
+              props.onUpdateSetting('fontSize', Number(event.currentTarget.value))
+            }
           />
         </InputContainer>
         <InputContainer label="Интерлиньяж" labelEnd={props.settings.lineHeight.toFixed(2)}>
@@ -68,7 +80,9 @@ function SettingsPanel(props: {
             onPointerDown={captureLayoutAdjust}
             onPointerUp={props.onEndAdjustLayout}
             onPointerCancel={props.onEndAdjustLayout}
-            onInput={(event) => props.onUpdateSetting("lineHeight", Number(event.currentTarget.value))}
+            onInput={(event) =>
+              props.onUpdateSetting('lineHeight', Number(event.currentTarget.value))
+            }
           />
         </InputContainer>
       </section>
@@ -78,7 +92,10 @@ function SettingsPanel(props: {
           <AlignLeft size={17} />
           Абзацы
         </h3>
-        <InputContainer label="Отступ первой строки" labelEnd={`${props.settings.paragraphIndent}px`}>
+        <InputContainer
+          label="Отступ первой строки"
+          labelEnd={`${props.settings.paragraphIndent}px`}
+        >
           <input
             type="range"
             min="0"
@@ -87,10 +104,15 @@ function SettingsPanel(props: {
             onPointerDown={captureLayoutAdjust}
             onPointerUp={props.onEndAdjustLayout}
             onPointerCancel={props.onEndAdjustLayout}
-            onInput={(event) => props.onUpdateSetting("paragraphIndent", Number(event.currentTarget.value))}
+            onInput={(event) =>
+              props.onUpdateSetting('paragraphIndent', Number(event.currentTarget.value))
+            }
           />
         </InputContainer>
-        <InputContainer label="Отступ после абзаца" labelEnd={`${props.settings.paragraphSpacing}px`}>
+        <InputContainer
+          label="Отступ после абзаца"
+          labelEnd={`${props.settings.paragraphSpacing}px`}
+        >
           <input
             type="range"
             min="4"
@@ -99,7 +121,9 @@ function SettingsPanel(props: {
             onPointerDown={captureLayoutAdjust}
             onPointerUp={props.onEndAdjustLayout}
             onPointerCancel={props.onEndAdjustLayout}
-            onInput={(event) => props.onUpdateSetting("paragraphSpacing", Number(event.currentTarget.value))}
+            onInput={(event) =>
+              props.onUpdateSetting('paragraphSpacing', Number(event.currentTarget.value))
+            }
           />
         </InputContainer>
       </section>
@@ -113,27 +137,33 @@ function SettingsPanel(props: {
           <input
             type="color"
             value={props.settings.backgroundColor}
-            onInput={(event) => props.onUpdateSetting("backgroundColor", event.currentTarget.value)}
+            onInput={(event) => props.onUpdateSetting('backgroundColor', event.currentTarget.value)}
           />
         </InputContainer>
         <InputContainer label="Текст">
           <input
             type="color"
             value={props.settings.textColor}
-            onInput={(event) => props.onUpdateSetting("textColor", event.currentTarget.value)}
+            onInput={(event) => props.onUpdateSetting('textColor', event.currentTarget.value)}
           />
         </InputContainer>
         <InputContainer label="Ссылки">
           <input
             type="color"
             value={props.settings.linkColor}
-            onInput={(event) => props.onUpdateSetting("linkColor", event.currentTarget.value)}
+            onInput={(event) => props.onUpdateSetting('linkColor', event.currentTarget.value)}
           />
         </InputContainer>
       </section>
 
       <div class={styles.panelActions}>
-        <Button fullWidth variant="secondary" type="button" iconStart={<RotateCcw />} onClick={props.onReset}>
+        <Button
+          fullWidth
+          variant="secondary"
+          type="button"
+          iconStart={<RotateCcw />}
+          onClick={props.onReset}
+        >
           Сбросить
         </Button>
         <Button

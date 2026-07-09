@@ -1,12 +1,12 @@
-import { defineConfig } from "vite";
-import solid from "vite-plugin-solid";
-import { fileURLToPath, URL } from "node:url";
+import { defineConfig } from 'vite';
+import solid from 'vite-plugin-solid';
+import { fileURLToPath, URL } from 'node:url';
 
 function normalizeBasePath(value: string | undefined) {
-  if (!value || value === "/") {
-    return "/";
+  if (!value || value === '/') {
+    return '/';
   }
-  return `/${value.replace(/^\/+|\/+$/g, "")}/`;
+  return `/${value.replace(/^\/+|\/+$/g, '')}/`;
 }
 
 export default defineConfig({
@@ -14,13 +14,13 @@ export default defineConfig({
   plugins: [solid()],
   resolve: {
     alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   server: {
     proxy: {
-      "/api": {
-        target: "http://vm:8080",
+      '/api': {
+        target: 'http://vm:8080',
         changeOrigin: true,
       },
     },

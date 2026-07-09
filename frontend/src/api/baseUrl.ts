@@ -1,9 +1,9 @@
 function normalizeBasePath(value: string | undefined) {
-  if (!value || value === "/") {
-    return "";
+  if (!value || value === '/') {
+    return '';
   }
 
-  return `/${value.replace(/^\/+|\/+$/g, "")}`;
+  return `/${value.replace(/^\/+|\/+$/g, '')}`;
 }
 
 export function getApiBaseUrl() {

@@ -1,16 +1,16 @@
-import { createMemo, For } from "solid-js";
-import { useI18n } from "@/i18n/I18nProvider";
-import type { MessageKey } from "@/i18n/messages";
-import { themes, type ThemeId } from "@/styles/themes";
-import styles from "./ThemeSelect.module.scss";
+import { createMemo, For } from 'solid-js';
+import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/messages';
+import { themes, type ThemeId } from '@/styles/themes';
+import styles from './ThemeSelect.module.scss';
 
 const labelKey: Record<ThemeId, MessageKey> = {
-  "light-clay": "themeLightClay",
-  "light-slate": "themeLightSlate",
-  "light-sage": "themeLightSage",
-  "dark-ink": "themeDarkInk",
-  "dark-green": "themeDarkGreen",
-  "dark-graphite": "themeDarkGraphite",
+  'light-clay': 'themeLightClay',
+  'light-slate': 'themeLightSlate',
+  'light-sage': 'themeLightSage',
+  'dark-ink': 'themeDarkInk',
+  'dark-green': 'themeDarkGreen',
+  'dark-graphite': 'themeDarkGraphite',
 };
 
 function Swatch(props: { themeId: ThemeId }) {
@@ -34,7 +34,7 @@ function ThemeSelect(props: { value: ThemeId; onChange: (themeId: ThemeId) => vo
   const orderedThemes = createMemo(() => [...themes].sort((a, b) => a.order - b.order));
 
   return (
-    <div class={styles.themeGrid} role="radiogroup" aria-label={t("theme")}>
+    <div class={styles.themeGrid} role="radiogroup" aria-label={t('theme')}>
       <For each={orderedThemes()}>
         {(theme) => (
           <button

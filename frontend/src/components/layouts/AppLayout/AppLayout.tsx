@@ -1,15 +1,13 @@
-import { A, useNavigate } from "@solidjs/router";
-import { createSignal, type JSX } from "solid-js";
-import { BookOpen, ChevronDown, Library, LogOut, Settings, Upload } from "lucide-solid";
-import { createLogoutMutation } from "@/api/auth";
-import Button from "@/components/common/Button/Button";
-import LanguageSelect from "@/components/common/LanguageSelect/LanguageSelect";
-import { useI18n } from "@/i18n/I18nProvider";
-import styles from "./AppLayout.module.scss";
+import { A, useNavigate } from '@solidjs/router';
+import { createSignal, type JSX } from 'solid-js';
+import { BookOpen, ChevronDown, Library, LogOut, Settings, Upload } from 'lucide-solid';
+import { createLogoutMutation } from '@/api/auth';
+import Button from '@/components/common/Button/Button';
+import LanguageSelect from '@/components/common/LanguageSelect/LanguageSelect';
+import { useI18n } from '@/i18n/I18nProvider';
+import styles from './AppLayout.module.scss';
 
-function AppLayout(props: {
-  children: JSX.Element;
-}) {
+function AppLayout(props: { children: JSX.Element }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const logoutMutation = createLogoutMutation();
@@ -18,7 +16,7 @@ function AppLayout(props: {
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
-        navigate("/login", { replace: true });
+        navigate('/login', { replace: true });
       },
     });
   };
@@ -30,22 +28,32 @@ function AppLayout(props: {
           <div class={styles.sidebarHeader}>
             <A href="/library" class={styles.brand}>
               <BookOpen />
-              <span>{t("bookHub")}</span>
+              <span>{t('bookHub')}</span>
             </A>
           </div>
 
           <nav class={styles.nav}>
             <A href="/library" class={styles.libraryNavLink}>
               <Library />
-              <span class={styles.navLabel}>{t("library")}</span>
+              <span class={styles.navLabel}>{t('library')}</span>
             </A>
-            <A href="/upload" class={styles.iconNavLink} aria-label={t("upload")} title={t("upload")}>
+            <A
+              href="/upload"
+              class={styles.iconNavLink}
+              aria-label={t('upload')}
+              title={t('upload')}
+            >
               <Upload />
-              <span class={styles.navLabel}>{t("upload")}</span>
+              <span class={styles.navLabel}>{t('upload')}</span>
             </A>
-            <A href="/settings" class={styles.iconNavLink} aria-label={t("settings")} title={t("settings")}>
+            <A
+              href="/settings"
+              class={styles.iconNavLink}
+              aria-label={t('settings')}
+              title={t('settings')}
+            >
               <Settings />
-              <span class={styles.navLabel}>{t("settings")}</span>
+              <span class={styles.navLabel}>{t('settings')}</span>
             </A>
           </nav>
 
@@ -56,10 +64,10 @@ function AppLayout(props: {
             variant="ghost"
             iconOnly
             iconStart={<ChevronDown />}
-            aria-label={t("accountMenu")}
+            aria-label={t('accountMenu')}
             aria-controls="app-layout-mobile-panel"
             aria-expanded={sidebarPanelOpen()}
-            title={t("accountMenu")}
+            title={t('accountMenu')}
             onClick={() => setSidebarPanelOpen((open) => !open)}
           />
         </div>
@@ -83,7 +91,7 @@ function AppLayout(props: {
               iconStart={<LogOut />}
               onClick={handleLogout}
             >
-              {t("signOut")}
+              {t('signOut')}
             </Button>
           </div>
         </div>

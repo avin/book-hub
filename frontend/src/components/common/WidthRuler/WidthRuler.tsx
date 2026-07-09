@@ -1,6 +1,6 @@
-import { For, type JSX } from "solid-js";
-import styles from "./WidthRuler.module.scss";
-import { widthRulerTicks } from "./widthRulerUtils";
+import { For, type JSX } from 'solid-js';
+import styles from './WidthRuler.module.scss';
+import { widthRulerTicks } from './widthRulerUtils';
 
 function WidthRuler(props: {
   availableWidth: number;
@@ -47,7 +47,12 @@ function WidthRuler(props: {
           />
         )}
       </For>
-      <svg class={styles.rulerMarker} style={props.markerStyles.left} viewBox="0 0 28 24" aria-hidden="true">
+      <svg
+        class={styles.rulerMarker}
+        style={props.markerStyles.left}
+        viewBox="0 0 28 24"
+        aria-hidden="true"
+      >
         <polygon
           points="1.3 1 26.7 1 14 23"
           stroke="currentColor"
@@ -55,7 +60,12 @@ function WidthRuler(props: {
           stroke-linejoin="round"
         />
       </svg>
-      <svg class={styles.rulerMarker} style={props.markerStyles.right} viewBox="0 0 28 24" aria-hidden="true">
+      <svg
+        class={styles.rulerMarker}
+        style={props.markerStyles.right}
+        viewBox="0 0 28 24"
+        aria-hidden="true"
+      >
         <polygon
           points="1.3 1 26.7 1 14 23"
           stroke="currentColor"

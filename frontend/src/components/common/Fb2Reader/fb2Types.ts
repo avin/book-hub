@@ -1,16 +1,16 @@
-import type { JSX } from "solid-js";
+import type { JSX } from 'solid-js';
 
 export type Fb2InlineKind =
-  | "text"
-  | "strong"
-  | "emphasis"
-  | "strikethrough"
-  | "sub"
-  | "sup"
-  | "code"
-  | "link"
-  | "style"
-  | "image";
+  | 'text'
+  | 'strong'
+  | 'emphasis'
+  | 'strikethrough'
+  | 'sub'
+  | 'sup'
+  | 'code'
+  | 'link'
+  | 'style'
+  | 'image';
 
 export type Fb2Inline = {
   kind: Fb2InlineKind;
@@ -23,26 +23,27 @@ export type Fb2Inline = {
 };
 
 export type Fb2BlockKind =
-  | "title"
-  | "subtitle"
-  | "paragraph"
-  | "listItem"
-  | "codeBlock"
-  | "divider"
-  | "emptyLine"
-  | "image"
-  | "poemLine"
-  | "textAuthor"
-  | "date"
-  | "table";
+  | 'title'
+  | 'subtitle'
+  | 'paragraph'
+  | 'listItem'
+  | 'codeBlock'
+  | 'divider'
+  | 'emptyLine'
+  | 'image'
+  | 'poemLine'
+  | 'textAuthor'
+  | 'date'
+  | 'table';
 
-export type Fb2BlockRole = "body" | "annotation" | "epigraph" | "cite" | "poem" | "metadata" | "note";
+export type Fb2BlockRole =
+  'body' | 'annotation' | 'epigraph' | 'cite' | 'poem' | 'metadata' | 'note';
 
 export type Fb2TableCell = {
   header: boolean;
   colspan: number;
   rowspan: number;
-  align?: "left" | "center" | "right";
+  align?: 'left' | 'center' | 'right';
   inlines: Fb2Inline[];
 };
 
@@ -105,11 +106,11 @@ export type VirtualLayout = {
 };
 
 export type CssVars = JSX.CSSProperties & {
-  "--fb2-bg": string;
-  "--fb2-text": string;
-  "--fb2-link": string;
-  "--fb2-font-family": string;
-  "--fb2-font-size": string;
-  "--fb2-line-height": string;
-  "--fb2-paragraph-indent": string;
+  '--fb2-bg': string;
+  '--fb2-text': string;
+  '--fb2-link': string;
+  '--fb2-font-family': string;
+  '--fb2-font-size': string;
+  '--fb2-line-height': string;
+  '--fb2-paragraph-indent': string;
 };

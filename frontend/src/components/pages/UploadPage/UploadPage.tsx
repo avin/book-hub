@@ -1,18 +1,24 @@
-import { useNavigate } from "@solidjs/router";
-import { useQueryClient } from "@tanstack/solid-query";
-import { createMemo, createSignal, Index, onCleanup, Show } from "solid-js";
-import { FileUp, ImagePlus, ScanText, Trash2, Upload } from "lucide-solid";
-import { bookTagsQueryKey, booksQueryKey, createBookTagsQuery, uploadBook, uploadBookCover } from "@/api/books";
-import Button from "@/components/common/Button/Button";
-import InputContainer from "@/components/common/InputContainer/InputContainer";
-import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
-import TextInput from "@/components/common/TextInput/TextInput";
-import AppLayout from "@/components/layouts/AppLayout/AppLayout";
-import { useI18n } from "@/i18n/I18nProvider";
-import styles from "./UploadPage.module.scss";
+import { useNavigate } from '@solidjs/router';
+import { useQueryClient } from '@tanstack/solid-query';
+import { createMemo, createSignal, Index, onCleanup, Show } from 'solid-js';
+import { FileUp, ImagePlus, ScanText, Trash2, Upload } from 'lucide-solid';
+import {
+  bookTagsQueryKey,
+  booksQueryKey,
+  createBookTagsQuery,
+  uploadBook,
+  uploadBookCover,
+} from '@/api/books';
+import Button from '@/components/common/Button/Button';
+import InputContainer from '@/components/common/InputContainer/InputContainer';
+import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
+import TextInput from '@/components/common/TextInput/TextInput';
+import AppLayout from '@/components/layouts/AppLayout/AppLayout';
+import { useI18n } from '@/i18n/I18nProvider';
+import styles from './UploadPage.module.scss';
 
-type CoverStatus = "pending" | "ready" | "missing" | "failed";
-type UploadStatus = "idle" | "uploading" | "failed";
+type CoverStatus = 'pending' | 'ready' | 'missing' | 'failed';
+type UploadStatus = 'idle' | 'uploading' | 'failed';
 
 type BookDraft = {
   id: string;
@@ -21,7 +27,7 @@ type BookDraft = {
   tags: string[];
   coverFile?: File;
   coverPreviewUrl?: string;
-  coverSource?: "auto" | "manual";
+  coverSource?: 'auto' | 'manual';
   coverStatus: CoverStatus;
   coverError?: string;
   titleExtracting: boolean;
@@ -31,10 +37,10 @@ type BookDraft = {
   uploadedBookId?: string;
 };
 
-let coverExtractionModule: Promise<typeof import("./coverExtraction")> | undefined;
+let coverExtractionModule: Promise<typeof import('./coverExtraction')> | undefined;
 
 function loadCoverExtraction() {
-  coverExtractionModule ??= import("./coverExtraction");
+  coverExtractionModule ??= import('./coverExtraction');
 
   return coverExtractionModule;
 }
@@ -55,24 +61,31 @@ function uniqueTags(existingTags: string[], drafts: BookDraft[]) {
 }
 
 function titleFromFile(file: File) {
-  return file.name.replace(/\.[^.]+$/, "");
+  return file.name.replace(/\.[^.]+$/, '');
 }
 
 function isSupportedBookFile(file: File) {
   const fileName = file.name.toLowerCase();
-  return file.type === "application/pdf" || fileName.endsWith(".pdf") || fileName.endsWith(".fb2");
+  return file.type === 'application/pdf' || fileName.endsWith('.pdf') || fileName.endsWith('.fb2');
 }
 
 function createDraftId() {
-  return typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+  return typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random()}`;
 }
 
 function errorMessage(error: unknown, fallback: string) {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
     return error.message;
   }
 
-  if (error && typeof error === "object" && "code" in error && typeof error.code === "string") {
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
     return error.code;
   }
 
@@ -92,31 +105,36 @@ function UploadPage() {
   const [drafts, setDrafts] = createSignal<BookDraft[]>([]);
   const [dragActive, setDragActive] = createSignal(false);
   const [uploading, setUploading] = createSignal(false);
-  const [error, setError] = createSignal("");
+  const [error, setError] = createSignal('');
   let fileInputEl: HTMLInputElement | undefined;
   const coverInputByDraftId = new Map<string, HTMLInputElement>();
   const bookTagsQuery = createBookTagsQuery();
 
   const selectedBooksText = createMemo(() => {
     const count = drafts().length;
-    return count > 0 ? t("booksSelected").replace("{count}", String(count)) : t("fileNotSelected");
+    return count > 0 ? t('booksSelected').replace('{count}', String(count)) : t('fileNotSelected');
   });
   const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], drafts()));
-  const preparingCovers = createMemo(() => drafts().some((draft) => draft.coverStatus === "pending"));
+  const preparingCovers = createMemo(() =>
+    drafts().some((draft) => draft.coverStatus === 'pending'),
+  );
   const preparingTitles = createMemo(() => drafts().some((draft) => draft.titleExtracting));
   const canSubmit = createMemo(
-    () =>
-      drafts().length > 0 &&
-      !uploading() &&
-      !preparingCovers() &&
-      !preparingTitles(),
+    () => drafts().length > 0 && !uploading() && !preparingCovers() && !preparingTitles(),
   );
 
   const updateDraft = (id: string, updater: (draft: BookDraft) => BookDraft) => {
-    setDrafts((currentDrafts) => currentDrafts.map((draft) => (draft.id === id ? updater(draft) : draft)));
+    setDrafts((currentDrafts) =>
+      currentDrafts.map((draft) => (draft.id === id ? updater(draft) : draft)),
+    );
   };
 
-  const setCover = (id: string, file: File | undefined, status: CoverStatus, coverError?: string) => {
+  const setCover = (
+    id: string,
+    file: File | undefined,
+    status: CoverStatus,
+    coverError?: string,
+  ) => {
     updateDraft(id, (draft) => {
       revokePreviewUrl(draft);
 
@@ -124,7 +142,7 @@ function UploadPage() {
         ...draft,
         coverFile: file,
         coverPreviewUrl: file ? URL.createObjectURL(file) : undefined,
-        coverSource: file ? "manual" : undefined,
+        coverSource: file ? 'manual' : undefined,
         coverStatus: status,
         coverError,
         uploadError: undefined,
@@ -137,7 +155,7 @@ function UploadPage() {
       const { prepareBookFile } = await loadCoverExtraction();
       const prepared = await prepareBookFile(draft.file);
       updateDraft(draft.id, (currentDraft) => {
-        if (currentDraft.coverSource === "manual") {
+        if (currentDraft.coverSource === 'manual') {
           return currentDraft;
         }
 
@@ -147,19 +165,19 @@ function UploadPage() {
           ...currentDraft,
           coverFile: prepared.coverFile,
           coverPreviewUrl: prepared.coverFile ? URL.createObjectURL(prepared.coverFile) : undefined,
-          coverSource: prepared.coverFile ? "auto" : undefined,
-          coverStatus: prepared.coverFile ? "ready" : "missing",
+          coverSource: prepared.coverFile ? 'auto' : undefined,
+          coverStatus: prepared.coverFile ? 'ready' : 'missing',
           coverError: undefined,
         };
       });
     } catch (nextError) {
       updateDraft(draft.id, (currentDraft) => ({
         ...currentDraft,
-        coverStatus: currentDraft.coverSource === "manual" ? currentDraft.coverStatus : "failed",
+        coverStatus: currentDraft.coverSource === 'manual' ? currentDraft.coverStatus : 'failed',
         coverError:
-          currentDraft.coverSource === "manual"
+          currentDraft.coverSource === 'manual'
             ? currentDraft.coverError
-            : errorMessage(nextError, t("coverCouldNotBeExtracted")),
+            : errorMessage(nextError, t('coverCouldNotBeExtracted')),
       }));
     }
   };
@@ -168,7 +186,7 @@ function UploadPage() {
     const selectedFiles = Array.from(fileList).filter(isSupportedBookFile);
 
     if (!selectedFiles.length) {
-      setError(t("selectBookFile"));
+      setError(t('selectBookFile'));
       return;
     }
 
@@ -177,9 +195,9 @@ function UploadPage() {
       file,
       title: titleFromFile(file),
       tags: [],
-      coverStatus: "pending" as const,
+      coverStatus: 'pending' as const,
       titleExtracting: false,
-      uploadStatus: "idle" as const,
+      uploadStatus: 'idle' as const,
     }));
 
     if (!nextDrafts.length) {
@@ -187,7 +205,7 @@ function UploadPage() {
     }
 
     setDrafts((currentDrafts) => [...currentDrafts, ...nextDrafts]);
-    setError("");
+    setError('');
     for (const draft of nextDrafts) {
       void prepareDraft(draft);
     }
@@ -212,14 +230,14 @@ function UploadPage() {
         ...currentDraft,
         title: extractedTitle || currentDraft.title,
         titleExtracting: false,
-        titleError: extractedTitle ? undefined : t("titleCouldNotBeExtracted"),
+        titleError: extractedTitle ? undefined : t('titleCouldNotBeExtracted'),
         uploadError: undefined,
       }));
     } catch (nextError) {
       updateDraft(id, (currentDraft) => ({
         ...currentDraft,
         titleExtracting: false,
-        titleError: errorMessage(nextError, t("titleCouldNotBeExtracted")),
+        titleError: errorMessage(nextError, t('titleCouldNotBeExtracted')),
       }));
     }
   };
@@ -234,7 +252,7 @@ function UploadPage() {
     const nextDrafts = drafts().filter((currentDraft) => currentDraft.id !== id);
     setDrafts(nextDrafts);
     if (nextDrafts.length === 0) {
-      setError("");
+      setError('');
     }
   };
 
@@ -243,7 +261,7 @@ function UploadPage() {
       return;
     }
 
-    setCover(id, file, "pending");
+    setCover(id, file, 'pending');
 
     const draft = drafts().find((currentDraft) => currentDraft.id === id);
     const bookFileName = draft?.file.name ?? file.name;
@@ -262,8 +280,8 @@ function UploadPage() {
           ...currentDraft,
           coverFile: preparedCover,
           coverPreviewUrl: URL.createObjectURL(preparedCover),
-          coverSource: "manual",
-          coverStatus: "ready",
+          coverSource: 'manual',
+          coverStatus: 'ready',
           coverError: undefined,
         };
       });
@@ -280,8 +298,8 @@ function UploadPage() {
           coverFile: undefined,
           coverPreviewUrl: undefined,
           coverSource: undefined,
-          coverStatus: "failed",
-          coverError: errorMessage(nextError, t("coverCouldNotBeExtracted")),
+          coverStatus: 'failed',
+          coverError: errorMessage(nextError, t('coverCouldNotBeExtracted')),
         };
       });
     }
@@ -290,7 +308,7 @@ function UploadPage() {
   const uploadDraft = async (draft: BookDraft) => {
     updateDraft(draft.id, (currentDraft) => ({
       ...currentDraft,
-      uploadStatus: "uploading",
+      uploadStatus: 'uploading',
       uploadError: undefined,
     }));
 
@@ -317,8 +335,8 @@ function UploadPage() {
       updateDraft(draft.id, (currentDraft) => ({
         ...currentDraft,
         uploadedBookId,
-        uploadStatus: "failed",
-        uploadError: errorMessage(nextError, t("requestFailedTryAgain")),
+        uploadStatus: 'failed',
+        uploadError: errorMessage(nextError, t('requestFailedTryAgain')),
       }));
       return false;
     }
@@ -328,12 +346,12 @@ function UploadPage() {
     event.preventDefault();
 
     if (drafts().length === 0) {
-      setError(t("selectBookFile"));
+      setError(t('selectBookFile'));
       return;
     }
 
     setUploading(true);
-    setError("");
+    setError('');
 
     const uploadableDrafts = drafts();
     const results: boolean[] = [];
@@ -346,11 +364,11 @@ function UploadPage() {
     await queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
 
     if (results.every(Boolean)) {
-      navigate("/library");
+      navigate('/library');
       return;
     }
 
-    setError(t("someBooksNotUploaded"));
+    setError(t('someBooksNotUploaded'));
   };
 
   onCleanup(() => {
@@ -366,8 +384,8 @@ function UploadPage() {
       <section class={styles.uploadPage}>
         <header class={styles.header}>
           <div>
-            <p class={styles.kicker}>{t("upload")}</p>
-            <h1>{t("addBooks")}</h1>
+            <p class={styles.kicker}>{t('upload')}</p>
+            <h1>{t('addBooks')}</h1>
           </div>
         </header>
 
@@ -391,7 +409,7 @@ function UploadPage() {
           >
             <FileUp />
             <span>{selectedBooksText()}</span>
-            <small>{t("supportedBookFormats")}</small>
+            <small>{t('supportedBookFormats')}</small>
           </button>
 
           <input
@@ -402,7 +420,7 @@ function UploadPage() {
             multiple
             onChange={(event) => {
               addFiles(event.currentTarget.files ?? []);
-              event.currentTarget.value = "";
+              event.currentTarget.value = '';
             }}
           />
 
@@ -415,7 +433,7 @@ function UploadPage() {
                       <button
                         type="button"
                         class={styles.coverButton}
-                        aria-label={t("uploadCover")}
+                        aria-label={t('uploadCover')}
                         disabled={uploading()}
                         onClick={() => coverInputByDraftId.get(draft().id)?.click()}
                       >
@@ -441,13 +459,13 @@ function UploadPage() {
                         disabled={uploading()}
                         onChange={(event) => {
                           void handleCoverChange(draft().id, event.currentTarget.files?.[0]);
-                          event.currentTarget.value = "";
+                          event.currentTarget.value = '';
                         }}
                       />
                     </div>
 
                     <div class={styles.draftFields}>
-                      <InputContainer label={t("title")}>
+                      <InputContainer label={t('title')}>
                         <div class={styles.titleInput}>
                           <TextInput
                             class={styles.titleInputField}
@@ -469,8 +487,8 @@ function UploadPage() {
                             class={styles.extractTitleButton}
                             iconOnly
                             iconStart={<ScanText />}
-                            aria-label={t("extractTitle")}
-                            title={t("extractTitle")}
+                            aria-label={t('extractTitle')}
+                            title={t('extractTitle')}
                             disabled={uploading()}
                             loading={draft().titleExtracting}
                             onClick={() => void handleExtractTitle(draft().id)}
@@ -478,7 +496,7 @@ function UploadPage() {
                         </div>
                       </InputContainer>
 
-                      <InputContainer label={t("tags")}>
+                      <InputContainer label={t('tags')}>
                         <TagsSelect
                           value={draft().tags}
                           options={tagOptions()}
@@ -494,19 +512,19 @@ function UploadPage() {
                       </InputContainer>
 
                       <div class={styles.draftStatus}>
-                        <Show when={draft().coverStatus === "pending"}>
-                          <p class={styles.statusText}>{t("extractingCover")}</p>
+                        <Show when={draft().coverStatus === 'pending'}>
+                          <p class={styles.statusText}>{t('extractingCover')}</p>
                         </Show>
-                        <Show when={draft().coverStatus === "missing"}>
-                          <p class={styles.statusText}>{t("coverNotFound")}</p>
+                        <Show when={draft().coverStatus === 'missing'}>
+                          <p class={styles.statusText}>{t('coverNotFound')}</p>
                         </Show>
-                        <Show when={draft().coverStatus === "failed"}>
+                        <Show when={draft().coverStatus === 'failed'}>
                           <p class={styles.warningText}>{draft().coverError}</p>
                         </Show>
                         <Show when={draft().titleError}>
                           <p class={styles.warningText}>{draft().titleError}</p>
                         </Show>
-                        <Show when={draft().uploadStatus === "failed"}>
+                        <Show when={draft().uploadStatus === 'failed'}>
                           <p class={styles.warningText}>{draft().uploadError}</p>
                         </Show>
                       </div>
@@ -520,7 +538,7 @@ function UploadPage() {
                           iconStart={<Trash2 />}
                           onClick={() => removeDraft(draft().id)}
                         >
-                          {t("remove")}
+                          {t('remove')}
                         </Button>
                       </footer>
                     </div>
@@ -535,8 +553,13 @@ function UploadPage() {
           </Show>
 
           <footer class={styles.actions}>
-            <Button type="submit" loading={uploading()} disabled={!canSubmit()} iconStart={<Upload />}>
-              {t("uploadBooks")}
+            <Button
+              type="submit"
+              loading={uploading()}
+              disabled={!canSubmit()}
+              iconStart={<Upload />}
+            >
+              {t('uploadBooks')}
             </Button>
           </footer>
         </form>

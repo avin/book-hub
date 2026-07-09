@@ -1,12 +1,12 @@
-import { A } from "@solidjs/router";
-import { Heart, MoreVertical } from "lucide-solid";
-import { type Accessor, createMemo, createSignal, Show } from "solid-js";
-import { type Book, getBookCoverUrl } from "@/api/books";
-import Dropdown from "@/components/common/Dropdown/Dropdown";
-import { useI18n } from "@/i18n/I18nProvider";
-import BookActionsMenu from "../BookActionsMenu/BookActionsMenu";
-import BookCover from "../BookCover/BookCover";
-import styles from "./BookCardGrid.module.scss";
+import { A } from '@solidjs/router';
+import { Heart, MoreVertical } from 'lucide-solid';
+import { type Accessor, createMemo, createSignal, Show } from 'solid-js';
+import { type Book, getBookCoverUrl } from '@/api/books';
+import Dropdown from '@/components/common/Dropdown/Dropdown';
+import { useI18n } from '@/i18n/I18nProvider';
+import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
+import BookCover from '../BookCover/BookCover';
+import styles from './BookCardGrid.module.scss';
 
 function BookCardGrid(props: {
   book: Accessor<Book>;
@@ -16,7 +16,7 @@ function BookCardGrid(props: {
   onResetProgress: (book: Book) => void;
 }) {
   const { t } = useI18n();
-  const [menuMode, setMenuMode] = createSignal<"button" | "context" | null>(null);
+  const [menuMode, setMenuMode] = createSignal<'button' | 'context' | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = createSignal({ x: 0, y: 0 });
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const bookId = createMemo(() => props.book().id);
@@ -37,7 +37,7 @@ function BookCardGrid(props: {
         event.preventDefault();
         event.stopPropagation();
         setContextMenuPosition({ x: event.clientX, y: event.clientY });
-        setMenuMode("context");
+        setMenuMode('context');
       }}
     >
       <A class={styles.coverLink} href={`/reader/${bookId()}`}>
@@ -52,40 +52,40 @@ function BookCardGrid(props: {
           }
         />
         <Show when={favorite()}>
-          <span class={styles.favoriteBadge} aria-label={t("favorites")} title={t("favorites")}>
+          <span class={styles.favoriteBadge} aria-label={t('favorites')} title={t('favorites')}>
             <Heart />
           </span>
         </Show>
       </A>
 
       <Dropdown
-        open={menuMode() === "button"}
-        onOpenChange={(open) => setMenuMode(open ? "button" : null)}
+        open={menuMode() === 'button'}
+        onOpenChange={(open) => setMenuMode(open ? 'button' : null)}
         placement="bottom-end"
         minWidth={220}
         referenceStyle={{
-          position: "absolute",
-          top: "8px",
-          right: "8px",
-          width: "32px",
-          height: "32px",
+          position: 'absolute',
+          top: '8px',
+          right: '8px',
+          width: '32px',
+          height: '32px',
         }}
         trigger={
           <button
             type="button"
             class={styles.menuTrigger}
-            aria-label={t("bookActions")}
+            aria-label={t('bookActions')}
             aria-haspopup="menu"
-            aria-expanded={menuMode() === "button"}
+            aria-expanded={menuMode() === 'button'}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              setMenuMode(menuMode() === "button" ? null : "button");
+              setMenuMode(menuMode() === 'button' ? null : 'button');
             }}
             onKeyDown={(event) => {
-              if (event.key === "ArrowDown") {
+              if (event.key === 'ArrowDown') {
                 event.preventDefault();
-                setMenuMode("button");
+                setMenuMode('button');
               }
             }}
           >
@@ -105,16 +105,16 @@ function BookCardGrid(props: {
       </Dropdown>
 
       <Dropdown
-        open={menuMode() === "context"}
-        onOpenChange={(open) => setMenuMode(open ? "context" : null)}
+        open={menuMode() === 'context'}
+        onOpenChange={(open) => setMenuMode(open ? 'context' : null)}
         placement="bottom-start"
         minWidth={220}
         referenceStyle={{
-          position: "fixed",
+          position: 'fixed',
           left: `${contextMenuPosition().x}px`,
           top: `${contextMenuPosition().y}px`,
-          width: "1px",
-          height: "1px",
+          width: '1px',
+          height: '1px',
         }}
         trigger={
           <button type="button" class={styles.contextMenuAnchor} aria-hidden="true" tabindex="-1" />

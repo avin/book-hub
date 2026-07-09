@@ -1,8 +1,8 @@
-import * as pdfjs from "pdfjs-dist";
-import { pdfjsDocumentParams, pdfjsWorkerSrc } from "@/api/pdfjsConfig";
-import { parseFb2 } from "@/components/common/Fb2Reader/fb2Parser";
-import { readFb2BlobText } from "@/components/common/Fb2Reader/fb2TextDecoder";
-import type { Fb2Binary } from "@/components/common/Fb2Reader/fb2Types";
+import * as pdfjs from 'pdfjs-dist';
+import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
+import { parseFb2 } from '@/components/common/Fb2Reader/fb2Parser';
+import { readFb2BlobText } from '@/components/common/Fb2Reader/fb2TextDecoder';
+import type { Fb2Binary } from '@/components/common/Fb2Reader/fb2Types';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
 
@@ -11,7 +11,7 @@ const MAX_COVER_HEIGHT = 1400;
 const MAX_COVER_SIZE_BYTES = 700 * 1024;
 const COVER_QUALITY = 0.86;
 
-const acceptedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const acceptedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export type PreparedBookFile = {
   coverFile?: File;
@@ -22,26 +22,26 @@ function bookTitle(authors: string[], title: string | undefined) {
   const normalizedAuthors = authors.map((author) => author.trim()).filter(Boolean);
 
   if (normalizedAuthors.length && normalizedTitle) {
-    return `${normalizedAuthors.join(", ")} - ${normalizedTitle}`;
+    return `${normalizedAuthors.join(', ')} - ${normalizedTitle}`;
   }
 
-  return normalizedTitle || normalizedAuthors.join(", ");
+  return normalizedTitle || normalizedAuthors.join(', ');
 }
 
 function baseName(fileName: string) {
-  return fileName.replace(/\.[^.]+$/, "");
+  return fileName.replace(/\.[^.]+$/, '');
 }
 
 function isPdf(file: File) {
-  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 }
 
 function isFb2(file: File) {
-  return file.name.toLowerCase().endsWith(".fb2");
+  return file.name.toLowerCase().endsWith('.fb2');
 }
 
 function normalizeImageType(contentType: string) {
-  return contentType.split(";")[0].trim().toLowerCase() || "application/octet-stream";
+  return contentType.split(';')[0].trim().toLowerCase() || 'application/octet-stream';
 }
 
 function coverFileName(bookFileName: string, extension: string) {
@@ -64,7 +64,7 @@ function loadImage(blob: Blob) {
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error("Cover image could not be decoded"));
+      reject(new Error('Cover image could not be decoded'));
     };
     image.src = url;
   });
@@ -75,7 +75,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number)
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error("Cover image could not be compressed"));
+          reject(new Error('Cover image could not be compressed'));
           return;
         }
 
@@ -88,7 +88,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number)
 }
 
 async function compressCover(blob: Blob, bookFileName: string) {
-  if (!blob.type.startsWith("image/")) {
+  if (!blob.type.startsWith('image/')) {
     return undefined;
   }
 
@@ -100,34 +100,40 @@ async function compressCover(blob: Blob, bookFileName: string) {
     !acceptedImageTypes.has(blob.type);
 
   if (!needsCompression) {
-    const extension = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+    const extension =
+      blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
     return new File([blob], coverFileName(bookFileName, extension), { type: blob.type });
   }
 
-  const scale = Math.min(1, MAX_COVER_WIDTH / image.naturalWidth, MAX_COVER_HEIGHT / image.naturalHeight);
-  const canvas = document.createElement("canvas");
+  const scale = Math.min(
+    1,
+    MAX_COVER_WIDTH / image.naturalWidth,
+    MAX_COVER_HEIGHT / image.naturalHeight,
+  );
+  const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
   canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
 
-  const context = canvas.getContext("2d");
+  const context = canvas.getContext('2d');
   if (!context) {
     return undefined;
   }
 
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-  const compressedBlob = await canvasToBlob(canvas, "image/jpeg", COVER_QUALITY);
-  return new File([compressedBlob], coverFileName(bookFileName, "jpg"), { type: "image/jpeg" });
+  const compressedBlob = await canvasToBlob(canvas, 'image/jpeg', COVER_QUALITY);
+  return new File([compressedBlob], coverFileName(bookFileName, 'jpg'), { type: 'image/jpeg' });
 }
 
 async function extractFb2Cover(file: File): Promise<PreparedBookFile> {
   const fb2Document = parseFb2(await readFb2BlobText(file));
-  const coverImageId = fb2Document.blocks.find((block) => block.kind === "image" && block.role === "metadata")
-    ?.imageId;
+  const coverImageId = fb2Document.blocks.find(
+    (block) => block.kind === 'image' && block.role === 'metadata',
+  )?.imageId;
   const coverBinary =
     (coverImageId ? fb2Document.binaries.get(coverImageId) : undefined) ??
     Array.from(fb2Document.binaries.values()).find((binary) =>
-      normalizeImageType(binary.contentType).startsWith("image/"),
+      normalizeImageType(binary.contentType).startsWith('image/'),
     );
 
   return {
@@ -136,7 +142,10 @@ async function extractFb2Cover(file: File): Promise<PreparedBookFile> {
 }
 
 async function extractPdfCover(file: File): Promise<PreparedBookFile> {
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), ...pdfjsDocumentParams });
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(await file.arrayBuffer()),
+    ...pdfjsDocumentParams,
+  });
   const pdfDocument = await loadingTask.promise;
 
   try {
@@ -144,16 +153,16 @@ async function extractPdfCover(file: File): Promise<PreparedBookFile> {
     const viewport = page.getViewport({ scale: 1 });
     const scale = Math.min(2, MAX_COVER_WIDTH / viewport.width, MAX_COVER_HEIGHT / viewport.height);
     const renderViewport = page.getViewport({ scale });
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
 
     canvas.width = Math.max(1, Math.round(renderViewport.width));
     canvas.height = Math.max(1, Math.round(renderViewport.height));
 
     await page.render({ canvas, viewport: renderViewport }).promise;
 
-    const coverBlob = await canvasToBlob(canvas, "image/jpeg", COVER_QUALITY);
+    const coverBlob = await canvasToBlob(canvas, 'image/jpeg', COVER_QUALITY);
     return {
-      coverFile: new File([coverBlob], coverFileName(file.name, "jpg"), { type: "image/jpeg" }),
+      coverFile: new File([coverBlob], coverFileName(file.name, 'jpg'), { type: 'image/jpeg' }),
     };
   } finally {
     await pdfDocument.cleanup();
@@ -184,20 +193,32 @@ export async function extractBookTitle(file: File) {
   }
 
   if (!isPdf(file)) {
-    return "";
+    return '';
   }
 
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), ...pdfjsDocumentParams });
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(await file.arrayBuffer()),
+    ...pdfjsDocumentParams,
+  });
   const pdfDocument = await loadingTask.promise;
 
   try {
     const metadata = await pdfDocument.getMetadata();
     const info = metadata.info as { Title?: unknown; Author?: unknown };
-    const metadataTitle = metadata.metadata?.get("dc:title") ?? metadata.metadata?.get("Title");
-    const metadataAuthor = metadata.metadata?.get("dc:creator") ?? metadata.metadata?.get("Author");
-    const title = typeof metadataTitle === "string" ? metadataTitle : typeof info.Title === "string" ? info.Title : "";
+    const metadataTitle = metadata.metadata?.get('dc:title') ?? metadata.metadata?.get('Title');
+    const metadataAuthor = metadata.metadata?.get('dc:creator') ?? metadata.metadata?.get('Author');
+    const title =
+      typeof metadataTitle === 'string'
+        ? metadataTitle
+        : typeof info.Title === 'string'
+          ? info.Title
+          : '';
     const author =
-      typeof metadataAuthor === "string" ? metadataAuthor : typeof info.Author === "string" ? info.Author : "";
+      typeof metadataAuthor === 'string'
+        ? metadataAuthor
+        : typeof info.Author === 'string'
+          ? info.Author
+          : '';
 
     return bookTitle(author ? [author] : [], title);
   } finally {

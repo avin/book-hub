@@ -4,9 +4,9 @@ import {
   type PreparedRichInline,
   type RichInlineCursor,
   type RichInlineItem,
-} from "@chenglou/pretext/rich-inline";
-import { fontFamilyForMeasurement, webFontMeasureWidthFudge } from "./fb2FontMetrics";
-import { Fb2Block, Fb2Inline, Fb2ReaderSettings, Fb2TableCell, VirtualLayout } from "./fb2Types";
+} from '@chenglou/pretext/rich-inline';
+import { fontFamilyForMeasurement, webFontMeasureWidthFudge } from './fb2FontMetrics';
+import { Fb2Block, Fb2Inline, Fb2ReaderSettings, Fb2TableCell, VirtualLayout } from './fb2Types';
 
 const minMeasureWidth = 240;
 const quoteInset = 32;
@@ -28,13 +28,13 @@ function fontFamily(settings: Fb2ReaderSettings) {
   return fontFamilyForMeasurement(settings);
 }
 
-function fontString(settings: Fb2ReaderSettings, fontSize: number, weight = 400, style = "normal") {
+function fontString(settings: Fb2ReaderSettings, fontSize: number, weight = 400, style = 'normal') {
   return `${style} ${weight} ${fontSize}px ${fontFamily(settings)}`;
 }
 
 function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics {
   switch (block.kind) {
-    case "title": {
+    case 'title': {
       const fontSize = settings.fontSize * (block.level === 1 ? 1.72 : 1.58);
       return {
         fontSize,
@@ -43,7 +43,7 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
         marginBlock: settings.paragraphSpacing + 24,
       };
     }
-    case "subtitle": {
+    case 'subtitle': {
       const fontSize = settings.fontSize * 1.16;
       return {
         fontSize,
@@ -52,20 +52,20 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
         marginBlock: settings.paragraphSpacing + 12,
       };
     }
-    case "poemLine":
+    case 'poemLine':
       return {
         fontSize: settings.fontSize,
         lineHeightPx: settings.fontSize * settings.lineHeight,
-        font: fontString(settings, settings.fontSize, 400, "italic"),
+        font: fontString(settings, settings.fontSize, 400, 'italic'),
         marginBlock: 4,
       };
-    case "textAuthor":
-    case "date": {
+    case 'textAuthor':
+    case 'date': {
       const fontSize = settings.fontSize * 0.94;
       return {
         fontSize,
         lineHeightPx: fontSize * settings.lineHeight,
-        font: fontString(settings, fontSize, 500, "italic"),
+        font: fontString(settings, fontSize, 500, 'italic'),
         marginBlock: settings.paragraphSpacing,
       };
     }
@@ -79,22 +79,28 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
   }
 }
 
-function inlineToRichItems(inline: Fb2Inline, inheritedFont: string, settings: Fb2ReaderSettings): RichInlineItem[] {
-  if (inline.kind === "text") {
+function inlineToRichItems(
+  inline: Fb2Inline,
+  inheritedFont: string,
+  settings: Fb2ReaderSettings,
+): RichInlineItem[] {
+  if (inline.kind === 'text') {
     return inline.text ? [{ text: inline.text, font: inheritedFont }] : [];
   }
 
-  if (inline.kind === "image") {
-    return [{ text: "\uFFFC", font: inheritedFont, break: "never", extraWidth: settings.fontSize * 2.2 }];
+  if (inline.kind === 'image') {
+    return [
+      { text: '\uFFFC', font: inheritedFont, break: 'never', extraWidth: settings.fontSize * 2.2 },
+    ];
   }
 
   const childFont = (() => {
     switch (inline.kind) {
-      case "strong":
+      case 'strong':
         return inheritedFont.replace(/^\S+\s+\d+\s+/, `normal 700 `);
-      case "emphasis":
-        return inheritedFont.replace(/^\S+\s+/, "italic ");
-      case "code":
+      case 'emphasis':
+        return inheritedFont.replace(/^\S+\s+/, 'italic ');
+      case 'code':
         return `${settings.fontSize}px "Cousine", monospace`;
       default:
         return inheritedFont;
@@ -105,42 +111,46 @@ function inlineToRichItems(inline: Fb2Inline, inheritedFont: string, settings: F
 }
 
 function inlinePlainText(inline: Fb2Inline): string {
-  if (inline.kind === "text") {
-    return inline.text ?? "";
+  if (inline.kind === 'text') {
+    return inline.text ?? '';
   }
 
-  if (inline.kind === "image") {
-    return "\uFFFC";
+  if (inline.kind === 'image') {
+    return '\uFFFC';
   }
 
-  return (inline.children ?? []).map(inlinePlainText).join("");
+  return (inline.children ?? []).map(inlinePlainText).join('');
 }
 
 function tightenMeasureWidth(width: number, settings: Fb2ReaderSettings) {
   return Math.max(minMeasureWidth, width - webFontMeasureWidthFudge(settings));
 }
 
-function measureWidthsForBlock(block: Fb2Block, width: number, settings: Fb2ReaderSettings): MeasureWidths {
+function measureWidthsForBlock(
+  block: Fb2Block,
+  width: number,
+  settings: Fb2ReaderSettings,
+): MeasureWidths {
   const measureWidth = tightenMeasureWidth(width, settings);
 
   if (
-    block.role === "annotation" ||
-    block.role === "metadata" ||
-    block.role === "cite" ||
-    block.role === "epigraph"
+    block.role === 'annotation' ||
+    block.role === 'metadata' ||
+    block.role === 'cite' ||
+    block.role === 'epigraph'
   ) {
     return { lineWidth: Math.max(minMeasureWidth, measureWidth - quoteInset) };
   }
 
-  if (block.kind === "listItem") {
+  if (block.kind === 'listItem') {
     return { lineWidth: Math.max(minMeasureWidth, measureWidth - settings.paragraphIndent) };
   }
 
-  if (block.kind === "poemLine") {
+  if (block.kind === 'poemLine') {
     return { lineWidth: Math.max(minMeasureWidth, measureWidth - settings.paragraphIndent * 1.2) };
   }
 
-  if (block.kind === "paragraph") {
+  if (block.kind === 'paragraph') {
     return {
       lineWidth: measureWidth,
       firstLineWidth: Math.max(minMeasureWidth, measureWidth - settings.paragraphIndent),
@@ -154,10 +164,16 @@ function measureRichLineCount(prepared: PreparedRichInline, widths: MeasureWidth
   let lineCount = 0;
   let cursor: RichInlineCursor | undefined;
 
-  while (true) {
+  for (;;) {
     const maxWidth =
-      lineCount === 0 && widths.firstLineWidth !== undefined ? widths.firstLineWidth : widths.lineWidth;
-    const line = layoutNextRichInlineLineRange(prepared, Math.max(minMeasureWidth, maxWidth), cursor);
+      lineCount === 0 && widths.firstLineWidth !== undefined
+        ? widths.firstLineWidth
+        : widths.lineWidth;
+    const line = layoutNextRichInlineLineRange(
+      prepared,
+      Math.max(minMeasureWidth, maxWidth),
+      cursor,
+    );
 
     if (!line) {
       break;
@@ -176,7 +192,9 @@ function measureInlinesHeight(
   metrics: TextMetrics,
   settings: Fb2ReaderSettings,
 ) {
-  const items = (inlines ?? []).flatMap((inline) => inlineToRichItems(inline, metrics.font, settings));
+  const items = (inlines ?? []).flatMap((inline) =>
+    inlineToRichItems(inline, metrics.font, settings),
+  );
 
   if (items.length === 0) {
     return metrics.lineHeightPx + metrics.marginBlock;
@@ -191,12 +209,13 @@ function measureInlinesHeight(
 function measureCodeBlock(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
   const fontSize = settings.fontSize * 0.92;
   const lineHeightPx = fontSize * 1.45;
-  const text = (block.inlines ?? []).map(inlinePlainText).join("").replace(/\s+$/, "");
-  const lines = text.length > 0 ? text.split(/\r\n|\r|\n/) : [""];
+  const text = (block.inlines ?? []).map(inlinePlainText).join('').replace(/\s+$/, '');
+  const lines = text.length > 0 ? text.split(/\r\n|\r|\n/) : [''];
   const averageCharWidth = fontSize * 0.62;
   const contentWidth = Math.max(minMeasureWidth, width - 32);
   const visualLineCount = lines.reduce(
-    (total, line) => total + Math.max(1, Math.ceil((line.length * averageCharWidth) / contentWidth)),
+    (total, line) =>
+      total + Math.max(1, Math.ceil((line.length * averageCharWidth) / contentWidth)),
     0,
   );
 
@@ -242,15 +261,15 @@ function measureTable(block: Fb2Block, width: number, settings: Fb2ReaderSetting
 
 function measureBlockHeight(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
   switch (block.kind) {
-    case "emptyLine":
+    case 'emptyLine':
       return settings.fontSize * settings.lineHeight;
-    case "divider":
+    case 'divider':
       return settings.fontSize * 2.4;
-    case "codeBlock":
+    case 'codeBlock':
       return measureCodeBlock(block, width, settings);
-    case "image":
+    case 'image':
       return Math.min(520, Math.max(220, width * 0.58)) + settings.paragraphSpacing + 12;
-    case "table":
+    case 'table':
       return measureTable(block, width, settings);
     default: {
       const height = measureInlinesHeight(
@@ -260,12 +279,16 @@ function measureBlockHeight(block: Fb2Block, width: number, settings: Fb2ReaderS
         settings,
       );
 
-      return block.kind === "title" ? height + titlePaddingTop : height;
+      return block.kind === 'title' ? height + titlePaddingTop : height;
     }
   }
 }
 
-export function buildVirtualLayout(blocks: Fb2Block[], width: number, settings: Fb2ReaderSettings): VirtualLayout {
+export function buildVirtualLayout(
+  blocks: Fb2Block[],
+  width: number,
+  settings: Fb2ReaderSettings,
+): VirtualLayout {
   const heights = blocks.map((block) => measureBlockHeight(block, width, settings));
   const offsets: number[] = [];
   let totalHeight = 0;

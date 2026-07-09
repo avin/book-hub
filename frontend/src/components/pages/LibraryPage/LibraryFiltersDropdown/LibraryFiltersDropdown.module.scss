@@ -1,5 +1,5 @@
-@use "@/styles/_variables.scss" as *;
-@use "@/styles/_mixins.scss" as *;
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
 
 .trigger {
   position: relative;
@@ -7,7 +7,7 @@
   height: 42px;
 
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     top: 7px;
     right: 7px;

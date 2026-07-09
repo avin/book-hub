@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { JSX } from 'solid-js';
 
 export const widthRulerTicks = Array.from({ length: 81 }, (_, index) => index - 40);
 
@@ -15,7 +15,7 @@ export function computeWidthRulerMarkers(
   void layoutWidth;
 
   if (!customWidth || !rulerElement) {
-    return { left: { display: "none" }, right: { display: "none" } };
+    return { left: { display: 'none' }, right: { display: 'none' } };
   }
 
   const rulerRect = rulerElement.getBoundingClientRect();

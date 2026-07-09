@@ -1,14 +1,14 @@
-import { For, type JSX, Show } from "solid-js";
-import styles from "./Menu.module.scss";
+import { For, type JSX, Show } from 'solid-js';
+import styles from './Menu.module.scss';
 
 export type MenuSeparator<TId = string> = {
-  type: "separator";
+  type: 'separator';
   id?: TId;
   key?: string;
 };
 
 export type MenuButton<TId = string> = {
-  type?: "button";
+  type?: 'button';
   id?: TId;
   key?: string;
   label: JSX.Element;
@@ -22,7 +22,7 @@ export type MenuButton<TId = string> = {
 };
 
 export type MenuLink<TId = string> = {
-  type: "link";
+  type: 'link';
   id?: TId;
   key?: string;
   label: JSX.Element;
@@ -37,7 +37,7 @@ export type MenuLink<TId = string> = {
 };
 
 export type MenuCategory<TId = string> = {
-  type: "category";
+  type: 'category';
   id?: TId;
   key?: string;
   label: JSX.Element;
@@ -46,17 +46,14 @@ export type MenuCategory<TId = string> = {
 
 export type MenuActionItem<TId = string> = MenuButton<TId> | MenuLink<TId>;
 export type MenuItem<TId = string> =
-  | MenuSeparator<TId>
-  | MenuButton<TId>
-  | MenuLink<TId>
-  | MenuCategory<TId>;
+  MenuSeparator<TId> | MenuButton<TId> | MenuLink<TId> | MenuCategory<TId>;
 
 function getItemKey<TId>(item: MenuItem<TId>, index: number) {
   return String(item.key ?? item.id ?? index);
 }
 
 function getItemStyle(depth: number) {
-  return { "--menu-depth": String(depth) } as JSX.CSSProperties;
+  return { '--menu-depth': String(depth) } as JSX.CSSProperties;
 }
 
 function Menu<TId = string>(props: {
@@ -70,7 +67,7 @@ function Menu<TId = string>(props: {
       {(item, index) => {
         const key = getItemKey(item, index());
 
-        if (item.type === "category") {
+        if (item.type === 'category') {
           return (
             <>
               <div class={styles.category} style={getItemStyle(depth)} role="presentation">
@@ -81,7 +78,7 @@ function Menu<TId = string>(props: {
           );
         }
 
-        if (item.type === "separator") {
+        if (item.type === 'separator') {
           return <div class={styles.separator} role="separator" />;
         }
 
@@ -114,7 +111,7 @@ function Menu<TId = string>(props: {
         return (
           <div class={styles.itemWrapper} data-key={key}>
             <Show
-              when={item.type === "link"}
+              when={item.type === 'link'}
               fallback={
                 <button
                   type="button"
@@ -124,7 +121,7 @@ function Menu<TId = string>(props: {
                   disabled={item.disabled}
                   role="menuitem"
                   aria-disabled={item.disabled || undefined}
-                  aria-current={item.selected ? "true" : undefined}
+                  aria-current={item.selected ? 'true' : undefined}
                   onClick={activateItem}
                   onMouseEnter={item.onMouseEnter}
                 >
@@ -139,7 +136,7 @@ function Menu<TId = string>(props: {
                 href={(item as MenuLink<TId>).href}
                 role="menuitem"
                 aria-disabled={item.disabled || undefined}
-                aria-current={item.selected ? "true" : undefined}
+                aria-current={item.selected ? 'true' : undefined}
                 onClick={(event) => {
                   if (item.disabled) {
                     event.preventDefault();
@@ -160,7 +157,7 @@ function Menu<TId = string>(props: {
 
   return (
     <div
-      class={`${styles.menu} ${props.class ?? ""}`}
+      class={`${styles.menu} ${props.class ?? ''}`}
       classList={{ [styles.withHoverEffect]: props.withHoverEffect ?? true }}
       role="menu"
     >

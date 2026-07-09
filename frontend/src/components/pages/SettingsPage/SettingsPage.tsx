@@ -1,24 +1,24 @@
-import { createMemo, createSignal, onMount, Show } from "solid-js";
-import { Database, KeyRound, Palette, RotateCcw } from "lucide-solid";
-import { createResetAllReadingProgressMutation } from "@/api/books";
-import { createChangePasswordMutation, createCurrentUserQuery } from "@/api/user";
-import Button from "@/components/common/Button/Button";
-import InputContainer from "@/components/common/InputContainer/InputContainer";
-import TextInput from "@/components/common/TextInput/TextInput";
-import ThemeSelect from "@/components/common/ThemeSelect/ThemeSelect";
-import AppLayout from "@/components/layouts/AppLayout/AppLayout";
-import { useI18n } from "@/i18n/I18nProvider";
-import { getThemePreference } from "@/storage/browserPreferences";
-import { changeTheme } from "@/styles/ThemeSync";
-import { defaultThemeId, type ThemeId } from "@/styles/themes";
-import styles from "./SettingsPage.module.scss";
+import { createMemo, createSignal, onMount, Show } from 'solid-js';
+import { Database, KeyRound, Palette, RotateCcw } from 'lucide-solid';
+import { createResetAllReadingProgressMutation } from '@/api/books';
+import { createChangePasswordMutation, createCurrentUserQuery } from '@/api/user';
+import Button from '@/components/common/Button/Button';
+import InputContainer from '@/components/common/InputContainer/InputContainer';
+import TextInput from '@/components/common/TextInput/TextInput';
+import ThemeSelect from '@/components/common/ThemeSelect/ThemeSelect';
+import AppLayout from '@/components/layouts/AppLayout/AppLayout';
+import { useI18n } from '@/i18n/I18nProvider';
+import { getThemePreference } from '@/storage/browserPreferences';
+import { changeTheme } from '@/styles/ThemeSync';
+import { defaultThemeId, type ThemeId } from '@/styles/themes';
+import styles from './SettingsPage.module.scss';
 
 function formatBytes(value: number) {
   if (value < 1024) {
     return `${value} B`;
   }
 
-  const units = ["KB", "MB", "GB"];
+  const units = ['KB', 'MB', 'GB'];
   let nextValue = value / 1024;
   let unitIndex = 0;
 
@@ -31,11 +31,16 @@ function formatBytes(value: number) {
 }
 
 function errorMessage(error: unknown, fallback: string) {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
     return error.message;
   }
 
-  if (error && typeof error === "object" && "code" in error && typeof error.code === "string") {
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
     return error.code;
   }
 
@@ -47,12 +52,12 @@ function SettingsPage() {
   const currentUserQuery = createCurrentUserQuery();
   const changePasswordMutation = createChangePasswordMutation();
   const resetAllProgressMutation = createResetAllReadingProgressMutation();
-  const [currentPassword, setCurrentPassword] = createSignal("");
-  const [newPassword, setNewPassword] = createSignal("");
-  const [repeatPassword, setRepeatPassword] = createSignal("");
-  const [passwordError, setPasswordError] = createSignal("");
+  const [currentPassword, setCurrentPassword] = createSignal('');
+  const [newPassword, setNewPassword] = createSignal('');
+  const [repeatPassword, setRepeatPassword] = createSignal('');
+  const [passwordError, setPasswordError] = createSignal('');
   const [passwordSaved, setPasswordSaved] = createSignal(false);
-  const [progressResetError, setProgressResetError] = createSignal("");
+  const [progressResetError, setProgressResetError] = createSignal('');
   const [progressResetDone, setProgressResetDone] = createSignal(false);
   const [activeTheme, setActiveTheme] = createSignal<ThemeId>(defaultThemeId());
   const user = createMemo(() => currentUserQuery.data);
@@ -67,15 +72,15 @@ function SettingsPage() {
   };
 
   const handleResetAllProgress = () => {
-    if (!window.confirm(t("resetAllProgressConfirm"))) {
+    if (!window.confirm(t('resetAllProgressConfirm'))) {
       return;
     }
 
-    setProgressResetError("");
+    setProgressResetError('');
     setProgressResetDone(false);
     resetAllProgressMutation.mutate(undefined, {
       onSuccess: () => setProgressResetDone(true),
-      onError: () => setProgressResetError(t("requestFailedTryAgain")),
+      onError: () => setProgressResetError(t('requestFailedTryAgain')),
     });
   };
   const usedPercent = createMemo(() => {
@@ -89,22 +94,22 @@ function SettingsPage() {
 
   const updatePasswordField = (setter: (value: string) => void, value: string) => {
     setter(value);
-    setPasswordError("");
+    setPasswordError('');
     setPasswordSaved(false);
   };
 
   const handleChangePassword = (event: Event) => {
     event.preventDefault();
-    setPasswordError("");
+    setPasswordError('');
     setPasswordSaved(false);
 
     if (!currentPassword() || !newPassword()) {
-      setPasswordError(t("fillField"));
+      setPasswordError(t('fillField'));
       return;
     }
 
     if (newPassword() !== repeatPassword()) {
-      setPasswordError(t("passwordsDoNotMatch"));
+      setPasswordError(t('passwordsDoNotMatch'));
       return;
     }
 
@@ -115,12 +120,13 @@ function SettingsPage() {
       },
       {
         onSuccess: () => {
-          setCurrentPassword("");
-          setNewPassword("");
-          setRepeatPassword("");
+          setCurrentPassword('');
+          setNewPassword('');
+          setRepeatPassword('');
           setPasswordSaved(true);
         },
-        onError: (nextError) => setPasswordError(errorMessage(nextError, t("requestFailedTryAgain"))),
+        onError: (nextError) =>
+          setPasswordError(errorMessage(nextError, t('requestFailedTryAgain'))),
       },
     );
   };
@@ -129,9 +135,9 @@ function SettingsPage() {
     <AppLayout>
       <section class={styles.settingsPage}>
         <header class={styles.header}>
-          <p class={styles.kicker}>{t("settings")}</p>
+          <p class={styles.kicker}>{t('settings')}</p>
           <h1>
-            {t("accountSettings")}
+            {t('accountSettings')}
             <Show when={user()}>
               {(currentUser) => <span class={styles.accountName}> {currentUser().login}</span>}
             </Show>
@@ -142,28 +148,32 @@ function SettingsPage() {
           <form class={styles.panel} onSubmit={handleChangePassword}>
             <header class={styles.panelHeader}>
               <KeyRound />
-              <h2>{t("changePassword")}</h2>
+              <h2>{t('changePassword')}</h2>
             </header>
 
-            <InputContainer label={t("currentPassword")}>
+            <InputContainer label={t('currentPassword')}>
               <TextInput
                 type="password"
                 value={currentPassword()}
-                onInput={(event) => updatePasswordField(setCurrentPassword, event.currentTarget.value)}
+                onInput={(event) =>
+                  updatePasswordField(setCurrentPassword, event.currentTarget.value)
+                }
               />
             </InputContainer>
-            <InputContainer label={t("newPassword")}>
+            <InputContainer label={t('newPassword')}>
               <TextInput
                 type="password"
                 value={newPassword()}
                 onInput={(event) => updatePasswordField(setNewPassword, event.currentTarget.value)}
               />
             </InputContainer>
-            <InputContainer label={t("repeatPassword")}>
+            <InputContainer label={t('repeatPassword')}>
               <TextInput
                 type="password"
                 value={repeatPassword()}
-                onInput={(event) => updatePasswordField(setRepeatPassword, event.currentTarget.value)}
+                onInput={(event) =>
+                  updatePasswordField(setRepeatPassword, event.currentTarget.value)
+                }
               />
             </InputContainer>
 
@@ -171,12 +181,12 @@ function SettingsPage() {
               <p class={styles.error}>{passwordError()}</p>
             </Show>
             <Show when={passwordSaved()}>
-              <p class={styles.success}>{t("passwordChanged")}</p>
+              <p class={styles.success}>{t('passwordChanged')}</p>
             </Show>
 
             <footer class={styles.panelActions}>
               <Button type="submit" loading={changePasswordMutation.isPending}>
-                {t("savePassword")}
+                {t('savePassword')}
               </Button>
             </footer>
           </form>
@@ -184,7 +194,7 @@ function SettingsPage() {
           <section class={styles.panel}>
             <header class={styles.panelHeader}>
               <Database />
-              <h2>{t("storage")}</h2>
+              <h2>{t('storage')}</h2>
             </header>
 
             <Show when={user()}>
@@ -194,7 +204,8 @@ function SettingsPage() {
                     <span style={{ width: `${usedPercent()}%` }} />
                   </div>
                   <p class={styles.storageText}>
-                    {formatBytes(currentUser().used_bytes)} / {formatBytes(currentUser().quota_bytes)}
+                    {formatBytes(currentUser().used_bytes)} /{' '}
+                    {formatBytes(currentUser().quota_bytes)}
                   </p>
                 </>
               )}
@@ -205,7 +216,7 @@ function SettingsPage() {
         <section class={styles.panel}>
           <header class={styles.panelHeader}>
             <Palette />
-            <h2>{t("appearance")}</h2>
+            <h2>{t('appearance')}</h2>
           </header>
 
           <ThemeSelect value={activeTheme()} onChange={handleChangeTheme} />
@@ -214,13 +225,13 @@ function SettingsPage() {
         <section class={styles.panel}>
           <header class={styles.panelHeader}>
             <RotateCcw />
-            <h2>{t("data")}</h2>
+            <h2>{t('data')}</h2>
           </header>
 
           <div class={styles.dangerRow}>
             <div class={styles.dangerText}>
-              <p class={styles.dangerTitle}>{t("resetAllProgress")}</p>
-              <p class={styles.dangerHint}>{t("resetAllProgressDescription")}</p>
+              <p class={styles.dangerTitle}>{t('resetAllProgress')}</p>
+              <p class={styles.dangerHint}>{t('resetAllProgressDescription')}</p>
             </div>
             <Button
               type="button"
@@ -229,14 +240,14 @@ function SettingsPage() {
               loading={resetAllProgressMutation.isPending}
               onClick={handleResetAllProgress}
             >
-              {t("resetAllProgress")}
+              {t('resetAllProgress')}
             </Button>
           </div>
           <Show when={progressResetError()}>
             <p class={styles.error}>{progressResetError()}</p>
           </Show>
           <Show when={progressResetDone()}>
-            <p class={styles.success}>{t("resetAllProgressDone")}</p>
+            <p class={styles.success}>{t('resetAllProgressDone')}</p>
           </Show>
         </section>
       </section>

@@ -1,13 +1,13 @@
-import { A } from "@solidjs/router";
-import { ChevronDown, Heart } from "lucide-solid";
-import { type Accessor, createMemo, createSignal, For, Show } from "solid-js";
-import { type Book, getBookCoverUrl } from "@/api/books";
-import Button from "@/components/common/Button/Button";
-import Dropdown from "@/components/common/Dropdown/Dropdown";
-import BookActionsMenu from "../BookActionsMenu/BookActionsMenu";
-import { useI18n } from "@/i18n/I18nProvider";
-import BookCover from "../BookCover/BookCover";
-import styles from "./BookCard.module.scss";
+import { A } from '@solidjs/router';
+import { ChevronDown, Heart } from 'lucide-solid';
+import { type Accessor, createMemo, createSignal, For, Show } from 'solid-js';
+import { type Book, getBookCoverUrl } from '@/api/books';
+import Button from '@/components/common/Button/Button';
+import Dropdown from '@/components/common/Dropdown/Dropdown';
+import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
+import { useI18n } from '@/i18n/I18nProvider';
+import BookCover from '../BookCover/BookCover';
+import styles from './BookCard.module.scss';
 
 function areTagsEqual(left: readonly string[], right: readonly string[]) {
   return left.length === right.length && left.every((tag, index) => tag === right[index]);
@@ -28,14 +28,11 @@ function BookCard(props: {
   const progressPercent = createMemo(() => props.book().progress_percent);
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const [menuOpen, setMenuOpen] = createSignal(false);
-  const tags = createMemo<Book["tags"]>(
-    (previousTags) => {
-      const nextTags = props.book().tags;
+  const tags = createMemo<Book['tags']>((previousTags) => {
+    const nextTags = props.book().tags;
 
-      return areTagsEqual(previousTags, nextTags) ? previousTags : nextTags;
-    },
-    [],
-  );
+    return areTagsEqual(previousTags, nextTags) ? previousTags : nextTags;
+  }, []);
 
   const showCover = () => {
     setMenuOpen(false);
@@ -51,7 +48,11 @@ function BookCard(props: {
   return (
     <article class={styles.bookCard}>
       <A class={styles.bookMain} href={`/reader/${bookId()}`}>
-        <span class={styles.coverLink} title={t("showFullCover")} onContextMenu={handleCoverContextMenu}>
+        <span
+          class={styles.coverLink}
+          title={t('showFullCover')}
+          onContextMenu={handleCoverContextMenu}
+        >
           <BookCover bookId={bookId()} format={format()} version={props.book().updated_at} />
         </span>
         <div class={styles.bookContent}>
@@ -73,7 +74,7 @@ function BookCard(props: {
           variant="ghost"
           size="sm"
           iconOnly
-          aria-label={favorite() ? t("removeFromFavorites") : t("addToFavorites")}
+          aria-label={favorite() ? t('removeFromFavorites') : t('addToFavorites')}
           aria-pressed={favorite()}
           iconStart={<Heart />}
           classList={{ [styles.favoriteActive]: favorite() }}
@@ -90,7 +91,7 @@ function BookCard(props: {
               variant="ghost"
               size="sm"
               iconOnly
-              aria-label={t("bookActions")}
+              aria-label={t('bookActions')}
               aria-haspopup="menu"
               aria-expanded={menuOpen()}
               iconStart={<ChevronDown />}

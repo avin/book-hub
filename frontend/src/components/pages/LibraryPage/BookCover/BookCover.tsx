@@ -1,11 +1,11 @@
-import { FileText } from "lucide-solid";
-import { createEffect, createSignal, Show, type JSX } from "solid-js";
-import { type Book, getBookCoverUrl } from "@/api/books";
-import styles from "./BookCover.module.scss";
+import { FileText } from 'lucide-solid';
+import { createEffect, createSignal, Show, type JSX } from 'solid-js';
+import { type Book, getBookCoverUrl } from '@/api/books';
+import styles from './BookCover.module.scss';
 
 function BookCover(props: {
   bookId: string;
-  format: Book["format"];
+  format: Book['format'];
   // Cache-buster: bumped whenever the cover actually changes (book.updated_at).
   // Prevents the browser/img cache from serving a stale cover after upload/delete.
   version?: string;
@@ -15,13 +15,13 @@ function BookCover(props: {
   const [failed, setFailed] = createSignal(false);
 
   createEffect(() => {
-    props.bookId;
-    props.version;
+    void props.bookId;
+    void props.version;
     setFailed(false);
   });
 
   const src = () => {
-    const base = getBookCoverUrl(props.bookId, "thumbnail");
+    const base = getBookCoverUrl(props.bookId, 'thumbnail');
     return props.version ? `${base}&v=${encodeURIComponent(props.version)}` : base;
   };
 
@@ -38,12 +38,7 @@ function BookCover(props: {
           )
         }
       >
-        <img
-          src={src()}
-          alt=""
-          loading="lazy"
-          onError={() => setFailed(true)}
-        />
+        <img src={src()} alt="" loading="lazy" onError={() => setFailed(true)} />
       </Show>
     </div>
   );

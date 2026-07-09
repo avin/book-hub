@@ -1,8 +1,8 @@
-@use "@/styles/_variables.scss" as *;
-@use "@/styles/_mixins.scss" as *;
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
 
 @mixin interactive-hover {
-  &:hover:not(:disabled):not(.disabled):not([aria-disabled="true"]) {
+  &:hover:not(:disabled):not(.disabled):not([aria-disabled='true']) {
     @content;
   }
 }
@@ -34,7 +34,7 @@
 
   &:disabled,
   &.disabled,
-  &[aria-disabled="true"] {
+  &[aria-disabled='true'] {
     cursor: not-allowed;
     opacity: 0.55;
     pointer-events: none;

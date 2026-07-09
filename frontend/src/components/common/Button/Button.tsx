@@ -1,9 +1,9 @@
-import { A, RouterContext } from "@solidjs/router";
-import { type JSX, Show, splitProps, useContext } from "solid-js";
-import styles from "./Button.module.scss";
+import { A, RouterContext } from '@solidjs/router';
+import { type JSX, Show, splitProps, useContext } from 'solid-js';
+import styles from './Button.module.scss';
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "link";
-type ButtonSize = "sm" | "md";
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
+type ButtonSize = 'sm' | 'md';
 
 type ButtonSharedProps = {
   variant?: ButtonVariant;
@@ -26,7 +26,7 @@ type ButtonAsButtonProps = ButtonSharedProps &
   };
 
 type ButtonAsLinkProps = ButtonSharedProps &
-  Omit<JSX.AnchorHTMLAttributes<HTMLAnchorElement>, "type"> & {
+  Omit<JSX.AnchorHTMLAttributes<HTMLAnchorElement>, 'type'> & {
     href: string;
   };
 
@@ -39,35 +39,35 @@ function isExternalHref(href: string) {
 function Button(props: ButtonProps) {
   const router = useContext(RouterContext);
   const [local, rest] = splitProps(props as ButtonSharedProps & Record<string, unknown>, [
-    "children",
-    "class",
-    "classList",
-    "variant",
-    "size",
-    "loading",
-    "disabled",
-    "iconStart",
-    "iconEnd",
-    "iconOnly",
-    "fullWidth",
-    "destructive",
-    "href",
-    "onClick",
-    "tabIndex",
+    'children',
+    'class',
+    'classList',
+    'variant',
+    'size',
+    'loading',
+    'disabled',
+    'iconStart',
+    'iconEnd',
+    'iconOnly',
+    'fullWidth',
+    'destructive',
+    'href',
+    'onClick',
+    'tabIndex',
   ]);
 
-  const href = () => (typeof local.href === "string" ? local.href : undefined);
+  const href = () => (typeof local.href === 'string' ? local.href : undefined);
   const isLink = () => Boolean(href());
   const isDisabled = () => Boolean(local.disabled || local.loading);
 
-  const className = () => `${styles.button} ${local.class ?? ""}`;
+  const className = () => `${styles.button} ${local.class ?? ''}`;
   const classList = () => ({
-    [styles.primary]: (local.variant ?? "primary") === "primary",
-    [styles.secondary]: local.variant === "secondary",
-    [styles.ghost]: local.variant === "ghost",
-    [styles.danger]: local.variant === "danger",
-    [styles.link]: local.variant === "link",
-    [styles.small]: local.size === "sm",
+    [styles.primary]: (local.variant ?? 'primary') === 'primary',
+    [styles.secondary]: local.variant === 'secondary',
+    [styles.ghost]: local.variant === 'ghost',
+    [styles.danger]: local.variant === 'danger',
+    [styles.link]: local.variant === 'link',
+    [styles.small]: local.size === 'sm',
     [styles.iconOnly]: local.iconOnly,
     [styles.loading]: local.loading,
     [styles.fullWidth]: local.fullWidth,
@@ -102,13 +102,13 @@ function Button(props: ButtonProps) {
       return;
     }
 
-    if (typeof local.onClick === "function") {
+    if (typeof local.onClick === 'function') {
       local.onClick(event);
     }
   };
 
   const handleButtonClick: JSX.EventHandlerUnion<HTMLButtonElement, MouseEvent> = (event) => {
-    if (typeof local.onClick === "function") {
+    if (typeof local.onClick === 'function') {
       local.onClick(event);
     }
   };

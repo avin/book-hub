@@ -1,8 +1,8 @@
-import { For, Match, Show, Switch } from "solid-js";
-import type { Fb2Block } from "../fb2Types";
-import RenderInlines from "../RenderInlines/RenderInlines";
-import TableCell from "./TableCell/TableCell";
-import styles from "./BlockView.module.scss";
+import { For, Match, Show, Switch } from 'solid-js';
+import type { Fb2Block } from '../fb2Types';
+import RenderInlines from '../RenderInlines/RenderInlines';
+import TableCell from './TableCell/TableCell';
+import styles from './BlockView.module.scss';
 
 function BlockView(props: {
   block: Fb2Block;
@@ -13,7 +13,7 @@ function BlockView(props: {
 }) {
   return (
     <Switch>
-      <Match when={props.block.kind === "title"}>
+      <Match when={props.block.kind === 'title'}>
         <h2 class={styles.title} data-level={props.block.level}>
           <RenderInlines
             inlines={props.block.inlines}
@@ -24,7 +24,7 @@ function BlockView(props: {
           />
         </h2>
       </Match>
-      <Match when={props.block.kind === "subtitle"}>
+      <Match when={props.block.kind === 'subtitle'}>
         <h3 class={styles.subtitle}>
           <RenderInlines
             inlines={props.block.inlines}
@@ -35,12 +35,13 @@ function BlockView(props: {
           />
         </h3>
       </Match>
-      <Match when={props.block.kind === "paragraph"}>
+      <Match when={props.block.kind === 'paragraph'}>
         <p
           class={styles.paragraph}
           classList={{
-            [styles.annotation]: props.block.role === "annotation" || props.block.role === "metadata",
-            [styles.quote]: props.block.role === "cite" || props.block.role === "epigraph",
+            [styles.annotation]:
+              props.block.role === 'annotation' || props.block.role === 'metadata',
+            [styles.quote]: props.block.role === 'cite' || props.block.role === 'epigraph',
           }}
         >
           <RenderInlines
@@ -52,12 +53,13 @@ function BlockView(props: {
           />
         </p>
       </Match>
-      <Match when={props.block.kind === "listItem"}>
+      <Match when={props.block.kind === 'listItem'}>
         <p
           class={styles.listItem}
           classList={{
-            [styles.annotation]: props.block.role === "annotation" || props.block.role === "metadata",
-            [styles.quote]: props.block.role === "cite" || props.block.role === "epigraph",
+            [styles.annotation]:
+              props.block.role === 'annotation' || props.block.role === 'metadata',
+            [styles.quote]: props.block.role === 'cite' || props.block.role === 'epigraph',
           }}
         >
           <RenderInlines
@@ -69,7 +71,7 @@ function BlockView(props: {
           />
         </p>
       </Match>
-      <Match when={props.block.kind === "codeBlock"}>
+      <Match when={props.block.kind === 'codeBlock'}>
         <pre class={styles.codeBlock}>
           <code class={styles.codeBlockContent}>
             <RenderInlines
@@ -82,7 +84,7 @@ function BlockView(props: {
           </code>
         </pre>
       </Match>
-      <Match when={props.block.kind === "divider"}>
+      <Match when={props.block.kind === 'divider'}>
         <div class={styles.divider} aria-hidden="true">
           <span>
             <RenderInlines
@@ -95,7 +97,7 @@ function BlockView(props: {
           </span>
         </div>
       </Match>
-      <Match when={props.block.kind === "poemLine"}>
+      <Match when={props.block.kind === 'poemLine'}>
         <p class={styles.poemLine}>
           <RenderInlines
             inlines={props.block.inlines}
@@ -106,7 +108,7 @@ function BlockView(props: {
           />
         </p>
       </Match>
-      <Match when={props.block.kind === "textAuthor"}>
+      <Match when={props.block.kind === 'textAuthor'}>
         <p class={styles.textAuthor}>
           <RenderInlines
             inlines={props.block.inlines}
@@ -117,7 +119,7 @@ function BlockView(props: {
           />
         </p>
       </Match>
-      <Match when={props.block.kind === "date"}>
+      <Match when={props.block.kind === 'date'}>
         <p class={styles.date}>
           <RenderInlines
             inlines={props.block.inlines}
@@ -128,17 +130,20 @@ function BlockView(props: {
           />
         </p>
       </Match>
-      <Match when={props.block.kind === "emptyLine"}>
+      <Match when={props.block.kind === 'emptyLine'}>
         <div class={styles.emptyLine} aria-hidden="true" />
       </Match>
-      <Match when={props.block.kind === "image"}>
+      <Match when={props.block.kind === 'image'}>
         <figure class={styles.figure}>
-          <Show when={props.imageSrc(props.block.imageId)} fallback={<div class={styles.missingImage}>Нет изображения</div>}>
+          <Show
+            when={props.imageSrc(props.block.imageId)}
+            fallback={<div class={styles.missingImage}>Нет изображения</div>}
+          >
             {(src) => <img src={src()} alt="" loading="lazy" />}
           </Show>
         </figure>
       </Match>
-      <Match when={props.block.kind === "table"}>
+      <Match when={props.block.kind === 'table'}>
         <div class={styles.tableScroller}>
           <table>
             <tbody>

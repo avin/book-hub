@@ -1,19 +1,19 @@
-import { type JSX, createMemo, createSignal } from "solid-js";
-import { ArrowUpDown, Check, Heart } from "lucide-solid";
-import type { BookSort } from "@/api/books";
-import Button from "@/components/common/Button/Button";
-import Dropdown from "@/components/common/Dropdown/Dropdown";
-import Menu, { type MenuItem } from "@/components/common/Menu/Menu";
-import { useI18n } from "@/i18n/I18nProvider";
-import styles from "./LibraryFiltersDropdown.module.scss";
+import { For, type JSX, createMemo, createSignal } from 'solid-js';
+import { ArrowUpDown, Check, Heart } from 'lucide-solid';
+import type { BookSort } from '@/api/books';
+import Button from '@/components/common/Button/Button';
+import Dropdown from '@/components/common/Dropdown/Dropdown';
+import Menu, { type MenuItem } from '@/components/common/Menu/Menu';
+import { useI18n } from '@/i18n/I18nProvider';
+import styles from './LibraryFiltersDropdown.module.scss';
 
 const sortOptions: {
   value: BookSort;
-  labelKey: "relevanceSort" | "titleAZ" | "titleZA";
+  labelKey: 'relevanceSort' | 'titleAZ' | 'titleZA';
 }[] = [
-  { value: "relevance", labelKey: "relevanceSort" },
-  { value: "title_asc", labelKey: "titleAZ" },
-  { value: "title_desc", labelKey: "titleZA" },
+  { value: 'relevance', labelKey: 'relevanceSort' },
+  { value: 'title_asc', labelKey: 'titleAZ' },
+  { value: 'title_desc', labelKey: 'titleZA' },
 ];
 
 function FavoriteIcon(props: { filled?: boolean }) {
@@ -21,16 +21,16 @@ function FavoriteIcon(props: { filled?: boolean }) {
     <Heart
       class={styles.heart}
       classList={{ [styles.filledHeart]: props.filled }}
-      fill={props.filled ? "currentColor" : "none"}
+      fill={props.filled ? 'currentColor' : 'none'}
     />
   );
 }
 
 function LibraryFiltersDropdown(props: {
   sort: BookSort;
-  favoriteFilter: "all" | "favorite" | "regular";
+  favoriteFilter: 'all' | 'favorite' | 'regular';
   onSortChange: (sort: BookSort) => void;
-  onFavoriteFilterChange: (favoriteFilter: "all" | "favorite" | "regular") => void;
+  onFavoriteFilterChange: (favoriteFilter: 'all' | 'favorite' | 'regular') => void;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = createSignal(false);
@@ -50,14 +50,14 @@ function LibraryFiltersDropdown(props: {
 
   const favoriteOptions = createMemo<
     {
-      value: "all" | "favorite" | "regular";
+      value: 'all' | 'favorite' | 'regular';
       label: string;
       icon: JSX.Element;
     }[]
   >(() => [
     {
-      value: "all",
-      label: t("all"),
+      value: 'all',
+      label: t('all'),
       icon: (
         <>
           <FavoriteIcon />
@@ -66,13 +66,13 @@ function LibraryFiltersDropdown(props: {
       ),
     },
     {
-      value: "favorite",
-      label: t("favorites"),
+      value: 'favorite',
+      label: t('favorites'),
       icon: <FavoriteIcon filled />,
     },
     {
-      value: "regular",
-      label: t("other"),
+      value: 'regular',
+      label: t('other'),
       icon: <FavoriteIcon />,
     },
   ]);
@@ -91,14 +91,14 @@ function LibraryFiltersDropdown(props: {
           iconOnly
           iconStart={<ArrowUpDown />}
           class={styles.trigger}
-          classList={{ [styles.activeTrigger]: props.favoriteFilter !== "all" }}
-          aria-label={t("sort")}
+          classList={{ [styles.activeTrigger]: props.favoriteFilter !== 'all' }}
+          aria-label={t('sort')}
           aria-haspopup="menu"
           aria-expanded={open()}
-          title={t("sort")}
+          title={t('sort')}
           onClick={() => setOpen(!open())}
           onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
+            if (event.key === 'ArrowDown') {
               event.preventDefault();
               setOpen(true);
             }
@@ -107,20 +107,22 @@ function LibraryFiltersDropdown(props: {
       }
     >
       <div class={styles.content}>
-        <div class={styles.favoriteGroup} role="group" aria-label={t("favoritesFilter")}>
-          {favoriteOptions().map((option) => (
-            <button
-              type="button"
-              class={styles.favoriteButton}
-              classList={{ [styles.activeFavoriteButton]: props.favoriteFilter === option.value }}
-              aria-label={option.label}
-              aria-pressed={props.favoriteFilter === option.value}
-              title={option.label}
-              onClick={() => props.onFavoriteFilterChange(option.value)}
-            >
-              {option.icon}
-            </button>
-          ))}
+        <div class={styles.favoriteGroup} role="group" aria-label={t('favoritesFilter')}>
+          <For each={favoriteOptions()}>
+            {(option) => (
+              <button
+                type="button"
+                class={styles.favoriteButton}
+                classList={{ [styles.activeFavoriteButton]: props.favoriteFilter === option.value }}
+                aria-label={option.label}
+                aria-pressed={props.favoriteFilter === option.value}
+                title={option.label}
+                onClick={() => props.onFavoriteFilterChange(option.value)}
+              >
+                {option.icon}
+              </button>
+            )}
+          </For>
         </div>
         <Menu items={items()} />
       </div>

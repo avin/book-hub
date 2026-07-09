@@ -1,8 +1,8 @@
-import { For, Match, Show, Switch } from "solid-js";
-import Button from "@/components/common/Button/Button";
-import type { Fb2Inline } from "../fb2Types";
-import { isExternalHref, normalizeInternalHref } from "../linkUtils";
-import styles from "./RenderInlines.module.scss";
+import { For, Match, Show, Switch } from 'solid-js';
+import Button from '@/components/common/Button/Button';
+import type { Fb2Inline } from '../fb2Types';
+import { isExternalHref, normalizeInternalHref } from '../linkUtils';
+import styles from './RenderInlines.module.scss';
 
 function RenderInlines(props: {
   inlines: Fb2Inline[] | undefined;
@@ -25,8 +25,8 @@ function RenderInlines(props: {
             />
           }
         >
-          <Match when={inline.kind === "text"}>{inline.text}</Match>
-          <Match when={inline.kind === "strong"}>
+          <Match when={inline.kind === 'text'}>{inline.text}</Match>
+          <Match when={inline.kind === 'strong'}>
             <strong>
               <RenderInlines
                 inlines={inline.children}
@@ -37,7 +37,7 @@ function RenderInlines(props: {
               />
             </strong>
           </Match>
-          <Match when={inline.kind === "emphasis"}>
+          <Match when={inline.kind === 'emphasis'}>
             <em>
               <RenderInlines
                 inlines={inline.children}
@@ -48,7 +48,7 @@ function RenderInlines(props: {
               />
             </em>
           </Match>
-          <Match when={inline.kind === "strikethrough"}>
+          <Match when={inline.kind === 'strikethrough'}>
             <s>
               <RenderInlines
                 inlines={inline.children}
@@ -59,7 +59,7 @@ function RenderInlines(props: {
               />
             </s>
           </Match>
-          <Match when={inline.kind === "sub"}>
+          <Match when={inline.kind === 'sub'}>
             <sub>
               <RenderInlines
                 inlines={inline.children}
@@ -70,7 +70,7 @@ function RenderInlines(props: {
               />
             </sub>
           </Match>
-          <Match when={inline.kind === "sup"}>
+          <Match when={inline.kind === 'sup'}>
             <sup>
               <RenderInlines
                 inlines={inline.children}
@@ -81,7 +81,7 @@ function RenderInlines(props: {
               />
             </sup>
           </Match>
-          <Match when={inline.kind === "code"}>
+          <Match when={inline.kind === 'code'}>
             <code>
               <RenderInlines
                 inlines={inline.children}
@@ -92,7 +92,7 @@ function RenderInlines(props: {
               />
             </code>
           </Match>
-          <Match when={inline.kind === "link"}>
+          <Match when={inline.kind === 'link'}>
             <Show
               when={isExternalHref(inline.href)}
               fallback={
@@ -103,7 +103,7 @@ function RenderInlines(props: {
                     const targetId = normalizeInternalHref(inline.href);
 
                     if (targetId) {
-                      if (inline.linkType === "note" || props.isFootnoteTarget(targetId)) {
+                      if (inline.linkType === 'note' || props.isFootnoteTarget(targetId)) {
                         props.onFootnoteLink(targetId);
                         return;
                       }
@@ -111,7 +111,7 @@ function RenderInlines(props: {
                       props.onInternalLink(targetId);
                     }
                   }}
-                  classList={{ [styles.footnoteLink]: inline.linkType === "note" }}
+                  classList={{ [styles.footnoteLink]: inline.linkType === 'note' }}
                 >
                   <RenderInlines
                     inlines={inline.children}
@@ -134,7 +134,7 @@ function RenderInlines(props: {
               </a>
             </Show>
           </Match>
-          <Match when={inline.kind === "style"}>
+          <Match when={inline.kind === 'style'}>
             <span data-fb2-style={inline.styleName}>
               <RenderInlines
                 inlines={inline.children}
@@ -145,7 +145,7 @@ function RenderInlines(props: {
               />
             </span>
           </Match>
-          <Match when={inline.kind === "image"}>
+          <Match when={inline.kind === 'image'}>
             <Show when={props.imageSrc(inline.imageId)}>
               {(src) => <img class={styles.inlineImage} src={src()} alt="" loading="lazy" />}
             </Show>

@@ -1,14 +1,34 @@
-import * as pdfjs from "pdfjs-dist";
-import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
-import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
-import ReaderFloatingChrome from "@/components/common/ReaderFloatingChrome/ReaderFloatingChrome";
-import WidthRuler from "@/components/common/WidthRuler/WidthRuler";
-import { clampWidth, computeWidthRulerMarkers } from "@/components/common/WidthRuler/widthRulerUtils";
-import { useI18n } from "@/i18n/I18nProvider";
-import { pdfjsDocumentParams, pdfjsWorkerSrc } from "@/api/pdfjsConfig";
-import { getPdfReaderContentWidthPreference, setPdfReaderContentWidthPreference } from "@/storage/browserPreferences";
-import styles from "./PdfReader.module.scss";
+import * as pdfjs from 'pdfjs-dist';
+import type {
+  PDFDocumentLoadingTask,
+  PDFDocumentProxy,
+  PDFPageProxy,
+  RenderTask,
+} from 'pdfjs-dist';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+  type JSX,
+} from 'solid-js';
+import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
+import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
+import WidthRuler from '@/components/common/WidthRuler/WidthRuler';
+import {
+  clampWidth,
+  computeWidthRulerMarkers,
+} from '@/components/common/WidthRuler/widthRulerUtils';
+import { useI18n } from '@/i18n/I18nProvider';
+import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
+import {
+  getPdfReaderContentWidthPreference,
+  setPdfReaderContentWidthPreference,
+} from '@/storage/browserPreferences';
+import styles from './PdfReader.module.scss';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
 
@@ -37,7 +57,7 @@ function renderPixelRatio() {
 }
 
 function isRenderCancelled(error: unknown) {
-  return error instanceof Error && error.name === "RenderingCancelledException";
+  return error instanceof Error && error.name === 'RenderingCancelledException';
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -117,14 +137,18 @@ function PdfReader(props: {
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
-  const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(getPdfReaderContentWidthPreference());
+  const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(
+    getPdfReaderContentWidthPreference(),
+  );
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
-  const pageWidth = createMemo(() => pageWidthForAvailableWidth(maxPageWidth(), availablePageWidth()));
+  const pageWidth = createMemo(() =>
+    pageWidthForAvailableWidth(maxPageWidth(), availablePageWidth()),
+  );
   const markerStyles = createMemo(() =>
     computeWidthRulerMarkers(
       rulerElement(),
@@ -154,7 +178,8 @@ function PdfReader(props: {
     const impliedLeft = pageCenter - nextWidth / 2;
     const impliedRight = pageCenter + nextWidth / 2;
     const outsideGuides =
-      event.clientX < impliedLeft - guideOutsideMargin || event.clientX > impliedRight + guideOutsideMargin;
+      event.clientX < impliedLeft - guideOutsideMargin ||
+      event.clientX > impliedRight + guideOutsideMargin;
 
     if (outsideGuides) {
       resetToFitWidth();
@@ -226,10 +251,14 @@ function PdfReader(props: {
   const resolvePageWidthPx = (width: number | undefined) => {
     const availableWidth = resolveAvailablePageWidthPx();
 
-    return pageWidthForAvailableWidth(width === undefined ? undefined : Math.round(width), availableWidth);
+    return pageWidthForAvailableWidth(
+      width === undefined ? undefined : Math.round(width),
+      availableWidth,
+    );
   };
 
-  const currentScrollAnchor = () => lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
+  const currentScrollAnchor = () =>
+    lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
 
   const applySynchronizedScrollAnchor = (anchor: ScrollAnchor, targetWidthPx: number) => {
     if (!documentRef) {
@@ -618,7 +647,7 @@ function PdfReader(props: {
           return next;
         });
       },
-      { root: null, rootMargin: "1200px 0px" },
+      { root: null, rootMargin: '1200px 0px' },
     );
 
     if (rootRef) {
@@ -627,14 +656,14 @@ function PdfReader(props: {
 
     measureDocument();
     scheduleObservedPagesSync();
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("resize", handleViewportResize);
-    window.visualViewport?.addEventListener("resize", handleViewportResize);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('resize', handleViewportResize);
+    window.visualViewport?.addEventListener('resize', handleViewportResize);
 
     onCleanup(() => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("resize", handleViewportResize);
-      window.visualViewport?.removeEventListener("resize", handleViewportResize);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('resize', handleViewportResize);
+      window.visualViewport?.removeEventListener('resize', handleViewportResize);
       resizeObserver?.disconnect();
       observer?.disconnect();
     });
@@ -661,7 +690,7 @@ function PdfReader(props: {
   });
 
   return (
-    <div ref={rootRef} class={`${styles.reader} ${props.class ?? ""}`}>
+    <div ref={rootRef} class={`${styles.reader} ${props.class ?? ''}`}>
       <ReaderFloatingChrome
         visible={headerVisible() || draggingWidth()}
         title={props.title}
@@ -689,11 +718,11 @@ function PdfReader(props: {
       </Show>
 
       <Show when={loading()}>
-        <LoadingScreen label={t("loading")} />
+        <LoadingScreen label={t('loading')} />
       </Show>
 
       <Show when={failed()}>
-        <div class={styles.state}>{t("requestFailedTryAgain")}</div>
+        <div class={styles.state}>{t('requestFailedTryAgain')}</div>
       </Show>
 
       <Show when={!failed() && !loading()}>
@@ -713,8 +742,8 @@ function PdfReader(props: {
                 data-page-number={page.pageNumber}
                 style={{
                   width: `${Math.round(pageWidth())}px`,
-                  "max-width": "100%",
-                  "aspect-ratio": `${page.width} / ${page.height}`,
+                  'max-width': '100%',
+                  'aspect-ratio': `${page.width} / ${page.height}`,
                 }}
                 aria-label={`Страница ${page.pageNumber}`}
               >

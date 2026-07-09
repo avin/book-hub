@@ -1,14 +1,14 @@
-import type { Fb2ReaderSettings } from "@/components/common/Fb2Reader/fb2Types";
-import { type Language, languages } from "@/i18n/messages";
-import { type ThemeId, isThemeId } from "@/styles/themes";
+import type { Fb2ReaderSettings } from '@/components/common/Fb2Reader/fb2Types';
+import { type Language, languages } from '@/i18n/messages';
+import { type ThemeId, isThemeId } from '@/styles/themes';
 
-const preferencesStorageKey = "book-hub-preferences";
-const legacyLanguageStorageKey = "book-hub-language";
-const legacyRecentTagsStorageKey = "book-hub-tags-recent";
+const preferencesStorageKey = 'book-hub-preferences';
+const legacyLanguageStorageKey = 'book-hub-language';
+const legacyRecentTagsStorageKey = 'book-hub-tags-recent';
 
-export type LibraryView = "list" | "grid";
+export type LibraryView = 'list' | 'grid';
 
-const libraryViewValues = new Set<LibraryView>(["list", "grid"]);
+const libraryViewValues = new Set<LibraryView>(['list', 'grid']);
 
 type BrowserPreferences = {
   version: 1;
@@ -27,27 +27,27 @@ type BrowserPreferences = {
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isLanguage(value: unknown): value is Language {
-  return typeof value === "string" && languages.includes(value as Language);
+  return typeof value === 'string' && languages.includes(value as Language);
 }
 
 function isLibraryView(value: unknown): value is LibraryView {
-  return typeof value === "string" && libraryViewValues.has(value as LibraryView);
+  return typeof value === 'string' && libraryViewValues.has(value as LibraryView);
 }
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
 
 function finiteNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function stringValue(value: unknown) {
-  return typeof value === "string" ? value : undefined;
+  return typeof value === 'string' ? value : undefined;
 }
 
 function parseJson(value: string | null) {

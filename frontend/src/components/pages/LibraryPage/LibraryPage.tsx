@@ -1,7 +1,7 @@
-import { useNavigate } from "@solidjs/router";
-import { createInfiniteQuery } from "@tanstack/solid-query";
-import { createEffect, createMemo, createSignal, Index, onCleanup, onMount, Show } from "solid-js";
-import { LayoutGrid, Library, List, Upload, X } from "lucide-solid";
+import { useNavigate } from '@solidjs/router';
+import { createInfiniteQuery } from '@tanstack/solid-query';
+import { createEffect, createMemo, createSignal, Index, onCleanup, onMount, Show } from 'solid-js';
+import { LayoutGrid, Library, List, Upload, X } from 'lucide-solid';
 import {
   type Book,
   type BookListResponse,
@@ -13,19 +13,23 @@ import {
   createResetReadingProgressMutation,
   createUpdateBookMutation,
   queryBooks,
-} from "@/api/books";
-import InputContainer from "@/components/common/InputContainer/InputContainer";
-import Button from "@/components/common/Button/Button";
-import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
-import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
-import TextInput from "@/components/common/TextInput/TextInput";
-import AppLayout from "@/components/layouts/AppLayout/AppLayout";
-import { useI18n } from "@/i18n/I18nProvider";
-import { type LibraryView, getLibraryViewPreference, setLibraryViewPreference } from "@/storage/browserPreferences";
-import BookCard from "./BookCard/BookCard";
-import BookCardGrid from "./BookCardGrid/BookCardGrid";
-import EditBookDialog from "./EditBookDialog/EditBookDialog";
-import LibraryFiltersDropdown from "./LibraryFiltersDropdown/LibraryFiltersDropdown";
+} from '@/api/books';
+import InputContainer from '@/components/common/InputContainer/InputContainer';
+import Button from '@/components/common/Button/Button';
+import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
+import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
+import TextInput from '@/components/common/TextInput/TextInput';
+import AppLayout from '@/components/layouts/AppLayout/AppLayout';
+import { useI18n } from '@/i18n/I18nProvider';
+import {
+  type LibraryView,
+  getLibraryViewPreference,
+  setLibraryViewPreference,
+} from '@/storage/browserPreferences';
+import BookCard from './BookCard/BookCard';
+import BookCardGrid from './BookCardGrid/BookCardGrid';
+import EditBookDialog from './EditBookDialog/EditBookDialog';
+import LibraryFiltersDropdown from './LibraryFiltersDropdown/LibraryFiltersDropdown';
 import {
   buildLibraryListStateUrl,
   getDefaultLibraryListState,
@@ -34,12 +38,12 @@ import {
   readInitialLibraryListState,
   readLibraryListStateFromSearch,
   rememberLibraryListState,
-} from "./libraryListState";
-import styles from "./LibraryPage.module.scss";
+} from './libraryListState';
+import styles from './LibraryPage.module.scss';
 
 const pageLimit = 24;
 const searchDebounceMs = 400;
-const libraryRoutePath = "/library";
+const libraryRoutePath = '/library';
 
 function uniqueTags(existingTags: string[], selectedTags: string[]) {
   const tags = new Map<string, string>();
@@ -62,9 +66,11 @@ function LibraryPage() {
   const [search, setSearch] = createSignal(initialListState.search);
   const [debouncedSearch, setDebouncedSearch] = createSignal(initialListState.search);
   const [sort, setSort] = createSignal<BookSort>(initialListState.sort);
-  const [favoriteFilter, setFavoriteFilter] = createSignal<LibraryFavoriteFilter>(initialListState.favoriteFilter);
+  const [favoriteFilter, setFavoriteFilter] = createSignal<LibraryFavoriteFilter>(
+    initialListState.favoriteFilter,
+  );
   const [selectedTags, setSelectedTags] = createSignal<string[]>(initialListState.tags);
-  const [view, setView] = createSignal<LibraryView>(getLibraryViewPreference() ?? "list");
+  const [view, setView] = createSignal<LibraryView>(getLibraryViewPreference() ?? 'list');
   const [editingBook, setEditingBook] = createSignal<Book>();
   const updateBookMutation = createUpdateBookMutation();
   const deleteBookMutation = createDeleteBookMutation();
@@ -103,8 +109,8 @@ function LibraryPage() {
 
     const nextUrl = buildLibraryListStateUrl(state, {
       pathname: libraryRoutePath,
-      search: "",
-      hash: "",
+      search: '',
+      hash: '',
     });
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 
@@ -119,11 +125,7 @@ function LibraryPage() {
     sort: sort(),
     tags: selectedTags(),
     favorite:
-      favoriteFilter() === "favorite"
-        ? true
-        : favoriteFilter() === "regular"
-          ? false
-          : null,
+      favoriteFilter() === 'favorite' ? true : favoriteFilter() === 'regular' ? false : null,
     q: debouncedSearch().trim(),
   }));
 
@@ -157,7 +159,8 @@ function LibraryPage() {
   const booksTotal = createMemo(() => booksQuery.data?.pages[0]?.total);
   const showInitialLoading = createMemo(() => booksQuery.isLoading && books().length === 0);
   const hasActiveFilters = createMemo(
-    () => debouncedSearch().trim() !== "" || selectedTags().length > 0 || favoriteFilter() !== "all",
+    () =>
+      debouncedSearch().trim() !== '' || selectedTags().length > 0 || favoriteFilter() !== 'all',
   );
   const canLoadMore = createMemo(
     () =>
@@ -189,9 +192,12 @@ function LibraryPage() {
 
   onMount(() => {
     const handlePopState = () => {
-      applyListState(readLibraryListStateFromSearch(window.location.search) ?? getDefaultLibraryListState(), {
-        immediateSearch: true,
-      });
+      applyListState(
+        readLibraryListStateFromSearch(window.location.search) ?? getDefaultLibraryListState(),
+        {
+          immediateSearch: true,
+        },
+      );
     };
     const observer = new IntersectionObserver(
       (entries) => {
@@ -199,18 +205,18 @@ function LibraryPage() {
           loadMoreIfNeeded();
         }
       },
-      { root: null, rootMargin: "640px 0px" },
+      { root: null, rootMargin: '640px 0px' },
     );
 
     if (loadMoreRef) {
       observer.observe(loadMoreRef);
     }
 
-    window.addEventListener("popstate", handlePopState);
+    window.addEventListener('popstate', handlePopState);
 
     onCleanup(() => {
       observer.disconnect();
-      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener('popstate', handlePopState);
     });
   });
 
@@ -225,7 +231,7 @@ function LibraryPage() {
   };
 
   const handleDelete = (book: Book) => {
-    if (!window.confirm(t("deleteBookConfirm"))) {
+    if (!window.confirm(t('deleteBookConfirm'))) {
       return;
     }
 
@@ -233,7 +239,7 @@ function LibraryPage() {
   };
 
   const handleResetProgress = (book: Book) => {
-    if (!window.confirm(t("resetReadingProgressConfirm"))) {
+    if (!window.confirm(t('resetReadingProgressConfirm'))) {
       return;
     }
 
@@ -257,16 +263,16 @@ function LibraryPage() {
       <section class={styles.library}>
         <header class={styles.header}>
           <div>
-            <p class={styles.kicker}>{t("library")}</p>
+            <p class={styles.kicker}>{t('library')}</p>
             <h1>
-              {t("yourBooks")}
+              {t('yourBooks')}
               <Show when={booksTotal() !== undefined}>
                 <span
                   class={styles.booksTotal}
                   classList={{ [styles.booksTotalFiltered]: hasActiveFilters() }}
                 >
-                  {" - "}
-                  {booksTotal()} {hasActiveFilters() ? t("filtered") : t("total")}
+                  {' - '}
+                  {booksTotal()} {hasActiveFilters() ? t('filtered') : t('total')}
                 </span>
                 <Show when={hasActiveFilters()}>
                   <Button
@@ -277,8 +283,8 @@ function LibraryPage() {
                     iconOnly
                     class={styles.resetFilters}
                     iconStart={<X />}
-                    aria-label={t("resetFilters")}
-                    title={t("resetFilters")}
+                    aria-label={t('resetFilters')}
+                    title={t('resetFilters')}
                     onClick={resetFilters}
                   />
                 </Show>
@@ -286,29 +292,32 @@ function LibraryPage() {
             </h1>
           </div>
           <Button href="/upload" class={styles.headerUpload} iconStart={<Upload />}>
-            {t("uploadBook")}
+            {t('uploadBook')}
           </Button>
         </header>
 
         <section class={styles.toolbar}>
-          <InputContainer label={t("searchBooks")}>
-            <div class={styles.searchField} classList={{ [styles.searchFieldActive]: search() !== "" }}>
+          <InputContainer label={t('searchBooks')}>
+            <div
+              class={styles.searchField}
+              classList={{ [styles.searchFieldActive]: search() !== '' }}
+            >
               <TextInput
                 value={search()}
-                placeholder={t("findByTitle")}
+                placeholder={t('findByTitle')}
                 onInput={(event) => {
                   setSearch(event.currentTarget.value);
                 }}
               />
-              <Show when={search() !== ""}>
+              <Show when={search() !== ''}>
                 <button
                   type="button"
                   class={styles.searchClear}
-                  aria-label={t("clearSearch")}
-                  title={t("clearSearch")}
+                  aria-label={t('clearSearch')}
+                  title={t('clearSearch')}
                   onClick={() => {
-                    setSearch("");
-                    setDebouncedSearch("");
+                    setSearch('');
+                    setDebouncedSearch('');
                   }}
                 >
                   <X />
@@ -318,11 +327,11 @@ function LibraryPage() {
           </InputContainer>
 
           <div class={styles.secondaryFilters}>
-            <InputContainer label={t("tags")}>
+            <InputContainer label={t('tags')}>
               <TagsSelect
                 value={selectedTags()}
                 options={tagOptions()}
-                placeholder={t("findByTag")}
+                placeholder={t('findByTag')}
                 onChange={(nextTags) => {
                   setSelectedTags(nextTags);
                 }}
@@ -343,32 +352,32 @@ function LibraryPage() {
                 />
               </InputContainer>
 
-              <div class={styles.viewToggle} role="group" aria-label={t("bookActions")}>
+              <div class={styles.viewToggle} role="group" aria-label={t('bookActions')}>
                 <Button
                   type="button"
-                  variant={view() === "list" ? "secondary" : "ghost"}
+                  variant={view() === 'list' ? 'secondary' : 'ghost'}
                   size="sm"
                   iconOnly
-                  aria-label={t("viewList")}
-                  title={t("viewList")}
-                  aria-pressed={view() === "list"}
+                  aria-label={t('viewList')}
+                  title={t('viewList')}
+                  aria-pressed={view() === 'list'}
                   onClick={() => {
-                    setView("list");
-                    setLibraryViewPreference("list");
+                    setView('list');
+                    setLibraryViewPreference('list');
                   }}
                   iconStart={<List />}
                 />
                 <Button
                   type="button"
-                  variant={view() === "grid" ? "secondary" : "ghost"}
+                  variant={view() === 'grid' ? 'secondary' : 'ghost'}
                   size="sm"
                   iconOnly
-                  aria-label={t("viewGrid")}
-                  title={t("viewGrid")}
-                  aria-pressed={view() === "grid"}
+                  aria-label={t('viewGrid')}
+                  title={t('viewGrid')}
+                  aria-pressed={view() === 'grid'}
                   onClick={() => {
-                    setView("grid");
-                    setLibraryViewPreference("grid");
+                    setView('grid');
+                    setLibraryViewPreference('grid');
                   }}
                   iconStart={<LayoutGrid />}
                 />
@@ -378,27 +387,27 @@ function LibraryPage() {
         </section>
 
         <Show when={showInitialLoading()}>
-          <LoadingScreen label={t("loading")} />
+          <LoadingScreen label={t('loading')} />
         </Show>
 
         <Show when={booksQuery.isError}>
-          <div class={styles.state}>{t("requestFailedTryAgain")}</div>
+          <div class={styles.state}>{t('requestFailedTryAgain')}</div>
         </Show>
 
         <Show when={!showInitialLoading() && !booksQuery.isError && books().length === 0}>
           <div class={styles.emptyState}>
             <Library />
-            <h2>{t("libraryEmpty")}</h2>
-            <Button href="/upload">{t("uploadBook")}</Button>
+            <h2>{t('libraryEmpty')}</h2>
+            <Button href="/upload">{t('uploadBook')}</Button>
           </div>
         </Show>
 
         <Show when={books().length > 0}>
-          <div class={styles.bookList} classList={{ [styles.bookListGrid]: view() === "grid" }}>
+          <div class={styles.bookList} classList={{ [styles.bookListGrid]: view() === 'grid' }}>
             <Index each={books()}>
               {(book) => (
                 <Show
-                  when={view() === "grid"}
+                  when={view() === 'grid'}
                   fallback={
                     <BookCard
                       book={book}
@@ -425,7 +434,7 @@ function LibraryPage() {
         <div ref={loadMoreRef} class={styles.loadMoreSentinel} aria-hidden="true" />
 
         <Show when={booksQuery.isFetchingNextPage}>
-          <div class={styles.loadingMore} role="status" aria-label={t("loading")}>
+          <div class={styles.loadingMore} role="status" aria-label={t('loading')}>
             <span class={styles.loadingMoreSpinner} aria-hidden="true" />
           </div>
         </Show>

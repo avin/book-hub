@@ -1,5 +1,5 @@
-@use "@/styles/_variables.scss" as *;
-@use "@/styles/_mixins.scss" as *;
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
 
 .menu {
   min-width: 180px;
@@ -52,13 +52,13 @@
   }
 
   &:disabled,
-  &[aria-disabled="true"] {
+  &[aria-disabled='true'] {
     cursor: not-allowed;
     opacity: 0.56;
   }
 }
 
-.withHoverEffect .item:not(:disabled):not([aria-disabled="true"]):hover,
+.withHoverEffect .item:not(:disabled):not([aria-disabled='true']):hover,
 .focused {
   background: var(--surface-sunken);
   color: var(--text-primary);

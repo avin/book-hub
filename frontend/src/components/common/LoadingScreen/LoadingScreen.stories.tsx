@@ -1,4 +1,4 @@
-import LoadingScreen from "./LoadingScreen";
+import LoadingScreen from './LoadingScreen';
 
 export default { component: LoadingScreen };
 

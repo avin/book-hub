@@ -1,8 +1,8 @@
-import { Settings } from "lucide-solid";
-import { type JSX } from "solid-js";
-import Button from "@/components/common/Button/Button";
-import ReaderFloatingChrome from "@/components/common/ReaderFloatingChrome/ReaderFloatingChrome";
-import WidthRuler from "@/components/common/WidthRuler/WidthRuler";
+import { Settings } from 'lucide-solid';
+import { type JSX } from 'solid-js';
+import Button from '@/components/common/Button/Button';
+import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
+import WidthRuler from '@/components/common/WidthRuler/WidthRuler';
 
 function ReaderChrome(props: {
   visible: boolean;

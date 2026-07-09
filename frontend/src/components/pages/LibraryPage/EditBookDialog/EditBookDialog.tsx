@@ -1,6 +1,6 @@
-import { useQueryClient } from "@tanstack/solid-query";
-import { createMemo, createSignal, onCleanup, Show } from "solid-js";
-import { ImagePlus, RefreshCw, X } from "lucide-solid";
+import { useQueryClient } from '@tanstack/solid-query';
+import { createMemo, createSignal, onCleanup, Show } from 'solid-js';
+import { ImagePlus, RefreshCw, X } from 'lucide-solid';
 import {
   booksQueryKey,
   type Book,
@@ -9,29 +9,35 @@ import {
   getBookCoverUrl,
   getBookFileUrl,
   uploadBookCover,
-} from "@/api/books";
-import Button from "@/components/common/Button/Button";
-import InputContainer from "@/components/common/InputContainer/InputContainer";
-import TagsSelect from "@/components/common/TagsSelect/TagsSelect";
-import TextInput from "@/components/common/TextInput/TextInput";
-import { useI18n } from "@/i18n/I18nProvider";
-import styles from "./EditBookDialog.module.scss";
+} from '@/api/books';
+import Button from '@/components/common/Button/Button';
+import InputContainer from '@/components/common/InputContainer/InputContainer';
+import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
+import TextInput from '@/components/common/TextInput/TextInput';
+import { useI18n } from '@/i18n/I18nProvider';
+import styles from './EditBookDialog.module.scss';
 
 // Lazy-loaded cover extraction (same logic as the upload screen). Bundling it
 // eagerly would pull pdf.js into the edit dialog chunk.
-let coverExtractionModule: Promise<typeof import("@/components/pages/UploadPage/coverExtraction")> | undefined;
+let coverExtractionModule:
+  Promise<typeof import('@/components/pages/UploadPage/coverExtraction')> | undefined;
 
 function loadCoverExtraction() {
-  coverExtractionModule ??= import("@/components/pages/UploadPage/coverExtraction");
+  coverExtractionModule ??= import('@/components/pages/UploadPage/coverExtraction');
   return coverExtractionModule;
 }
 
 function errorMessage(error: unknown, fallback: string) {
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
     return error.message;
   }
 
-  if (error && typeof error === "object" && "code" in error && typeof error.code === "string") {
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
     return error.code;
   }
 
@@ -42,26 +48,20 @@ function errorMessage(error: unknown, fallback: string) {
 // Nothing is sent to the backend until Save.
 // - "upload" keeps the chosen File; preview comes from an object URL.
 // - "delete" marks the cover for removal.
-type PendingCover =
-  | { kind: "upload"; file: File; previewUrl: string }
-  | { kind: "delete" };
+type PendingCover = { kind: 'upload'; file: File; previewUrl: string } | { kind: 'delete' };
 
 function revokePending(state: PendingCover | undefined) {
-  if (state?.kind === "upload") {
+  if (state?.kind === 'upload') {
     URL.revokeObjectURL(state.previewUrl);
   }
 }
 
-function EditBookDialog(props: {
-  book: Book;
-  tagOptions: string[];
-  onClose: () => void;
-}) {
+function EditBookDialog(props: { book: Book; tagOptions: string[]; onClose: () => void }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [title, setTitle] = createSignal(props.book.title);
   const [tags, setTags] = createSignal<string[]>(props.book.tags);
-  const [error, setError] = createSignal("");
+  const [error, setError] = createSignal('');
   const [pendingCover, setPendingCover] = createSignal<PendingCover | undefined>(undefined);
   const [extracting, setExtracting] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
@@ -72,12 +72,12 @@ function EditBookDialog(props: {
   onCleanup(() => revokePending(pendingCover()));
 
   // Does the cover area show an image right now (server cover or staged upload)?
-  const coverVisible = createMemo(() => pendingCover()?.kind !== "delete");
+  const coverVisible = createMemo(() => pendingCover()?.kind !== 'delete');
 
   // What the cover preview shows: staged upload's object URL, else the server cover.
   const previewSrc = () => {
     const pending = pendingCover();
-    return pending?.kind === "upload" ? pending.previewUrl : getBookCoverUrl(props.book.id);
+    return pending?.kind === 'upload' ? pending.previewUrl : getBookCoverUrl(props.book.id);
   };
 
   const savingChanges = () => saving() || updateBookMutation.isPending;
@@ -90,33 +90,33 @@ function EditBookDialog(props: {
       return;
     }
 
-    setError("");
+    setError('');
     setExtracting(true);
     try {
       const response = await fetch(getBookFileUrl(props.book.id));
       if (!response.ok) {
-        throw new Error("Book file could not be downloaded");
+        throw new Error('Book file could not be downloaded');
       }
       const blob = await response.blob();
       const fileName = `${props.book.title}.${props.book.format}`;
-      const file = new File([blob], fileName, { type: blob.type || "application/octet-stream" });
+      const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
 
       const { prepareBookFile } = await loadCoverExtraction();
       const prepared = await prepareBookFile(file);
 
       if (!prepared.coverFile) {
-        setError(t("coverCouldNotBeExtracted"));
+        setError(t('coverCouldNotBeExtracted'));
         return;
       }
 
       revokePending(pendingCover());
       setPendingCover({
-        kind: "upload",
+        kind: 'upload',
         file: prepared.coverFile,
         previewUrl: URL.createObjectURL(prepared.coverFile),
       });
     } catch {
-      setError(t("coverCouldNotBeExtracted"));
+      setError(t('coverCouldNotBeExtracted'));
     } finally {
       setExtracting(false);
     }
@@ -129,7 +129,7 @@ function EditBookDialog(props: {
   };
 
   const handleCoverKey = (event: KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
+    if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       openCoverPicker();
     }
@@ -140,9 +140,9 @@ function EditBookDialog(props: {
       return;
     }
 
-    setError("");
+    setError('');
     revokePending(pendingCover());
-    setPendingCover({ kind: "upload", file, previewUrl: URL.createObjectURL(file) });
+    setPendingCover({ kind: 'upload', file, previewUrl: URL.createObjectURL(file) });
   };
 
   const handleDeleteCover = (event: MouseEvent) => {
@@ -153,15 +153,15 @@ function EditBookDialog(props: {
       return;
     }
 
-    setError("");
+    setError('');
     revokePending(pendingCover());
-    setPendingCover({ kind: "delete" });
+    setPendingCover({ kind: 'delete' });
   };
 
   const handleImgError = () => {
     // Server has no cover and nothing is staged → show placeholder.
     if (!pendingCover()) {
-      setPendingCover({ kind: "delete" });
+      setPendingCover({ kind: 'delete' });
     }
   };
 
@@ -172,11 +172,11 @@ function EditBookDialog(props: {
 
     const nextTitle = title().trim();
     if (!nextTitle) {
-      setError(t("fillField"));
+      setError(t('fillField'));
       return;
     }
 
-    setError("");
+    setError('');
     setSaving(true);
 
     try {
@@ -196,20 +196,20 @@ function EditBookDialog(props: {
       //    and the library list to pick up the fresh updated_at, which is used
       //    as a cover-image cache-buster.
       const pending = pendingCover();
-      if (pending?.kind === "upload") {
+      if (pending?.kind === 'upload') {
         await uploadBookCover(props.book.id, pending.file);
-      } else if (pending?.kind === "delete") {
+      } else if (pending?.kind === 'delete') {
         await deleteBookCover(props.book.id);
       }
 
       if (pending) {
-        await queryClient.invalidateQueries({ queryKey: ["book", props.book.id] });
+        await queryClient.invalidateQueries({ queryKey: ['book', props.book.id] });
         await queryClient.invalidateQueries({ queryKey: booksQueryKey });
       }
 
       props.onClose();
     } catch (nextError) {
-      setError(errorMessage(nextError, t("requestFailedTryAgain")));
+      setError(errorMessage(nextError, t('requestFailedTryAgain')));
     } finally {
       setSaving(false);
     }
@@ -221,16 +221,19 @@ function EditBookDialog(props: {
   };
 
   return (
-    <div class={styles.dialogOverlay} onClick={(event) => event.target === event.currentTarget && handleClose()}>
-      <section class={styles.dialog} role="dialog" aria-modal="true" aria-label={t("editBook")}>
+    <div
+      class={styles.dialogOverlay}
+      onClick={(event) => event.target === event.currentTarget && handleClose()}
+    >
+      <section class={styles.dialog} role="dialog" aria-modal="true" aria-label={t('editBook')}>
         <header class={styles.dialogHeader}>
-          <h2>{t("editBook")}</h2>
+          <h2>{t('editBook')}</h2>
           <Button
             type="button"
             variant="ghost"
             iconOnly
-            aria-label={t("close")}
-            title={t("close")}
+            aria-label={t('close')}
+            title={t('close')}
             onClick={handleClose}
             iconStart={<X />}
           />
@@ -242,7 +245,7 @@ function EditBookDialog(props: {
               class={styles.coverWrapper}
               role="button"
               tabindex={busy() ? -1 : 0}
-              aria-label={t("uploadCover")}
+              aria-label={t('uploadCover')}
               onClick={openCoverPicker}
               onKeyDown={handleCoverKey}
             >
@@ -268,8 +271,8 @@ function EditBookDialog(props: {
                 <button
                   type="button"
                   class={styles.coverRemove}
-                  aria-label={t("deleteCover")}
-                  title={t("deleteCover")}
+                  aria-label={t('deleteCover')}
+                  title={t('deleteCover')}
                   disabled={busy()}
                   onClick={handleDeleteCover}
                 >
@@ -285,24 +288,23 @@ function EditBookDialog(props: {
               accept="image/jpeg,image/png,image/webp"
               onChange={(event) => {
                 handleCoverChange(event.currentTarget.files?.[0]);
-                event.currentTarget.value = "";
+                event.currentTarget.value = '';
               }}
             />
-
           </div>
 
           <div class={styles.fields}>
-            <InputContainer label={t("title")}>
+            <InputContainer label={t('title')}>
               <TextInput
                 value={title()}
                 onInput={(event) => {
                   setTitle(event.currentTarget.value);
-                  setError("");
+                  setError('');
                 }}
               />
             </InputContainer>
 
-            <InputContainer label={t("tags")}>
+            <InputContainer label={t('tags')}>
               <TagsSelect value={tags()} options={props.tagOptions} onChange={setTags} />
             </InputContainer>
 
@@ -323,16 +325,21 @@ function EditBookDialog(props: {
               disabled={busy()}
               onClick={() => void handleRestoreCover()}
             >
-              {t("restoreCover")}
+              {t('restoreCover')}
             </Button>
           </Show>
 
           <div class={styles.footerActions}>
             <Button type="button" variant="secondary" onClick={handleClose}>
-              {t("cancel")}
+              {t('cancel')}
             </Button>
-            <Button type="button" loading={savingChanges()} disabled={extracting()} onClick={handleSave}>
-              {t("save")}
+            <Button
+              type="button"
+              loading={savingChanges()}
+              disabled={extracting()}
+              onClick={handleSave}
+            >
+              {t('save')}
             </Button>
           </div>
         </footer>

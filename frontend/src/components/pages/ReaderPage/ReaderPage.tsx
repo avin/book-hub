@@ -1,6 +1,6 @@
-import { useParams } from "@solidjs/router";
-import { createEffect, createMemo, createSignal, lazy, onCleanup, Show, Suspense } from "solid-js";
-import { ArrowLeft, Heart } from "lucide-solid";
+import { useParams } from '@solidjs/router';
+import { createEffect, createMemo, createSignal, lazy, onCleanup, Show, Suspense } from 'solid-js';
+import { ArrowLeft, Heart } from 'lucide-solid';
 import {
   createBookFileTextQuery,
   createBookQuery,
@@ -8,14 +8,14 @@ import {
   createUpdateBookMutation,
   createUpdateReadingProgressMutation,
   getBookFileUrl,
-} from "@/api/books";
-import Button from "@/components/common/Button/Button";
-import LoadingScreen from "@/components/common/LoadingScreen/LoadingScreen";
-import { useI18n } from "@/i18n/I18nProvider";
-import styles from "./ReaderPage.module.scss";
+} from '@/api/books';
+import Button from '@/components/common/Button/Button';
+import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
+import { useI18n } from '@/i18n/I18nProvider';
+import styles from './ReaderPage.module.scss';
 
-const Fb2Reader = lazy(() => import("@/components/common/Fb2Reader/Fb2Reader"));
-const PdfReader = lazy(() => import("@/components/common/PdfReader/PdfReader"));
+const Fb2Reader = lazy(() => import('@/components/common/Fb2Reader/Fb2Reader'));
+const PdfReader = lazy(() => import('@/components/common/PdfReader/PdfReader'));
 
 const progressSaveDelayMs = 1000;
 
@@ -40,10 +40,10 @@ function restoreScrollProgress(progressPercent: number) {
 function ReaderPage() {
   const { t } = useI18n();
   const params = useParams();
-  const bookId = () => params.bookId ?? "";
+  const bookId = () => params.bookId ?? '';
   const bookQuery = createBookQuery(bookId);
   const progressQuery = createReadingProgressQuery(bookId);
-  const fb2FileQuery = createBookFileTextQuery(bookId, () => bookQuery.data?.format === "fb2");
+  const fb2FileQuery = createBookFileTextQuery(bookId, () => bookQuery.data?.format === 'fb2');
   const updateBookMutation = createUpdateBookMutation();
   const updateProgressMutation = createUpdateReadingProgressMutation();
   const [pdfReady, setPdfReady] = createSignal(false);
@@ -53,10 +53,12 @@ function ReaderPage() {
   let restoredBookId: string | undefined;
 
   const book = createMemo(() => bookQuery.data);
-  const isFb2 = createMemo(() => book()?.format === "fb2");
-  const isPdf = createMemo(() => book()?.format === "pdf");
+  const isFb2 = createMemo(() => book()?.format === 'fb2');
+  const isPdf = createMemo(() => book()?.format === 'pdf');
   const canTrackProgress = createMemo(() => isFb2() || (isPdf() && pdfReady()));
-  const canRestoreProgress = createMemo(() => (isFb2() && fb2FileQuery.data) || (isPdf() && pdfReady()));
+  const canRestoreProgress = createMemo(
+    () => (isFb2() && fb2FileQuery.data) || (isPdf() && pdfReady()),
+  );
 
   const clearScheduledProgressSave = () => {
     if (saveTimeout === undefined) {
@@ -112,11 +114,11 @@ function ReaderPage() {
         size="sm"
         iconOnly
         iconStart={<ArrowLeft />}
-        aria-label={t("library")}
+        aria-label={t('library')}
       />
 
       <div class={styles.bookTitle}>
-        <Show when={book()} fallback={<span>{t("loading")}</span>}>
+        <Show when={book()} fallback={<span>{t('loading')}</span>}>
           {(currentBook) => <strong>{currentBook().title}</strong>}
         </Show>
       </div>
@@ -126,7 +128,7 @@ function ReaderPage() {
         variant="ghost"
         size="sm"
         iconOnly
-        aria-label={book()?.favorite ? t("removeFromFavorites") : t("addToFavorites")}
+        aria-label={book()?.favorite ? t('removeFromFavorites') : t('addToFavorites')}
         iconStart={<Heart />}
         classList={{ [styles.favoriteActive]: Boolean(book()?.favorite) }}
         onClick={toggleFavorite}
@@ -170,10 +172,10 @@ function ReaderPage() {
     }
 
     const onScroll = () => scheduleProgressSave();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
 
     onCleanup(() => {
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener('scroll', onScroll);
     });
   });
 
@@ -193,10 +195,7 @@ function ReaderPage() {
 
     restoreTimeoutIds = [
       window.setTimeout(() => restoreScrollProgress(progressPercent), restoreDelayMs),
-      window.setTimeout(
-        () => restoreScrollProgress(progressPercent),
-        confirmRestoreDelayMs,
-      ),
+      window.setTimeout(() => restoreScrollProgress(progressPercent), confirmRestoreDelayMs),
     ];
   });
 
@@ -208,29 +207,25 @@ function ReaderPage() {
   return (
     <div class={styles.readerPage}>
       <Show when={bookQuery.isError}>
-        <div class={styles.state}>{t("requestFailedTryAgain")}</div>
+        <div class={styles.state}>{t('requestFailedTryAgain')}</div>
       </Show>
 
       <Show when={bookQuery.isLoading}>
-        <LoadingScreen label={t("loading")} />
+        <LoadingScreen label={t('loading')} />
       </Show>
 
       <Show when={isFb2()}>
-        <Show when={fb2FileQuery.data} fallback={<LoadingScreen label={t("loading")} />}>
+        <Show when={fb2FileQuery.data} fallback={<LoadingScreen label={t('loading')} />}>
           {(fb2) => (
-            <Suspense fallback={<LoadingScreen label={t("loading")} />}>
-              <Fb2Reader
-                fb2={fb2()}
-                class={styles.fb2Reader}
-                headerContent={chromeContent()}
-              />
+            <Suspense fallback={<LoadingScreen label={t('loading')} />}>
+              <Fb2Reader fb2={fb2()} class={styles.fb2Reader} headerContent={chromeContent()} />
             </Suspense>
           )}
         </Show>
       </Show>
 
       <Show when={isPdf()}>
-        <Suspense fallback={<LoadingScreen label={t("loading")} />}>
+        <Suspense fallback={<LoadingScreen label={t('loading')} />}>
           <PdfReader
             fileUrl={getBookFileUrl(bookId())}
             class={styles.pdfReader}

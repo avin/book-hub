@@ -1,5 +1,5 @@
-@use "@/styles/_variables.scss" as *;
-@use "@/styles/_mixins.scss" as *;
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
 
 // Scroll lives on the overlay, not the dialog: the tag-select dropdown renders
 // inline (no portal), so `overflow` on the dialog would clip it.
@@ -88,7 +88,7 @@
   }
 
   &:disabled,
-  &[aria-disabled="true"] {
+  &[aria-disabled='true'] {
     cursor: default;
     opacity: 0.72;
   }

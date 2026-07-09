@@ -1,5 +1,5 @@
-@use "@/styles/_variables.scss" as *;
-@use "@/styles/_mixins.scss" as *;
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
 
 .title,
 .subtitle,
@@ -20,7 +20,7 @@
   text-align: center;
 }
 
-.title[data-level="1"] {
+.title[data-level='1'] {
   font-size: calc(var(--fb2-font-size) * 1.72);
 }
 
@@ -54,7 +54,7 @@
   border-radius: $radius-sm;
   background: color-mix(in srgb, var(--fb2-text) 6%, var(--fb2-bg));
   color: var(--fb2-text);
-  font-family: "Cousine", monospace;
+  font-family: 'Cousine', monospace;
   font-size: calc(var(--fb2-font-size) * 0.92);
   line-height: 1.45;
   white-space: pre-wrap;
@@ -82,7 +82,7 @@
     flex: 1;
     height: 1px;
     background: currentColor;
-    content: "";
+    content: '';
   }
 
   span {

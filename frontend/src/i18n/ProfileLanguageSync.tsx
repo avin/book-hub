@@ -1,19 +1,19 @@
-import { createEffect, createSignal, on, untrack } from "solid-js";
+import { createEffect, createSignal, on, untrack } from 'solid-js';
 import {
   createCurrentUserSettingsQuery,
   createMergeCurrentUserSettingsMutation,
   type Settings,
-} from "@/api/settings";
-import { createCurrentUserQuery } from "@/api/user";
-import { useI18n, type LanguageSaveRequest } from "./I18nProvider";
-import { type Language, languages } from "./messages";
+} from '@/api/settings';
+import { createCurrentUserQuery } from '@/api/user';
+import { useI18n, type LanguageSaveRequest } from './I18nProvider';
+import { type Language, languages } from './messages';
 
-const languageSettingsKey = "language";
+const languageSettingsKey = 'language';
 
 function settingsLanguage(settings: Settings | undefined) {
   const language = settings?.[languageSettingsKey];
 
-  if (typeof language === "string" && languages.includes(language as Language)) {
+  if (typeof language === 'string' && languages.includes(language as Language)) {
     return language as Language;
   }
 
