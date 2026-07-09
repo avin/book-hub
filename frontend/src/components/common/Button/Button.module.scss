@@ -42,54 +42,54 @@
 }
 
 .primary {
-  background: $color-accent-600;
-  color: $color-paper-0;
+  background: var(--accent);
+  color: var(--text-on-accent);
   box-shadow: $shadow-xs;
 
   @include interactive-hover {
-    background: $color-accent-700;
+    background: var(--accent-hover);
   }
 }
 
 .secondary {
-  border-color: $color-border;
-  background: $color-paper-0;
-  color: $color-ink-900;
+  border-color: var(--border-default);
+  background: var(--surface-raised);
+  color: var(--text-primary);
   box-shadow: $shadow-xs;
 
   @include interactive-hover {
-    border-color: $color-paper-300;
-    background: $color-paper-50;
+    border-color: var(--border-strong);
+    background: var(--surface-page);
   }
 }
 
 .ghost {
   background: transparent;
-  color: $color-ink-700;
+  color: var(--text-secondary);
 
   @include interactive-hover {
-    background: $color-paper-100;
-    color: $color-ink-950;
+    background: var(--surface-sunken);
+    color: var(--text-primary);
   }
 }
 
 .destructive {
-  color: $color-danger-600;
+  color: var(--danger);
 
   @include interactive-hover {
-    border-color: rgba($color-danger-600, 0.22);
+    border-color: color-mix(in srgb, var(--danger) 22%, transparent);
     background: transparent;
-    color: $color-danger-700;
+    color: var(--danger-hover);
   }
 }
 
 .danger {
-  background: $color-danger-600;
-  color: $color-paper-0;
+  background: var(--danger);
+  color: var(--text-on-danger);
   box-shadow: $shadow-xs;
 
   @include interactive-hover {
-    background: $color-danger-700;
+    background: var(--danger-hover);
   }
 }
 
@@ -100,7 +100,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--fb2-link, $color-accent-600);
+  color: var(--fb2-link, var(--accent));
   font: inherit;
   font-weight: inherit;
   vertical-align: baseline;
@@ -110,7 +110,7 @@
 
   @include interactive-hover {
     background: transparent;
-    color: var(--fb2-link, $color-accent-700);
+    color: var(--fb2-link, var(--accent-hover));
     text-decoration-thickness: 2px;
   }
 

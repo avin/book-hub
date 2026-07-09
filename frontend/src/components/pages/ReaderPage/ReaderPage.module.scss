@@ -3,7 +3,7 @@
 
 .readerPage {
   min-height: 100vh;
-  background: $color-paper-50;
+  background: var(--surface-page);
 }
 
 .chromeContent {
@@ -25,13 +25,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: $color-ink-950;
+    color: var(--text-primary);
     font-size: 15px;
   }
 }
 
 .favoriteActive {
-  color: $color-danger-600 !important;
+  color: var(--danger) !important;
 
   :global(svg) {
     fill: currentColor;
@@ -42,7 +42,7 @@
   display: grid;
   min-height: 100vh;
   place-items: center;
-  color: $color-ink-600;
+  color: var(--text-muted);
 }
 
 .fb2Reader {

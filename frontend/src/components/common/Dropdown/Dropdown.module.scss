@@ -19,9 +19,9 @@
   width: max-content;
   max-height: min(320px, calc(100vh - 24px));
   overflow: auto;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-md;
-  background: $color-paper-0;
-  color: $color-ink-900;
+  background: var(--surface-raised);
+  color: var(--text-primary);
   animation: fade-in $duration-fast $ease-standard;
 }

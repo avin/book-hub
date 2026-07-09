@@ -11,7 +11,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 0;
-  border: 2px solid $color-border;
+  border: 2px solid var(--border-default);
   border-radius: $radius-md;
   background: transparent;
   cursor: pointer;
@@ -23,23 +23,21 @@
     transform $duration-fast $ease-standard;
 
   &:hover {
-    border-color: $color-accent-500;
+    border-color: var(--accent);
   }
 
   &:focus-visible {
     outline: none;
-    border-color: $color-accent-500;
-    box-shadow: 0 0 0 3px rgba($color-accent-500, 0.2);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
   }
 
   &.selected {
-    border-color: $color-accent-600;
-    box-shadow: 0 0 0 3px rgba($color-accent-500, 0.18);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
   }
 }
 
-// Mini preview swatch: a fixed-palette sample independent of the live theme,
-// so each option shows its own look regardless of the currently active theme.
 .swatch {
   position: relative;
   display: grid;
@@ -48,6 +46,7 @@
     "bar" auto / 1fr;
   height: 72px;
   overflow: hidden;
+  background: var(--surface-page);
 }
 
 .swatchSurface {
@@ -57,7 +56,7 @@
 }
 
 .swatchRail {
-  // Sidebar column.
+  background: var(--surface-sunken);
 }
 
 .swatchBody {
@@ -72,12 +71,14 @@
   height: 8px;
   width: 60%;
   border-radius: $radius-pill;
+  background: var(--text-primary);
 }
 
 .swatchText {
   height: 5px;
   width: 80%;
   border-radius: $radius-pill;
+  background: var(--text-muted);
 }
 
 .swatchAccent {
@@ -87,18 +88,19 @@
   width: 22px;
   height: 22px;
   border-radius: $radius-pill;
+  background: var(--accent);
 }
 
 .swatchBar {
-  // Progress bar at the bottom of the swatch.
   display: block;
   height: 6px;
+  background: var(--accent-border);
 }
 
 .themeLabel {
   margin: 0;
   padding: 0 8px 8px;
-  color: $color-ink-700;
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 600;
   text-align: center;

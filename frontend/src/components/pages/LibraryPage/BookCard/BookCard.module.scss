@@ -7,9 +7,9 @@
   grid-template-columns: minmax(0, 1fr) auto;
   min-height: 128px;
   overflow: hidden;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-md;
-  background: $color-paper-0;
+  background: var(--surface-raised);
   box-shadow: $shadow-xs;
   transition:
     box-shadow $duration-base $ease-standard,
@@ -17,7 +17,7 @@
     transform $duration-base $ease-standard;
 
   &:hover {
-    border-color: $color-paper-300;
+    border-color: var(--border-strong);
     box-shadow: $shadow-md;
   }
 }
@@ -30,14 +30,14 @@
   text-decoration: none;
 
   &:hover h2 {
-    color: $color-accent-600;
+    color: var(--accent);
   }
 }
 
 .coverLink {
   display: block;
   min-width: 0;
-  border-right: 1px solid $color-border;
+  border-right: 1px solid var(--border-default);
 
   :global(.cover) {
     border-radius: 0;
@@ -57,7 +57,7 @@
 
   h2 {
     margin: 0;
-    color: $color-ink-950;
+    color: var(--text-primary);
     font-size: 16px;
     font-weight: 650;
     line-height: 22px;
@@ -75,7 +75,7 @@
 }
 
 .favoriteActive {
-  color: $color-danger-600 !important;
+  color: var(--danger) !important;
 
   :global(svg) {
     fill: currentColor;
@@ -89,12 +89,12 @@
   left: 96px;
   height: 3px;
   overflow: hidden;
-  background: $color-paper-100;
+  background: var(--surface-sunken);
 
   span {
     display: block;
     height: 100%;
-    background: $color-accent-500;
+    background: var(--accent);
     transition: width $duration-base $ease-standard;
   }
 }
@@ -108,8 +108,8 @@
     max-width: 100%;
     padding: 3px 8px;
     border-radius: $radius-pill;
-    background: $color-accent-100;
-    color: $color-accent-700;
+    background: var(--accent-soft-bg);
+    color: var(--accent-hover);
     font-size: 12px;
     font-weight: 550;
     line-height: 16px;
@@ -123,7 +123,7 @@
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--scrim);
   backdrop-filter: blur(4px);
   animation: fade-in $duration-base $ease-standard;
 }
@@ -134,7 +134,7 @@
   overflow: hidden;
   border-radius: $radius-md;
   box-shadow: $shadow-lg;
-  background: $color-paper-0;
+  background: var(--surface-raised);
 
   img {
     display: block;

@@ -13,10 +13,10 @@
   padding: 5px 10px;
   overflow: hidden;
   gap: 4px;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-sm;
-  background: $color-paper-0;
-  color: $color-ink-900;
+  background: var(--surface-raised);
+  color: var(--text-primary);
   font-weight: 400;
   line-height: 20px;
   text-align: left;
@@ -26,22 +26,22 @@
     box-shadow $duration-fast $ease-standard;
 
   &:focus-within {
-    border-color: $color-accent-500;
-    box-shadow: 0 0 0 3px rgba($color-accent-500, 0.16);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
   }
 
   &:hover:not(:focus-within) {
-    border-color: $color-paper-300;
+    border-color: var(--border-strong);
   }
 }
 
 .disabled {
-  background: $color-paper-100;
-  color: $color-ink-500;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
   cursor: not-allowed;
 
   .badge {
-    color: $color-ink-500;
+    color: var(--text-muted);
   }
 
   .collapsedBadge {
@@ -59,8 +59,8 @@
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 24px;
-  background: $color-accent-100;
-  color: $color-accent-700;
+  background: var(--accent-soft-bg);
+  color: var(--accent-hover);
   font-size: 12px;
   font-weight: 550;
   line-height: 1;
@@ -101,7 +101,7 @@
 }
 
 .collapsedBadge {
-  background: $color-amber-100;
+  background: var(--warning-soft-bg);
   cursor: pointer;
   user-select: none;
 
@@ -121,11 +121,11 @@
   outline: none;
   background: transparent;
   box-shadow: none;
-  color: $color-ink-900;
+  color: var(--text-primary);
   line-height: inherit;
 
   &::placeholder {
-    color: $color-ink-400;
+    color: var(--text-disabled);
   }
 
   &:disabled {
@@ -180,7 +180,7 @@
   outline: none;
   background: transparent;
   box-shadow: none;
-  color: $color-ink-900;
+  color: var(--text-primary);
   font-weight: 400;
   text-align: left;
   text-decoration: none;
@@ -190,8 +190,8 @@
   &:hover,
   &:focus-visible,
   &.focusedOption {
-    background: $color-accent-100;
-    color: $color-accent-700;
+    background: var(--accent-soft-bg);
+    color: var(--accent-hover);
   }
 }
 

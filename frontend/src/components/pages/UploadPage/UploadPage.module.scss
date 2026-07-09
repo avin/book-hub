@@ -10,7 +10,7 @@
 .header {
   h1 {
     margin: 4px 0 0;
-    color: $color-ink-950;
+    color: var(--text-primary);
     font-size: 32px;
     font-weight: 750;
     line-height: 40px;
@@ -20,7 +20,7 @@
 
 .kicker {
   margin: 0;
-  color: $color-accent-600;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -38,10 +38,10 @@
   place-items: center;
   padding: 28px;
   gap: 8px;
-  border: 2px dashed $color-paper-300;
+  border: 2px dashed var(--border-strong);
   border-radius: $radius-md;
-  background: $color-paper-0;
-  color: $color-ink-600;
+  background: var(--surface-raised);
+  color: var(--text-muted);
   cursor: pointer;
   transition:
     border-color $duration-fast $ease-standard,
@@ -50,10 +50,10 @@
 
   &:hover,
   &:focus-visible {
-    border-color: $color-accent-500;
+    border-color: var(--accent);
     outline: none;
-    background: $color-accent-100;
-    box-shadow: 0 0 0 3px rgba($color-accent-500, 0.1);
+    background: var(--accent-soft-bg);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
   }
 
   &:disabled {
@@ -64,26 +64,26 @@
   span {
     max-width: 100%;
     overflow-wrap: anywhere;
-    color: $color-ink-950;
+    color: var(--text-primary);
     font-size: 18px;
     font-weight: 700;
   }
 
   small {
-    color: $color-ink-500;
+    color: var(--text-muted);
     font-size: 14px;
   }
 
   :global(svg) {
     width: 40px;
     height: 40px;
-    color: $color-accent-500;
+    color: var(--accent);
   }
 }
 
 .dragActive {
-  border-color: $color-accent-600;
-  background: $color-accent-100;
+  border-color: var(--accent);
+  background: var(--accent-soft-bg);
 }
 
 .fileInput {
@@ -100,9 +100,9 @@
   grid-template-columns: 148px minmax(0, 1fr);
   gap: 16px;
   padding: 16px;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-md;
-  background: $color-paper-0;
+  background: var(--surface-raised);
   box-shadow: $shadow-xs;
 }
 
@@ -134,9 +134,9 @@
   overflow: hidden;
   width: 100%;
   aspect-ratio: 2 / 3;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-sm;
-  background: $color-paper-100;
+  background: var(--surface-sunken);
 
   img {
     display: block;
@@ -151,7 +151,7 @@
   width: 100%;
   height: 100%;
   place-items: center;
-  color: $color-ink-400;
+  color: var(--text-disabled);
 
   :global(svg) {
     width: 36px;
@@ -189,11 +189,11 @@
 }
 
 .statusText {
-  color: $color-ink-500;
+  color: var(--text-muted);
 }
 
 .warningText {
-  color: $color-danger-600;
+  color: var(--danger);
 }
 
 .draftStatus {
@@ -209,7 +209,7 @@
 
 .error {
   margin: 0;
-  color: $color-danger-600;
+  color: var(--danger);
   font-size: 14px;
   line-height: 20px;
 }

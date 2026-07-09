@@ -17,7 +17,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: $color-ink-700;
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 650;
   line-height: 18px;
@@ -31,19 +31,19 @@
 
 .labelEnd {
   flex: 0 0 auto;
-  color: $color-ink-500;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
 .invalid {
   .label {
-    color: $color-danger-600;
+    color: var(--danger);
   }
 
   :global(input),
   :global(textarea),
   :global(select) {
-    border-color: $color-danger-600;
+    border-color: var(--danger);
   }
 }
 
@@ -63,7 +63,7 @@
   align-items: center;
   justify-content: center;
   transform: translateY(-50%);
-  color: $color-ink-500;
+  color: var(--text-muted);
 }
 
 .subtext,
@@ -74,9 +74,9 @@
 }
 
 .subtext {
-  color: $color-ink-600;
+  color: var(--text-muted);
 }
 
 .error {
-  color: $color-danger-600;
+  color: var(--danger);
 }

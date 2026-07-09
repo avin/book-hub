@@ -23,7 +23,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: $color-ink-900;
+  color: var(--text-primary);
   font-family: inherit;
   font-size: 14px;
   line-height: 20px;
@@ -35,7 +35,7 @@
 
 .category {
   min-height: 30px;
-  color: $color-ink-600;
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -60,20 +60,20 @@
 
 .withHoverEffect .item:not(:disabled):not([aria-disabled="true"]):hover,
 .focused {
-  background: $color-paper-100;
-  color: $color-ink-950;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
 }
 
 .selected {
-  background: $color-accent-100;
-  color: $color-accent-700;
+  background: var(--accent-soft-bg);
+  color: var(--accent-hover);
   font-weight: 650;
 }
 
 .separator {
   height: 1px;
   margin: 6px 0;
-  background: $color-border;
+  background: var(--border-default);
 }
 
 .label {
@@ -90,7 +90,7 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: $color-ink-600;
+  color: var(--text-muted);
 
   :global(svg) {
     width: 18px;

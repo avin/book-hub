@@ -18,7 +18,7 @@
   bottom: 0;
   z-index: 39;
   width: 0;
-  border-left: 2px dashed $color-accent-500;
+  border-left: 2px dashed var(--accent);
   pointer-events: none;
 }
 
@@ -63,7 +63,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.5);
+  background: var(--scrim);
   backdrop-filter: blur(4px);
   animation: fade-in $duration-base $ease-standard;
 }
@@ -76,7 +76,7 @@
   border: 1px solid color-mix(in srgb, var(--fb2-text) 14%, transparent);
   border-radius: $radius-md;
   background: var(--fb2-bg);
-  box-shadow: 0 20px 60px rgba(20, 23, 31, 0.24);
+  box-shadow: $shadow-lg;
   color: var(--fb2-text);
 }
 

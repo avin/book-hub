@@ -13,9 +13,9 @@
     right: 7px;
     width: 8px;
     height: 8px;
-    border: 2px solid $color-paper-0;
+    border: 2px solid var(--surface-raised);
     border-radius: 50%;
-    background: $color-danger-600;
+    background: var(--danger);
     opacity: 0;
     transform: scale(0.75);
     transition:
@@ -39,7 +39,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 8px;
-  border-bottom: 1px solid $color-border;
+  border-bottom: 1px solid var(--border-default);
 }
 
 .favoriteButton {
@@ -54,15 +54,15 @@
   border: 0;
   border-radius: $radius-xs;
   background: transparent;
-  color: $color-ink-600;
+  color: var(--text-muted);
   cursor: pointer;
   transition:
     background $duration-fast $ease-standard,
     color $duration-fast $ease-standard;
 
   &:hover {
-    background: $color-paper-100;
-    color: $color-ink-900;
+    background: var(--surface-sunken);
+    color: var(--text-primary);
   }
 
   &:focus-visible {
@@ -71,8 +71,8 @@
 }
 
 .activeFavoriteButton {
-  background: $color-danger-100;
-  color: $color-danger-700;
+  background: var(--danger-soft-bg);
+  color: var(--danger-hover);
 }
 
 .heart {
@@ -82,5 +82,5 @@
 }
 
 .filledHeart {
-  color: $color-danger-600;
+  color: var(--danger);
 }

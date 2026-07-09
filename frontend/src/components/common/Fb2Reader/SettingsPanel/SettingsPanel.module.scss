@@ -14,9 +14,9 @@
   width: min(380px, calc(100vw - 28px));
   height: 100vh;
   padding: $space-5;
-  border-left: 1px solid $color-border;
-  background: $color-paper-0;
-  color: $color-ink-900;
+  border-left: 1px solid var(--border-default);
+  background: var(--surface-raised);
+  color: var(--text-primary);
   overflow-y: auto;
   transform: translateX(105%);
   transition: transform $duration-base $ease-out;
@@ -34,7 +34,7 @@
 
   h2 {
     margin: 0;
-    color: $color-ink-950;
+    color: var(--text-primary);
     font-size: 20px;
     font-weight: 700;
     line-height: 1.3;
@@ -51,7 +51,7 @@
     gap: $space-2;
     align-items: center;
     margin: 0;
-    color: $color-accent-600;
+    color: var(--accent);
     font-size: 13px;
     font-weight: 700;
     line-height: 20px;
@@ -62,19 +62,19 @@
   select {
     min-height: 38px;
     padding: 0 $space-3;
-    border: 1px solid $color-border;
+    border: 1px solid var(--border-default);
     border-radius: $radius-sm;
-    background: $color-paper-0;
-    color: $color-ink-900;
+    background: var(--surface-raised);
+    color: var(--text-primary);
     cursor: pointer;
     transition:
       border-color $duration-fast $ease-standard,
       box-shadow $duration-fast $ease-standard;
 
     &:focus {
-      border-color: $color-accent-500;
+      border-color: var(--accent);
       outline: none;
-      box-shadow: 0 0 0 3px rgba($color-accent-500, 0.16);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
     }
   }
 
@@ -97,7 +97,7 @@
     &::-webkit-slider-runnable-track {
       height: 6px;
       border-radius: $radius-pill;
-      background: $color-paper-100;
+      background: var(--surface-sunken);
     }
 
     &::-webkit-slider-thumb {
@@ -106,16 +106,16 @@
       width: 18px;
       height: 18px;
       margin-top: -6px;
-      border: 2px solid $color-paper-0;
+      border: 2px solid var(--surface-raised);
       border-radius: 50%;
-      background: $color-accent-600;
+      background: var(--accent);
       box-shadow: $shadow-xs;
       transition:
         background $duration-fast $ease-standard,
         transform $duration-fast $ease-standard;
 
       &:hover {
-        background: $color-accent-700;
+        background: var(--accent-hover);
         transform: scale(1.1);
       }
     }
@@ -124,22 +124,22 @@
     &::-moz-range-track {
       height: 6px;
       border-radius: $radius-pill;
-      background: $color-paper-100;
+      background: var(--surface-sunken);
     }
 
     &::-moz-range-thumb {
       width: 18px;
       height: 18px;
-      border: 2px solid $color-paper-0;
+      border: 2px solid var(--surface-raised);
       border-radius: 50%;
-      background: $color-accent-600;
+      background: var(--accent);
       box-shadow: $shadow-xs;
       transition:
         background $duration-fast $ease-standard,
         transform $duration-fast $ease-standard;
 
       &:hover {
-        background: $color-accent-700;
+        background: var(--accent-hover);
         transform: scale(1.1);
       }
     }
@@ -150,22 +150,22 @@
     width: 100%;
     height: 38px;
     padding: 2px;
-    border: 1px solid $color-border;
+    border: 1px solid var(--border-default);
     border-radius: $radius-sm;
-    background: $color-paper-0;
+    background: var(--surface-raised);
     cursor: pointer;
     transition:
       border-color $duration-fast $ease-standard,
       box-shadow $duration-fast $ease-standard;
 
     &:hover {
-      border-color: $color-paper-300;
+      border-color: var(--border-strong);
     }
 
     &:focus {
-      border-color: $color-accent-500;
+      border-color: var(--accent);
       outline: none;
-      box-shadow: 0 0 0 3px rgba($color-accent-500, 0.16);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
     }
   }
 }

@@ -11,7 +11,7 @@
   place-items: center;
   padding: 20px;
   overflow-y: auto;
-  background: rgba(28, 25, 23, 0.5);
+  background: var(--scrim);
   backdrop-filter: blur(4px);
   animation: fade-in $duration-base $ease-standard;
 }
@@ -19,9 +19,9 @@
 .dialog {
   width: min(560px, 100%);
   margin: auto;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-lg;
-  background: $color-paper-0;
+  background: var(--surface-raised);
   box-shadow: $shadow-lg;
   animation: slide-up $duration-base $ease-out;
 }
@@ -31,11 +31,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px 16px 20px;
-  border-bottom: 1px solid $color-border;
+  border-bottom: 1px solid var(--border-default);
 
   h2 {
     margin: 0;
-    color: $color-ink-950;
+    color: var(--text-primary);
     font-size: 19px;
     font-weight: 700;
     line-height: 26px;
@@ -56,7 +56,7 @@
   align-items: center;
   justify-content: flex-end;
   padding: 16px 20px;
-  border-top: 1px solid $color-border;
+  border-top: 1px solid var(--border-default);
   gap: 10px;
 }
 
@@ -93,9 +93,9 @@
   overflow: hidden;
   width: 100%;
   aspect-ratio: 2 / 3;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-sm;
-  background: $color-paper-100;
+  background: var(--surface-sunken);
 
   img {
     display: block;
@@ -110,7 +110,7 @@
   width: 100%;
   height: 100%;
   place-items: center;
-  color: $color-ink-400;
+  color: var(--text-disabled);
 
   :global(svg) {
     width: 32px;
@@ -129,8 +129,8 @@
   height: 44px;
   place-items: center;
   border-radius: 50%;
-  background: rgba(28, 25, 23, 0.6);
-  color: $color-paper-0;
+  background: rgb(var(--shadow-color-strong) / 0.6);
+  color: var(--text-on-scrim);
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, -50%) scale(0.85);
@@ -161,8 +161,8 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(28, 25, 23, 0.7);
-  color: $color-paper-0;
+  background: rgb(var(--shadow-color-strong) / 0.7);
+  color: var(--text-on-scrim);
   cursor: pointer;
   opacity: 0;
   transition:
@@ -179,7 +179,8 @@
   }
 
   &:hover {
-    background: $color-danger-600;
+    background: var(--danger);
+    color: var(--text-on-danger);
   }
 
   &:focus-visible {
@@ -211,7 +212,7 @@
 
 .error {
   margin: 0;
-  color: $color-danger-600;
+  color: var(--danger);
   font-size: 14px;
   line-height: 20px;
 }

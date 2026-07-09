@@ -10,10 +10,10 @@
   align-items: center;
   padding: 0 10px;
   gap: 8px;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-sm;
-  background: color-mix(in srgb, $color-paper-0 84%, transparent);
-  color: $color-ink-900;
+  background: color-mix(in srgb, var(--surface-raised) 84%, transparent);
+  color: var(--text-primary);
   font-weight: 650;
   cursor: pointer;
   transition:
@@ -23,8 +23,8 @@
     box-shadow $duration-fast $ease-standard;
 
   &:hover {
-    border-color: $color-paper-300;
-    background: $color-paper-0;
+    border-color: var(--border-strong);
+    background: var(--surface-raised);
   }
 
   &:focus-visible {
@@ -40,7 +40,7 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: $color-ink-600;
+  color: var(--text-muted);
 
   :global(svg) {
     width: 18px;

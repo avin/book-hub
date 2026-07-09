@@ -9,7 +9,7 @@
 .header {
   h1 {
     margin: 4px 0 0;
-    color: $color-ink-950;
+    color: var(--text-primary);
     font-size: 32px;
     font-weight: 750;
     line-height: 40px;
@@ -19,7 +19,7 @@
 
 .kicker {
   margin: 0;
-  color: $color-accent-600;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -27,7 +27,7 @@
 }
 
 .accountName {
-  color: $color-ink-400;
+  color: var(--text-disabled);
 }
 
 .grid {
@@ -42,9 +42,9 @@
   align-content: start;
   padding: 20px;
   gap: 16px;
-  border: 1px solid $color-border;
+  border: 1px solid var(--border-default);
   border-radius: $radius-md;
-  background: $color-paper-0;
+  background: var(--surface-raised);
   box-shadow: $shadow-xs;
 }
 
@@ -52,11 +52,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: $color-accent-600;
+  color: var(--accent);
 
   h2 {
     margin: 0;
-    color: $color-ink-950;
+    color: var(--text-primary);
     font-size: 19px;
     font-weight: 700;
     line-height: 26px;
@@ -73,20 +73,20 @@
   height: 10px;
   overflow: hidden;
   border-radius: $radius-pill;
-  background: $color-paper-100;
+  background: var(--surface-sunken);
 
   span {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, $color-accent-500, $color-accent-600);
+    background: var(--accent);
     transition: width $duration-base $ease-standard;
   }
 }
 
 .storageText {
   margin: 0;
-  color: $color-ink-700;
+  color: var(--text-secondary);
   font-size: 15px;
 }
 
@@ -112,14 +112,14 @@
 
 .dangerTitle {
   margin: 0;
-  color: $color-ink-950;
+  color: var(--text-primary);
   font-size: 15px;
   font-weight: 650;
 }
 
 .dangerHint {
   margin: 0;
-  color: $color-ink-500;
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 18px;
 }
@@ -132,11 +132,11 @@
 }
 
 .error {
-  color: $color-danger-600;
+  color: var(--danger);
 }
 
 .success {
-  color: $color-success-600;
+  color: var(--success);
 }
 
 @media (max-width: 900px) {

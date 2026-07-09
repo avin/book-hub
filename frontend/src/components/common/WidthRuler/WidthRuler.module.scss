@@ -6,18 +6,18 @@
   width: 100%;
   height: 24px;
   overflow: hidden;
-  border: 1px solid $color-paper-300;
+  border: 1px solid var(--border-strong);
   border-radius: 0;
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, $color-paper-0 90%, transparent),
-      color-mix(in srgb, $color-paper-200 88%, transparent)
+      color-mix(in srgb, var(--surface-raised) 90%, transparent),
+      color-mix(in srgb, var(--surface-hover) 88%, transparent)
     ),
     repeating-linear-gradient(
       90deg,
       transparent 0 11px,
-      color-mix(in srgb, $color-ink-950 6%, transparent) 11px 12px
+      color-mix(in srgb, var(--text-primary) 6%, transparent) 11px 12px
     );
   cursor: ew-resize;
   touch-action: none;
@@ -30,7 +30,7 @@
   bottom: 0;
   left: 50%;
   width: 2px;
-  background: color-mix(in srgb, $color-accent-600 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
   content: "";
 }
 
@@ -39,7 +39,7 @@
   bottom: 0;
   width: 1px;
   height: 6px;
-  background: color-mix(in srgb, $color-ink-950 32%, transparent);
+  background: color-mix(in srgb, var(--text-primary) 32%, transparent);
 }
 
 .middleTick {
@@ -48,13 +48,13 @@
 
 .majorTick {
   height: 16px;
-  background: color-mix(in srgb, $color-ink-950 50%, transparent);
+  background: color-mix(in srgb, var(--text-primary) 50%, transparent);
 }
 
 .centerTick {
   width: 2px;
   height: 21px;
-  background: $color-accent-600;
+  background: var(--accent);
 }
 
 .rulerMarker {
@@ -63,14 +63,14 @@
   display: block;
   width: 28px;
   height: 24px;
-  color: $color-accent-500;
+  color: var(--accent);
   transform: translateX(-50%);
   pointer-events: none;
 
   polygon {
     // Marker fill: a translucent accent so the handle reads on both light and
     // dark themes, with the full-strength accent reserved for the outline.
-    fill: color-mix(in srgb, $color-accent-500 40%, transparent);
+    fill: color-mix(in srgb, var(--accent) 40%, transparent);
   }
 }
 

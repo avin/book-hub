@@ -3,8 +3,8 @@
 
 :root {
   font-family: $font-family-base;
-  color: $color-ink-900;
-  background: $color-paper-50;
+  color: var(--text-primary);
+  background: var(--surface-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

@@ -2,9 +2,8 @@
 // Theme tokens & palettes
 //
 // All app colors flow through semantic CSS custom properties defined here.
-// Each [data-theme="..."] block reassigns every token. SCSS color variables in
-// _variables.scss reference these tokens (e.g. $color-paper-0 → var(--surface-raised)),
-// so existing module stylesheets follow the active theme without per-file edits.
+// Component styles use these tokens directly. _variables.scss contains only
+// compile-time values such as spacing, radii, motion and reusable shadows.
 //
 // ADR: docs/adr/0001-theme-system.md
 // ─────────────────────────────────────────────────────────────
@@ -31,6 +30,8 @@
   --text-muted: #78716c;         // captions, placeholders
   --text-disabled: #a8a29e;      // disabled controls
   --text-on-accent: #ffffff;     // text on accent fills
+  --text-on-danger: #ffffff;     // text on destructive fills
+  --text-on-scrim: #ffffff;      // icons/text on dark overlays
   --text-on-raised: #1c1917;     // text on raised surfaces (= primary here)
   --text-link: #9a3412;          // links, accent-reading text
 
@@ -93,6 +94,8 @@
   --text-muted: #64748b;
   --text-disabled: #94a3b8;
   --text-on-accent: #ffffff;
+  --text-on-danger: #ffffff;
+  --text-on-scrim: #ffffff;
   --text-on-raised: #0f172a;
   --text-link: #1d4ed8;
 
@@ -148,6 +151,8 @@
   --text-muted: #6b7a70;
   --text-disabled: #9ca89f;
   --text-on-accent: #ffffff;
+  --text-on-danger: #ffffff;
+  --text-on-scrim: #ffffff;
   --text-on-raised: #14241b;
   --text-link: #166534;
 
@@ -203,6 +208,8 @@
   --text-muted: #a8a29e;
   --text-disabled: #78716c;
   --text-on-accent: #ffffff;
+  --text-on-danger: #450a0a;
+  --text-on-scrim: #ffffff;
   --text-on-raised: #f5f5f4;
   --text-link: #fb923c;
 
@@ -258,6 +265,8 @@
   --text-muted: #8fa094;
   --text-disabled: #5f6e63;
   --text-on-accent: #04130a;
+  --text-on-danger: #2a0d0d;
+  --text-on-scrim: #ffffff;
   --text-on-raised: #ecefe9;
   --text-link: #4ade80;
 
@@ -313,6 +322,8 @@
   --text-muted: #8a8a8a;
   --text-disabled: #5a5a5a;
   --text-on-accent: #ffffff;
+  --text-on-danger: #2a0a0a;
+  --text-on-scrim: #ffffff;
   --text-on-raised: #ededed;
   --text-link: #93c5fd;
 

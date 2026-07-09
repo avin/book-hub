@@ -1,7 +1,7 @@
 @use "@/styles/_variables.scss" as *;
 
 @mixin focus-ring {
-  outline: 2px solid rgba($color-accent-500, 0.4);
+  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
   outline-offset: 2px;
 }
 

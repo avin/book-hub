@@ -94,7 +94,7 @@
 .quote {
   padding-left: $space-5;
   border-left: 3px solid color-mix(in srgb, var(--fb2-link) 40%, transparent);
-  color: color-mix(in srgb, var(--fb2-text) 84%, $color-ink-500);
+  color: color-mix(in srgb, var(--fb2-text) 84%, var(--text-muted));
   text-indent: 0;
 }
 
@@ -146,7 +146,7 @@
   justify-content: center;
   width: min(100%, 420px);
   height: 180px;
-  border: 1px dashed $color-paper-300;
+  border: 1px dashed var(--border-strong);
   border-radius: $radius-sm;
   color: color-mix(in srgb, var(--fb2-text) 50%, transparent);
 }

@@ -8,7 +8,7 @@
   min-height: 120px;
   place-items: center;
   overflow: hidden;
-  background: linear-gradient(135deg, $color-accent-100, $color-paper-100);
+  background: linear-gradient(135deg, var(--accent-soft-bg), var(--surface-sunken));
 
   img {
     width: 100%;
@@ -21,7 +21,7 @@
   display: grid;
   justify-items: center;
   gap: 8px;
-  color: $color-accent-600;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.04em;

@@ -3,7 +3,7 @@
 
 .reader {
   min-height: 100vh;
-  background: $color-paper-100;
+  background: var(--surface-sunken);
   overflow-anchor: none;
 }
 
@@ -13,7 +13,7 @@
   bottom: 0;
   z-index: 39;
   width: 0;
-  border-left: 2px dashed $color-accent-500;
+  border-left: 2px dashed var(--accent);
   pointer-events: none;
 }
 
@@ -21,7 +21,7 @@
   display: grid;
   min-height: 100vh;
   place-items: center;
-  color: $color-ink-500;
+  color: var(--text-muted);
 }
 
 .document {
@@ -42,15 +42,15 @@
 .page {
   flex-shrink: 0;
   overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border: 1px solid var(--border-default);
   border-radius: $radius-sm;
-  background: $color-paper-0;
+  background: var(--surface-raised);
   box-shadow: $shadow-lg;
   overflow-anchor: none;
 
   canvas {
     display: block;
-    background: $color-paper-0;
+    background: var(--surface-raised);
   }
 }
 
