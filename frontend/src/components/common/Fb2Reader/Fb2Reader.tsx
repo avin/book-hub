@@ -23,7 +23,7 @@ import styles from "./Fb2Reader.module.scss";
 
 type ScrollAnchor = {
   blockIndex: number;
-  offsetRatio: number;
+  offsetPx: number;
 };
 
 const layoutWidthDebounceMs = 120;
@@ -309,10 +309,16 @@ function Fb2Reader(props: {
     const currentDocumentScrollTop = documentScrollTop();
     const blockIndex = findBlockIndex(currentLayout.offsets, currentDocumentScrollTop);
     const blockTop = currentLayout.offsets[blockIndex] ?? 0;
-    const blockHeight = Math.max(1, currentLayout.heights[blockIndex] ?? 1);
-    const offsetRatio = clamp((currentDocumentScrollTop - blockTop) / blockHeight, 0, 1);
+    // Процент внутри блока нельзя использовать: после смены ширины или
+    // шрифта блок может получить другое число строк, и тот же процент покажет
+    // уже другой текст. Пиксельное смещение сохраняет текущий видимый блок.
+    const offsetPx = clamp(
+      currentDocumentScrollTop - blockTop,
+      0,
+      Math.max(0, currentLayout.heights[blockIndex] ?? 0),
+    );
 
-    return { blockIndex, offsetRatio };
+    return { blockIndex, offsetPx };
   };
 
   const updateSetting = <T extends keyof Fb2ReaderSettings>(
@@ -634,16 +640,15 @@ function Fb2Reader(props: {
     }
 
     const blockTop = currentLayout.offsets[blockIndex] ?? 0;
-    const blockHeight = Math.max(1, currentLayout.heights[blockIndex] ?? 1);
     const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
-    const nextDocumentScrollTop = blockTop + blockHeight * anchor.offsetRatio;
+    const nextDocumentScrollTop = blockTop + anchor.offsetPx;
 
     // Защита от устаревшего якоря «начало книги».
     //
     // Несколько путей (font loadingdone/loadingerror, debounce пересчёта ширины,
     // resize) снимают якорь по текущему window-скроллу асинхронно. Если в этот
     // момент позиция ещё не восстановлена из прогресса, якорь получается
-    // {blockIndex: 0, offsetRatio: 0}. Применение такого якоря позже отбрасывает
+    // {blockIndex: 0, offsetPx: 0}. Применение такого якоря позже отбрасывает
     // уже восстановленную позицию в начало книги.
     //
     // Легитимный «якорь = начало» идемпотентен: если читатель и так в начале,
@@ -652,7 +657,7 @@ function Fb2Reader(props: {
     // указывает на начало — якорь устарел, игнорируем.
     if (
       blockIndex === 0 &&
-      anchor.offsetRatio < 1e-6 &&
+      anchor.offsetPx < 1e-6 &&
       documentScrollTop() > currentLayout.heights[0] + 1
     ) {
       setPendingScrollAnchor(undefined);
@@ -723,9 +728,7 @@ function Fb2Reader(props: {
         onReset={() => {
           // Сброс настроек меняет layout (высоту блоков). Захватываем якорь по
           // текущему layout ДО смены настроек, чтобы после пересчёта эффект
-          // pendingScrollAnchor вернул читателя на тот же блок — иначе позиция
-          // остаётся в прежнем абсолютном пикселе, и при изменившейся высоте
-          // документа это уже другой процент прочтения.
+          // pendingScrollAnchor вернул читателя на тот же видимый блок.
           const anchor = captureScrollAnchor();
 
           if (anchor) {
