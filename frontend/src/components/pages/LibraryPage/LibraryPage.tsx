@@ -10,6 +10,7 @@ import {
   booksQueryKey,
   createBookTagsQuery,
   createDeleteBookMutation,
+  createResetReadingProgressMutation,
   createUpdateBookMutation,
   queryBooks,
 } from "@/api/books";
@@ -67,6 +68,7 @@ function LibraryPage() {
   const [editingBook, setEditingBook] = createSignal<Book>();
   const updateBookMutation = createUpdateBookMutation();
   const deleteBookMutation = createDeleteBookMutation();
+  const resetReadingProgressMutation = createResetReadingProgressMutation();
   const bookTagsQuery = createBookTagsQuery();
 
   const applyListState = (state: LibraryListState, options?: { immediateSearch?: boolean }) => {
@@ -228,6 +230,14 @@ function LibraryPage() {
     }
 
     deleteBookMutation.mutate(book.id);
+  };
+
+  const handleResetProgress = (book: Book) => {
+    if (!window.confirm(t("resetReadingProgressConfirm"))) {
+      return;
+    }
+
+    resetReadingProgressMutation.mutate(book.id);
   };
 
   const resetFilters = () => {
@@ -395,6 +405,7 @@ function LibraryPage() {
                       onFavoriteToggle={handleFavoriteToggle}
                       onEdit={setEditingBook}
                       onDelete={handleDelete}
+                      onResetProgress={handleResetProgress}
                     />
                   }
                 >
@@ -403,6 +414,7 @@ function LibraryPage() {
                     onFavoriteToggle={handleFavoriteToggle}
                     onEdit={setEditingBook}
                     onDelete={handleDelete}
+                    onResetProgress={handleResetProgress}
                   />
                 </Show>
               )}

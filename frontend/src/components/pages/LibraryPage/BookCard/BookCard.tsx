@@ -1,8 +1,10 @@
 import { A } from "@solidjs/router";
-import { Edit3, Heart, Trash2 } from "lucide-solid";
+import { ChevronDown, Heart } from "lucide-solid";
 import { type Accessor, createMemo, createSignal, For, Show } from "solid-js";
 import { type Book, getBookCoverUrl } from "@/api/books";
 import Button from "@/components/common/Button/Button";
+import Dropdown from "@/components/common/Dropdown/Dropdown";
+import BookActionsMenu from "../BookActionsMenu/BookActionsMenu";
 import { useI18n } from "@/i18n/I18nProvider";
 import BookCover from "../BookCover/BookCover";
 import styles from "./BookCard.module.scss";
@@ -16,6 +18,7 @@ function BookCard(props: {
   onFavoriteToggle: (book: Book) => void;
   onEdit: (book: Book) => void;
   onDelete: (book: Book) => void;
+  onResetProgress: (book: Book) => void;
 }) {
   const { t } = useI18n();
   const bookId = createMemo(() => props.book().id);
@@ -24,6 +27,7 @@ function BookCard(props: {
   const format = createMemo(() => props.book().format);
   const progressPercent = createMemo(() => props.book().progress_percent);
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
+  const [menuOpen, setMenuOpen] = createSignal(false);
   const tags = createMemo<Book["tags"]>(
     (previousTags) => {
       const nextTags = props.book().tags;
@@ -33,10 +37,15 @@ function BookCard(props: {
     [],
   );
 
+  const showCover = () => {
+    setMenuOpen(false);
+    setCoverPreviewOpen(true);
+  };
+
   const handleCoverContextMenu = (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    setCoverPreviewOpen(true);
+    showCover();
   };
 
   return (
@@ -70,24 +79,35 @@ function BookCard(props: {
           classList={{ [styles.favoriteActive]: favorite() }}
           onClick={() => props.onFavoriteToggle(props.book())}
         />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          iconOnly
-          aria-label={t("edit")}
-          iconStart={<Edit3 />}
-          onClick={() => props.onEdit(props.book())}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          iconOnly
-          aria-label={t("delete")}
-          iconStart={<Trash2 />}
-          onClick={() => props.onDelete(props.book())}
-        />
+        <Dropdown
+          open={menuOpen()}
+          onOpenChange={setMenuOpen}
+          placement="bottom-end"
+          minWidth={220}
+          trigger={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              iconOnly
+              aria-label={t("bookActions")}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen()}
+              iconStart={<ChevronDown />}
+              onClick={() => setMenuOpen(!menuOpen())}
+            />
+          }
+        >
+          <BookActionsMenu
+            book={props.book}
+            onFavoriteToggle={props.onFavoriteToggle}
+            onEdit={props.onEdit}
+            onDelete={props.onDelete}
+            onResetProgress={props.onResetProgress}
+            onShowCover={showCover}
+            onAction={() => setMenuOpen(false)}
+          />
+        </Dropdown>
       </div>
 
       <div class={styles.progress}>

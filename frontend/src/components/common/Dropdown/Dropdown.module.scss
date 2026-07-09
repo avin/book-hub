@@ -2,7 +2,7 @@
 @use "@/styles/_mixins.scss" as *;
 
 .dropdown {
-  position: relative;
+  position: static;
 }
 
 .fitReferenceToContent {
@@ -15,7 +15,7 @@
 
   box-sizing: border-box;
   z-index: $z-dropdown;
-  position: absolute;
+  position: fixed;
   width: max-content;
   max-height: min(320px, calc(100vh - 24px));
   overflow: auto;

@@ -10,6 +10,7 @@ function Dropdown(props: {
   placement?: Placement;
   minWidth?: number;
   fitReferenceToContent?: boolean;
+  referenceStyle?: JSX.CSSProperties;
 }) {
   let rootEl: HTMLDivElement | undefined;
   let referenceEl: HTMLDivElement | undefined;
@@ -21,6 +22,7 @@ function Dropdown(props: {
     }
 
     const { x, y } = await computePosition(referenceEl, floatingEl, {
+      strategy: "fixed",
       placement: props.placement ?? "bottom-start",
       middleware: [
         offset(6),
@@ -85,6 +87,7 @@ function Dropdown(props: {
       <div
         ref={referenceEl}
         classList={{ [styles.fitReferenceToContent]: props.fitReferenceToContent }}
+        style={props.referenceStyle}
       >
         {props.trigger}
       </div>

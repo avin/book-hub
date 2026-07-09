@@ -245,6 +245,18 @@ export const messages = {
     ru: "Вызовите контекстное меню, чтобы показать обложку целиком",
     en: "Open the context menu to show the full cover",
   },
+  showFullCoverMenu: {
+    ru: "Показать обложку целиком",
+    en: "Show full cover",
+  },
+  resetReadingProgress: {
+    ru: "Сбросить прогресс",
+    en: "Reset progress",
+  },
+  resetReadingProgressConfirm: {
+    ru: "Сбросить прогресс чтения этой книги?",
+    en: "Reset this book's reading progress?",
+  },
   back: {
     ru: "Назад",
     en: "Back",

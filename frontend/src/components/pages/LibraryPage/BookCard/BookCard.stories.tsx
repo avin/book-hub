@@ -24,6 +24,7 @@ export const Default = () => (
         onFavoriteToggle={() => undefined}
         onEdit={() => undefined}
         onDelete={() => undefined}
+        onResetProgress={() => undefined}
       />
     </div>
   </I18nProvider>

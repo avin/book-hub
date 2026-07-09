@@ -486,6 +486,21 @@ export async function resetReadingProgress(bookId: string) {
   }
 }
 
+export function createResetReadingProgressMutation() {
+  const queryClient = useQueryClient();
+
+  return createMutation(() => ({
+    mutationFn: resetReadingProgress,
+    onSuccess: (_data, bookId) => {
+      updateBookProgressCache(queryClient, bookId, 0);
+      queryClient.setQueryData(["book-progress", bookId], {
+        progress_percent: 0,
+        updated_at: null,
+      });
+    },
+  }));
+}
+
 export async function resetAllReadingProgress() {
   const csrfToken = await getCsrfToken();
   const { error } = await apiClient.DELETE("/v1/me/progress", {
