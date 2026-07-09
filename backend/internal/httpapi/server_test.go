@@ -96,14 +96,23 @@ func TestSettingsAndProgressFlow(t *testing.T) {
 	}
 
 	app.requestJSON(t, client, http.MethodPut, "/v1/books/"+bookID+"/progress", csrf, map[string]any{"progress_percent": 42.5}, http.StatusOK)
+	book := app.requestJSON(t, client, http.MethodGet, "/v1/books/"+bookID, "", nil, http.StatusOK)
+	lastOpenedAt, ok := book["last_opened_at"].(string)
+	if !ok || lastOpenedAt == "" {
+		t.Fatalf("expected last_opened_at in book response: %#v", book)
+	}
 	progress := app.requestJSON(t, client, http.MethodGet, "/v1/books/"+bookID+"/progress", "", nil, http.StatusOK)
-	if progress["progress_percent"] != 42.5 {
+	if progress["progress_percent"] != 42.5 || progress["updated_at"] != nil {
 		t.Fatalf("unexpected progress: %#v", progress)
 	}
 	app.requestJSON(t, client, http.MethodDelete, "/v1/books/"+bookID+"/progress", csrf, nil, http.StatusNoContent)
 	progress = app.requestJSON(t, client, http.MethodGet, "/v1/books/"+bookID+"/progress", "", nil, http.StatusOK)
-	if progress["progress_percent"] != float64(0) || progress["updated_at"] != nil {
+	if progress["progress_percent"] != float64(0) {
 		t.Fatalf("unexpected reset progress: %#v", progress)
+	}
+	book = app.requestJSON(t, client, http.MethodGet, "/v1/books/"+bookID, "", nil, http.StatusOK)
+	if book["last_opened_at"] != lastOpenedAt {
+		t.Fatalf("reset changed last_opened_at: before=%s after=%v", lastOpenedAt, book["last_opened_at"])
 	}
 }
 

@@ -189,14 +189,6 @@ export const messages = {
     ru: "Название Я-А",
     en: "Title Z-A",
   },
-  progressHigh: {
-    ru: "Прогресс выше",
-    en: "Highest progress",
-  },
-  progressLow: {
-    ru: "Прогресс ниже",
-    en: "Lowest progress",
-  },
   favoritesFilter: {
     ru: "Фильтр избранного",
     en: "Favorites filter",

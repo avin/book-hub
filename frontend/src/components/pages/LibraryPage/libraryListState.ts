@@ -22,8 +22,6 @@ const sortValues = new Set<BookSort>([
   "created_at_desc",
   "title_asc",
   "title_desc",
-  "progress_desc",
-  "progress_asc",
 ]);
 const favoriteFilterValues = new Set<LibraryFavoriteFilter>(["all", "favorite", "regular"]);
 

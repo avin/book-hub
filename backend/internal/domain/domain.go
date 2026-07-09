@@ -64,6 +64,7 @@ type Book struct {
 	Format          string
 	SizeBytes       int64
 	ProgressPercent float64
+	LastOpenedAt    time.Time
 	StoragePath     string
 	CoverPath       *string
 	CoverThumbPath  *string
@@ -114,7 +115,6 @@ type CoverFiles struct {
 
 type ReadingProgress struct {
 	ProgressPercent float64
-	UpdatedAt       *time.Time
 }
 
 func NormalizeLogin(login string) (string, error) {
@@ -185,7 +185,7 @@ func NormalizeBookQuery(q BookQuery) (BookQuery, error) {
 		q.Sort = "relevance"
 	}
 	switch q.Sort {
-	case "relevance", "created_at_desc", "created_at_asc", "title_asc", "title_desc", "updated_at_desc", "updated_at_asc", "progress_desc", "progress_asc":
+	case "relevance", "created_at_desc", "created_at_asc", "title_asc", "title_desc", "updated_at_desc", "updated_at_asc":
 	default:
 		return BookQuery{}, ErrValidation
 	}

@@ -30,7 +30,9 @@ create table user_books (
     favorite boolean not null default false,
     cover_path text,
     cover_thumbnail_path text,
+    progress_percent double precision not null default 0 check (progress_percent >= 0 and progress_percent <= 100),
     created_at timestamptz not null default now(),
+    last_opened_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     unique (user_id, book_file_id),
     constraint user_books_title_check check (char_length(title) between 1 and 512)
@@ -58,11 +60,7 @@ create table user_book_tags (
 
 create index user_book_tags_tag_id_idx on user_book_tags (tag_id);
 
-create table reading_progress (
-    user_book_id uuid primary key references user_books(id) on delete cascade,
-    progress_percent double precision not null check (progress_percent >= 0 and progress_percent <= 100),
-    updated_at timestamptz not null default now()
-);
+create index user_books_relevance_idx on user_books (user_id, last_opened_at desc, created_at desc, id desc);
 
 create table sessions (
     id uuid primary key,

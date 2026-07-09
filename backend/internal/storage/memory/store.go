@@ -21,7 +21,6 @@ type Store struct {
 	books    map[uuid.UUID]bookRecord
 	sessions map[string]sessionRecord
 	settings map[uuid.UUID]json.RawMessage
-	progress map[uuid.UUID]domain.ReadingProgress
 }
 
 type bookRecord struct {
@@ -44,7 +43,6 @@ func New() *Store {
 		books:    make(map[uuid.UUID]bookRecord),
 		sessions: make(map[string]sessionRecord),
 		settings: make(map[uuid.UUID]json.RawMessage),
-		progress: make(map[uuid.UUID]domain.ReadingProgress),
 	}
 }
 
@@ -156,7 +154,6 @@ func (s *Store) DeleteUser(_ context.Context, userID uuid.UUID) ([]domain.Delete
 		if record.UserID != userID {
 			continue
 		}
-		delete(s.progress, bookID)
 		delete(s.books, bookID)
 		files := domain.DeletedBookFiles{}
 		if record.Book.CoverPath != nil {
@@ -335,6 +332,7 @@ func (s *Store) CreateBook(_ context.Context, userID uuid.UUID, fileInput domain
 		ProgressPercent: 0,
 		StoragePath:     file.StoragePath,
 		CreatedAt:       now,
+		LastOpenedAt:    now,
 		UpdatedAt:       now,
 	}
 	s.books[book.ID] = bookRecord{UserID: userID, BookFileID: fileID, Book: book}
@@ -345,17 +343,14 @@ func (s *Store) QueryBooks(_ context.Context, userID uuid.UUID, query domain.Boo
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	items := make([]domain.Book, 0)
-	for id, record := range s.books {
+	for _, record := range s.books {
 		if record.UserID != userID || !matchesQuery(record.Book, query) {
 			continue
 		}
 		book := record.Book
-		if progress, ok := s.progress[id]; ok {
-			book.ProgressPercent = progress.ProgressPercent
-		}
 		items = append(items, book)
 	}
-	sortBooks(items, query.Sort, s.progress)
+	sortBooks(items, query.Sort)
 	total := int64(len(items))
 	end := min(query.Offset+query.Limit, len(items))
 	if query.Offset > len(items) {
@@ -421,7 +416,6 @@ func (s *Store) DeleteBook(_ context.Context, userID, bookID uuid.UUID) (domain.
 	if !ok || record.UserID != userID {
 		return domain.DeletedBookFiles{}, domain.ErrNotFound
 	}
-	delete(s.progress, bookID)
 	delete(s.books, bookID)
 	files := domain.DeletedBookFiles{}
 	if record.Book.CoverPath != nil {
@@ -484,13 +478,11 @@ func (s *Store) DeleteCover(_ context.Context, userID, bookID uuid.UUID) (domain
 func (s *Store) GetProgress(_ context.Context, userID, bookID uuid.UUID) (domain.ReadingProgress, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, err := s.getBookLocked(userID, bookID); err != nil {
+	book, err := s.getBookLocked(userID, bookID)
+	if err != nil {
 		return domain.ReadingProgress{}, err
 	}
-	if progress, ok := s.progress[bookID]; ok {
-		return progress, nil
-	}
-	return domain.ReadingProgress{ProgressPercent: 0, UpdatedAt: nil}, nil
+	return domain.ReadingProgress{ProgressPercent: book.ProgressPercent}, nil
 }
 
 func (s *Store) PutProgress(_ context.Context, userID, bookID uuid.UUID, progressPercent float64) (domain.ReadingProgress, error) {
@@ -499,10 +491,11 @@ func (s *Store) PutProgress(_ context.Context, userID, bookID uuid.UUID, progres
 	if _, err := s.getBookLocked(userID, bookID); err != nil {
 		return domain.ReadingProgress{}, err
 	}
-	now := time.Now().UTC()
-	progress := domain.ReadingProgress{ProgressPercent: progressPercent, UpdatedAt: &now}
-	s.progress[bookID] = progress
-	return progress, nil
+	record := s.books[bookID]
+	record.Book.ProgressPercent = progressPercent
+	record.Book.LastOpenedAt = time.Now().UTC()
+	s.books[bookID] = record
+	return domain.ReadingProgress{ProgressPercent: progressPercent}, nil
 }
 
 func (s *Store) DeleteProgress(_ context.Context, userID, bookID uuid.UUID) error {
@@ -511,7 +504,9 @@ func (s *Store) DeleteProgress(_ context.Context, userID, bookID uuid.UUID) erro
 	if _, err := s.getBookLocked(userID, bookID); err != nil {
 		return err
 	}
-	delete(s.progress, bookID)
+	record := s.books[bookID]
+	record.Book.ProgressPercent = 0
+	s.books[bookID] = record
 	return nil
 }
 
@@ -522,7 +517,8 @@ func (s *Store) DeleteAllProgress(_ context.Context, userID uuid.UUID) error {
 		if record.UserID != userID {
 			continue
 		}
-		delete(s.progress, id)
+		record.Book.ProgressPercent = 0
+		s.books[id] = record
 	}
 	return nil
 }
@@ -533,9 +529,6 @@ func (s *Store) getBookLocked(userID, bookID uuid.UUID) (domain.Book, error) {
 		return domain.Book{}, domain.ErrNotFound
 	}
 	book := record.Book
-	if progress, ok := s.progress[bookID]; ok {
-		book.ProgressPercent = progress.ProgressPercent
-	}
 	return book, nil
 }
 
@@ -581,21 +574,19 @@ func matchesQuery(book domain.Book, query domain.BookQuery) bool {
 	return true
 }
 
-func sortBooks(items []domain.Book, sortName string, progress map[uuid.UUID]domain.ReadingProgress) {
-	// relevance: most recent of created_at and progress updated_at, descending.
-	relevanceOf := func(book domain.Book) time.Time {
-		if p, ok := progress[book.ID]; ok && p.UpdatedAt != nil && p.UpdatedAt.After(book.CreatedAt) {
-			return *p.UpdatedAt
-		}
-		return book.CreatedAt
-	}
-
+func sortBooks(items []domain.Book, sortName string) {
 	sort.SliceStable(items, func(i, j int) bool {
 		a := items[i]
 		b := items[j]
 		switch sortName {
 		case "relevance":
-			return relevanceOf(a).After(relevanceOf(b))
+			if !a.LastOpenedAt.Equal(b.LastOpenedAt) {
+				return a.LastOpenedAt.After(b.LastOpenedAt)
+			}
+			if !a.CreatedAt.Equal(b.CreatedAt) {
+				return a.CreatedAt.After(b.CreatedAt)
+			}
+			return a.ID.String() > b.ID.String()
 		case "created_at_asc":
 			return a.CreatedAt.Before(b.CreatedAt)
 		case "title_asc":
@@ -606,12 +597,8 @@ func sortBooks(items []domain.Book, sortName string, progress map[uuid.UUID]doma
 			return a.UpdatedAt.Before(b.UpdatedAt)
 		case "updated_at_desc":
 			return a.UpdatedAt.After(b.UpdatedAt)
-		case "progress_asc":
-			return a.ProgressPercent < b.ProgressPercent
-		case "progress_desc":
-			return a.ProgressPercent > b.ProgressPercent
 		default:
-			return relevanceOf(a).After(relevanceOf(b))
+			return a.LastOpenedAt.After(b.LastOpenedAt)
 		}
 	})
 }

@@ -352,17 +352,15 @@ func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, file domain.Bo
 
 func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.BookQuery) (domain.BookPage, error) {
 	orderBy := map[string]string{
-		"relevance":       "greatest(ub.created_at, coalesce(rp.updated_at, '-infinity'::timestamptz)) desc",
+		"relevance":       "ub.last_opened_at desc, ub.created_at desc, ub.id desc",
 		"created_at_asc":  "ub.created_at asc",
 		"title_asc":       "lower(ub.title) asc",
 		"title_desc":      "lower(ub.title) desc",
 		"updated_at_asc":  "ub.updated_at asc",
 		"updated_at_desc": "ub.updated_at desc",
-		"progress_asc":    "coalesce(rp.progress_percent, 0) asc",
-		"progress_desc":   "coalesce(rp.progress_percent, 0) desc",
 	}[query.Sort]
 	if orderBy == "" {
-		orderBy = "greatest(ub.created_at, coalesce(rp.updated_at, '-infinity'::timestamptz)) desc"
+		orderBy = "ub.last_opened_at desc, ub.created_at desc, ub.id desc"
 	}
 
 	where := `
@@ -387,14 +385,13 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		select ub.id, ub.title,
 			coalesce(array_agg(t.name order by t.name) filter (where t.name is not null), '{}'::text[]) as tags,
 			ub.favorite, bf.format, bf.size_bytes,
-			coalesce(rp.progress_percent, 0), bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.updated_at
+			ub.progress_percent, bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.last_opened_at, ub.updated_at
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
-		left join reading_progress rp on rp.user_book_id = ub.id
 		left join user_book_tags ubt on ubt.user_book_id = ub.id
 		left join tags t on t.id = ubt.tag_id
 		where `+where+`
-		group by ub.id, bf.id, rp.progress_percent, rp.updated_at
+		group by ub.id, bf.id
 		order by `+orderBy+`
 		limit $5 offset $6
 	`, userID, query.Q, query.Favorite, query.Tags, query.Limit, query.Offset)
@@ -575,11 +572,8 @@ func (s *Store) GetProgress(ctx context.Context, userID, bookID uuid.UUID) (doma
 		return domain.ReadingProgress{}, err
 	}
 	var progress domain.ReadingProgress
-	err := s.pool.QueryRow(ctx, `select progress_percent, updated_at from reading_progress where user_book_id = $1`, bookID).
-		Scan(&progress.ProgressPercent, &progress.UpdatedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.ReadingProgress{ProgressPercent: 0, UpdatedAt: nil}, nil
-	}
+	err := s.pool.QueryRow(ctx, `select progress_percent from user_books where id = $1`, bookID).
+		Scan(&progress.ProgressPercent)
 	return progress, err
 }
 
@@ -589,11 +583,11 @@ func (s *Store) PutProgress(ctx context.Context, userID, bookID uuid.UUID, progr
 	}
 	var saved domain.ReadingProgress
 	err := s.pool.QueryRow(ctx, `
-		insert into reading_progress (user_book_id, progress_percent)
-		values ($1, $2)
-		on conflict (user_book_id) do update set progress_percent = excluded.progress_percent, updated_at = now()
-		returning progress_percent, updated_at
-	`, bookID, progress).Scan(&saved.ProgressPercent, &saved.UpdatedAt)
+		update user_books
+		set progress_percent = $3, last_opened_at = now()
+		where user_id = $1 and id = $2
+		returning progress_percent
+	`, userID, bookID, progress).Scan(&saved.ProgressPercent)
 	return saved, err
 }
 
@@ -601,16 +595,14 @@ func (s *Store) DeleteProgress(ctx context.Context, userID, bookID uuid.UUID) er
 	if _, err := s.GetBook(ctx, userID, bookID); err != nil {
 		return err
 	}
-	_, err := s.pool.Exec(ctx, `delete from reading_progress where user_book_id = $1`, bookID)
+	_, err := s.pool.Exec(ctx, `update user_books set progress_percent = 0 where user_id = $1 and id = $2`, userID, bookID)
 	return err
 }
 
 func (s *Store) DeleteAllProgress(ctx context.Context, userID uuid.UUID) error {
-	// One statement: reading_progress rows are scoped to user_books owned by the
-	// user. Atomic, idempotent (no-op if nothing matches).
 	_, err := s.pool.Exec(ctx, `
-		delete from reading_progress
-		where user_book_id in (select id from user_books where user_id = $1)
+		update user_books set progress_percent = 0
+		where user_id = $1
 	`, userID)
 	return err
 }
@@ -665,14 +657,13 @@ func scanBook(ctx context.Context, q bookQuerier, userID, bookID uuid.UUID) (dom
 		select ub.id, ub.title,
 			coalesce(array_agg(t.name order by t.name) filter (where t.name is not null), '{}'::text[]) as tags,
 			ub.favorite, bf.format, bf.size_bytes,
-			coalesce(rp.progress_percent, 0), bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.updated_at
+			ub.progress_percent, bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.last_opened_at, ub.updated_at
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
-		left join reading_progress rp on rp.user_book_id = ub.id
 		left join user_book_tags ubt on ubt.user_book_id = ub.id
 		left join tags t on t.id = ubt.tag_id
 		where ub.user_id = $1 and ub.id = $2
-		group by ub.id, bf.id, rp.progress_percent
+		group by ub.id, bf.id
 	`, userID, bookID)
 	if err != nil {
 		return domain.Book{}, err
@@ -704,6 +695,7 @@ func scanBooks(rows pgx.Rows) ([]domain.Book, error) {
 			&book.CoverPath,
 			&book.CoverThumbPath,
 			&book.CreatedAt,
+			&book.LastOpenedAt,
 			&book.UpdatedAt,
 		); err != nil {
 			return nil, err

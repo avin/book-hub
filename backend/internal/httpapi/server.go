@@ -948,12 +948,12 @@ type bookResponse struct {
 	SizeBytes       int64    `json:"size_bytes"`
 	ProgressPercent float64  `json:"progress_percent"`
 	CreatedAt       string   `json:"created_at"`
+	LastOpenedAt    string   `json:"last_opened_at"`
 	UpdatedAt       string   `json:"updated_at"`
 }
 
 type progressResponse struct {
 	ProgressPercent float64 `json:"progress_percent"`
-	UpdatedAt       *string `json:"updated_at"`
 }
 
 func userResponse(user domain.User) userDTO {
@@ -977,17 +977,13 @@ func bookDTO(book domain.Book) bookResponse {
 		SizeBytes:       book.SizeBytes,
 		ProgressPercent: book.ProgressPercent,
 		CreatedAt:       book.CreatedAt.UTC().Format(time.RFC3339),
+		LastOpenedAt:    book.LastOpenedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:       book.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
 func progressDTO(progress domain.ReadingProgress) progressResponse {
-	var updatedAt *string
-	if progress.UpdatedAt != nil {
-		value := progress.UpdatedAt.UTC().Format(time.RFC3339)
-		updatedAt = &value
-	}
-	return progressResponse{ProgressPercent: progress.ProgressPercent, UpdatedAt: updatedAt}
+	return progressResponse{ProgressPercent: progress.ProgressPercent}
 }
 
 func LogLevel(level string) slog.Level {

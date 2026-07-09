@@ -629,7 +629,7 @@ paths:
         - ReadingProgress
       operationId: deleteReadingProgress
       summary: Reset reading progress
-      description: Idempotent. Returns 204 if the book exists and has no progress row.
+      description: Idempotent. Returns 204 if the book exists; resets progress to zero without changing last_opened_at.
       security:
         - cookieAuth: []
           csrfHeader: []
@@ -654,7 +654,7 @@ paths:
         - ReadingProgress
       operationId: deleteAllReadingProgress
       summary: Reset reading progress for all books of the current user
-      description: Idempotent. Atomically deletes every reading progress row owned by the user.
+      description: Idempotent. Atomically resets progress to zero for every book owned by the user without changing last_opened_at.
       security:
         - cookieAuth: []
           csrfHeader: []
@@ -973,8 +973,6 @@ components:
         - title_desc
         - updated_at_desc
         - updated_at_asc
-        - progress_desc
-        - progress_asc
 
     BookListResponse:
       type: object
@@ -1028,6 +1026,7 @@ components:
         - size_bytes
         - progress_percent
         - created_at
+        - last_opened_at
         - updated_at
       properties:
         id:
@@ -1056,6 +1055,10 @@ components:
           type: string
           format: date-time
           description: UTC RFC3339 timestamp.
+        last_opened_at:
+          type: string
+          format: date-time
+          description: UTC RFC3339 timestamp of the latest successful progress save, or book creation time before the first save.
         updated_at:
           type: string
           format: date-time
@@ -1127,15 +1130,9 @@ components:
       additionalProperties: false
       required:
         - progress_percent
-        - updated_at
       properties:
         progress_percent:
           $ref: "#/components/schemas/ProgressPercent"
-        updated_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: UTC RFC3339 timestamp or null if progress has not been saved.
 
     ReadingProgressUpdateRequest:
       type: object

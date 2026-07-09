@@ -140,27 +140,31 @@ function updateCachedBookLists(queryClient: QueryClient, book: Book) {
   }
 }
 
-function updateBookListProgressCache(
-  list: BookListResponse | undefined,
-  bookId: string,
-  progressPercent: number,
+function updateBookProgressCache(
+	queryClient: QueryClient,
+	bookId: string,
+	progressPercent: number,
+	updateLastOpenedAt = true,
 ) {
-  if (!list || !list.items.some((item) => item.id === bookId)) {
-    return list;
-  }
+	const lastOpenedAt = updateLastOpenedAt ? new Date().toISOString() : undefined;
+	const updateBook = (book: Book) =>
+		book.id === bookId
+			? {
+					...book,
+					progress_percent: progressPercent,
+					...(lastOpenedAt && {
+						last_opened_at: book.last_opened_at > lastOpenedAt ? book.last_opened_at : lastOpenedAt,
+					}),
+				  }
+			: book;
+	const compareByRelevance = (left: Book, right: Book) =>
+		Date.parse(right.last_opened_at) - Date.parse(left.last_opened_at) ||
+		Date.parse(right.created_at) - Date.parse(left.created_at) ||
+		left.id.localeCompare(right.id);
 
-  return {
-    ...list,
-    items: list.items.map((book) =>
-      book.id === bookId ? { ...book, progress_percent: progressPercent } : book,
-    ),
-  };
-}
-
-function updateBookProgressCache(queryClient: QueryClient, bookId: string, progressPercent: number) {
-  queryClient.setQueryData<Book>(["book", bookId], (book) =>
-    book ? { ...book, progress_percent: progressPercent } : book,
-  );
+	queryClient.setQueryData<Book>(["book", bookId], (book) =>
+		book ? updateBook(book) : book,
+	);
 
   for (const [queryKey] of queryClient.getQueriesData<BookListResponse | InfiniteData<BookListResponse>>({
     queryKey: booksQueryKey,
@@ -169,20 +173,34 @@ function updateBookProgressCache(queryClient: QueryClient, bookId: string, progr
       continue;
     }
 
-    queryClient.setQueryData<BookListResponse | InfiniteData<BookListResponse>>(queryKey, (data) => {
-      if (!data) {
-        return data;
-      }
+		queryClient.setQueryData<BookListResponse | InfiniteData<BookListResponse>>(queryKey, (data) => {
+			if (!data) {
+				return data;
+			}
+			if (isInfiniteBookListResponse(data)) {
+				if (queryKey[1].sort !== "relevance") {
+					return {
+						...data,
+						pages: data.pages.map((page) => ({ ...page, items: page.items.map(updateBook) })),
+					};
+				}
+				const pageSizes = data.pages.map((page) => page.items.length);
+				const items = data.pages.flatMap((page) => page.items).map(updateBook).sort(compareByRelevance);
+				let offset = 0;
+				return {
+					...data,
+					pages: data.pages.map((page, index) => {
+						const nextOffset = offset + pageSizes[index];
+						const updatedPage = { ...page, items: items.slice(offset, nextOffset) };
+						offset = nextOffset;
+						return updatedPage;
+					}),
+				};
+			}
 
-      if (isInfiniteBookListResponse(data)) {
-        return {
-          ...data,
-          pages: data.pages.map((page) => updateBookListProgressCache(page, bookId, progressPercent) ?? page),
-        };
-      }
-
-      return updateBookListProgressCache(data, bookId, progressPercent);
-    });
+			const items = data.items.map(updateBook);
+		return queryKey[1].sort === "relevance" ? { ...data, items: items.sort(compareByRelevance) } : { ...data, items };
+		});
   }
 }
 
@@ -492,10 +510,9 @@ export function createResetReadingProgressMutation() {
   return createMutation(() => ({
     mutationFn: resetReadingProgress,
     onSuccess: (_data, bookId) => {
-      updateBookProgressCache(queryClient, bookId, 0);
+      updateBookProgressCache(queryClient, bookId, 0, false);
       queryClient.setQueryData(["book-progress", bookId], {
         progress_percent: 0,
-        updated_at: null,
       });
     },
   }));

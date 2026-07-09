@@ -13,6 +13,7 @@ const sampleBook: Book = {
   size_bytes: 2480000,
   progress_percent: 67,
   created_at: "2026-07-05T12:00:00Z",
+  last_opened_at: "2026-07-05T12:00:00Z",
   updated_at: "2026-07-05T12:00:00Z",
 };
 

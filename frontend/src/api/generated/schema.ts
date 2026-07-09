@@ -286,7 +286,7 @@ export interface paths {
         post?: never;
         /**
          * Reset reading progress
-         * @description Idempotent. Returns 204 if the book exists and has no progress row.
+         * @description Idempotent. Returns 204 if the book exists; resets progress to zero without changing last_opened_at.
          */
         delete: operations["deleteReadingProgress"];
         options?: never;
@@ -306,7 +306,7 @@ export interface paths {
         post?: never;
         /**
          * Reset reading progress for all books of the current user
-         * @description Idempotent. Atomically deletes every reading progress row owned by the user.
+         * @description Idempotent. Atomically resets progress to zero for every book owned by the user without changing last_opened_at.
          */
         delete: operations["deleteAllReadingProgress"];
         options?: never;
@@ -424,7 +424,7 @@ export interface components {
          * @default relevance
          * @enum {string}
          */
-        BookSort: "relevance" | "created_at_desc" | "created_at_asc" | "title_asc" | "title_desc" | "updated_at_desc" | "updated_at_asc" | "progress_desc" | "progress_asc";
+        BookSort: "relevance" | "created_at_desc" | "created_at_asc" | "title_asc" | "title_desc" | "updated_at_desc" | "updated_at_asc";
         BookListResponse: {
             items: components["schemas"]["Book"][];
             /** Format: int64 */
@@ -453,6 +453,11 @@ export interface components {
              * @description UTC RFC3339 timestamp.
              */
             created_at: string;
+            /**
+             * Format: date-time
+             * @description UTC RFC3339 timestamp of the latest successful progress save, or book creation time before the first save.
+             */
+            last_opened_at: string;
             /**
              * Format: date-time
              * @description UTC RFC3339 timestamp.
@@ -485,11 +490,6 @@ export interface components {
         CoverVariant: "full" | "thumbnail";
         ReadingProgress: {
             progress_percent: components["schemas"]["ProgressPercent"];
-            /**
-             * Format: date-time
-             * @description UTC RFC3339 timestamp or null if progress has not been saved.
-             */
-            updated_at: string | null;
         };
         ReadingProgressUpdateRequest: {
             progress_percent: components["schemas"]["ProgressPercent"];
