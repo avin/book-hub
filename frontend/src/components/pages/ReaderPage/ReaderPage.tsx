@@ -223,7 +223,6 @@ function ReaderPage() {
                 fb2={fb2()}
                 class={styles.fb2Reader}
                 headerContent={chromeContent()}
-                onUserInteraction={clearScheduledProgressRestore}
               />
             </Suspense>
           )}

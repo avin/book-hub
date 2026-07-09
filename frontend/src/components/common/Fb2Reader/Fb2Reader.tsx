@@ -117,7 +117,6 @@ function Fb2Reader(props: {
   class?: string;
   initialSettings?: Partial<Fb2ReaderSettings>;
   headerContent?: JSX.Element;
-  onUserInteraction?: () => void;
 }) {
   let rootRef: HTMLDivElement | undefined;
   let documentShellRef: HTMLElement | undefined;
@@ -328,7 +327,6 @@ function Fb2Reader(props: {
     value: Fb2ReaderSettings[T],
     keepLockedAnchor = false,
   ) => {
-    props.onUserInteraction?.();
     const anchor = keepLockedAnchor && lockedScrollAnchor ? lockedScrollAnchor : captureScrollAnchor();
 
     if (anchor) {
@@ -470,7 +468,6 @@ function Fb2Reader(props: {
   const onRulerPointerDown = (event: PointerEvent) => {
     const target = event.currentTarget as HTMLDivElement | null;
 
-    props.onUserInteraction?.();
     target?.setPointerCapture(event.pointerId);
     lockedScrollAnchor = captureScrollAnchor();
     if (lockedScrollAnchor) {
@@ -503,7 +500,6 @@ function Fb2Reader(props: {
   };
 
   const applyAutoWidth = () => {
-    props.onUserInteraction?.();
     // Та же механика, что при отпускании направляющих ширины за пределы экрана:
     // фиксируем якорь по текущему layout, выставляем настройку с keepLockedAnchor
     // и сразу пересчитываем ширину синхронно, пока lockedScrollAnchor ещё жив.
@@ -735,7 +731,6 @@ function Fb2Reader(props: {
         settings={settings()}
         onClose={() => setPanelOpen(false)}
         onReset={() => {
-          props.onUserInteraction?.();
           // Сброс настроек меняет layout (высоту блоков). Захватываем якорь по
           // текущему layout ДО смены настроек, чтобы после пересчёта эффект
           // pendingScrollAnchor вернул читателя на тот же видимый блок.
