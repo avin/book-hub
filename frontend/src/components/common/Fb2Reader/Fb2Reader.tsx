@@ -128,6 +128,8 @@ function Fb2Reader(props: {
   let layoutWidthDebounceTimeout: number | undefined;
   let viewportResizeEndTimeout: number | undefined;
   let resetAnchorFrame: number | undefined;
+  let layoutSettingsAnchor: ScrollAnchor | undefined;
+  let fontLayoutAnchor: ScrollAnchor | undefined;
   let lastMeasuredReaderWidth = 0;
   let disposed = false;
   const [settings, setSettings] = createSignal<Fb2ReaderSettings>({
@@ -159,6 +161,30 @@ function Fb2Reader(props: {
   const textWidth = createMemo(() => Math.min(availableTextWidth(), effectiveMaxTextWidth() ?? availableTextWidth()));
 
   const currentWidthChangeAnchor = () => lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
+
+  const restoreScrollAnchorAfterLayout = (anchor: ScrollAnchor | undefined) => {
+    if (!anchor) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const currentLayout = layout();
+        const blockIndex = Math.min(anchor.blockIndex, currentLayout.offsets.length - 1);
+
+        if (blockIndex < 0 || !documentRef) {
+          return;
+        }
+
+        const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
+        const nextScrollTop = documentTop + (currentLayout.offsets[blockIndex] ?? 0) + anchor.offsetPx;
+
+        window.scrollTo({ top: nextScrollTop });
+        setScrollTop(nextScrollTop - documentTop);
+        setPendingScrollAnchor(undefined);
+      });
+    });
+  };
 
   const applyLayoutTextWidth = (anchor = currentWidthChangeAnchor()) => {
     if (anchor) {
@@ -327,10 +353,16 @@ function Fb2Reader(props: {
     value: Fb2ReaderSettings[T],
     keepLockedAnchor = false,
   ) => {
-    const anchor = keepLockedAnchor && lockedScrollAnchor ? lockedScrollAnchor : captureScrollAnchor();
+    const anchor = keepLockedAnchor && lockedScrollAnchor
+      ? lockedScrollAnchor
+      : layoutSettingsAnchor ?? captureScrollAnchor();
 
     if (anchor) {
       setPendingScrollAnchor(anchor);
+
+      if (key === "fontFamily" || key === "fontSize") {
+        fontLayoutAnchor ??= anchor;
+      }
     }
 
     setSettings((current) => settingValue(current, key, value));
@@ -363,6 +395,24 @@ function Fb2Reader(props: {
     }
 
     scrollToBlockIndex(blockIndex);
+  };
+
+  const beginLayoutSettingsAdjustment = () => {
+    layoutSettingsAnchor = captureScrollAnchor();
+
+    if (layoutSettingsAnchor) {
+      setPendingScrollAnchor(layoutSettingsAnchor);
+    }
+
+    setAdjustingLayoutSettings(true);
+  };
+
+  const endLayoutSettingsAdjustment = () => {
+    const anchor = layoutSettingsAnchor;
+
+    setAdjustingLayoutSettings(false);
+    layoutSettingsAnchor = undefined;
+    restoreScrollAnchorAfterLayout(anchor);
   };
   const isFootnoteTarget = (targetId: string) => parsed().notes.has(targetId);
   const onFootnoteLink = (targetId: string) => {
@@ -489,10 +539,12 @@ function Fb2Reader(props: {
   const onRulerPointerUp = (event: PointerEvent) => {
     const target = event.currentTarget as HTMLDivElement | null;
     const width = pendingMaxTextWidth();
+    const anchor = lockedScrollAnchor;
 
     target?.releasePointerCapture(event.pointerId);
     updateSetting("maxTextWidth", width, true);
     flushLayoutTextWidth();
+    restoreScrollAnchorAfterLayout(anchor);
     setDraggingWidth(false);
     setPendingMaxTextWidth(undefined);
     lockedScrollAnchor = undefined;
@@ -506,6 +558,7 @@ function Fb2Reader(props: {
     // Если полагаться на асинхронный эффект textWidth, он снимет якорь повторно
     // в нестабильный момент смены layout — и позиция собьётся.
     lockedScrollAnchor = captureScrollAnchor();
+    const anchor = lockedScrollAnchor;
 
     if (lockedScrollAnchor) {
       setPendingScrollAnchor(lockedScrollAnchor);
@@ -513,6 +566,7 @@ function Fb2Reader(props: {
 
     updateSetting("maxTextWidth", undefined, true);
     flushLayoutTextWidth();
+    restoreScrollAnchorAfterLayout(anchor);
     lockedScrollAnchor = undefined;
   };
 
@@ -553,11 +607,13 @@ function Fb2Reader(props: {
       // уже могла быть восстановлена из прогресса (ReaderPage.restoreScrollProgress).
       // Снятый заранее якорь фиксирует scrollY=0 и после пересчёта layout
       // отбрасывает читалку в начало книги.
-      const anchor = captureScrollAnchor();
+      const anchor = fontLayoutAnchor ?? captureScrollAnchor();
 
       if (anchor) {
         setPendingScrollAnchor(anchor);
       }
+
+      fontLayoutAnchor = undefined;
 
       setLayoutGeneration((value) => value + 1);
     });
@@ -758,16 +814,8 @@ function Fb2Reader(props: {
         }}
         onUpdateSetting={updateSetting}
         onAutoWidth={applyAutoWidth}
-        onBeginAdjustLayout={() => setAdjustingLayoutSettings(true)}
-        onEndAdjustLayout={() => {
-          const anchor = captureScrollAnchor();
-
-          if (anchor) {
-            setPendingScrollAnchor(anchor);
-          }
-
-          setAdjustingLayoutSettings(false);
-        }}
+        onBeginAdjustLayout={beginLayoutSettingsAdjustment}
+        onEndAdjustLayout={endLayoutSettingsAdjustment}
       />
 
       <main
