@@ -13,6 +13,9 @@ export default tseslint.config(
   solid.configs['flat/recommended'],
   {
     files: ['**/*.{js,cjs,mjs,ts,tsx}'],
+    rules: {
+      curly: ['error', 'all'],
+    },
     languageOptions: {
       globals: {
         ...globals.browser,
