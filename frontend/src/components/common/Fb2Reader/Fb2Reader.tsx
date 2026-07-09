@@ -117,6 +117,7 @@ function Fb2Reader(props: {
   class?: string;
   initialSettings?: Partial<Fb2ReaderSettings>;
   headerContent?: JSX.Element;
+  onUserInteraction?: () => void;
 }) {
   let rootRef: HTMLDivElement | undefined;
   let documentShellRef: HTMLElement | undefined;
@@ -127,6 +128,7 @@ function Fb2Reader(props: {
   let resizeAnchorTimeout: number | undefined;
   let layoutWidthDebounceTimeout: number | undefined;
   let viewportResizeEndTimeout: number | undefined;
+  let resetAnchorFrame: number | undefined;
   let lastMeasuredReaderWidth = 0;
   let disposed = false;
   const [settings, setSettings] = createSignal<Fb2ReaderSettings>({
@@ -326,6 +328,7 @@ function Fb2Reader(props: {
     value: Fb2ReaderSettings[T],
     keepLockedAnchor = false,
   ) => {
+    props.onUserInteraction?.();
     const anchor = keepLockedAnchor && lockedScrollAnchor ? lockedScrollAnchor : captureScrollAnchor();
 
     if (anchor) {
@@ -467,6 +470,7 @@ function Fb2Reader(props: {
   const onRulerPointerDown = (event: PointerEvent) => {
     const target = event.currentTarget as HTMLDivElement | null;
 
+    props.onUserInteraction?.();
     target?.setPointerCapture(event.pointerId);
     lockedScrollAnchor = captureScrollAnchor();
     if (lockedScrollAnchor) {
@@ -499,6 +503,7 @@ function Fb2Reader(props: {
   };
 
   const applyAutoWidth = () => {
+    props.onUserInteraction?.();
     // Та же механика, что при отпускании направляющих ширины за пределы экрана:
     // фиксируем якорь по текущему layout, выставляем настройку с keepLockedAnchor
     // и сразу пересчитываем ширину синхронно, пока lockedScrollAnchor ещё жив.
@@ -696,6 +701,10 @@ function Fb2Reader(props: {
     if (viewportResizeEndTimeout !== undefined) {
       window.clearTimeout(viewportResizeEndTimeout);
     }
+
+    if (resetAnchorFrame !== undefined) {
+      cancelAnimationFrame(resetAnchorFrame);
+    }
   });
 
   return (
@@ -726,13 +735,28 @@ function Fb2Reader(props: {
         settings={settings()}
         onClose={() => setPanelOpen(false)}
         onReset={() => {
+          props.onUserInteraction?.();
           // Сброс настроек меняет layout (высоту блоков). Захватываем якорь по
           // текущему layout ДО смены настроек, чтобы после пересчёта эффект
           // pendingScrollAnchor вернул читателя на тот же видимый блок.
           const anchor = captureScrollAnchor();
 
           if (anchor) {
-            setPendingScrollAnchor(anchor);
+            if (resetAnchorFrame !== undefined) {
+              cancelAnimationFrame(resetAnchorFrame);
+            }
+
+            // После сброса крупный текст может уменьшить документ настолько,
+            // что браузер временно зажимает scrollY к нижней границе. Ставим
+            // якорь после двух кадров: к этому моменту новый layout и высота
+            // документа уже применены.
+            setPendingScrollAnchor(undefined);
+            resetAnchorFrame = requestAnimationFrame(() => {
+              resetAnchorFrame = requestAnimationFrame(() => {
+                setPendingScrollAnchor(anchor);
+                resetAnchorFrame = undefined;
+              });
+            });
           }
 
           setSettings(defaultSettings);
