@@ -107,11 +107,11 @@ function ReaderFloatingChrome(props: {
           <Show when={props.searchValue !== undefined}>
             <div class={styles.searchControls} role="search">
               <div class={styles.searchInputWrap}>
-                <Search size={16} aria-hidden="true" />
+                <Search class={styles.searchIcon} size={16} aria-hidden="true" />
                 <TextInput
                   ref={searchInputRef}
                   class={styles.searchInput}
-                  type="search"
+                  type="text"
                   value={props.searchValue ?? ''}
                   placeholder={t('bookSearch')}
                   aria-label={t('bookSearch')}
@@ -119,6 +119,17 @@ function ReaderFloatingChrome(props: {
                   onFocus={(event) => event.currentTarget.select()}
                   onKeyDown={handleSearchKeyDown}
                 />
+                <Show when={props.searchValue !== undefined && props.searchValue !== ''}>
+                  <button
+                    type="button"
+                    class={styles.searchClear}
+                    aria-label={t('clearSearch')}
+                    title={t('clearSearch')}
+                    onClick={() => props.onSearchValueChange?.('')}
+                  >
+                    <X />
+                  </button>
+                </Show>
               </div>
               <Button
                 variant="ghost"
