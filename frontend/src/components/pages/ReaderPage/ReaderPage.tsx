@@ -12,13 +12,30 @@ import {
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ReadingProgressController } from '@/reader/ReadingProgress/types';
 import styles from './ReaderPage.module.scss';
 
 const Fb2Reader = lazy(() => import('@/components/common/Fb2Reader/Fb2Reader'));
 const PdfReader = lazy(() => import('@/components/common/PdfReader/PdfReader'));
 
 const progressSaveDelayMs = 1000;
+
+function scrollProgressPercent() {
+  const root = document.documentElement;
+  const maxScroll = Math.max(0, root.scrollHeight - window.innerHeight);
+
+  if (maxScroll === 0) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, (window.scrollY / maxScroll) * 100));
+}
+
+function restoreScrollProgress(progressPercent: number) {
+  const root = document.documentElement;
+  const maxScroll = Math.max(0, root.scrollHeight - window.innerHeight);
+
+  window.scrollTo({ top: (maxScroll * progressPercent) / 100 });
+}
 
 function ReaderPage() {
   const { t } = useI18n();
@@ -29,19 +46,19 @@ function ReaderPage() {
   const fb2FileQuery = createBookFileTextQuery(bookId, () => bookQuery.data?.format === 'fb2');
   const updateBookMutation = createUpdateBookMutation();
   const updateProgressMutation = createUpdateReadingProgressMutation();
-  const [readingProgress, setReadingProgress] = createSignal<ReadingProgressController>();
+  const [pdfReady, setPdfReady] = createSignal(false);
   let saveTimeout: number | undefined;
-  let progressUnsubscribe: (() => void) | undefined;
+  let restoreTimeoutIds: number[] = [];
   let activeBookId = bookId();
   let restoredBookId: string | undefined;
-
-  const markProgressRestored = () => {
-    restoredBookId = bookId();
-  };
 
   const book = createMemo(() => bookQuery.data);
   const isFb2 = createMemo(() => book()?.format === 'fb2');
   const isPdf = createMemo(() => book()?.format === 'pdf');
+  const canTrackProgress = createMemo(() => isFb2() || (isPdf() && pdfReady()));
+  const canRestoreProgress = createMemo(
+    () => (isFb2() && fb2FileQuery.data) || (isPdf() && pdfReady()),
+  );
 
   const clearScheduledProgressSave = () => {
     if (saveTimeout === undefined) {
@@ -52,9 +69,12 @@ function ReaderPage() {
     saveTimeout = undefined;
   };
 
-  const clearProgressSubscription = () => {
-    progressUnsubscribe?.();
-    progressUnsubscribe = undefined;
+  const clearScheduledProgressRestore = () => {
+    for (const timeoutId of restoreTimeoutIds) {
+      window.clearTimeout(timeoutId);
+    }
+
+    restoreTimeoutIds = [];
   };
 
   createEffect(() => {
@@ -65,19 +85,10 @@ function ReaderPage() {
     }
 
     clearScheduledProgressSave();
-    clearProgressSubscription();
-    readingProgress()?.reset();
+    clearScheduledProgressRestore();
     activeBookId = currentBookId;
     restoredBookId = undefined;
-    setReadingProgress(undefined);
-  });
-
-  const savedProgressPercent = createMemo(() => {
-    if (restoredBookId === bookId()) {
-      return undefined;
-    }
-
-    return progressQuery.data?.progress_percent;
+    setPdfReady(false);
   });
 
   const toggleFavorite = () => {
@@ -126,9 +137,7 @@ function ReaderPage() {
   );
 
   const scheduleProgressSave = () => {
-    const progress = readingProgress();
-
-    if (!progress?.isReady()) {
+    if (!canTrackProgress()) {
       return;
     }
 
@@ -143,7 +152,7 @@ function ReaderPage() {
         return;
       }
 
-      const nextProgress = progress.getProgress();
+      const nextProgress = scrollProgressPercent();
 
       if (updateProgressMutation.isPending) {
         scheduleProgressSave();
@@ -157,41 +166,46 @@ function ReaderPage() {
     }, progressSaveDelayMs);
   };
 
-  const handleReadingProgress = (progress: ReadingProgressController) => {
-    clearProgressSubscription();
-    setReadingProgress(progress);
-  };
-
   createEffect(() => {
-    const progress = readingProgress();
-
-    if (!progress) {
+    if (!canTrackProgress()) {
       return;
     }
 
-    const onScroll = () => {
-      if (!progress.hasRestored() && progress.isReady() && window.scrollY > 80) {
-        progress.markUserScrolled();
-      }
-
-      scheduleProgressSave();
-    };
-
-    progressUnsubscribe = progress.onProgressChange(() => {
-      scheduleProgressSave();
-    });
-
+    const onScroll = () => scheduleProgressSave();
     window.addEventListener('scroll', onScroll, { passive: true });
 
     onCleanup(() => {
       window.removeEventListener('scroll', onScroll);
-      clearProgressSubscription();
     });
+  });
+
+  createEffect(() => {
+    const currentBookId = bookId();
+    const progress = progressQuery.data;
+
+    if (restoredBookId === currentBookId || !canRestoreProgress() || !progress) {
+      return;
+    }
+
+    clearScheduledProgressRestore();
+    restoredBookId = currentBookId;
+    const restoreDelayMs = isPdf() ? 80 : 350;
+    const confirmRestoreDelayMs = isPdf() ? 260 : 900;
+    const progressPercent = progress.progress_percent;
+
+    restoreTimeoutIds = [
+      window.setTimeout(() => {
+        if (window.scrollY <= 80) restoreScrollProgress(progressPercent);
+      }, restoreDelayMs),
+      window.setTimeout(() => {
+        if (window.scrollY <= 80) restoreScrollProgress(progressPercent);
+      }, confirmRestoreDelayMs),
+    ];
   });
 
   onCleanup(() => {
     clearScheduledProgressSave();
-    clearProgressSubscription();
+    clearScheduledProgressRestore();
   });
 
   return (
@@ -208,14 +222,7 @@ function ReaderPage() {
         <Show when={fb2FileQuery.data} fallback={<LoadingScreen label={t('loading')} />}>
           {(fb2) => (
             <Suspense fallback={<LoadingScreen label={t('loading')} />}>
-              <Fb2Reader
-                fb2={fb2()}
-                class={styles.fb2Reader}
-                headerContent={chromeContent()}
-                onReadingProgress={handleReadingProgress}
-                savedProgressPercent={savedProgressPercent()}
-                onProgressRestored={markProgressRestored}
-              />
+              <Fb2Reader fb2={fb2()} class={styles.fb2Reader} headerContent={chromeContent()} />
             </Suspense>
           )}
         </Show>
@@ -227,9 +234,7 @@ function ReaderPage() {
             fileUrl={getBookFileUrl(bookId())}
             class={styles.pdfReader}
             headerContent={chromeContent()}
-            onReadingProgress={handleReadingProgress}
-            savedProgressPercent={savedProgressPercent()}
-            onProgressRestored={markProgressRestored}
+            onReady={() => setPdfReady(true)}
           />
         </Suspense>
       </Show>

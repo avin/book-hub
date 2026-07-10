@@ -37,16 +37,14 @@ import {
   getFb2ReaderSettingsPreference,
   setFb2ReaderSettingsPreference,
 } from '@/storage/browserPreferences';
-import { createReaderSession } from '@/reader/ReaderSession/createReaderSession';
-import { createFb2ProgressAdapter } from '@/reader/ReadingProgress/fb2ProgressAdapter';
-import { createReadingProgress } from '@/reader/ReadingProgress/ReadingProgress';
-import type { ReadingProgressController } from '@/reader/ReadingProgress/types';
 import styles from './Fb2Reader.module.scss';
 
 type ScrollAnchor = {
   blockIndex: number;
   offsetPx: number;
 };
+
+type ReaderPanel = 'none' | 'settings' | 'toc';
 
 const layoutWidthDebounceMs = 120;
 const viewportResizeEndMs = 150;
@@ -142,9 +140,6 @@ function Fb2Reader(props: {
   class?: string;
   initialSettings?: Partial<Fb2ReaderSettings>;
   headerContent?: JSX.Element;
-  onReadingProgress?: (progress: ReadingProgressController) => void;
-  savedProgressPercent?: number;
-  onProgressRestored?: () => void;
 }) {
   let rootRef: HTMLDivElement | undefined;
   let documentShellRef: HTMLElement | undefined;
@@ -158,6 +153,8 @@ function Fb2Reader(props: {
   let resetAnchorFrame: number | undefined;
   let layoutSettingsAnchor: ScrollAnchor | undefined;
   let fontLayoutAnchor: ScrollAnchor | undefined;
+  let touchToggleClickTimeout: number | undefined;
+  let ignoreNextDocumentClick = false;
   let executedSearchQuery: string | undefined;
   let searchScrollFrame: number | undefined;
   let lastMeasuredReaderWidth = 0;
@@ -172,9 +169,12 @@ function Fb2Reader(props: {
   const [readerWidth, setReaderWidth] = createSignal(960);
   const [layoutTextWidth, setLayoutTextWidth] = createSignal(320);
   const [viewportResizeActive, setViewportResizeActive] = createSignal(false);
+  const [headerVisible, setHeaderVisible] = createSignal(false);
   const [searchValue, setSearchValue] = createSignal('');
   const [searchMatches, setSearchMatches] = createSignal<Fb2SearchMatch[]>([]);
   const [activeSearchIndex, setActiveSearchIndex] = createSignal<number | undefined>();
+  const [openPanel, setOpenPanel] = createSignal<ReaderPanel>('none');
+  const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [pendingMaxTextWidth, setPendingMaxTextWidth] = createSignal<number | undefined>();
   const [adjustingLayoutSettings, setAdjustingLayoutSettings] = createSignal(false);
@@ -185,35 +185,8 @@ function Fb2Reader(props: {
   let lastMeasuredLayout: VirtualLayout = { offsets: [], heights: [], totalHeight: 0 };
   const parsed = createMemo(() => parseFb2(props.fb2));
   const availableTextWidth = createMemo(() => readerWidth());
-
-  const clearSearchHighlights = () => {
-    if (searchScrollFrame !== undefined) {
-      cancelAnimationFrame(searchScrollFrame);
-      searchScrollFrame = undefined;
-    }
-
-    setSearchMatches([]);
-    setActiveSearchIndex(undefined);
-    executedSearchQuery = undefined;
-  };
-
-  const session = createReaderSession({
-    onChromeClose: clearSearchHighlights,
-    onTouchToggle: clearSearchHighlights,
-  });
-
-  const documentScrollTop = () => {
-    if (!documentRef) {
-      return scrollTop();
-    }
-
-    const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
-
-    return Math.max(0, window.scrollY - documentTop);
-  };
-
   const effectiveMaxTextWidth = createMemo(() =>
-    session.draggingWidth() ? pendingMaxTextWidth() : settings().maxTextWidth,
+    draggingWidth() ? pendingMaxTextWidth() : settings().maxTextWidth,
   );
   const textWidth = createMemo(() =>
     Math.min(availableTextWidth(), effectiveMaxTextWidth() ?? availableTextWidth()),
@@ -387,12 +360,84 @@ function Fb2Reader(props: {
   });
   const tocEntries = createMemo<TocEntry[]>(() => parsed().outline);
   const tocAvailable = createMemo(() => tocEntries().length > 0);
+  const sidePanelOpen = createMemo(() => openPanel() !== 'none');
+  const progressPercent = createMemo(() => {
+    const maxScroll = Math.max(0, layout().totalHeight - viewportHeight());
+
+    if (maxScroll === 0) {
+      return 0;
+    }
+
+    return Math.round(clamp((scrollTop() / maxScroll) * 100, 0, 100));
+  });
   const searchCount = createMemo(() => {
     const total = searchMatches().length;
     const active = activeSearchIndex();
 
     return total > 0 && active !== undefined ? { current: active + 1, total } : undefined;
   });
+
+  const togglePanel = (panel: Exclude<ReaderPanel, 'none'>) => {
+    setOpenPanel((current) => (current === panel ? 'none' : panel));
+  };
+
+  const closePanel = () => {
+    setOpenPanel('none');
+  };
+
+  const clearSearchHighlights = () => {
+    if (searchScrollFrame !== undefined) {
+      cancelAnimationFrame(searchScrollFrame);
+      searchScrollFrame = undefined;
+    }
+
+    setSearchMatches([]);
+    setActiveSearchIndex(undefined);
+    executedSearchQuery = undefined;
+  };
+
+  const closeChrome = () => {
+    closePanel();
+    setHeaderVisible(false);
+    clearSearchHighlights();
+  };
+
+  const isReaderInputFocused = () => document.activeElement instanceof HTMLInputElement;
+
+  const toggleChromeOnTouch = (event: PointerEvent) => {
+    if (
+      event.pointerType !== 'touch' ||
+      event.clientY < window.innerHeight * 0.25 ||
+      event.clientY > window.innerHeight * 0.75
+    ) {
+      return false;
+    }
+
+    clearSearchHighlights();
+    setHeaderVisible((current) => !current);
+    ignoreNextDocumentClick = true;
+
+    if (touchToggleClickTimeout !== undefined) {
+      window.clearTimeout(touchToggleClickTimeout);
+    }
+
+    touchToggleClickTimeout = window.setTimeout(() => {
+      ignoreNextDocumentClick = false;
+      touchToggleClickTimeout = undefined;
+    }, 500);
+
+    return true;
+  };
+
+  const documentScrollTop = () => {
+    if (!documentRef) {
+      return scrollTop();
+    }
+
+    const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
+
+    return Math.max(0, window.scrollY - documentTop);
+  };
 
   const captureScrollAnchor = () => {
     const currentLayout = layout();
@@ -415,81 +460,6 @@ function Fb2Reader(props: {
 
     return { blockIndex, offsetPx };
   };
-
-  const readingProgress = createReadingProgress(
-    createFb2ProgressAdapter({
-      getLayout: () => layout(),
-      getDocumentScrollTop: documentScrollTop,
-      getViewportHeight: () => viewportHeight(),
-      isReady: () => {
-        const currentLayout = layout();
-
-        return (
-          typeof document !== 'undefined' &&
-          isReaderLayoutFontReady(settings()) &&
-          currentLayout.offsets.length > 0 &&
-          Boolean(documentRef)
-        );
-      },
-      scrollToDocumentTop: (documentScrollTopValue) => {
-        if (!documentRef) {
-          return;
-        }
-
-        const layoutMaxScroll = Math.max(0, layout().totalHeight - viewportHeight());
-        const percent =
-          layoutMaxScroll === 0 ? 0 : (documentScrollTopValue / layoutMaxScroll) * 100;
-        const documentMaxScroll = Math.max(
-          0,
-          document.documentElement.scrollHeight - window.innerHeight,
-        );
-
-        window.scrollTo({
-          top: (documentMaxScroll * percent) / 100,
-          behavior: 'instant',
-        });
-        setScrollTop(documentScrollTop());
-      },
-      onScroll: (callback) => {
-        const onScroll = () => callback();
-        window.addEventListener('scroll', onScroll, { passive: true });
-        return () => window.removeEventListener('scroll', onScroll);
-      },
-    }),
-  );
-
-  const progressPercent = createMemo(() => Math.round(readingProgress.getProgress()));
-
-  createEffect(() => {
-    const percent = props.savedProgressPercent;
-
-    if (percent === undefined || percent <= 0) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const attemptRestore = () => {
-      if (cancelled) {
-        return;
-      }
-
-      if (readingProgress.restoreProgress(percent)) {
-        props.onProgressRestored?.();
-        return;
-      }
-
-      if (!readingProgress.hasRestored()) {
-        requestAnimationFrame(attemptRestore);
-      }
-    };
-
-    attemptRestore();
-
-    onCleanup(() => {
-      cancelled = true;
-    });
-  });
 
   const updateSetting = <T extends keyof Fb2ReaderSettings>(
     key: T,
@@ -824,12 +794,12 @@ function Fb2Reader(props: {
       setPendingScrollAnchor(lockedScrollAnchor);
     }
     setPendingMaxTextWidth(settings().maxTextWidth);
-    session.setDraggingWidth(true);
+    setDraggingWidth(true);
     applyRulerPointer(event);
   };
 
   const onRulerPointerMove = (event: PointerEvent) => {
-    if (!session.draggingWidth()) {
+    if (!draggingWidth()) {
       return;
     }
 
@@ -844,7 +814,7 @@ function Fb2Reader(props: {
     updateSetting('maxTextWidth', width, true);
     flushLayoutTextWidth();
     restoreScrollAnchorAfterLayout(anchor);
-    session.setDraggingWidth(false);
+    setDraggingWidth(false);
     setPendingMaxTextWidth(undefined);
     lockedScrollAnchor = undefined;
     setGuideX(undefined);
@@ -871,7 +841,7 @@ function Fb2Reader(props: {
   createEffect(() => {
     void textWidth();
 
-    if (session.draggingWidth()) {
+    if (draggingWidth()) {
       return;
     }
 
@@ -927,7 +897,16 @@ function Fb2Reader(props: {
       }
     };
     const onPointerMove = (event: PointerEvent) => {
-      session.handlePointerMove(event);
+      if (event.clientY < 88 || event.clientY > window.innerHeight - 88) {
+        setHeaderVisible(true);
+      } else if (
+        event.clientY > 164 &&
+        !sidePanelOpen() &&
+        !draggingWidth() &&
+        !isReaderInputFocused()
+      ) {
+        setHeaderVisible(false);
+      }
     };
     const onFontsChanged = () => {
       const anchor = captureScrollAnchor();
@@ -949,7 +928,6 @@ function Fb2Reader(props: {
 
     measureReader();
     flushLayoutTextWidth();
-    props.onReadingProgress?.(readingProgress);
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
     window.visualViewport?.addEventListener('resize', onResize);
@@ -971,6 +949,12 @@ function Fb2Reader(props: {
   });
 
   createEffect(() => {
+    if (sidePanelOpen()) {
+      setHeaderVisible(true);
+    }
+  });
+
+  createEffect(() => {
     const anchor = pendingScrollAnchor();
     const currentLayout = layout();
 
@@ -989,6 +973,18 @@ function Fb2Reader(props: {
     const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
     const nextDocumentScrollTop = blockTop + anchor.offsetPx;
 
+    // Защита от устаревшего якоря «начало книги».
+    //
+    // Несколько путей (font loadingdone/loadingerror, debounce пересчёта ширины,
+    // resize) снимают якорь по текущему window-скроллу асинхронно. Если в этот
+    // момент позиция ещё не восстановлена из прогресса, якорь получается
+    // {blockIndex: 0, offsetPx: 0}. Применение такого якоря позже отбрасывает
+    // уже восстановленную позицию в начало книги.
+    //
+    // Легитимный «якорь = начало» идемпотентен: если читатель и так в начале,
+    // повторная прокрутка в 0 ничего не меняет. Поэтому различаем ситуации по
+    // реальной позиции документа: если она уже далеко от начала, а якорь
+    // указывает на начало — якорь устарел, игнорируем.
     if (
       blockIndex === 0 &&
       anchor.offsetPx < 1e-6 &&
@@ -1031,7 +1027,9 @@ function Fb2Reader(props: {
       window.clearTimeout(viewportResizeEndTimeout);
     }
 
-    session.cleanup();
+    if (touchToggleClickTimeout !== undefined) {
+      window.clearTimeout(touchToggleClickTimeout);
+    }
 
     if (resetAnchorFrame !== undefined) {
       cancelAnimationFrame(resetAnchorFrame);
@@ -1045,7 +1043,7 @@ function Fb2Reader(props: {
   return (
     <div ref={rootRef} class={`${styles.reader} ${props.class ?? ''}`} style={cssVars()}>
       <ReaderChrome
-        visible={session.chromeVisible()}
+        visible={headerVisible() || sidePanelOpen() || draggingWidth()}
         title={documentTitle()}
         headerContent={props.headerContent}
         searchValue={searchValue()}
@@ -1058,13 +1056,13 @@ function Fb2Reader(props: {
         availableTextWidth={availableTextWidth()}
         currentTextWidth={textWidth()}
         tocAvailable={tocAvailable()}
-        settingsOpen={session.sidePanel() === 'settings'}
-        tocOpen={session.sidePanel() === 'toc'}
-        onShow={session.showChrome}
-        onSearchOpen={session.onSearchOpen}
-        onClose={session.closeChrome}
-        onToggleSettings={() => session.togglePanel('settings')}
-        onToggleToc={() => session.togglePanel('toc')}
+        settingsOpen={openPanel() === 'settings'}
+        tocOpen={openPanel() === 'toc'}
+        onShow={() => setHeaderVisible(true)}
+        onSearchOpen={closePanel}
+        onClose={closeChrome}
+        onToggleSettings={() => togglePanel('settings')}
+        onToggleToc={() => togglePanel('toc')}
         onRulerRef={(element) => {
           setRulerElement(element);
         }}
@@ -1073,16 +1071,16 @@ function Fb2Reader(props: {
         onRulerPointerUp={onRulerPointerUp}
       />
 
-      <Show when={session.draggingWidth() && guideX() !== undefined}>
+      <Show when={draggingWidth() && guideX() !== undefined}>
         <div class={styles.widthGuide} style={{ left: `${guideX()}px` }} aria-hidden="true" />
       </Show>
 
       <SettingsPanel
-        open={session.sidePanel() === 'settings'}
+        open={openPanel() === 'settings'}
         settings={settings()}
         onClose={() => {
           layoutSettingsAnchor = undefined;
-          session.closePanel();
+          closePanel();
         }}
         onReset={() => {
           // Сброс настроек меняет layout (высоту блоков). Захватываем якорь по
@@ -1117,9 +1115,9 @@ function Fb2Reader(props: {
       />
 
       <TocPanel
-        open={session.sidePanel() === 'toc'}
+        open={openPanel() === 'toc'}
         entries={tocEntries()}
-        onClose={session.closePanel}
+        onClose={closePanel}
         onSelect={onTocSelect}
       />
 
@@ -1129,12 +1127,17 @@ function Fb2Reader(props: {
         }}
         class={styles.documentShell}
         onPointerUp={(event) => {
-          if (session.handleDocumentPointerUp(event)) {
+          if (toggleChromeOnTouch(event)) {
             event.preventDefault();
           }
         }}
         onClick={() => {
-          session.handleDocumentClick();
+          if (ignoreNextDocumentClick) {
+            ignoreNextDocumentClick = false;
+            return;
+          }
+
+          closeChrome();
         }}
       >
         <article ref={documentRef} class={styles.document} style={{ width: `${textWidth()}px` }}>

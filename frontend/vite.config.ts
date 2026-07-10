@@ -12,10 +12,6 @@ function normalizeBasePath(value: string | undefined) {
 export default defineConfig({
   base: normalizeBasePath(process.env.VITE_BASE_PATH),
   plugins: [solid()],
-  test: {
-    include: ['src/**/*.test.ts'],
-    environment: 'node',
-  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

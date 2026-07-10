@@ -11,11 +11,6 @@ async function openReader(page: Page) {
   await expect(page.getByRole('heading', { name: 'Глава первая' })).toBeVisible();
 }
 
-async function waitForReaderLoaded(page: Page) {
-  await expect(page.getByRole('banner').getByText('Война и мир')).toBeVisible();
-  await expect(page.locator('main article')).toBeVisible();
-}
-
 async function anchorTop(page: Page, title: string) {
   return page.evaluate((expectedTitle) => {
     const heading = [...document.querySelectorAll('h2')].find((element) =>
@@ -328,7 +323,7 @@ test('reader сохраняет позицию при изменении шри�
   expect(after?.top).toBeLessThan(after?.viewportHeight ?? 0);
 
   await page.reload();
-  await waitForReaderLoaded(page);
+  await expect(page.getByRole('heading', { name: 'Глава первая' })).toBeVisible();
   await openReaderSettings(page);
   await expect(
     page
@@ -370,8 +365,9 @@ test('reader сохраняет позицию при изменении viewpor
   expect((await savedProgress.json()).progress_percent).toBeGreaterThan(60);
 
   await page.reload();
-  await waitForReaderLoaded(page);
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+  await expect(page.getByRole('heading', { name: 'Глава первая' })).toBeVisible();
+  await page.waitForTimeout(1_500);
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
 });
 
 test('reader открывает и закрывает FB2-сноску, а Escape закрывает её', async ({ page }) => {
