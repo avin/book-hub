@@ -5,6 +5,7 @@ import type {
   PDFPageProxy,
   RenderTask,
 } from 'pdfjs-dist';
+import { EventBus, PDFFindController } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import {
   createEffect,
   createMemo,
@@ -14,6 +15,7 @@ import {
   onMount,
   Show,
   type JSX,
+  untrack,
 } from 'solid-js';
 import { ListTree } from 'lucide-solid';
 import Button from '@/components/common/Button/Button';
@@ -34,13 +36,7 @@ import {
   setPdfReaderContentWidthPreference,
 } from '@/storage/browserPreferences';
 import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './pdfOutline';
-import {
-  findPdfSearchMatches,
-  normalizePdfSearchQuery,
-  pdfTextItemsToSearchText,
-  type PdfSearchMatch,
-  type PdfTextItem,
-} from './pdfSearch';
+import PdfTextHighlighter from './PdfTextHighlighter';
 import styles from './PdfReader.module.scss';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
@@ -142,7 +138,6 @@ function PdfReader(props: {
   let resizeScrollAnchor: ScrollAnchor | undefined;
   let resizeAnchorTimeout: number | undefined;
   let searchScrollFrame: number | undefined;
-  let searchLoadGeneration = 0;
   let executedSearchQuery: string | undefined;
   const pageRefs = new Map<number, HTMLElement>();
   const canvasRefs = new Map<number, HTMLCanvasElement>();
@@ -150,9 +145,9 @@ function PdfReader(props: {
   const pageCache = new Map<number, PDFPageProxy>();
   const renderTasks = new Map<number, RenderTask>();
   const textLayerTasks = new Map<number, pdfjs.TextLayer>();
+  const textHighlighters = new Map<number, ReturnType<typeof PdfTextHighlighter>>();
   const renderedKeys = new Map<number, string>();
   const textLayerKeys = new Map<number, string>();
-  const pageSearchTexts = new Map<number, string>();
   const [pages, setPages] = createSignal<PdfPageDescriptor[]>([]);
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
   const [documentWidth, setDocumentWidth] = createSignal(0);
@@ -160,8 +155,7 @@ function PdfReader(props: {
   const [failed, setFailed] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
   const [searchValue, setSearchValue] = createSignal('');
-  const [searchMatches, setSearchMatches] = createSignal<PdfSearchMatch[]>([]);
-  const [activeSearchIndex, setActiveSearchIndex] = createSignal<number | undefined>();
+  const [searchCount, setSearchCount] = createSignal<{ current: number; total: number }>();
   const [currentPage, setCurrentPage] = createSignal(1);
   const [pageInputValue, setPageInputValue] = createSignal('1');
   const [pageInputFocused, setPageInputFocused] = createSignal(false);
@@ -191,12 +185,6 @@ function PdfReader(props: {
   const tocEntries = createMemo<TocEntry[]>(() => outlineEntries());
   const tocAvailable = createMemo(() => outlineLoaded() && tocEntries().length > 0);
   const tocLabel = createMemo(() => (tocAvailable() ? 'Оглавление' : 'Оглавление недоступно'));
-  const searchCount = createMemo(() => {
-    const total = searchMatches().length;
-    const active = activeSearchIndex();
-
-    return total > 0 && active !== undefined ? { current: active + 1, total } : undefined;
-  });
 
   const handleRulerPointer = (event: PointerEvent) => {
     const currentRulerElement = rulerElement();
@@ -368,6 +356,65 @@ function PdfReader(props: {
     setPageInputValue(String(nextPage));
   };
 
+  const searchEventBus = new EventBus();
+  const searchLinkService = {
+    get page() {
+      return currentPage();
+    },
+    set page(pageNumber: number) {
+      goToPage(String(pageNumber));
+    },
+    get pagesCount() {
+      return untrack(() => pages().length);
+    },
+  };
+  const findController = new PDFFindController({
+    linkService: searchLinkService as never,
+    eventBus: searchEventBus,
+    delay: 0,
+  });
+
+  findController.onIsPageVisible = (pageNumber: number) =>
+    untrack(() => visiblePages().has(pageNumber));
+  findController.scrollMatchIntoView = ({ element, pageIndex, matchIndex }) => {
+    const selected = findController.selected;
+
+    if (selected?.pageIdx !== pageIndex || selected.matchIdx !== matchIndex) {
+      return;
+    }
+
+    if (searchScrollFrame !== undefined) {
+      cancelAnimationFrame(searchScrollFrame);
+    }
+
+    searchScrollFrame = requestAnimationFrame(() => {
+      searchScrollFrame = undefined;
+      element.scrollIntoView({ behavior: 'instant', block: 'center' });
+      syncCurrentPage();
+    });
+  };
+
+  const updateSearchCount = (matchesCount: { current: number; total: number }) => {
+    setSearchCount(matchesCount.total > 0 ? matchesCount : undefined);
+  };
+
+  searchEventBus.on(
+    'updatefindmatchescount',
+    (event: { source: unknown; matchesCount: { current: number; total: number } }) => {
+      if (event.source === findController) {
+        updateSearchCount(event.matchesCount);
+      }
+    },
+  );
+  searchEventBus.on(
+    'updatefindcontrolstate',
+    (event: { source: unknown; matchesCount: { current: number; total: number } }) => {
+      if (event.source === findController) {
+        updateSearchCount(event.matchesCount);
+      }
+    },
+  );
+
   const applySynchronizedScrollAnchor = (anchor: ScrollAnchor, targetWidthPx: number) => {
     if (!documentRef) {
       return;
@@ -440,6 +487,8 @@ function PdfReader(props: {
   const cancelTextLayerTask = (pageNumber: number) => {
     textLayerTasks.get(pageNumber)?.cancel();
     textLayerTasks.delete(pageNumber);
+    textHighlighters.get(pageNumber)?.disable();
+    textHighlighters.delete(pageNumber);
   };
 
   const cancelTextLayerTasks = () => {
@@ -448,6 +497,12 @@ function PdfReader(props: {
     }
 
     textLayerTasks.clear();
+
+    for (const highlighter of textHighlighters.values()) {
+      highlighter.disable();
+    }
+
+    textHighlighters.clear();
   };
 
   const measureDocument = () => {
@@ -541,131 +596,6 @@ function PdfReader(props: {
     pageCache.set(pageNumber, page);
 
     return page;
-  };
-
-  const clearLayerSearchHighlights = (layer: HTMLDivElement) => {
-    for (const mark of layer.querySelectorAll<HTMLElement>('mark[data-search-match]')) {
-      const parent = mark.parentNode;
-
-      if (!parent) {
-        continue;
-      }
-
-      while (mark.firstChild) {
-        parent.insertBefore(mark.firstChild, mark);
-      }
-
-      mark.remove();
-    }
-  };
-
-  const applySearchHighlights = (pageNumber: number) => {
-    const layer = textLayerRefs.get(pageNumber);
-
-    if (!layer) {
-      return;
-    }
-
-    clearLayerSearchHighlights(layer);
-
-    const pageMatches = searchMatches().filter((match) => match.pageNumber === pageNumber);
-
-    if (pageMatches.length === 0) {
-      return;
-    }
-
-    const textNodes: { node: Text; start: number; end: number }[] = [];
-    const walker = layer.ownerDocument.createTreeWalker(layer, NodeFilter.SHOW_TEXT);
-    let currentNode = walker.nextNode();
-    let offset = 0;
-
-    while (currentNode instanceof Text) {
-      if (currentNode.data.length === 0) {
-        currentNode = walker.nextNode();
-        continue;
-      }
-
-      const end = offset + currentNode.data.length;
-
-      textNodes.push({ node: currentNode, start: offset, end });
-      offset = end + 1;
-      currentNode = walker.nextNode();
-    }
-
-    const segmentsByNode = new Map<
-      Text,
-      { start: number; end: number; match: PdfSearchMatch; active: boolean }[]
-    >();
-    const activeIndex = activeSearchIndex();
-
-    for (const match of pageMatches) {
-      const matchIndex = searchMatches().indexOf(match);
-
-      for (const textNode of textNodes) {
-        const start = Math.max(match.start, textNode.start);
-        const end = Math.min(match.end, textNode.end);
-
-        if (start >= end) {
-          continue;
-        }
-
-        const segments = segmentsByNode.get(textNode.node) ?? [];
-        segments.push({
-          start: start - textNode.start,
-          end: end - textNode.start,
-          match,
-          active: matchIndex === activeIndex,
-        });
-        segmentsByNode.set(textNode.node, segments);
-      }
-    }
-
-    for (const [textNode, segments] of segmentsByNode) {
-      for (const segment of [...segments].sort((left, right) => right.start - left.start)) {
-        const after =
-          segment.end < textNode.data.length ? textNode.splitText(segment.end) : undefined;
-        const selected = segment.start > 0 ? textNode.splitText(segment.start) : textNode;
-        const mark = layer.ownerDocument.createElement('mark');
-        const parent = textNode.parentNode;
-
-        mark.dataset.searchMatch = segment.match.key;
-        mark.dataset.searchActive = String(segment.active);
-
-        if (parent) {
-          if (selected === textNode) {
-            parent.insertBefore(mark, textNode);
-          } else if (after) {
-            parent.insertBefore(mark, after);
-          } else {
-            parent.appendChild(mark);
-          }
-
-          mark.appendChild(selected);
-        }
-      }
-    }
-  };
-
-  const loadPageSearchTexts = async (generation: number) => {
-    for (const descriptor of pages()) {
-      if (pageSearchTexts.has(descriptor.pageNumber)) {
-        continue;
-      }
-
-      const page = await getPage(descriptor.pageNumber);
-
-      if (!page || destroyed || generation !== loadGeneration) {
-        return false;
-      }
-
-      const textContent = await page.getTextContent();
-      const textItems: PdfTextItem[] = textContent.items.flatMap((item) =>
-        'str' in item ? [{ str: item.str }] : [],
-      );
-      pageSearchTexts.set(descriptor.pageNumber, pdfTextItemsToSearchText(textItems));
-    }
-
-    return true;
   };
 
   const renderPage = async (descriptor: PdfPageDescriptor) => {
@@ -767,6 +697,13 @@ function PdfReader(props: {
       container: layer,
       viewport,
     });
+    const highlighter = PdfTextHighlighter({
+      findController,
+      eventBus: searchEventBus,
+      pageIndex: descriptor.pageNumber - 1,
+    });
+
+    highlighter.setTextMapping(task.textDivs, task.textContentItemsStr);
 
     textLayerTasks.set(descriptor.pageNumber, task);
 
@@ -775,7 +712,8 @@ function PdfReader(props: {
 
       if (!destroyed && generation === loadGeneration) {
         textLayerKeys.set(descriptor.pageNumber, renderKey);
-        applySearchHighlights(descriptor.pageNumber);
+        textHighlighters.set(descriptor.pageNumber, highlighter);
+        highlighter.enable();
       }
     } catch (error) {
       if (!(
@@ -795,8 +733,9 @@ function PdfReader(props: {
     const generation = loadGeneration + 1;
 
     loadGeneration = generation;
-    searchLoadGeneration += 1;
     executedSearchQuery = undefined;
+    setSearchCount(undefined);
+    findController.setDocument(null as never);
     setLoading(true);
     setFailed(false);
     setPages([]);
@@ -810,9 +749,6 @@ function PdfReader(props: {
     pageCache.clear();
     renderedKeys.clear();
     textLayerKeys.clear();
-    pageSearchTexts.clear();
-    setSearchMatches([]);
-    setActiveSearchIndex(undefined);
     cancelRenderTasks();
     cancelTextLayerTasks();
     if (readyFrame !== undefined) {
@@ -871,6 +807,7 @@ function PdfReader(props: {
       setOutlineEntries(mapPdfOutline(rawOutline));
       setOutlineLoaded(true);
       setPages(nextPages);
+      findController.setDocument(document);
       setLoading(false);
       readyFrame = requestAnimationFrame(() => {
         readyFrame = undefined;
@@ -912,19 +849,6 @@ function PdfReader(props: {
         void renderPage(descriptor);
         void renderTextLayer(descriptor);
       }
-    }
-  });
-
-  createEffect(() => {
-    const matches = searchMatches();
-    const activeIndex = activeSearchIndex();
-    const currentVisiblePages = visiblePages();
-
-    void matches;
-    void activeIndex;
-
-    for (const pageNumber of currentVisiblePages) {
-      applySearchHighlights(pageNumber);
     }
   });
 
@@ -999,134 +923,31 @@ function PdfReader(props: {
       searchScrollFrame = undefined;
     }
 
-    searchLoadGeneration += 1;
-
-    for (const layer of textLayerRefs.values()) {
-      clearLayerSearchHighlights(layer);
-    }
-
-    setSearchMatches([]);
-    setActiveSearchIndex(undefined);
+    searchEventBus.dispatch('findbarclose', { source: findController });
+    setSearchCount(undefined);
     executedSearchQuery = undefined;
   };
-
-  const firstSearchMatchIndex = (matches: PdfSearchMatch[], direction: SearchDirection) => {
-    const page = currentPage();
-    const pageElement = pageRefs.get(page);
-    const pageText = pageSearchTexts.get(page) ?? '';
-    const pageTop = pageElement ? pageElement.getBoundingClientRect().top + window.scrollY : 0;
-    const pageOffset = pageElement
-      ? clamp(window.scrollY - pageTop, 0, pageElement.offsetHeight)
-      : 0;
-    const textOffset =
-      pageElement && pageElement.offsetHeight > 0
-        ? (pageOffset / pageElement.offsetHeight) * pageText.length
-        : 0;
-
-    if (direction === 'next') {
-      const index = matches.findIndex(
-        (match) =>
-          match.pageNumber > page || (match.pageNumber === page && match.start >= textOffset),
-      );
-
-      return index === -1 ? 0 : index;
-    }
-
-    for (let index = matches.length - 1; index >= 0; index -= 1) {
-      if (
-        matches[index].pageNumber < page ||
-        (matches[index].pageNumber === page && matches[index].end <= textOffset)
-      ) {
-        return index;
-      }
-    }
-
-    return matches.length - 1;
-  };
-
-  const scrollToSearchMatch = (match: PdfSearchMatch) => {
-    const focusRenderedMatch = (attempt = 0) => {
-      applySearchHighlights(match.pageNumber);
-      const target = rootRef?.querySelector<HTMLElement>(
-        `[data-search-match="${match.key}"][data-search-active="true"]`,
-      );
-      const pageElement = pageRefs.get(match.pageNumber);
-
-      if (target) {
-        searchScrollFrame = undefined;
-        target.scrollIntoView({ behavior: 'instant', block: 'center' });
-      } else if (pageElement && attempt < 20) {
-        pageElement?.scrollIntoView({ behavior: 'instant', block: 'center' });
-        searchScrollFrame = requestAnimationFrame(() => focusRenderedMatch(attempt + 1));
-      }
-
-      setCurrentPage(match.pageNumber);
-
-      if (!pageInputFocused()) {
-        setPageInputValue(String(match.pageNumber));
-      }
-    };
-
-    if (searchScrollFrame !== undefined) {
-      cancelAnimationFrame(searchScrollFrame);
-    }
-
-    searchScrollFrame = requestAnimationFrame(() => {
-      searchScrollFrame = undefined;
-      focusRenderedMatch();
-    });
-  };
-
-  const search = async (direction: SearchDirection) => {
-    const query = normalizePdfSearchQuery(searchValue());
+  const search = (direction: SearchDirection) => {
+    const query = searchValue().trim();
 
     if (!query) {
       clearSearchHighlights();
-      executedSearchQuery = query;
       return;
     }
 
-    const activeIndex = activeSearchIndex();
-    const isContinuation =
-      executedSearchQuery === query && activeIndex !== undefined && searchMatches().length > 0;
-
-    if (isContinuation) {
-      const matches = searchMatches();
-      const nextIndex =
-        direction === 'next'
-          ? (activeIndex + 1) % matches.length
-          : (activeIndex - 1 + matches.length) % matches.length;
-
-      setActiveSearchIndex(nextIndex);
-      scrollToSearchMatch(matches[nextIndex]);
-      return;
-    }
-
-    const generation = loadGeneration;
-    const requestGeneration = ++searchLoadGeneration;
-
-    for (const layer of textLayerRefs.values()) {
-      clearLayerSearchHighlights(layer);
-    }
-
-    setSearchMatches([]);
-    setActiveSearchIndex(undefined);
-
-    if (!(await loadPageSearchTexts(generation)) || requestGeneration !== searchLoadGeneration) {
-      return;
-    }
-
-    const matches = findPdfSearchMatches(pageSearchTexts, query);
-    setSearchMatches(matches);
+    const isContinuation = executedSearchQuery === query;
     executedSearchQuery = query;
-
-    if (matches.length === 0) {
-      return;
-    }
-
-    const nextIndex = firstSearchMatchIndex(matches, direction);
-    setActiveSearchIndex(nextIndex);
-    scrollToSearchMatch(matches[nextIndex]);
+    searchEventBus.dispatch('find', {
+      source: findController,
+      type: isContinuation ? 'again' : 'find',
+      query,
+      phraseSearch: true,
+      caseSensitive: false,
+      entireWord: false,
+      highlightAll: true,
+      findPrevious: direction === 'previous',
+      matchDiacritics: false,
+    });
   };
 
   const toggleToc = () => {

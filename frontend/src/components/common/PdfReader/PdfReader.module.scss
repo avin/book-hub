@@ -114,15 +114,18 @@
     cursor: default;
   }
 
-  :global(mark[data-search-match]) {
-    position: relative;
-    z-index: 2;
+  :global(.highlight) {
     color: transparent;
     background: color-mix(in srgb, var(--accent) 35%, transparent);
     border-radius: 2px;
   }
 
-  :global(mark[data-search-active='true']) {
+  :global(.highlight.appended) {
+    position: relative;
+    z-index: 2;
+  }
+
+  :global(.highlight.selected) {
     background: color-mix(in srgb, var(--accent) 75%, transparent);
     outline: 1px solid color-mix(in srgb, var(--accent) 80%, transparent);
   }

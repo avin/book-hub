@@ -511,19 +511,20 @@ test('PDF reader ищет по текстовым слоям, подсвечив
   const searchInput = search.getByRole('searchbox');
   const nextButton = search.getByRole('button', { name: 'Найти следующее' });
   const previousButton = search.getByRole('button', { name: 'Найти предыдущее' });
+  const pdfHighlights = page.getByTestId('pdf-text-layer').locator('.highlight');
 
   await searchInput.fill('Page');
   await expect(search.getByText('0/0')).toBeVisible();
   await searchInput.press('Enter');
   await expect(search.getByText('1/2')).toBeVisible();
-  await expect(page.locator('mark[data-search-match]')).toHaveCount(2);
-  await expect(page.locator('mark[data-search-match][data-search-active="true"]')).toHaveCount(1);
+  await expect(pdfHighlights).toHaveCount(2);
+  await expect(page.getByTestId('pdf-text-layer').locator('.highlight.selected')).toHaveCount(1);
 
   await searchInput.fill('One Page');
   await expect(search.getByText('1/2')).toBeVisible();
   await searchInput.press('Enter');
   await expect(search.getByText('0/0')).toBeVisible();
-  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+  await expect(pdfHighlights).toHaveCount(0);
 
   const pageInput = page.getByRole('spinbutton', { name: 'Номер страницы' });
   await pageInput.fill('1');
@@ -553,15 +554,15 @@ test('PDF reader ищет по текстовым слоям, подсвечив
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
 
   await page.locator('[data-page-number="1"]').dispatchEvent('click');
-  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+  await expect(pdfHighlights).toHaveCount(0);
   await expect(searchInput).toHaveValue('Page');
 
   await page.mouse.move(10, 10);
   await searchInput.press('Enter');
-  await expect(search.getByText('2/2')).toBeVisible();
+  await expect(search.getByText('1/2')).toBeVisible();
 
   await searchInput.press('Escape');
-  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+  await expect(pdfHighlights).toHaveCount(0);
   await expect(searchInput).toHaveValue('Page');
 });
 
@@ -584,7 +585,7 @@ test('PDF без текстового слоя не запускает OCR и н
   await searchInput.fill('текст');
   await searchInput.press('Enter');
   await expect(search.getByText('0/0')).toBeVisible();
-  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+  await expect(page.getByTestId('pdf-text-layer').locator('.highlight')).toHaveCount(0);
 });
 
 test('PDF поисковое выделение совпадает с геометрией найденного текста', async ({ page }) => {
@@ -624,7 +625,7 @@ test('PDF поисковое выделение совпадает с геоме
   await searchInput.fill('Reader');
   await searchInput.press('Enter');
 
-  const actualMark = page.locator('mark[data-search-match]').first();
+  const actualMark = page.getByTestId('pdf-text-layer').locator('.highlight.selected').first();
   await expect(actualMark).toHaveText('Reader');
   await expect(actualMark).toBeVisible();
   let actual: { x: number; y: number; width: number; height: number } | null = null;
