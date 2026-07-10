@@ -908,6 +908,10 @@ function Fb2Reader(props: {
           documentShellRef = element;
         }}
         class={styles.documentShell}
+        onClick={() => {
+          closePanel();
+          setHeaderVisible(false);
+        }}
       >
         <article ref={documentRef} class={styles.document} style={{ width: `${textWidth()}px` }}>
           <div style={{ height: `${topSpacer()}px` }} aria-hidden="true" />

@@ -902,6 +902,10 @@ function PdfReader(props: {
           ref={documentRef}
           class={styles.document}
           classList={{ [styles.documentFit]: isFitWidth() }}
+          onClick={() => {
+            setTocOpen(false);
+            setHeaderVisible(false);
+          }}
         >
           <For each={pages()}>
             {(page) => (
