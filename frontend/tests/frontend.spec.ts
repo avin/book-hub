@@ -274,7 +274,7 @@ test('reader открывает и закрывает FB2-сноску, а Escap
 test('PDF позволяет выделить и скопировать встроенный текст', async ({ page }) => {
   await login(page);
   await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
 
   const textLayer = page.getByTestId('pdf-text-layer').first();
   await expect(textLayer).toContainText('Book Hub PDF');
