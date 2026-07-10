@@ -64,7 +64,7 @@ test('PDF позволяет выделить и скопировать встр
   await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
   await expect(page.locator('canvas')).toBeVisible();
 
-  const textLayer = page.locator('.textLayer').first();
+  const textLayer = page.getByTestId('pdf-text-layer').first();
   await expect(textLayer).toContainText('Book Hub PDF');
 
   const text = await textLayer.evaluate((element) => {
@@ -152,6 +152,7 @@ Inside the page `<section>`, keep `<canvas />` and add:
     textLayerRefs.set(page.pageNumber, element);
   }}
   class={styles.textLayer}
+  data-testid="pdf-text-layer"
   aria-hidden="true"
 />
 ```
