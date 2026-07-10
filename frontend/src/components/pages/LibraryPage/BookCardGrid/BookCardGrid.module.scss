@@ -85,6 +85,10 @@
     opacity: 1;
   }
 
+  @media (hover: none) {
+    opacity: 1;
+  }
+
   &:hover {
     background: rgb(var(--shadow-color-strong) / 0.16);
   }
