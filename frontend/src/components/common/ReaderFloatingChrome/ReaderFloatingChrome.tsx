@@ -42,9 +42,15 @@ function ReaderFloatingChrome(props: {
   };
 
   onMount(() => {
+    const isFindShortcut = (event: KeyboardEvent) =>
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      (event.key.toLowerCase() === 'f' || event.code === 'KeyF');
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+      if (isFindShortcut(event)) {
         event.preventDefault();
+        event.stopPropagation();
         focusSearchInput();
         return;
       }
@@ -55,8 +61,9 @@ function ReaderFloatingChrome(props: {
       }
     };
 
-    window.addEventListener('keydown', onKeyDown);
-    onCleanup(() => window.removeEventListener('keydown', onKeyDown));
+    // Capture phase: browser Find opens before bubble listeners run.
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    onCleanup(() => window.removeEventListener('keydown', onKeyDown, { capture: true }));
   });
 
   const searchCount = () => {

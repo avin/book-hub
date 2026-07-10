@@ -21,6 +21,14 @@
     color: var(--text-disabled);
   }
 
+  &[type='search'] {
+    &::-webkit-search-cancel-button {
+      -webkit-appearance: none;
+      appearance: none;
+      display: none;
+    }
+  }
+
   &:hover:not(:disabled):not(:focus) {
     border-color: var(--border-strong);
   }
