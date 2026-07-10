@@ -586,3 +586,60 @@ test('PDF без текстового слоя не запускает OCR и н
   await expect(search.getByText('0/0')).toBeVisible();
   await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
 });
+
+test('PDF поисковое выделение совпадает с геометрией найденного текста', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
+
+  const textLayer = page.getByTestId('pdf-text-layer').first();
+  await expect(textLayer).toContainText('Reader story sample');
+  const expected = await textLayer.evaluate((layer) => {
+    const walker = document.createTreeWalker(layer, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+
+    while (node) {
+      const text = node.textContent ?? '';
+      const start = text.indexOf('Reader');
+
+      if (start >= 0) {
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, start + 'Reader'.length);
+        const rect = range.getBoundingClientRect();
+
+        return { left: rect.left, width: rect.width, height: rect.height };
+      }
+
+      node = walker.nextNode();
+    }
+
+    return null;
+  });
+
+  expect(expected).not.toBeNull();
+  await page.mouse.move(10, 10);
+  const search = page.getByRole('search');
+  const searchInput = search.getByRole('searchbox');
+  await searchInput.fill('Reader');
+  await searchInput.press('Enter');
+
+  const actualMark = page.locator('mark[data-search-match]').first();
+  await expect(actualMark).toHaveText('Reader');
+  await expect(actualMark).toBeVisible();
+  let actual: { x: number; y: number; width: number; height: number } | null = null;
+  await expect
+    .poll(async () => {
+      actual = await actualMark.boundingBox();
+      return actual !== null;
+    })
+    .toBe(true);
+  const actualText = await actualMark.textContent();
+  expect(actualText).toBe('Reader');
+  expect(actual).not.toBeNull();
+  if (!expected || !actual) return;
+
+  expect(Math.abs(actual.x - expected.left)).toBeLessThan(2);
+  expect(Math.abs(actual.width - expected.width)).toBeLessThan(2);
+  expect(Math.abs(actual.height - expected.height)).toBeLessThan(2);
+});

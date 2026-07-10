@@ -14,7 +14,10 @@ export function normalizePdfSearchQuery(value: string) {
 }
 
 export function pdfTextItemsToSearchText(items: PdfTextItem[]) {
-  return items.map((item) => item.str).join(' ');
+  return items
+    .map((item) => item.str)
+    .filter((text) => text.trim().length > 0)
+    .join(' ');
 }
 
 export function findPdfSearchMatches(

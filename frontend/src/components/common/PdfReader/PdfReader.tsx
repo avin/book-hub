@@ -580,12 +580,14 @@ function PdfReader(props: {
     let offset = 0;
 
     while (currentNode instanceof Text) {
-      const end = offset + currentNode.data.length;
-
-      if (currentNode.data.length > 0) {
-        textNodes.push({ node: currentNode, start: offset, end });
+      if (currentNode.data.length === 0) {
+        currentNode = walker.nextNode();
+        continue;
       }
 
+      const end = offset + currentNode.data.length;
+
+      textNodes.push({ node: currentNode, start: offset, end });
       offset = end + 1;
       currentNode = walker.nextNode();
     }
@@ -620,14 +622,26 @@ function PdfReader(props: {
 
     for (const [textNode, segments] of segmentsByNode) {
       for (const segment of [...segments].sort((left, right) => right.start - left.start)) {
-        const after = textNode.splitText(segment.end);
-        const selected = textNode.splitText(segment.start);
+        const after =
+          segment.end < textNode.data.length ? textNode.splitText(segment.end) : undefined;
+        const selected = segment.start > 0 ? textNode.splitText(segment.start) : textNode;
         const mark = layer.ownerDocument.createElement('mark');
+        const parent = textNode.parentNode;
 
         mark.dataset.searchMatch = segment.match.key;
         mark.dataset.searchActive = String(segment.active);
-        mark.appendChild(selected);
-        textNode.parentNode?.insertBefore(mark, after);
+
+        if (parent) {
+          if (selected === textNode) {
+            parent.insertBefore(mark, textNode);
+          } else if (after) {
+            parent.insertBefore(mark, after);
+          } else {
+            parent.appendChild(mark);
+          }
+
+          mark.appendChild(selected);
+        }
       }
     }
   };
