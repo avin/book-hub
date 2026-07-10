@@ -7,7 +7,7 @@ const readerBookId = '00000000-0000-0000-0000-000000000101';
 async function openReader(page: Page) {
   await login(page);
   await page.getByRole('link', { name: 'Война и мир' }).click();
-  await expect(page.getByText('Глава первая')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Глава первая' })).toBeVisible();
 }
 
 async function anchorTop(page: Page, title: string) {
@@ -56,7 +56,13 @@ async function moveToAnchor(page: Page, title: string) {
 async function openReaderSettings(page: Page) {
   await page.mouse.move(10, 10);
   await page.getByRole('button', { name: 'Настройки внешнего вида' }).click();
-  await expect(page.locator('aside select')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Внешний вид' })).toBeVisible();
+}
+
+async function openReaderToc(page: Page) {
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Оглавление', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeVisible();
 }
 
 async function dragRangeToEnd(page: Page, range: ReturnType<Page['locator']>) {
@@ -93,8 +99,8 @@ test('гость видит форму входа, валидацию и мож�
 
 test('библиотека поддерживает поиск, фильтры, вид и действия книги', async ({ page }) => {
   await login(page);
-  await expect(page.getByRole('heading', { name: /Ваши книги/ })).toContainText('2');
-  await expect(page.getByRole('article')).toHaveCount(2);
+  await expect(page.getByRole('heading', { name: /Ваши книги/ })).toContainText('3');
+  await expect(page.getByRole('article')).toHaveCount(3);
 
   await page.getByPlaceholder('Найти по названию').fill('Мастер');
   await expect(page.getByRole('article')).toHaveCount(1);
@@ -118,7 +124,7 @@ test('библиотека поддерживает поиск, фильтры, 
   await page.getByRole('button', { name: 'Действия с книгой' }).first().click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('menuitem', { name: 'Удалить' }).click();
-  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.getByRole('article')).toHaveCount(2);
 });
 
 test('загрузка книги отправляет замокированный multipart-запрос', async ({ page }) => {
@@ -158,7 +164,7 @@ test('настройки меняют тему, валидируют парол�
 test('читатель FB2 загружает книгу и сохраняет избранное/прогресс через моки', async ({ page }) => {
   await login(page);
   await page.getByRole('link', { name: 'Война и мир' }).click();
-  await expect(page.getByText('Глава первая')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Глава первая' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Убрать из избранного' })).toBeVisible();
   await page.getByRole('button', { name: 'Убрать из избранного' }).dispatchEvent('click');
   await expect(page.getByRole('button', { name: 'Добавить в избранное' })).toBeVisible();
@@ -208,7 +214,9 @@ test('reader сохраняет позицию при изменении шри�
   expect(before).not.toBeNull();
   await openReaderSettings(page);
 
-  const panel = page.locator('aside');
+  const panel = page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
   await panel.locator('select').selectOption('"Lora", "Noto Serif", "Noto Sans", serif');
   await page.waitForTimeout(1000);
   const ranges = panel.locator('input[type="range"]');
@@ -228,12 +236,21 @@ test('reader сохраняет позицию при изменении шри�
   expect(after?.top).toBeLessThan(after?.viewportHeight ?? 0);
 
   await page.reload();
-  await expect(page.getByText('Глава первая')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Глава первая' })).toBeVisible();
   await openReaderSettings(page);
-  await expect(page.locator('aside select')).toHaveValue(
-    '"Lora", "Noto Serif", "Noto Sans", serif',
-  );
-  await expect(page.locator('aside input[type=range]').nth(0)).toHaveValue('30');
+  await expect(
+    page
+      .locator('aside')
+      .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) })
+      .locator('select'),
+  ).toHaveValue('"Lora", "Noto Serif", "Noto Sans", serif');
+  await expect(
+    page
+      .locator('aside')
+      .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) })
+      .locator('input[type=range]')
+      .nth(0),
+  ).toHaveValue('30');
 });
 
 test('reader сохраняет позицию при изменении viewport и восстанавливает её после повторного открытия', async ({
@@ -261,7 +278,7 @@ test('reader сохраняет позицию при изменении viewpor
   expect((await savedProgress.json()).progress_percent).toBeGreaterThan(60);
 
   await page.reload();
-  await expect(page.getByText('Глава первая')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Глава первая' })).toBeVisible();
   await page.waitForTimeout(1_500);
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
 });
@@ -276,6 +293,80 @@ test('reader открывает и закрывает FB2-сноску, а Escap
   );
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Сноска' })).toBeHidden();
+});
+
+test('FB2 reader открывает оглавление, переходит к разделу и сохраняет панель открытой', async ({
+  page,
+}) => {
+  await openReader(page);
+  await openReaderToc(page);
+  await expect(page.getByRole('button', { name: 'Глава первая' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Глава 50' })).toBeVisible();
+  await page.getByRole('button', { name: 'Глава 50' }).click();
+  await expect.poll(() => anchorTop(page, 'Глава 50')).not.toBeNull();
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeVisible();
+});
+
+test('FB2 reader взаимно исключает панели настроек и оглавления', async ({ page }) => {
+  await openReader(page);
+  await openReaderSettings(page);
+  await openReaderToc(page);
+  await expect(page.getByRole('heading', { name: 'Внешний вид' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeVisible();
+
+  await openReaderSettings(page);
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Внешний вид' })).toBeVisible();
+});
+
+test('FB2 reader закрывает оглавление кнопкой закрытия и повторным нажатием', async ({ page }) => {
+  await openReader(page);
+  await openReaderToc(page);
+  await page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Оглавление' }) })
+    .getByRole('button', { name: 'Закрыть' })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeHidden();
+
+  await openReaderToc(page);
+  await page.getByRole('button', { name: 'Оглавление', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeHidden();
+});
+
+test('FB2 reader не показывает сноски в оглавлении', async ({ page }) => {
+  await openReader(page);
+  await openReaderToc(page);
+  await expect(page.getByRole('button', { name: 'Сноска' })).toHaveCount(0);
+});
+
+test('PDF reader отключает оглавление без document outline', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
+  await page.mouse.move(10, 10);
+  const tocButton = page.getByRole('button', { name: 'Оглавление недоступно' });
+  await expect(tocButton).toBeDisabled();
+});
+
+test('PDF reader открывает оглавление и переходит к пункту outline', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Оглавление', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Second page' })).toBeVisible();
+  await page.getByRole('button', { name: 'Second page' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const pageTwo = [...document.querySelectorAll('[data-page-number="2"]')].at(0);
+        if (!pageTwo) return null;
+        return pageTwo.getBoundingClientRect().top;
+      }),
+    )
+    .toBeLessThan(120);
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeVisible();
 });
 
 test('PDF позволяет выделить и скопировать встроенный текст', async ({ page }) => {

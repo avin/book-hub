@@ -15,8 +15,12 @@ import {
   Show,
   type JSX,
 } from 'solid-js';
+import { ListTree } from 'lucide-solid';
+import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
+import TocPanel from '@/components/common/TocPanel/TocPanel';
+import type { TocEntry } from '@/components/common/TocPanel/TocList/TocList';
 import WidthRuler from '@/components/common/WidthRuler/WidthRuler';
 import {
   clampWidth,
@@ -28,6 +32,7 @@ import {
   getPdfReaderContentWidthPreference,
   setPdfReaderContentWidthPreference,
 } from '@/storage/browserPreferences';
+import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import styles from './PdfReader.module.scss';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
@@ -140,6 +145,9 @@ function PdfReader(props: {
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
+  const [tocOpen, setTocOpen] = createSignal(false);
+  const [outlineEntries, setOutlineEntries] = createSignal<PdfOutlineEntry[]>([]);
+  const [outlineLoaded, setOutlineLoaded] = createSignal(false);
   const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(
     getPdfReaderContentWidthPreference(),
   );
@@ -160,6 +168,9 @@ function PdfReader(props: {
       minPageHalfWidth,
     ),
   );
+  const tocEntries = createMemo<TocEntry[]>(() => outlineEntries());
+  const tocAvailable = createMemo(() => outlineLoaded() && tocEntries().length > 0);
+  const tocLabel = createMemo(() => (tocAvailable() ? 'Оглавление' : 'Оглавление недоступно'));
 
   const handleRulerPointer = (event: PointerEvent) => {
     const currentRulerElement = rulerElement();
@@ -568,6 +579,9 @@ function PdfReader(props: {
     setFailed(false);
     setPages([]);
     setVisiblePages(new Set<number>());
+    setOutlineEntries([]);
+    setOutlineLoaded(false);
+    setTocOpen(false);
     pageRefs.clear();
     canvasRefs.clear();
     textLayerRefs.clear();
@@ -622,6 +636,15 @@ function PdfReader(props: {
       }
 
       pdfDocument = document;
+      const rawOutline = await document.getOutline();
+
+      if (destroyed || generation !== loadGeneration) {
+        await document.cleanup();
+        return;
+      }
+
+      setOutlineEntries(mapPdfOutline(rawOutline));
+      setOutlineLoaded(true);
       setPages(nextPages);
       setLoading(false);
       readyFrame = requestAnimationFrame(() => {
@@ -705,11 +728,46 @@ function PdfReader(props: {
     setGuideX(undefined);
   };
 
+  const onTocSelect = (_entry: TocEntry, path: number[]) => {
+    if (!pdfDocument) {
+      return;
+    }
+
+    let nodes = outlineEntries();
+    let node: PdfOutlineEntry | undefined;
+
+    for (const index of path) {
+      node = nodes[index];
+
+      if (!node) {
+        return;
+      }
+
+      nodes = node.children ?? [];
+    }
+
+    if (!node) {
+      return;
+    }
+
+    void scrollToPdfDestination(pdfDocument, node.dest, pageRefs, documentRef, pageWidth());
+  };
+
+  const toggleToc = () => {
+    setTocOpen((value) => !value);
+  };
+
+  createEffect(() => {
+    if (tocOpen()) {
+      setHeaderVisible(true);
+    }
+  });
+
   onMount(() => {
     const onPointerMove = (event: PointerEvent) => {
       if (event.clientY <= headerShowOffset) {
         setHeaderVisible(true);
-      } else if (event.clientY >= headerHideOffset && !draggingWidth()) {
+      } else if (event.clientY >= headerHideOffset && !draggingWidth() && !tocOpen()) {
         setHeaderVisible(false);
       }
     };
@@ -786,10 +844,22 @@ function PdfReader(props: {
   return (
     <div ref={rootRef} class={`${styles.reader} ${props.class ?? ''}`}>
       <ReaderFloatingChrome
-        visible={headerVisible() || draggingWidth()}
+        visible={headerVisible() || draggingWidth() || tocOpen()}
         title={props.title}
         headerContent={props.headerContent}
         onShow={() => setHeaderVisible(true)}
+        actions={
+          <Button
+            variant="secondary"
+            type="button"
+            iconOnly
+            iconStart={<ListTree />}
+            title={tocLabel()}
+            aria-label={tocLabel()}
+            disabled={!tocAvailable()}
+            onClick={toggleToc}
+          />
+        }
         secondaryBar={
           <WidthRuler
             availableWidth={availablePageWidth()}
@@ -810,6 +880,13 @@ function PdfReader(props: {
       <Show when={draggingWidth() && guideX() !== undefined}>
         <div class={styles.widthGuide} style={{ left: `${guideX()}px` }} aria-hidden="true" />
       </Show>
+
+      <TocPanel
+        open={tocOpen()}
+        entries={tocEntries()}
+        onClose={() => setTocOpen(false)}
+        onSelect={onTocSelect}
+      />
 
       <Show when={loading()}>
         <LoadingScreen label={t('loading')} />

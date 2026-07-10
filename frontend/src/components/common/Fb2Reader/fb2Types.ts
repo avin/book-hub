@@ -73,10 +73,17 @@ export type Fb2Note = {
   blocks: Fb2Block[];
 };
 
+export type Fb2OutlineEntry = {
+  label: string;
+  targetId: string;
+  children?: Fb2OutlineEntry[];
+};
+
 export type Fb2Document = {
   title: string;
   authors: string[];
   blocks: Fb2Block[];
+  outline: Fb2OutlineEntry[];
   notes: Map<string, Fb2Note>;
   binaries: Map<string, Fb2Binary>;
 };

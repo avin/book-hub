@@ -26,6 +26,8 @@ import type {
 } from './fb2Types';
 import ReaderChrome from './ReaderChrome/ReaderChrome';
 import SettingsPanel from './SettingsPanel/SettingsPanel';
+import TocPanel from '@/components/common/TocPanel/TocPanel';
+import type { TocEntry } from '@/components/common/TocPanel/TocList/TocList';
 import {
   applyWidthRulerPointer,
   computeWidthRulerMarkers,
@@ -40,6 +42,8 @@ type ScrollAnchor = {
   blockIndex: number;
   offsetPx: number;
 };
+
+type ReaderPanel = 'none' | 'settings' | 'toc';
 
 const layoutWidthDebounceMs = 120;
 const viewportResizeEndMs = 150;
@@ -161,7 +165,7 @@ function Fb2Reader(props: {
   const [layoutTextWidth, setLayoutTextWidth] = createSignal(320);
   const [viewportResizeActive, setViewportResizeActive] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
-  const [panelOpen, setPanelOpen] = createSignal(false);
+  const [openPanel, setOpenPanel] = createSignal<ReaderPanel>('none');
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [pendingMaxTextWidth, setPendingMaxTextWidth] = createSignal<number | undefined>();
@@ -338,10 +342,25 @@ function Fb2Reader(props: {
       if (block.sourceId && !index.has(block.sourceId)) {
         index.set(block.sourceId, blockIndex);
       }
+
+      if (!index.has(block.id)) {
+        index.set(block.id, blockIndex);
+      }
     });
 
     return index;
   });
+  const tocEntries = createMemo<TocEntry[]>(() => parsed().outline);
+  const tocAvailable = createMemo(() => tocEntries().length > 0);
+  const sidePanelOpen = createMemo(() => openPanel() !== 'none');
+
+  const togglePanel = (panel: Exclude<ReaderPanel, 'none'>) => {
+    setOpenPanel((current) => (current === panel ? 'none' : panel));
+  };
+
+  const closePanel = () => {
+    setOpenPanel('none');
+  };
 
   const documentScrollTop = () => {
     if (!documentRef) {
@@ -396,7 +415,7 @@ function Fb2Reader(props: {
     setSettings((current) => settingValue(current, key, value));
   };
 
-  const scrollToBlockIndex = (blockIndex: number) => {
+  const scrollToBlockIndex = (blockIndex: number, behavior: ScrollBehavior = 'smooth') => {
     if (!documentRef) {
       return;
     }
@@ -411,8 +430,33 @@ function Fb2Reader(props: {
     const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
     const nextScrollTop = documentTop + blockTop;
 
-    window.scrollTo({ top: nextScrollTop, behavior: 'smooth' });
+    window.scrollTo({ top: nextScrollTop, behavior });
     setScrollTop(blockTop);
+  };
+
+  const onTocSelect = (_entry: TocEntry, path: number[]) => {
+    let nodes = parsed().outline;
+    let node: (typeof nodes)[number] | undefined;
+
+    for (const index of path) {
+      node = nodes[index];
+
+      if (!node) {
+        return;
+      }
+
+      nodes = node.children ?? [];
+    }
+
+    if (!node) {
+      return;
+    }
+
+    const blockIndex = anchorIndex().get(node.targetId);
+
+    if (blockIndex !== undefined) {
+      scrollToBlockIndex(blockIndex, 'instant');
+    }
   };
 
   const onInternalLink = (targetId: string) => {
@@ -658,7 +702,7 @@ function Fb2Reader(props: {
     const onPointerMove = (event: PointerEvent) => {
       if (event.clientY < 88) {
         setHeaderVisible(true);
-      } else if (event.clientY > 164 && !panelOpen() && !draggingWidth()) {
+      } else if (event.clientY > 164 && !sidePanelOpen() && !draggingWidth()) {
         setHeaderVisible(false);
       }
     };
@@ -703,7 +747,7 @@ function Fb2Reader(props: {
   });
 
   createEffect(() => {
-    if (panelOpen()) {
+    if (sidePanelOpen()) {
       setHeaderVisible(true);
     }
   });
@@ -789,14 +833,16 @@ function Fb2Reader(props: {
   return (
     <div ref={rootRef} class={`${styles.reader} ${props.class ?? ''}`} style={cssVars()}>
       <ReaderChrome
-        visible={headerVisible() || panelOpen() || draggingWidth()}
+        visible={headerVisible() || sidePanelOpen() || draggingWidth()}
         title={documentTitle()}
         headerContent={props.headerContent}
         markerStyles={markerStyles()}
         availableTextWidth={availableTextWidth()}
         currentTextWidth={textWidth()}
+        tocAvailable={tocAvailable()}
         onShow={() => setHeaderVisible(true)}
-        onToggleSettings={() => setPanelOpen((value) => !value)}
+        onToggleSettings={() => togglePanel('settings')}
+        onToggleToc={() => togglePanel('toc')}
         onRulerRef={(element) => {
           setRulerElement(element);
         }}
@@ -810,11 +856,11 @@ function Fb2Reader(props: {
       </Show>
 
       <SettingsPanel
-        open={panelOpen()}
+        open={openPanel() === 'settings'}
         settings={settings()}
         onClose={() => {
           layoutSettingsAnchor = undefined;
-          setPanelOpen(false);
+          closePanel();
         }}
         onReset={() => {
           // Сброс настроек меняет layout (высоту блоков). Захватываем якорь по
@@ -846,6 +892,13 @@ function Fb2Reader(props: {
         onAutoWidth={applyAutoWidth}
         onBeginAdjustLayout={beginLayoutSettingsAdjustment}
         onEndAdjustLayout={endLayoutSettingsAdjustment}
+      />
+
+      <TocPanel
+        open={openPanel() === 'toc'}
+        entries={tocEntries()}
+        onClose={closePanel}
+        onSelect={onTocSelect}
       />
 
       <main

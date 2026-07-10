@@ -23,6 +23,18 @@ export const items = [
     last_opened_at: '2025-01-03T00:00:00Z',
     updated_at: '2025-01-03T00:00:00Z',
   },
+  {
+    id: '00000000-0000-0000-0000-000000000103',
+    title: 'PDF с оглавлением',
+    tags: ['тест'],
+    favorite: false,
+    format: 'pdf',
+    size_bytes: 2048,
+    progress_percent: 0,
+    created_at: '2025-01-04T00:00:00Z',
+    last_opened_at: '2025-01-04T00:00:00Z',
+    updated_at: '2025-01-04T00:00:00Z',
+  },
 ];
 
 export const tags = {
@@ -75,6 +87,58 @@ trailer
 << /Size 6 /Root 1 0 R >>
 startxref
 448
+%%EOF`;
+
+export const pdfFileWithOutline = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R /Outlines 8 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 360 520] /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 360 520] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+6 0 obj
+<< /Length 44 >>
+stream
+BT /F1 18 Tf 50 400 Td (Page One) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Length 45 >>
+stream
+BT /F1 18 Tf 50 400 Td (Page Two) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Outlines /First 9 0 R /Last 9 0 R /Count 1 >>
+endobj
+9 0 obj
+<< /Title (Second page) /Parent 8 0 R /Dest [4 0 R /XYZ 0 400 0] >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000074 00000 n 
+0000000137 00000 n 
+0000000263 00000 n 
+0000000389 00000 n 
+0000000459 00000 n 
+0000000548 00000 n 
+0000000637 00000 n 
+0000000708 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+791
 %%EOF`;
 
 export const req = {

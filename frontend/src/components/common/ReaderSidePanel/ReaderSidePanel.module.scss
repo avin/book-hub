@@ -1,0 +1,64 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+
+.readerSidePanel {
+  @include elevated;
+
+  position: fixed;
+  top: 72px;
+  right: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: $space-5;
+  width: min(380px, calc(100vw - 28px));
+  height: calc(100vh - 72px);
+  padding: $space-5;
+  border-left: 1px solid var(--border-default);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(105%);
+  transition: transform $duration-base $ease-out;
+}
+
+.panelOpen {
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.panelHeader {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-4;
+
+  h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+}
+
+.panelBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: $space-5;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.panelFooter {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: $space-3;
+  margin-top: auto;
+}

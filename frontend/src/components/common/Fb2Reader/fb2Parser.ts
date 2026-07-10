@@ -5,6 +5,7 @@ import {
   Fb2Document,
   Fb2Inline,
   Fb2Note,
+  Fb2OutlineEntry,
   Fb2TableCell,
 } from './fb2Types';
 
@@ -274,19 +275,84 @@ function parseTable(blocks: Fb2Block[], element: Element, level: number, role: F
   });
 }
 
-function parseBlocks(blocks: Fb2Block[], parent: Element, level: number, role: Fb2BlockRole) {
+type OutlineContext = {
+  root: Fb2OutlineEntry[];
+  stack: Fb2OutlineEntry[];
+};
+
+function sectionTitleLabel(section: Element) {
+  const titleElement = ownElementChildren(section).find((child) => localName(child) === 'title');
+
+  if (!titleElement) {
+    return undefined;
+  }
+
+  const label = (titleElement.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+  return label || undefined;
+}
+
+function resolveSectionTargetId(section: Element, blocks: Fb2Block[], blockStart: number) {
+  const sectionId = section.getAttribute('id');
+
+  if (sectionId) {
+    return sectionId;
+  }
+
+  const firstBlock = blocks[blockStart];
+
+  if (firstBlock?.sourceId) {
+    return firstBlock.sourceId;
+  }
+
+  return firstBlock?.id ?? '';
+}
+
+function parseBlocks(
+  blocks: Fb2Block[],
+  parent: Element,
+  level: number,
+  role: Fb2BlockRole,
+  outline?: OutlineContext,
+) {
   ownElementChildren(parent).forEach((child) => {
     const sectionBlockStart = blocks.length;
+    let outlineEntry: Fb2OutlineEntry | undefined;
 
     switch (localName(child)) {
       case 'section':
-        parseBlocks(blocks, child, level + 1, role);
+        if (outline) {
+          const label = sectionTitleLabel(child);
+
+          if (label) {
+            outlineEntry = { label, targetId: '', children: [] };
+            const parentEntries = outline.stack.length
+              ? outline.stack[outline.stack.length - 1].children
+              : outline.root;
+
+            parentEntries?.push(outlineEntry);
+            outline.stack.push(outlineEntry);
+          }
+        }
+
+        parseBlocks(blocks, child, level + 1, role, outline);
+
         if (
           child.getAttribute('id') &&
           blocks[sectionBlockStart] &&
           !blocks[sectionBlockStart].sourceId
         ) {
           blocks[sectionBlockStart].sourceId = child.getAttribute('id') ?? undefined;
+        }
+
+        if (outlineEntry) {
+          outlineEntry.targetId = resolveSectionTargetId(child, blocks, sectionBlockStart);
+
+          if (!outlineEntry.children?.length) {
+            delete outlineEntry.children;
+          }
+
+          outline!.stack.pop();
         }
         break;
       case 'title':
@@ -340,19 +406,19 @@ function parseBlocks(blocks: Fb2Block[], parent: Element, level: number, role: F
         });
         break;
       case 'annotation':
-        parseBlocks(blocks, child, level + 1, 'annotation');
+        parseBlocks(blocks, child, level + 1, 'annotation', outline);
         break;
       case 'epigraph':
-        parseBlocks(blocks, child, level + 1, 'epigraph');
+        parseBlocks(blocks, child, level + 1, 'epigraph', outline);
         break;
       case 'cite':
-        parseBlocks(blocks, child, level + 1, 'cite');
+        parseBlocks(blocks, child, level + 1, 'cite', outline);
         break;
       case 'poem':
         parsePoem(blocks, child, level);
         break;
       case 'stanza':
-        parseBlocks(blocks, child, level, 'poem');
+        parseBlocks(blocks, child, level, 'poem', outline);
         blocks.push({ id: `fb2-block-${blocks.length}`, kind: 'emptyLine', level, role: 'poem' });
         break;
       case 'v':
@@ -368,7 +434,7 @@ function parseBlocks(blocks: Fb2Block[], parent: Element, level: number, role: F
         parseTable(blocks, child, level, role);
         break;
       default:
-        parseBlocks(blocks, child, level, role);
+        parseBlocks(blocks, child, level, role, outline);
         break;
     }
   });
@@ -473,6 +539,7 @@ export function parseFb2(source: string): Fb2Document {
     : undefined;
   const blocks: Fb2Block[] = [];
   const notes = new Map<string, Fb2Note>();
+  const outline: Fb2OutlineEntry[] = [];
 
   parseDescriptionBlocks(blocks, description);
 
@@ -483,15 +550,18 @@ export function parseFb2(source: string): Fb2Document {
 
       if (bodyName === 'notes') {
         parseNotes(body).forEach((note, id) => notes.set(id, note));
+        parseBlocks(blocks, body, 1, 'note');
+        return;
       }
 
-      parseBlocks(blocks, body, 1, bodyName === 'notes' ? 'note' : 'body');
+      parseBlocks(blocks, body, 1, 'body', { root: outline, stack: [] });
     });
 
   return {
     title: titleInfo ? textContent(titleInfo, 'book-title') : '',
     authors: parseAuthors(titleInfo),
     blocks,
+    outline,
     notes,
     binaries: parseBinaries(root),
   };
