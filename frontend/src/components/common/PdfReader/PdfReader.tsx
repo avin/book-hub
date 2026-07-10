@@ -35,6 +35,10 @@ import {
   getPdfReaderContentWidthPreference,
   setPdfReaderContentWidthPreference,
 } from '@/storage/browserPreferences';
+import { createReaderSession } from '@/reader/ReaderSession/createReaderSession';
+import { createPdfProgressAdapter } from '@/reader/ReadingProgress/pdfProgressAdapter';
+import { createReadingProgress } from '@/reader/ReadingProgress/ReadingProgress';
+import type { ReadingProgressController } from '@/reader/ReadingProgress/types';
 import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import PdfTextHighlighter from './PdfTextHighlighter';
 import styles from './PdfReader.module.scss';
@@ -53,8 +57,6 @@ type ScrollAnchor = {
 };
 
 const maxRenderPixelRatio = 2;
-const headerHideOffset = 128;
-const headerShowOffset = 72;
 const documentPaddingX = 20;
 const minPageWidth = 240;
 const minPageHalfWidth = 120;
@@ -120,6 +122,9 @@ function PdfReader(props: {
   headerContent?: JSX.Element;
   class?: string;
   onReady?: () => void;
+  onReadingProgress?: (progress: ReadingProgressController) => void;
+  savedProgressPercent?: number;
+  onProgressRestored?: () => void;
 }) {
   const { t } = useI18n();
   let rootRef: HTMLDivElement | undefined;
@@ -130,8 +135,6 @@ function PdfReader(props: {
   let observer: IntersectionObserver | undefined;
   let observeFrame: number | undefined;
   let readyFrame: number | undefined;
-  let touchToggleClickTimeout: number | undefined;
-  let ignoreNextDocumentClick = false;
   let destroyed = false;
   let loadGeneration = 0;
   let lockedScrollAnchor: ScrollAnchor | undefined;
@@ -153,19 +156,16 @@ function PdfReader(props: {
   const [documentWidth, setDocumentWidth] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
-  const [headerVisible, setHeaderVisible] = createSignal(false);
   const [searchValue, setSearchValue] = createSignal('');
   const [searchCount, setSearchCount] = createSignal<{ current: number; total: number }>();
   const [currentPage, setCurrentPage] = createSignal(1);
   const [pageInputValue, setPageInputValue] = createSignal('1');
   const [pageInputFocused, setPageInputFocused] = createSignal(false);
-  const [tocOpen, setTocOpen] = createSignal(false);
   const [outlineEntries, setOutlineEntries] = createSignal<PdfOutlineEntry[]>([]);
   const [outlineLoaded, setOutlineLoaded] = createSignal(false);
   const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(
     getPdfReaderContentWidthPreference(),
   );
-  const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
 
@@ -414,6 +414,89 @@ function PdfReader(props: {
       }
     },
   );
+
+  const clearSearchHighlights = () => {
+    if (searchScrollFrame !== undefined) {
+      cancelAnimationFrame(searchScrollFrame);
+      searchScrollFrame = undefined;
+    }
+
+    searchEventBus.dispatch('findbarclose', { source: findController });
+    setSearchCount(undefined);
+    executedSearchQuery = undefined;
+  };
+
+  const session = createReaderSession({
+    onChromeClose: clearSearchHighlights,
+  });
+
+  const documentScrollTop = () => {
+    if (!documentRef) {
+      return 0;
+    }
+
+    const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
+
+    return Math.max(0, window.scrollY - documentTop);
+  };
+
+  const readingProgress = createReadingProgress(
+    createPdfProgressAdapter({
+      getPages: () => pages(),
+      getPageWidth: () => pageWidth(),
+      getDocumentScrollTop: documentScrollTop,
+      getViewportHeight: () => window.innerHeight,
+      getPaddingTop: () => getDocumentLayoutMetrics().paddingTop,
+      getGap: () => getDocumentLayoutMetrics().gap,
+      isReady: () => !loading() && pages().length > 0 && Boolean(documentRef),
+      scrollToDocumentTop: (documentScrollTopValue) => {
+        if (!documentRef) {
+          return;
+        }
+
+        const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
+
+        window.scrollTo({ top: documentTop + documentScrollTopValue });
+        syncCurrentPage();
+      },
+      onScroll: (callback) => {
+        const onScroll = () => callback();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+      },
+    }),
+  );
+
+  createEffect(() => {
+    const percent = props.savedProgressPercent;
+
+    if (percent === undefined || percent <= 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const attemptRestore = () => {
+      if (cancelled) {
+        return;
+      }
+
+      if (readingProgress.restoreProgress(percent)) {
+        props.onProgressRestored?.();
+        return;
+      }
+
+      if (!readingProgress.hasRestored()) {
+        requestAnimationFrame(attemptRestore);
+      }
+    };
+
+    attemptRestore();
+
+    onCleanup(() => {
+      cancelled = true;
+    });
+  });
 
   const applySynchronizedScrollAnchor = (anchor: ScrollAnchor, targetWidthPx: number) => {
     if (!documentRef) {
@@ -742,7 +825,7 @@ function PdfReader(props: {
     setVisiblePages(new Set<number>());
     setOutlineEntries([]);
     setOutlineLoaded(false);
-    setTocOpen(false);
+    session.closePanel();
     pageRefs.clear();
     canvasRefs.clear();
     textLayerRefs.clear();
@@ -867,13 +950,13 @@ function PdfReader(props: {
 
     target?.setPointerCapture(event.pointerId);
     lockedScrollAnchor = captureScrollAnchor();
-    setDraggingWidth(true);
-    setHeaderVisible(true);
+    session.setDraggingWidth(true);
+    session.showChrome();
     handleRulerPointer(event);
   };
 
   const onRulerPointerMove = (event: PointerEvent) => {
-    if (!draggingWidth()) {
+    if (!session.draggingWidth()) {
       return;
     }
 
@@ -886,7 +969,7 @@ function PdfReader(props: {
     target?.releasePointerCapture(event.pointerId);
     handleRulerPointer(event);
     lockedScrollAnchor = undefined;
-    setDraggingWidth(false);
+    session.setDraggingWidth(false);
     setGuideX(undefined);
   };
 
@@ -917,16 +1000,6 @@ function PdfReader(props: {
 
   type SearchDirection = 'next' | 'previous';
 
-  const clearSearchHighlights = () => {
-    if (searchScrollFrame !== undefined) {
-      cancelAnimationFrame(searchScrollFrame);
-      searchScrollFrame = undefined;
-    }
-
-    searchEventBus.dispatch('findbarclose', { source: findController });
-    setSearchCount(undefined);
-    executedSearchQuery = undefined;
-  };
   const search = (direction: SearchDirection) => {
     const query = searchValue().trim();
 
@@ -950,60 +1023,9 @@ function PdfReader(props: {
     });
   };
 
-  const toggleToc = () => {
-    setTocOpen((value) => !value);
-  };
-
-  const closeChrome = () => {
-    setTocOpen(false);
-    setHeaderVisible(false);
-    clearSearchHighlights();
-  };
-
-  const isReaderInputFocused = () => document.activeElement instanceof HTMLInputElement;
-
-  const toggleChromeOnTouch = (event: PointerEvent) => {
-    if (
-      event.pointerType !== 'touch' ||
-      event.clientY < window.innerHeight * 0.25 ||
-      event.clientY > window.innerHeight * 0.75
-    ) {
-      return false;
-    }
-
-    setHeaderVisible((current) => !current);
-    ignoreNextDocumentClick = true;
-
-    if (touchToggleClickTimeout !== undefined) {
-      window.clearTimeout(touchToggleClickTimeout);
-    }
-
-    touchToggleClickTimeout = window.setTimeout(() => {
-      ignoreNextDocumentClick = false;
-      touchToggleClickTimeout = undefined;
-    }, 500);
-
-    return true;
-  };
-
-  createEffect(() => {
-    if (tocOpen()) {
-      setHeaderVisible(true);
-    }
-  });
-
   onMount(() => {
     const onPointerMove = (event: PointerEvent) => {
-      if (event.clientY <= headerShowOffset || event.clientY >= window.innerHeight - 88) {
-        setHeaderVisible(true);
-      } else if (
-        event.clientY >= headerHideOffset &&
-        !draggingWidth() &&
-        !tocOpen() &&
-        !isReaderInputFocused()
-      ) {
-        setHeaderVisible(false);
-      }
+      session.handlePointerMove(event);
     };
 
     const onScroll = () => syncCurrentPage();
@@ -1040,6 +1062,7 @@ function PdfReader(props: {
 
     measureDocument();
     scheduleObservedPagesSync();
+    props.onReadingProgress?.(readingProgress);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', handleViewportResize);
@@ -1070,9 +1093,7 @@ function PdfReader(props: {
       window.clearTimeout(resizeAnchorTimeout);
     }
 
-    if (touchToggleClickTimeout !== undefined) {
-      window.clearTimeout(touchToggleClickTimeout);
-    }
+    session.cleanup();
 
     cancelRenderTasks();
     cancelTextLayerTasks();
@@ -1086,7 +1107,7 @@ function PdfReader(props: {
   return (
     <div ref={rootRef} class={`${styles.reader} ${props.class ?? ''}`}>
       <ReaderFloatingChrome
-        visible={headerVisible() || draggingWidth() || tocOpen()}
+        visible={session.chromeVisible()}
         title={props.title}
         headerContent={props.headerContent}
         searchValue={searchValue()}
@@ -1124,9 +1145,9 @@ function PdfReader(props: {
         onSearchValueChange={setSearchValue}
         onSearchNext={() => void search('next')}
         onSearchPrevious={() => void search('previous')}
-        onSearchOpen={() => setTocOpen(false)}
-        onClose={closeChrome}
-        onShow={() => setHeaderVisible(true)}
+        onSearchOpen={session.onSearchOpen}
+        onClose={session.closeChrome}
+        onShow={session.showChrome}
         actions={
           <Button
             variant="secondary"
@@ -1135,9 +1156,9 @@ function PdfReader(props: {
             iconStart={<ListTree />}
             title={tocLabel()}
             aria-label={tocLabel()}
-            aria-pressed={tocOpen()}
+            aria-pressed={session.sidePanel() === 'toc'}
             disabled={!tocAvailable()}
-            onClick={toggleToc}
+            onClick={() => session.togglePanel('toc')}
           />
         }
         secondaryBar={
@@ -1157,14 +1178,14 @@ function PdfReader(props: {
         }
       />
 
-      <Show when={draggingWidth() && guideX() !== undefined}>
+      <Show when={session.draggingWidth() && guideX() !== undefined}>
         <div class={styles.widthGuide} style={{ left: `${guideX()}px` }} aria-hidden="true" />
       </Show>
 
       <TocPanel
-        open={tocOpen()}
+        open={session.sidePanel() === 'toc'}
         entries={tocEntries()}
-        onClose={() => setTocOpen(false)}
+        onClose={session.closePanel}
         onSelect={onTocSelect}
       />
 
@@ -1182,17 +1203,12 @@ function PdfReader(props: {
           class={styles.document}
           classList={{ [styles.documentFit]: isFitWidth() }}
           onPointerUp={(event) => {
-            if (toggleChromeOnTouch(event)) {
+            if (session.handleDocumentPointerUp(event)) {
               event.preventDefault();
             }
           }}
           onClick={() => {
-            if (ignoreNextDocumentClick) {
-              ignoreNextDocumentClick = false;
-              return;
-            }
-
-            closeChrome();
+            session.handleDocumentClick();
           }}
         >
           <For each={pages()}>
