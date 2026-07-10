@@ -1,6 +1,6 @@
-import { Edit3, Eye, Heart, RotateCcw, Trash2 } from 'lucide-solid';
+import { Download, Edit3, Eye, Heart, RotateCcw, Trash2 } from 'lucide-solid';
 import { type Accessor } from 'solid-js';
-import type { Book } from '@/api/books';
+import { type Book, getBookDownloadName, getBookDownloadUrl } from '@/api/books';
 import Menu, { type MenuItem } from '@/components/common/Menu/Menu';
 import { useI18n } from '@/i18n/I18nProvider';
 
@@ -14,6 +14,16 @@ function BookActionsMenu(props: {
   onAction?: () => void;
 }) {
   const { t } = useI18n();
+
+  const downloadBook = () => {
+    const book = props.book();
+    const link = document.createElement('a');
+    link.href = getBookDownloadUrl(book.id);
+    link.download = getBookDownloadName(book);
+    document.body.append(link);
+    link.click();
+    link.remove();
+  };
 
   const menuItems = (): MenuItem[] => [
     {
@@ -39,6 +49,12 @@ function BookActionsMenu(props: {
       label: t('showFullCoverMenu'),
       iconStart: <Eye />,
       onClick: () => props.onShowCover(props.book()),
+    },
+    {
+      id: 'download',
+      label: t('downloadBook'),
+      iconStart: <Download />,
+      onClick: downloadBook,
     },
     { type: 'separator' },
     {

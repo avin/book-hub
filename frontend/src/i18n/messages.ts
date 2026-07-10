@@ -241,6 +241,10 @@ export const messages = {
     ru: 'Показать обложку целиком',
     en: 'Show full cover',
   },
+  downloadBook: {
+    ru: 'Скачать книгу',
+    en: 'Download book',
+  },
   resetReadingProgress: {
     ru: 'Сбросить прогресс',
     en: 'Reset progress',

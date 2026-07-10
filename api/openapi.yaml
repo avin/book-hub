@@ -434,6 +434,7 @@ paths:
   /v1/books/{book_id}/file:
     parameters:
       - $ref: "#/components/parameters/BookId"
+      - $ref: "#/components/parameters/BookFileDownload"
     get:
       tags:
         - Books
@@ -448,7 +449,9 @@ paths:
             X-Request-Id:
               $ref: "#/components/headers/RequestId"
             Content-Disposition:
-              description: Inline filename built from sanitized title and format.
+              description: |
+                `inline` by default for the reader; `attachment` when `download=1` is set.
+                Filename is built from the book title and format; non-ASCII titles use RFC 5987 `filename*`.
               schema:
                 type: string
           content:
@@ -752,6 +755,14 @@ components:
       description: Cover representation to return. Defaults to the original full-size cover.
       schema:
         $ref: "#/components/schemas/CoverVariant"
+    BookFileDownload:
+      name: download
+      in: query
+      required: false
+      description: When set to "1", the response uses Content-Disposition attachment to save the file.
+      schema:
+        type: string
+        enum: ["1"]
 
   headers:
     RequestId:

@@ -106,8 +106,13 @@ export function createApiMocks(page: Page) {
     if (resource === 'file' && method === 'GET') {
       const body = book.format === 'pdf' ? books.pdfFile : books.fb2File;
       const contentType = book.format === 'pdf' ? 'application/pdf' : 'application/xml';
+      const download = new URL(route.request().url()).searchParams.get('download') === '1';
+      const headers: Record<string, string> = {};
+      if (download) {
+        headers['Content-Disposition'] = `attachment; filename="${book.title}.${book.format}"`;
+      }
 
-      return route.fulfill({ status: 200, contentType, body });
+      return route.fulfill({ status: 200, contentType, headers, body });
     }
     if (resource === 'cover' && method === 'GET')
       return route.fulfill({

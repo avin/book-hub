@@ -109,6 +109,13 @@ test('библиотека поддерживает поиск, фильтры, 
   await page.getByRole('button', { name: 'Отмена' }).click();
 
   await page.getByRole('button', { name: 'Действия с книгой' }).first().click();
+  const downloadItem = page.getByRole('menuitem', { name: 'Скачать книгу' });
+  await expect(downloadItem).toBeVisible();
+
+  const [download] = await Promise.all([page.waitForEvent('download'), downloadItem.click()]);
+  expect(download.url()).toContain('/file?download=1');
+
+  await page.getByRole('button', { name: 'Действия с книгой' }).first().click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('menuitem', { name: 'Удалить' }).click();
   await expect(page.getByRole('article')).toHaveCount(1);

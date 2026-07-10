@@ -307,10 +307,31 @@ func (a testApp) requestRaw(t *testing.T, client *http.Client, method, path, csr
 }
 
 func (a testApp) uploadBook(t *testing.T, client *http.Client, csrf, filename string, content []byte) string {
-	return a.uploadBookWithTags(t, client, csrf, filename, content, nil)
+	return a.uploadBookWithTitle(t, client, csrf, filename, content, "Uploaded")
+}
+
+func (a testApp) uploadBookWithTitle(
+	t *testing.T,
+	client *http.Client,
+	csrf, filename string,
+	content []byte,
+	title string,
+) string {
+	return a.uploadBookWithTagsAndTitle(t, client, csrf, filename, content, title, nil)
 }
 
 func (a testApp) uploadBookWithTags(t *testing.T, client *http.Client, csrf, filename string, content []byte, tags []string) string {
+	return a.uploadBookWithTagsAndTitle(t, client, csrf, filename, content, "Uploaded", tags)
+}
+
+func (a testApp) uploadBookWithTagsAndTitle(
+	t *testing.T,
+	client *http.Client,
+	csrf, filename string,
+	content []byte,
+	title string,
+	tags []string,
+) string {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -321,7 +342,7 @@ func (a testApp) uploadBookWithTags(t *testing.T, client *http.Client, csrf, fil
 	if _, err := part.Write(content); err != nil {
 		t.Fatal(err)
 	}
-	if err := writer.WriteField("title", "Uploaded"); err != nil {
+	if err := writer.WriteField("title", title); err != nil {
 		t.Fatal(err)
 	}
 	for _, tag := range tags {

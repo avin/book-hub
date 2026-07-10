@@ -24,6 +24,19 @@ export function getBookFileUrl(bookId: string) {
   return `${getApiBaseUrl()}/v1/books/${encodeURIComponent(bookId)}/file`;
 }
 
+export function getBookDownloadUrl(bookId: string) {
+  return `${getBookFileUrl(bookId)}?download=1`;
+}
+
+export function getBookDownloadName(book: Pick<Book, 'title' | 'format'>) {
+  const title =
+    book.title
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, '')
+      .replace(/\.+$/g, '') || 'book';
+  return `${title}.${book.format}`;
+}
+
 export type BookCoverVariant = 'full' | 'thumbnail';
 
 export function getBookCoverUrl(bookId: string, variant: BookCoverVariant = 'full') {

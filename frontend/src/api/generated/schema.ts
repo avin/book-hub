@@ -219,7 +219,10 @@ export interface paths {
     };
     "/v1/books/{book_id}/file": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When set to "1", the response uses Content-Disposition attachment to save the file. */
+                download?: components["parameters"]["BookFileDownload"];
+            };
             header?: never;
             path: {
                 /** @description User book identifier. */
@@ -581,6 +584,8 @@ export interface components {
         CsrfToken: string;
         /** @description Cover representation to return. Defaults to the original full-size cover. */
         CoverVariant: components["schemas"]["CoverVariant"];
+        /** @description When set to "1", the response uses Content-Disposition attachment to save the file. */
+        BookFileDownload: "1";
     };
     requestBodies: never;
     headers: {
@@ -983,7 +988,10 @@ export interface operations {
     };
     downloadBookFile: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When set to "1", the response uses Content-Disposition attachment to save the file. */
+                download?: components["parameters"]["BookFileDownload"];
+            };
             header?: never;
             path: {
                 /** @description User book identifier. */
@@ -997,7 +1005,10 @@ export interface operations {
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
-                    /** @description Inline filename built from sanitized title and format. */
+                    /**
+                     * @description `inline` by default for the reader; `attachment` when `download=1` is set.
+                     *     Filename is built from sanitized title and format.
+                     */
                     "Content-Disposition"?: string;
                     [name: string]: unknown;
                 };

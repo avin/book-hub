@@ -511,8 +511,12 @@ func (s *Server) handleDownloadBook(w http.ResponseWriter, r *http.Request) {
 	if book.Format == "pdf" {
 		contentType = "application/pdf"
 	}
+	disposition := "inline"
+	if r.URL.Query().Get("download") == "1" {
+		disposition = "attachment"
+	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", `inline; filename="`+sanitizeFilename(book.Title)+"."+book.Format+`"`)
+	w.Header().Set("Content-Disposition", bookFileContentDisposition(disposition, book.Title, book.Format))
 	http.ServeFile(w, r, book.StoragePath)
 }
 
@@ -871,23 +875,6 @@ func firstFormValue(r *http.Request, key string) string {
 	}
 	return values[0]
 }
-
-func sanitizeFilename(value string) string {
-	value = strings.TrimSpace(value)
-	var b strings.Builder
-	for _, r := range value {
-		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-' || r == '.' {
-			b.WriteRune(r)
-		} else if r == ' ' {
-			b.WriteRune('_')
-		}
-	}
-	if b.Len() == 0 {
-		return "book"
-	}
-	return b.String()
-}
-
 func deleteCoverFiles(coverFiles domain.CoverFiles) {
 	files.DeleteBestEffort(coverFiles.CoverPath)
 	files.DeleteBestEffort(coverFiles.CoverThumbPath)

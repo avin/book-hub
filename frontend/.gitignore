@@ -2,3 +2,4 @@ node_modules
 dist
 storybook-static
 public/pdfjs-assets
+test-results
