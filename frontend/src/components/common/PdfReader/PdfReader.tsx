@@ -128,9 +128,12 @@ function PdfReader(props: {
   let resizeAnchorTimeout: number | undefined;
   const pageRefs = new Map<number, HTMLElement>();
   const canvasRefs = new Map<number, HTMLCanvasElement>();
+  const textLayerRefs = new Map<number, HTMLDivElement>();
   const pageCache = new Map<number, PDFPageProxy>();
   const renderTasks = new Map<number, RenderTask>();
+  const textLayerTasks = new Map<number, pdfjs.TextLayer>();
   const renderedKeys = new Map<number, string>();
+  const textLayerKeys = new Map<number, string>();
   const [pages, setPages] = createSignal<PdfPageDescriptor[]>([]);
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
   const [documentWidth, setDocumentWidth] = createSignal(0);
@@ -313,6 +316,7 @@ function PdfReader(props: {
     setMaxPageWidth(width);
     setPdfReaderContentWidthPreference(width);
     renderedKeys.clear();
+    textLayerKeys.clear();
   };
 
   const cancelRenderTask = (pageNumber: number) => {
@@ -326,6 +330,19 @@ function PdfReader(props: {
     }
 
     renderTasks.clear();
+  };
+
+  const cancelTextLayerTask = (pageNumber: number) => {
+    textLayerTasks.get(pageNumber)?.cancel();
+    textLayerTasks.delete(pageNumber);
+  };
+
+  const cancelTextLayerTasks = () => {
+    for (const task of textLayerTasks.values()) {
+      task.cancel();
+    }
+
+    textLayerTasks.clear();
   };
 
   const measureDocument = () => {
@@ -367,6 +384,7 @@ function PdfReader(props: {
 
     if (isFitWidth()) {
       renderedKeys.clear();
+      textLayerKeys.clear();
     }
 
     setDocumentWidth(nextWidth);
@@ -475,6 +493,73 @@ function PdfReader(props: {
     }
   };
 
+  const renderTextLayer = async (descriptor: PdfPageDescriptor) => {
+    const generation = loadGeneration;
+    const layer = textLayerRefs.get(descriptor.pageNumber);
+    const pageElement = pageRefs.get(descriptor.pageNumber);
+
+    if (!layer || !pageElement) {
+      return;
+    }
+
+    const displayWidth = Math.round(pageElement.clientWidth);
+
+    if (displayWidth <= 0) {
+      return;
+    }
+
+    const ratio = renderPixelRatio();
+    const displayHeight = Math.round(displayWidth * (descriptor.height / descriptor.width));
+    const renderKey = `${displayWidth}:${ratio}`;
+
+    if (textLayerKeys.get(descriptor.pageNumber) === renderKey) {
+      return;
+    }
+
+    const page = await getPage(descriptor.pageNumber);
+
+    if (!page || destroyed || generation !== loadGeneration) {
+      return;
+    }
+
+    cancelTextLayerTask(descriptor.pageNumber);
+
+    const scale = (displayWidth * ratio) / descriptor.width;
+    const viewport = page.getViewport({ scale });
+
+    pageElement.style.setProperty('--scale-factor', `${displayWidth / descriptor.width}`);
+    layer.style.width = `${displayWidth}px`;
+    layer.style.height = `${displayHeight}px`;
+    layer.textContent = '';
+
+    const task = new pdfjs.TextLayer({
+      textContentSource: page.streamTextContent(),
+      container: layer,
+      viewport,
+    });
+
+    textLayerTasks.set(descriptor.pageNumber, task);
+
+    try {
+      await task.render();
+
+      if (!destroyed && generation === loadGeneration) {
+        textLayerKeys.set(descriptor.pageNumber, renderKey);
+      }
+    } catch (error) {
+      if (!(
+        error instanceof Error &&
+        (error.name === 'AbortException' || isRenderCancelled(error))
+      )) {
+        console.error('Failed to render PDF text layer', error);
+      }
+    } finally {
+      if (textLayerTasks.get(descriptor.pageNumber) === task) {
+        textLayerTasks.delete(descriptor.pageNumber);
+      }
+    }
+  };
+
   const loadDocument = async () => {
     const generation = loadGeneration + 1;
 
@@ -485,9 +570,12 @@ function PdfReader(props: {
     setVisiblePages(new Set<number>());
     pageRefs.clear();
     canvasRefs.clear();
+    textLayerRefs.clear();
     pageCache.clear();
     renderedKeys.clear();
+    textLayerKeys.clear();
     cancelRenderTasks();
+    cancelTextLayerTasks();
     if (readyFrame !== undefined) {
       cancelAnimationFrame(readyFrame);
       readyFrame = undefined;
@@ -574,6 +662,7 @@ function PdfReader(props: {
     for (const descriptor of currentPages) {
       if (currentVisiblePages.has(descriptor.pageNumber)) {
         void renderPage(descriptor);
+        void renderTextLayer(descriptor);
       }
     }
   });
@@ -585,6 +674,7 @@ function PdfReader(props: {
 
     measureDocument();
     renderedKeys.clear();
+    textLayerKeys.clear();
   });
 
   const onRulerPointerDown = (event: PointerEvent) => {
@@ -685,6 +775,10 @@ function PdfReader(props: {
     }
 
     cancelRenderTasks();
+    cancelTextLayerTasks();
+    textLayerRefs.clear();
+    textLayerTasks.clear();
+    textLayerKeys.clear();
     void loadingTask?.destroy().catch(() => undefined);
     void pdfDocument?.cleanup().catch(() => undefined);
   });
@@ -751,6 +845,14 @@ function PdfReader(props: {
                   ref={(element) => {
                     canvasRefs.set(page.pageNumber, element);
                   }}
+                />
+                <div
+                  ref={(element) => {
+                    textLayerRefs.set(page.pageNumber, element);
+                  }}
+                  class={styles.textLayer}
+                  data-testid="pdf-text-layer"
+                  aria-hidden="true"
                 />
               </section>
             )}
