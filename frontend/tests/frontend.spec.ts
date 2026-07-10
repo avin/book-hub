@@ -172,6 +172,28 @@ test('читатель FB2 загружает книгу и сохраняет �
   await expect(page).toHaveURL(/\/library$/);
 });
 
+test('общий reader chrome открывается с клавиатуры и закрывается с сохранением запроса', async ({
+  page,
+}) => {
+  await openReader(page);
+
+  await page.mouse.move(10, 10);
+  const searchInput = page.getByRole('search').getByRole('searchbox');
+  await expect(searchInput).toBeVisible();
+  await expect(page.getByRole('search').getByText('0/0')).toBeVisible();
+
+  await page.keyboard.press('Control+f');
+  await expect(searchInput).toBeFocused();
+  await searchInput.fill('сохранённый запрос');
+  await page.keyboard.press('Escape');
+
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'false');
+  await page.mouse.move(10, 10);
+  await expect(searchInput).toHaveValue('сохранённый запрос');
+  await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
+});
+
 test('выход завершает сессию и возвращает на вход', async ({ page }) => {
   await login(page);
   await page.getByRole('button', { name: 'Выйти' }).click();
@@ -388,4 +410,26 @@ test('PDF позволяет выделить и скопировать встр
 
   expect(text).toContain('Book Hub PDF');
   expect(text).toContain('Reader story sample');
+});
+
+test('PDF reader показывает физическую страницу и ограничивает переход по номеру', async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
+
+  await page.mouse.move(10, 10);
+  const pageInput = page.getByRole('spinbutton', { name: 'Номер страницы' });
+  await expect(pageInput).toHaveValue('1');
+  await expect(page.getByText('/ 2', { exact: true })).toBeVisible();
+
+  await pageInput.fill('999');
+  await pageInput.press('Enter');
+  await expect(pageInput).toHaveValue('2');
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+  await pageInput.fill('0');
+  await pageInput.blur();
+  await expect(pageInput).toHaveValue('1');
 });

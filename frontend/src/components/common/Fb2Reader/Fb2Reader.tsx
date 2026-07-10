@@ -152,6 +152,8 @@ function Fb2Reader(props: {
   let resetAnchorFrame: number | undefined;
   let layoutSettingsAnchor: ScrollAnchor | undefined;
   let fontLayoutAnchor: ScrollAnchor | undefined;
+  let touchToggleClickTimeout: number | undefined;
+  let ignoreNextDocumentClick = false;
   let lastMeasuredReaderWidth = 0;
   let disposed = false;
   const [settings, setSettings] = createSignal<Fb2ReaderSettings>({
@@ -165,6 +167,7 @@ function Fb2Reader(props: {
   const [layoutTextWidth, setLayoutTextWidth] = createSignal(320);
   const [viewportResizeActive, setViewportResizeActive] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
+  const [searchValue, setSearchValue] = createSignal('');
   const [openPanel, setOpenPanel] = createSignal<ReaderPanel>('none');
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
@@ -353,6 +356,15 @@ function Fb2Reader(props: {
   const tocEntries = createMemo<TocEntry[]>(() => parsed().outline);
   const tocAvailable = createMemo(() => tocEntries().length > 0);
   const sidePanelOpen = createMemo(() => openPanel() !== 'none');
+  const progressPercent = createMemo(() => {
+    const maxScroll = Math.max(0, layout().totalHeight - viewportHeight());
+
+    if (maxScroll === 0) {
+      return 0;
+    }
+
+    return Math.round(clamp((scrollTop() / maxScroll) * 100, 0, 100));
+  });
 
   const togglePanel = (panel: Exclude<ReaderPanel, 'none'>) => {
     setOpenPanel((current) => (current === panel ? 'none' : panel));
@@ -360,6 +372,37 @@ function Fb2Reader(props: {
 
   const closePanel = () => {
     setOpenPanel('none');
+  };
+
+  const closeChrome = () => {
+    closePanel();
+    setHeaderVisible(false);
+  };
+
+  const isReaderInputFocused = () => document.activeElement instanceof HTMLInputElement;
+
+  const toggleChromeOnTouch = (event: PointerEvent) => {
+    if (
+      event.pointerType !== 'touch' ||
+      event.clientY < window.innerHeight * 0.25 ||
+      event.clientY > window.innerHeight * 0.75
+    ) {
+      return false;
+    }
+
+    setHeaderVisible((current) => !current);
+    ignoreNextDocumentClick = true;
+
+    if (touchToggleClickTimeout !== undefined) {
+      window.clearTimeout(touchToggleClickTimeout);
+    }
+
+    touchToggleClickTimeout = window.setTimeout(() => {
+      ignoreNextDocumentClick = false;
+      touchToggleClickTimeout = undefined;
+    }, 500);
+
+    return true;
   };
 
   const documentScrollTop = () => {
@@ -700,9 +743,14 @@ function Fb2Reader(props: {
       }
     };
     const onPointerMove = (event: PointerEvent) => {
-      if (event.clientY < 88) {
+      if (event.clientY < 88 || event.clientY > window.innerHeight - 88) {
         setHeaderVisible(true);
-      } else if (event.clientY > 164 && !sidePanelOpen() && !draggingWidth()) {
+      } else if (
+        event.clientY > 164 &&
+        !sidePanelOpen() &&
+        !draggingWidth() &&
+        !isReaderInputFocused()
+      ) {
         setHeaderVisible(false);
       }
     };
@@ -825,6 +873,10 @@ function Fb2Reader(props: {
       window.clearTimeout(viewportResizeEndTimeout);
     }
 
+    if (touchToggleClickTimeout !== undefined) {
+      window.clearTimeout(touchToggleClickTimeout);
+    }
+
     if (resetAnchorFrame !== undefined) {
       cancelAnimationFrame(resetAnchorFrame);
     }
@@ -836,6 +888,9 @@ function Fb2Reader(props: {
         visible={headerVisible() || sidePanelOpen() || draggingWidth()}
         title={documentTitle()}
         headerContent={props.headerContent}
+        searchValue={searchValue()}
+        onSearchValueChange={setSearchValue}
+        bottomContent={<span>{progressPercent()}%</span>}
         markerStyles={markerStyles()}
         availableTextWidth={availableTextWidth()}
         currentTextWidth={textWidth()}
@@ -843,6 +898,8 @@ function Fb2Reader(props: {
         settingsOpen={openPanel() === 'settings'}
         tocOpen={openPanel() === 'toc'}
         onShow={() => setHeaderVisible(true)}
+        onSearchOpen={closePanel}
+        onClose={closeChrome}
         onToggleSettings={() => togglePanel('settings')}
         onToggleToc={() => togglePanel('toc')}
         onRulerRef={(element) => {
@@ -908,9 +965,18 @@ function Fb2Reader(props: {
           documentShellRef = element;
         }}
         class={styles.documentShell}
+        onPointerUp={(event) => {
+          if (toggleChromeOnTouch(event)) {
+            event.preventDefault();
+          }
+        }}
         onClick={() => {
-          closePanel();
-          setHeaderVisible(false);
+          if (ignoreNextDocumentClick) {
+            ignoreNextDocumentClick = false;
+            return;
+          }
+
+          closeChrome();
         }}
       >
         <article ref={documentRef} class={styles.document} style={{ width: `${textWidth()}px` }}>

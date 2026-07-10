@@ -19,6 +19,7 @@ import { ListTree } from 'lucide-solid';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
+import TextInput from '@/components/common/TextInput/TextInput';
 import TocPanel from '@/components/common/TocPanel/TocPanel';
 import type { TocEntry } from '@/components/common/TocPanel/TocList/TocList';
 import WidthRuler from '@/components/common/WidthRuler/WidthRuler';
@@ -126,6 +127,8 @@ function PdfReader(props: {
   let observer: IntersectionObserver | undefined;
   let observeFrame: number | undefined;
   let readyFrame: number | undefined;
+  let touchToggleClickTimeout: number | undefined;
+  let ignoreNextDocumentClick = false;
   let destroyed = false;
   let loadGeneration = 0;
   let lockedScrollAnchor: ScrollAnchor | undefined;
@@ -145,6 +148,10 @@ function PdfReader(props: {
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
+  const [searchValue, setSearchValue] = createSignal('');
+  const [currentPage, setCurrentPage] = createSignal(1);
+  const [pageInputValue, setPageInputValue] = createSignal('1');
+  const [pageInputFocused, setPageInputFocused] = createSignal(false);
   const [tocOpen, setTocOpen] = createSignal(false);
   const [outlineEntries, setOutlineEntries] = createSignal<PdfOutlineEntry[]>([]);
   const [outlineLoaded, setOutlineLoaded] = createSignal(false);
@@ -273,6 +280,74 @@ function PdfReader(props: {
 
   const currentScrollAnchor = () =>
     lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
+
+  const syncCurrentPage = () => {
+    const pageList = pages();
+
+    if (pageList.length === 0) {
+      return;
+    }
+
+    const viewportCenter = window.innerHeight / 2;
+    let closestPage = pageList[0].pageNumber;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (const page of pageList) {
+      const element = pageRefs.get(page.pageNumber);
+
+      if (!element) {
+        continue;
+      }
+
+      const rect = element.getBoundingClientRect();
+
+      if (rect.top <= viewportCenter && rect.bottom >= viewportCenter) {
+        closestPage = page.pageNumber;
+        break;
+      }
+
+      const distance =
+        viewportCenter < rect.top ? rect.top - viewportCenter : viewportCenter - rect.bottom;
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestPage = page.pageNumber;
+      }
+    }
+
+    setCurrentPage(closestPage);
+
+    if (!pageInputFocused()) {
+      setPageInputValue(String(closestPage));
+    }
+  };
+
+  const goToPage = (value: string) => {
+    const pageList = pages();
+
+    if (pageList.length === 0) {
+      return;
+    }
+
+    const parsedPage = Number.parseInt(value, 10);
+    const nextPage = clamp(
+      Number.isFinite(parsedPage) ? parsedPage : currentPage(),
+      1,
+      pageList.length,
+    );
+    const element = pageRefs.get(nextPage);
+
+    if (!element) {
+      return;
+    }
+
+    const topOffset = 96;
+    const nextScrollTop = element.getBoundingClientRect().top + window.scrollY - topOffset;
+
+    window.scrollTo({ top: Math.max(0, nextScrollTop), behavior: 'instant' });
+    setCurrentPage(nextPage);
+    setPageInputValue(String(nextPage));
+  };
 
   const applySynchronizedScrollAnchor = (anchor: ScrollAnchor, targetWidthPx: number) => {
     if (!documentRef) {
@@ -757,6 +832,37 @@ function PdfReader(props: {
     setTocOpen((value) => !value);
   };
 
+  const closeChrome = () => {
+    setTocOpen(false);
+    setHeaderVisible(false);
+  };
+
+  const isReaderInputFocused = () => document.activeElement instanceof HTMLInputElement;
+
+  const toggleChromeOnTouch = (event: PointerEvent) => {
+    if (
+      event.pointerType !== 'touch' ||
+      event.clientY < window.innerHeight * 0.25 ||
+      event.clientY > window.innerHeight * 0.75
+    ) {
+      return false;
+    }
+
+    setHeaderVisible((current) => !current);
+    ignoreNextDocumentClick = true;
+
+    if (touchToggleClickTimeout !== undefined) {
+      window.clearTimeout(touchToggleClickTimeout);
+    }
+
+    touchToggleClickTimeout = window.setTimeout(() => {
+      ignoreNextDocumentClick = false;
+      touchToggleClickTimeout = undefined;
+    }, 500);
+
+    return true;
+  };
+
   createEffect(() => {
     if (tocOpen()) {
       setHeaderVisible(true);
@@ -765,12 +871,19 @@ function PdfReader(props: {
 
   onMount(() => {
     const onPointerMove = (event: PointerEvent) => {
-      if (event.clientY <= headerShowOffset) {
+      if (event.clientY <= headerShowOffset || event.clientY >= window.innerHeight - 88) {
         setHeaderVisible(true);
-      } else if (event.clientY >= headerHideOffset && !draggingWidth() && !tocOpen()) {
+      } else if (
+        event.clientY >= headerHideOffset &&
+        !draggingWidth() &&
+        !tocOpen() &&
+        !isReaderInputFocused()
+      ) {
         setHeaderVisible(false);
       }
     };
+
+    const onScroll = () => syncCurrentPage();
 
     resizeObserver = new ResizeObserver(() => handleViewportResize());
     observer = new IntersectionObserver(
@@ -805,11 +918,13 @@ function PdfReader(props: {
     measureDocument();
     scheduleObservedPagesSync();
     window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', handleViewportResize);
     window.visualViewport?.addEventListener('resize', handleViewportResize);
 
     onCleanup(() => {
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', handleViewportResize);
       window.visualViewport?.removeEventListener('resize', handleViewportResize);
       resizeObserver?.disconnect();
@@ -832,6 +947,10 @@ function PdfReader(props: {
       window.clearTimeout(resizeAnchorTimeout);
     }
 
+    if (touchToggleClickTimeout !== undefined) {
+      window.clearTimeout(touchToggleClickTimeout);
+    }
+
     cancelRenderTasks();
     cancelTextLayerTasks();
     textLayerRefs.clear();
@@ -847,6 +966,40 @@ function PdfReader(props: {
         visible={headerVisible() || draggingWidth() || tocOpen()}
         title={props.title}
         headerContent={props.headerContent}
+        searchValue={searchValue()}
+        bottomContent={
+          <label class={styles.pageControl}>
+            <span class={styles.pageControlLabel}>{t('page')}</span>
+            <TextInput
+              class={styles.pageInput}
+              type="number"
+              min="1"
+              max={pages().length || undefined}
+              value={pageInputValue()}
+              aria-label={t('pageNumber')}
+              onFocus={(event) => {
+                setPageInputFocused(true);
+                event.currentTarget.select();
+              }}
+              onInput={(event) => setPageInputValue(event.currentTarget.value)}
+              onBlur={() => {
+                setPageInputFocused(false);
+                goToPage(pageInputValue());
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  goToPage(pageInputValue());
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+            <span>/ {pages().length}</span>
+          </label>
+        }
+        onSearchValueChange={setSearchValue}
+        onSearchOpen={() => setTocOpen(false)}
+        onClose={closeChrome}
         onShow={() => setHeaderVisible(true)}
         actions={
           <Button
@@ -902,9 +1055,18 @@ function PdfReader(props: {
           ref={documentRef}
           class={styles.document}
           classList={{ [styles.documentFit]: isFitWidth() }}
+          onPointerUp={(event) => {
+            if (toggleChromeOnTouch(event)) {
+              event.preventDefault();
+            }
+          }}
           onClick={() => {
-            setTocOpen(false);
-            setHeaderVisible(false);
+            if (ignoreNextDocumentClick) {
+              ignoreNextDocumentClick = false;
+              return;
+            }
+
+            closeChrome();
           }}
         >
           <For each={pages()}>

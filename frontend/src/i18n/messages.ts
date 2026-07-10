@@ -105,6 +105,30 @@ export const messages = {
     ru: 'Чтение',
     en: 'Reader',
   },
+  bookSearch: {
+    ru: 'Поиск по книге',
+    en: 'Search in book',
+  },
+  findPrevious: {
+    ru: 'Найти предыдущее',
+    en: 'Find previous',
+  },
+  findNext: {
+    ru: 'Найти следующее',
+    en: 'Find next',
+  },
+  closeReaderPanels: {
+    ru: 'Закрыть панели',
+    en: 'Close reader panels',
+  },
+  page: {
+    ru: 'Страница',
+    en: 'Page',
+  },
+  pageNumber: {
+    ru: 'Номер страницы',
+    en: 'Page number',
+  },
   tags: {
     ru: 'Теги',
     en: 'Tags',

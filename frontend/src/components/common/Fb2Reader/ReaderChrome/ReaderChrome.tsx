@@ -8,6 +8,14 @@ function ReaderChrome(props: {
   visible: boolean;
   title: string;
   headerContent?: JSX.Element;
+  bottomContent?: JSX.Element;
+  searchValue: string;
+  searchCount?: { current: number; total: number };
+  onSearchValueChange: (value: string) => void;
+  onSearchNext?: () => void;
+  onSearchPrevious?: () => void;
+  onSearchOpen: () => void;
+  onClose: () => void;
   availableTextWidth: number;
   currentTextWidth: number;
   markerStyles: {
@@ -32,6 +40,14 @@ function ReaderChrome(props: {
       visible={props.visible}
       title={props.title}
       headerContent={props.headerContent}
+      bottomContent={props.bottomContent}
+      searchValue={props.searchValue}
+      searchCount={props.searchCount}
+      onSearchValueChange={props.onSearchValueChange}
+      onSearchNext={props.onSearchNext}
+      onSearchPrevious={props.onSearchPrevious}
+      onSearchOpen={props.onSearchOpen}
+      onClose={props.onClose}
       onShow={props.onShow}
       actions={
         <>

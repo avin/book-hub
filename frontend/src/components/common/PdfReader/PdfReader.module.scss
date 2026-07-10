@@ -123,6 +123,29 @@
   width: 100%;
 }
 
+.pageControl {
+  display: flex;
+  gap: $space-1;
+  align-items: center;
+}
+
+.pageControlLabel {
+  @include visually-hidden;
+}
+
+.pageInput {
+  width: 52px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 $space-1;
+  border: 1px solid var(--border-default);
+  border-radius: $radius-sm;
+  color: var(--text-primary);
+  background: var(--surface-page);
+  font: inherit;
+  text-align: center;
+}
+
 @media (max-width: 720px) {
   .document {
     padding: 20px 10px 56px;
