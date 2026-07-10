@@ -180,6 +180,7 @@ test('общий reader chrome открывается с клавиатуры и
   await page.mouse.move(10, 10);
   const searchInput = page.getByRole('search').getByRole('searchbox');
   await expect(searchInput).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Закрыть панели' })).toHaveCount(0);
   await expect(page.getByRole('search').getByText('0/0')).toBeVisible();
 
   await page.keyboard.press('Control+f');

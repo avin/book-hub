@@ -117,10 +117,6 @@ export const messages = {
     ru: 'Найти следующее',
     en: 'Find next',
   },
-  closeReaderPanels: {
-    ru: 'Закрыть панели',
-    en: 'Close reader panels',
-  },
   page: {
     ru: 'Страница',
     en: 'Page',
