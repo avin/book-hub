@@ -270,3 +270,24 @@ test('reader открывает и закрывает FB2-сноску, а Escap
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Сноска' })).toBeHidden();
 });
+
+test('PDF позволяет выделить и скопировать встроенный текст', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  await expect(page.locator('canvas')).toBeVisible();
+
+  const textLayer = page.getByTestId('pdf-text-layer').first();
+  await expect(textLayer).toContainText('Book Hub PDF');
+
+  const text = await textLayer.evaluate((element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    return selection?.toString() ?? '';
+  });
+
+  expect(text).toContain('Book Hub PDF');
+  expect(text).toContain('Reader story sample');
+});

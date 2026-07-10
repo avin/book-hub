@@ -103,8 +103,12 @@ export function createApiMocks(page: Page) {
       state.books.find((item) => item.id === decodeURIComponent(bookId)) ?? state.books[0];
     const method = route.request().method();
 
-    if (resource === 'file' && method === 'GET')
-      return route.fulfill({ status: 200, contentType: 'application/xml', body: books.fb2File });
+    if (resource === 'file' && method === 'GET') {
+      const body = book.format === 'pdf' ? books.pdfFile : books.fb2File;
+      const contentType = book.format === 'pdf' ? 'application/pdf' : 'application/xml';
+
+      return route.fulfill({ status: 200, contentType, body });
+    }
     if (resource === 'cover' && method === 'GET')
       return route.fulfill({
         status: 200,

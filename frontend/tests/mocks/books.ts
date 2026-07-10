@@ -44,6 +44,39 @@ const chapters = Array.from({ length: 80 }, (_, index) => {
 
 export const fb2File = `<?xml version="1.0" encoding="UTF-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink" xmlns:xlink="http://www.w3.org/1999/xlink"><description><title-info><book-title>Война и мир</book-title><author><first-name>Лев</first-name><last-name>Толстой</last-name></author></title-info></description><body>${chapters}</body><body name="notes"><section id="note-1"><title><p>Сноска</p></title><p>Текст тестовой сноски.</p></section></body></FictionBook>`;
 
+export const pdfFile = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 360 520] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 87 >>
+stream
+BT /F1 24 Tf 56 420 Td (Book Hub PDF) Tj /F1 12 Tf 0 -32 Td (Reader story sample) Tj ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+448
+%%EOF`;
+
 export const req = {
   list: { method: 'POST', path: '/v1/books/query' },
   tags: { method: 'GET', path: '/v1/books/tags' },
