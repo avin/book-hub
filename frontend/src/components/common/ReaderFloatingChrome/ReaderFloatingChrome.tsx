@@ -153,16 +153,6 @@ function ReaderFloatingChrome(props: {
                 disabled={!props.onSearchNext}
                 onClick={props.onSearchNext}
               />
-              <Button
-                variant="ghost"
-                size="sm"
-                iconOnly
-                type="button"
-                iconStart={<X />}
-                aria-label={t('closeSearch')}
-                title={t('closeSearch')}
-                onClick={props.onClose}
-              />
               <span
                 class={styles.searchCount}
                 classList={{ [styles.searchCountEmpty]: !props.searchCount?.total }}

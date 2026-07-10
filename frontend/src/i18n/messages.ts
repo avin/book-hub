@@ -117,10 +117,6 @@ export const messages = {
     ru: 'Найти следующее',
     en: 'Find next',
   },
-  closeSearch: {
-    ru: 'Закрыть поиск',
-    en: 'Close search',
-  },
   page: {
     ru: 'Страница',
     en: 'Page',

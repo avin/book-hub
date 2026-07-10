@@ -177,13 +177,13 @@ test('общий reader chrome открывается с клавиатуры и
 }) => {
   await openReader(page);
 
-  await page.mouse.move(10, 10);
   const searchInput = page.getByRole('search').getByRole('searchbox');
-  await expect(searchInput).toBeVisible();
-  await expect(page.getByRole('search').getByText('0/0')).toBeVisible();
 
   await page.keyboard.press('Control+f');
+  await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
   await expect(searchInput).toBeFocused();
+  await expect(page.getByRole('search').getByText('0/0')).toBeVisible();
   await searchInput.fill('сохранённый запрос');
   await searchInput.blur();
   await searchInput.focus();

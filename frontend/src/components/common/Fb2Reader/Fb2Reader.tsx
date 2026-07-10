@@ -556,7 +556,7 @@ function Fb2Reader(props: {
       const element = findRenderedMatch();
 
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.scrollIntoView({ behavior: 'instant', block: 'center' });
         updateScrollPosition();
         return;
       }
@@ -564,7 +564,7 @@ function Fb2Reader(props: {
       scrollToBlockIndex(match.blockIndex, 'instant');
       searchScrollFrame = requestAnimationFrame(() => {
         searchScrollFrame = undefined;
-        findRenderedMatch()?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        findRenderedMatch()?.scrollIntoView({ behavior: 'instant', block: 'center' });
         updateScrollPosition();
       });
     };
