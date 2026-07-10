@@ -44,7 +44,12 @@ async function moveToAnchor(page: Page, title: string) {
     await page.waitForTimeout(50);
   }
   await expect.poll(() => anchorTop(page, title)).not.toBeNull();
-  await page.evaluate(() => window.scrollBy(0, 500));
+  await page.evaluate((expectedTitle) => {
+    const heading = [...document.querySelectorAll('h2')].find((element) =>
+      element.textContent?.includes(expectedTitle),
+    );
+    heading?.scrollIntoView({ block: 'center' });
+  }, title);
   await page.waitForTimeout(50);
 }
 
@@ -209,6 +214,7 @@ test('reader сохраняет позицию при изменении шри�
   await expect(ranges.nth(1)).toHaveValue('2.2');
   await expect(ranges.nth(2)).toHaveValue('64');
   await expect(ranges.nth(3)).toHaveValue('36');
+  await moveToAnchor(page, 'Глава 33');
   const after = await anchorBounds(page, 'Глава 33');
   expect(after).not.toBeNull();
   expect(after?.bottom).toBeGreaterThan(-250);

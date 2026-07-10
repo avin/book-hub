@@ -194,8 +194,12 @@ function ReaderPage() {
     const progressPercent = progress.progress_percent;
 
     restoreTimeoutIds = [
-      window.setTimeout(() => restoreScrollProgress(progressPercent), restoreDelayMs),
-      window.setTimeout(() => restoreScrollProgress(progressPercent), confirmRestoreDelayMs),
+      window.setTimeout(() => {
+        if (window.scrollY <= 80) restoreScrollProgress(progressPercent);
+      }, restoreDelayMs),
+      window.setTimeout(() => {
+        if (window.scrollY <= 80) restoreScrollProgress(progressPercent);
+      }, confirmRestoreDelayMs),
     ];
   });
 

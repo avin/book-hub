@@ -426,7 +426,7 @@ function Fb2Reader(props: {
   };
 
   const beginLayoutSettingsAdjustment = () => {
-    layoutSettingsAnchor = captureScrollAnchor();
+    layoutSettingsAnchor ??= captureScrollAnchor();
 
     if (layoutSettingsAnchor) {
       setPendingScrollAnchor(layoutSettingsAnchor);
@@ -439,7 +439,6 @@ function Fb2Reader(props: {
     const anchor = layoutSettingsAnchor;
 
     setAdjustingLayoutSettings(false);
-    layoutSettingsAnchor = undefined;
     restoreScrollAnchorAfterLayout(anchor);
   };
   const isFootnoteTarget = (targetId: string) => parsed().notes.has(targetId);
@@ -570,7 +569,6 @@ function Fb2Reader(props: {
     const target = event.currentTarget as HTMLDivElement | null;
     const width = pendingMaxTextWidth();
     const anchor = lockedScrollAnchor;
-
     target?.releasePointerCapture(event.pointerId);
     updateSetting('maxTextWidth', width, true);
     flushLayoutTextWidth();
@@ -589,7 +587,6 @@ function Fb2Reader(props: {
     // в нестабильный момент смены layout — и позиция собьётся.
     lockedScrollAnchor = captureScrollAnchor();
     const anchor = lockedScrollAnchor;
-
     if (lockedScrollAnchor) {
       setPendingScrollAnchor(lockedScrollAnchor);
     }
@@ -637,7 +634,7 @@ function Fb2Reader(props: {
       // уже могла быть восстановлена из прогресса (ReaderPage.restoreScrollProgress).
       // Снятый заранее якорь фиксирует scrollY=0 и после пересчёта layout
       // отбрасывает читалку в начало книги.
-      const anchor = fontLayoutAnchor ?? captureScrollAnchor();
+      const anchor = layoutSettingsAnchor ?? fontLayoutAnchor ?? captureScrollAnchor();
 
       if (anchor) {
         setPendingScrollAnchor(anchor);
@@ -815,7 +812,10 @@ function Fb2Reader(props: {
       <SettingsPanel
         open={panelOpen()}
         settings={settings()}
-        onClose={() => setPanelOpen(false)}
+        onClose={() => {
+          layoutSettingsAnchor = undefined;
+          setPanelOpen(false);
+        }}
         onReset={() => {
           // Сброс настроек меняет layout (высоту блоков). Захватываем якорь по
           // текущему layout ДО смены настроек, чтобы после пересчёта эффект
