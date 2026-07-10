@@ -856,6 +856,7 @@ function PdfReader(props: {
             iconStart={<ListTree />}
             title={tocLabel()}
             aria-label={tocLabel()}
+            aria-pressed={tocOpen()}
             disabled={!tocAvailable()}
             onClick={toggleToc}
           />

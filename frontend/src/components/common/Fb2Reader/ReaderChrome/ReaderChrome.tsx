@@ -15,6 +15,8 @@ function ReaderChrome(props: {
     right: JSX.CSSProperties;
   };
   tocAvailable: boolean;
+  settingsOpen: boolean;
+  tocOpen: boolean;
   onShow: () => void;
   onToggleSettings: () => void;
   onToggleToc: () => void;
@@ -40,6 +42,7 @@ function ReaderChrome(props: {
             iconStart={<Settings />}
             title="Настройки внешнего вида"
             aria-label="Настройки внешнего вида"
+            aria-pressed={props.settingsOpen}
             onClick={props.onToggleSettings}
           />
           <Button
@@ -49,6 +52,7 @@ function ReaderChrome(props: {
             iconStart={<ListTree />}
             title={tocLabel()}
             aria-label={tocLabel()}
+            aria-pressed={props.tocOpen}
             disabled={!props.tocAvailable}
             onClick={props.onToggleToc}
           />

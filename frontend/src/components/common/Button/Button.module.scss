@@ -63,6 +63,17 @@
   }
 }
 
+.secondary[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+
+  @include interactive-hover {
+    border-color: var(--accent-hover);
+    background: color-mix(in srgb, var(--accent-hover) 18%, var(--surface-raised));
+  }
+}
+
 .ghost {
   background: transparent;
   color: var(--text-secondary);

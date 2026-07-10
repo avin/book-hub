@@ -840,6 +840,8 @@ function Fb2Reader(props: {
         availableTextWidth={availableTextWidth()}
         currentTextWidth={textWidth()}
         tocAvailable={tocAvailable()}
+        settingsOpen={openPanel() === 'settings'}
+        tocOpen={openPanel() === 'toc'}
         onShow={() => setHeaderVisible(true)}
         onToggleSettings={() => togglePanel('settings')}
         onToggleToc={() => togglePanel('toc')}

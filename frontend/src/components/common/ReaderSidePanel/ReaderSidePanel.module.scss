@@ -5,21 +5,23 @@
   @include elevated;
 
   position: fixed;
-  top: 72px;
-  right: 0;
+  top: calc(72px + #{$space-4});
+  right: $space-4;
+  bottom: $space-4;
   z-index: 45;
   display: flex;
   flex-direction: column;
   gap: $space-5;
-  width: min(380px, calc(100vw - 28px));
-  height: calc(100vh - 72px);
+  width: min(380px, calc(100vw - #{$space-8}));
   padding: $space-5;
-  border-left: 1px solid var(--border-default);
-  background: var(--surface-raised);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-radius: $radius-lg;
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  backdrop-filter: blur(16px) saturate(180%);
   color: var(--text-primary);
   visibility: hidden;
   pointer-events: none;
-  transform: translateX(105%);
+  transform: translateX(calc(100% + #{$space-4}));
   transition: transform $duration-base $ease-out;
 }
 
@@ -61,4 +63,15 @@
   flex-direction: column;
   gap: $space-3;
   margin-top: auto;
+}
+
+@media (max-width: 720px) {
+  .readerSidePanel {
+    top: calc(64px + #{$space-3});
+    right: $space-3;
+    bottom: $space-3;
+    width: calc(100vw - #{$space-6});
+    padding: $space-4;
+    transform: translateX(calc(100% + #{$space-3}));
+  }
 }
