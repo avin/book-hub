@@ -17,7 +17,7 @@
 }
 
 .dialog {
-  width: min(560px, 100%);
+  width: min(720px, 100%);
   margin: auto;
   border: 1px solid var(--border-default);
   border-radius: $radius-lg;
@@ -218,17 +218,14 @@
   line-height: 20px;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
   .dialogBody {
-    grid-template-columns: 96px minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
   }
 
   .coverColumn {
-    width: 96px;
-  }
-
-  .coverWrapper {
-    width: 96px;
+    justify-self: center;
+    width: 120px;
   }
 }
