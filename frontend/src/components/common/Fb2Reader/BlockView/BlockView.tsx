@@ -1,4 +1,5 @@
 import { For, Match, Show, Switch } from 'solid-js';
+import { inlinesText, type Fb2SearchRange } from '../fb2Search';
 import type { Fb2Block } from '../fb2Types';
 import RenderInlines from '../RenderInlines/RenderInlines';
 import TableCell from './TableCell/TableCell';
@@ -10,7 +11,28 @@ function BlockView(props: {
   onInternalLink: (targetId: string) => void;
   onFootnoteLink: (targetId: string) => void;
   isFootnoteTarget: (targetId: string) => boolean;
+  searchRanges?: Fb2SearchRange[];
 }) {
+  const tableCellTextOffset = (rowIndex: number, cellIndex: number) => {
+    const rows = props.block.rows ?? [];
+    let offset = 0;
+
+    for (let currentRowIndex = 0; currentRowIndex < rowIndex; currentRowIndex += 1) {
+      offset +=
+        rows[currentRowIndex]?.cells.reduce(
+          (rowLength, cell) => rowLength + inlinesText(cell.inlines).length,
+          0,
+        ) ?? 0;
+    }
+
+    return (
+      offset +
+      (rows[rowIndex]?.cells
+        .slice(0, cellIndex)
+        .reduce((rowLength, cell) => rowLength + inlinesText(cell.inlines).length, 0) ?? 0)
+    );
+  };
+
   return (
     <Switch>
       <Match when={props.block.kind === 'title'}>
@@ -21,6 +43,7 @@ function BlockView(props: {
             onInternalLink={props.onInternalLink}
             onFootnoteLink={props.onFootnoteLink}
             isFootnoteTarget={props.isFootnoteTarget}
+            searchRanges={props.searchRanges}
           />
         </h2>
       </Match>
@@ -32,6 +55,7 @@ function BlockView(props: {
             onInternalLink={props.onInternalLink}
             onFootnoteLink={props.onFootnoteLink}
             isFootnoteTarget={props.isFootnoteTarget}
+            searchRanges={props.searchRanges}
           />
         </h3>
       </Match>
@@ -50,6 +74,7 @@ function BlockView(props: {
             onInternalLink={props.onInternalLink}
             onFootnoteLink={props.onFootnoteLink}
             isFootnoteTarget={props.isFootnoteTarget}
+            searchRanges={props.searchRanges}
           />
         </p>
       </Match>
@@ -68,6 +93,7 @@ function BlockView(props: {
             onInternalLink={props.onInternalLink}
             onFootnoteLink={props.onFootnoteLink}
             isFootnoteTarget={props.isFootnoteTarget}
+            searchRanges={props.searchRanges}
           />
         </p>
       </Match>
@@ -80,6 +106,7 @@ function BlockView(props: {
               onInternalLink={props.onInternalLink}
               onFootnoteLink={props.onFootnoteLink}
               isFootnoteTarget={props.isFootnoteTarget}
+              searchRanges={props.searchRanges}
             />
           </code>
         </pre>
@@ -93,6 +120,7 @@ function BlockView(props: {
               onInternalLink={props.onInternalLink}
               onFootnoteLink={props.onFootnoteLink}
               isFootnoteTarget={props.isFootnoteTarget}
+              searchRanges={props.searchRanges}
             />
           </span>
         </div>
@@ -105,6 +133,7 @@ function BlockView(props: {
             onInternalLink={props.onInternalLink}
             onFootnoteLink={props.onFootnoteLink}
             isFootnoteTarget={props.isFootnoteTarget}
+            searchRanges={props.searchRanges}
           />
         </p>
       </Match>
@@ -116,6 +145,7 @@ function BlockView(props: {
             onInternalLink={props.onInternalLink}
             onFootnoteLink={props.onFootnoteLink}
             isFootnoteTarget={props.isFootnoteTarget}
+            searchRanges={props.searchRanges}
           />
         </p>
       </Match>
@@ -127,6 +157,7 @@ function BlockView(props: {
             onInternalLink={props.onInternalLink}
             onFootnoteLink={props.onFootnoteLink}
             isFootnoteTarget={props.isFootnoteTarget}
+            searchRanges={props.searchRanges}
           />
         </p>
       </Match>
@@ -148,16 +179,18 @@ function BlockView(props: {
           <table>
             <tbody>
               <For each={props.block.rows ?? []}>
-                {(row) => (
+                {(row, rowIndex) => (
                   <tr>
                     <For each={row.cells}>
-                      {(cell) => (
+                      {(cell, cellIndex) => (
                         <TableCell
                           cell={cell}
                           imageSrc={props.imageSrc}
                           onInternalLink={props.onInternalLink}
                           onFootnoteLink={props.onFootnoteLink}
                           isFootnoteTarget={props.isFootnoteTarget}
+                          searchRanges={props.searchRanges}
+                          textOffset={tableCellTextOffset(rowIndex(), cellIndex())}
                         />
                       )}
                     </For>

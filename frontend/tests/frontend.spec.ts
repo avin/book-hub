@@ -185,13 +185,77 @@ test('общий reader chrome открывается с клавиатуры и
   await page.keyboard.press('Control+f');
   await expect(searchInput).toBeFocused();
   await searchInput.fill('сохранённый запрос');
+  await searchInput.blur();
+  await searchInput.focus();
+  await page.keyboard.type('новый запрос');
+  await expect(searchInput).toHaveValue('новый запрос');
   await searchInput.press('Escape');
 
   await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'false');
   await page.mouse.move(10, 10);
-  await expect(searchInput).toHaveValue('сохранённый запрос');
+  await expect(searchInput).toHaveValue('новый запрос');
   await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
   await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
+});
+
+test('поиск FB2 запускается явно, подсвечивает сноски и циклически навигируется', async ({
+  page,
+}) => {
+  await openReader(page);
+
+  await page.mouse.move(10, 10);
+  const search = page.getByRole('search');
+  const searchInput = search.getByRole('searchbox');
+  const nextButton = search.getByRole('button', { name: 'Найти следующее' });
+  const previousButton = search.getByRole('button', { name: 'Найти предыдущее' });
+
+  await expect(search.getByText('0/0')).toBeVisible();
+  await searchInput.fill('  тестовой   сноски  ');
+  await expect(search.getByText('0/0')).toBeVisible();
+  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+
+  await searchInput.press('Enter');
+  await expect(search.getByText('1/1')).toBeVisible();
+  await expect(page.locator('mark[data-search-match]').first()).toBeVisible();
+  await expect(page.locator('mark[data-search-match][data-search-active="true"]')).toHaveCount(1);
+
+  const progressResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/v1/books/${readerBookId}/progress`) &&
+      response.request().method() === 'PUT',
+  );
+  await nextButton.click();
+  await progressResponse;
+  await expect(search.getByText('1/1')).toBeVisible();
+
+  await previousButton.click();
+  await expect(search.getByText('1/1')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Закрыть поиск' }).click();
+  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+  await page.mouse.move(10, 10);
+  await expect(searchInput).toHaveValue('  тестовой   сноски  ');
+
+  await searchInput.press('Enter');
+  await expect(search.getByText('1/1')).toBeVisible();
+  await expect(page.locator('mark[data-search-match]').first()).toBeVisible();
+
+  await searchInput.fill('Глава');
+  await expect(search.getByText('1/1')).toBeVisible();
+  await searchInput.press('Enter');
+  const searchCount = search.locator('[aria-live="polite"]');
+  await expect(searchCount).toHaveText(/\d+\/\d+/);
+  const [initialMatch, totalMatches] = ((await searchCount.textContent()) ?? '')
+    .split('/')
+    .map(Number);
+  expect(initialMatch).toBeGreaterThan(0);
+  expect(totalMatches).toBeGreaterThan(1);
+  await nextButton.click();
+  await expect(searchCount).toHaveText(
+    `${initialMatch === totalMatches ? 1 : initialMatch + 1}/${totalMatches}`,
+  );
+  await previousButton.click();
+  await expect(searchCount).toHaveText(`${initialMatch}/${totalMatches}`);
 });
 
 test('выход завершает сессию и возвращает на вход', async ({ page }) => {

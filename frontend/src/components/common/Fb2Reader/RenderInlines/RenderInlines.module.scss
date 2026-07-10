@@ -13,3 +13,14 @@
   font-size: 0.78em;
   vertical-align: super;
 }
+
+.searchMatch {
+  border-radius: 0.12em;
+  color: var(--fb2-text);
+  background: color-mix(in srgb, var(--fb2-link) 22%, transparent);
+}
+
+.searchMatchActive {
+  background: color-mix(in srgb, var(--fb2-link) 48%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--fb2-link) 24%, transparent);
+}

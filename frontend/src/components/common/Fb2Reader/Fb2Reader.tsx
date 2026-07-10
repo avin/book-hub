@@ -15,6 +15,7 @@ import { findBlockIndex, buildVirtualLayout } from './fb2Layout';
 import { isReaderLayoutFontReady, loadReaderLayoutFonts } from './fb2FontMetrics';
 import { binaryToDataUrl, parseFb2 } from './fb2Parser';
 import { defaultSettings } from './fb2ReaderSettings';
+import { findFb2SearchMatches, normalizeSearchQuery, type Fb2SearchMatch } from './fb2Search';
 import type {
   CssVars,
   Fb2Block,
@@ -154,6 +155,8 @@ function Fb2Reader(props: {
   let fontLayoutAnchor: ScrollAnchor | undefined;
   let touchToggleClickTimeout: number | undefined;
   let ignoreNextDocumentClick = false;
+  let executedSearchQuery: string | undefined;
+  let searchScrollFrame: number | undefined;
   let lastMeasuredReaderWidth = 0;
   let disposed = false;
   const [settings, setSettings] = createSignal<Fb2ReaderSettings>({
@@ -168,6 +171,8 @@ function Fb2Reader(props: {
   const [viewportResizeActive, setViewportResizeActive] = createSignal(false);
   const [headerVisible, setHeaderVisible] = createSignal(false);
   const [searchValue, setSearchValue] = createSignal('');
+  const [searchMatches, setSearchMatches] = createSignal<Fb2SearchMatch[]>([]);
+  const [activeSearchIndex, setActiveSearchIndex] = createSignal<number | undefined>();
   const [openPanel, setOpenPanel] = createSignal<ReaderPanel>('none');
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
@@ -365,6 +370,12 @@ function Fb2Reader(props: {
 
     return Math.round(clamp((scrollTop() / maxScroll) * 100, 0, 100));
   });
+  const searchCount = createMemo(() => {
+    const total = searchMatches().length;
+    const active = activeSearchIndex();
+
+    return total > 0 && active !== undefined ? { current: active + 1, total } : undefined;
+  });
 
   const togglePanel = (panel: Exclude<ReaderPanel, 'none'>) => {
     setOpenPanel((current) => (current === panel ? 'none' : panel));
@@ -374,9 +385,21 @@ function Fb2Reader(props: {
     setOpenPanel('none');
   };
 
+  const clearSearchHighlights = () => {
+    if (searchScrollFrame !== undefined) {
+      cancelAnimationFrame(searchScrollFrame);
+      searchScrollFrame = undefined;
+    }
+
+    setSearchMatches([]);
+    setActiveSearchIndex(undefined);
+    executedSearchQuery = undefined;
+  };
+
   const closeChrome = () => {
     closePanel();
     setHeaderVisible(false);
+    clearSearchHighlights();
   };
 
   const isReaderInputFocused = () => document.activeElement instanceof HTMLInputElement;
@@ -390,6 +413,7 @@ function Fb2Reader(props: {
       return false;
     }
 
+    clearSearchHighlights();
     setHeaderVisible((current) => !current);
     ignoreNextDocumentClick = true;
 
@@ -475,6 +499,136 @@ function Fb2Reader(props: {
 
     window.scrollTo({ top: nextScrollTop, behavior });
     setScrollTop(blockTop);
+  };
+
+  type SearchDirection = 'next' | 'previous';
+
+  const currentSearchPosition = () => {
+    const currentLayout = layout();
+
+    if (currentLayout.offsets.length === 0) {
+      return { blockIndex: 0, offset: 0 };
+    }
+
+    const currentDocumentScrollTop = documentScrollTop();
+    const blockIndex = findBlockIndex(currentLayout.offsets, currentDocumentScrollTop);
+    const blockTop = currentLayout.offsets[blockIndex] ?? 0;
+
+    return { blockIndex, offset: Math.max(0, currentDocumentScrollTop - blockTop) };
+  };
+
+  const compareSearchMatchToPosition = (
+    match: Fb2SearchMatch,
+    position: { blockIndex: number; offset: number },
+  ) => {
+    if (match.blockIndex !== position.blockIndex) {
+      return match.blockIndex - position.blockIndex;
+    }
+
+    return match.start - position.offset;
+  };
+
+  const firstSearchMatchIndex = (matches: Fb2SearchMatch[], direction: SearchDirection) => {
+    const position = currentSearchPosition();
+
+    if (direction === 'next') {
+      const index = matches.findIndex(
+        (match) => compareSearchMatchToPosition(match, position) >= 0,
+      );
+
+      return index === -1 ? 0 : index;
+    }
+
+    for (let index = matches.length - 1; index >= 0; index -= 1) {
+      if (compareSearchMatchToPosition(matches[index], position) <= 0) {
+        return index;
+      }
+    }
+
+    return matches.length - 1;
+  };
+
+  const scrollToSearchMatch = (match: Fb2SearchMatch) => {
+    const findRenderedMatch = () =>
+      rootRef?.querySelector<HTMLElement>(`[data-search-match="${match.key}"]`);
+
+    const focusRenderedMatch = () => {
+      const element = findRenderedMatch();
+
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        updateScrollPosition();
+        return;
+      }
+
+      scrollToBlockIndex(match.blockIndex, 'instant');
+      searchScrollFrame = requestAnimationFrame(() => {
+        searchScrollFrame = undefined;
+        findRenderedMatch()?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        updateScrollPosition();
+      });
+    };
+
+    if (searchScrollFrame !== undefined) {
+      cancelAnimationFrame(searchScrollFrame);
+    }
+
+    searchScrollFrame = requestAnimationFrame(() => {
+      searchScrollFrame = undefined;
+      focusRenderedMatch();
+    });
+  };
+
+  const search = (direction: SearchDirection) => {
+    const query = normalizeSearchQuery(searchValue());
+
+    if (!query) {
+      setSearchMatches([]);
+      setActiveSearchIndex(undefined);
+      executedSearchQuery = query;
+      return;
+    }
+
+    const activeIndex = activeSearchIndex();
+    const isContinuation =
+      executedSearchQuery === query && activeIndex !== undefined && searchMatches().length > 0;
+    let matches = searchMatches();
+
+    if (!isContinuation) {
+      matches = findFb2SearchMatches(parsed().blocks, query);
+      setSearchMatches(matches);
+
+      if (matches.length === 0) {
+        setActiveSearchIndex(undefined);
+        executedSearchQuery = query;
+        return;
+      }
+
+      const nextIndex = firstSearchMatchIndex(matches, direction);
+      setActiveSearchIndex(nextIndex);
+      executedSearchQuery = query;
+      scrollToSearchMatch(matches[nextIndex]);
+      return;
+    }
+
+    const nextIndex =
+      direction === 'next'
+        ? (activeIndex + 1) % matches.length
+        : (activeIndex - 1 + matches.length) % matches.length;
+    setActiveSearchIndex(nextIndex);
+    scrollToSearchMatch(matches[nextIndex]);
+  };
+
+  const searchRangesForBlock = (blockIndex: number) => {
+    const activeIndex = activeSearchIndex();
+
+    return searchMatches()
+      .map((match, index) => ({
+        match,
+        index,
+      }))
+      .filter(({ match }) => match.blockIndex === blockIndex)
+      .map(({ match, index }) => ({ ...match, active: index === activeIndex }));
   };
 
   const onTocSelect = (_entry: TocEntry, path: number[]) => {
@@ -880,6 +1034,10 @@ function Fb2Reader(props: {
     if (resetAnchorFrame !== undefined) {
       cancelAnimationFrame(resetAnchorFrame);
     }
+
+    if (searchScrollFrame !== undefined) {
+      cancelAnimationFrame(searchScrollFrame);
+    }
   });
 
   return (
@@ -890,6 +1048,9 @@ function Fb2Reader(props: {
         headerContent={props.headerContent}
         searchValue={searchValue()}
         onSearchValueChange={setSearchValue}
+        searchCount={searchCount()}
+        onSearchNext={() => search('next')}
+        onSearchPrevious={() => search('previous')}
         bottomContent={<span>{progressPercent()}%</span>}
         markerStyles={markerStyles()}
         availableTextWidth={availableTextWidth()}
@@ -990,6 +1151,7 @@ function Fb2Reader(props: {
                   onInternalLink={onInternalLink}
                   onFootnoteLink={onFootnoteLink}
                   isFootnoteTarget={isFootnoteTarget}
+                  searchRanges={searchRangesForBlock(item.index)}
                 />
               </div>
             )}

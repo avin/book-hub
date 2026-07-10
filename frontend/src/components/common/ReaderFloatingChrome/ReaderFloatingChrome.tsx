@@ -1,5 +1,5 @@
 import { onCleanup, onMount, Show, type JSX } from 'solid-js';
-import { ChevronDown, ChevronUp, Search } from 'lucide-solid';
+import { ChevronDown, ChevronUp, Search, X } from 'lucide-solid';
 import Button from '@/components/common/Button/Button';
 import TextInput from '@/components/common/TextInput/TextInput';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -141,6 +141,16 @@ function ReaderFloatingChrome(props: {
                 title={t('findNext')}
                 disabled={!props.onSearchNext}
                 onClick={props.onSearchNext}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                iconOnly
+                type="button"
+                iconStart={<X />}
+                aria-label={t('closeSearch')}
+                title={t('closeSearch')}
+                onClick={props.onClose}
               />
               <span
                 class={styles.searchCount}
