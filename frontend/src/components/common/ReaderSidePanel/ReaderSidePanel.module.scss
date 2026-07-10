@@ -11,13 +11,12 @@
   z-index: 45;
   display: flex;
   flex-direction: column;
-  gap: $space-5;
   width: min(380px, calc(100vw - #{$space-8}));
-  padding: $space-5;
   border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
   border-radius: $radius-lg;
   background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
   backdrop-filter: blur(16px) saturate(180%);
+  overflow: hidden;
   color: var(--text-primary);
   visibility: hidden;
   pointer-events: none;
@@ -37,6 +36,7 @@
   align-items: center;
   justify-content: space-between;
   gap: $space-4;
+  padding: $space-5;
 
   h2 {
     margin: 0;
@@ -54,6 +54,7 @@
   flex-direction: column;
   gap: $space-5;
   min-height: 0;
+  padding: 0 $space-5 0;
   overflow-y: auto;
 }
 
@@ -63,15 +64,5 @@
   flex-direction: column;
   gap: $space-3;
   margin-top: auto;
-}
-
-@media (max-width: 720px) {
-  .readerSidePanel {
-    top: calc(64px + #{$space-3});
-    right: $space-3;
-    bottom: $space-3;
-    width: calc(100vw - #{$space-6});
-    padding: $space-4;
-    transform: translateX(calc(100% + #{$space-3}));
-  }
+  padding: $space-5;
 }
