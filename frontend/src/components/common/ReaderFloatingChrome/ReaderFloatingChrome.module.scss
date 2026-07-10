@@ -31,20 +31,11 @@
 .secondaryBar {
   @include compact-shadow;
 
-  position: fixed;
-  top: 48px;
-  right: 0;
-  left: 0;
-  z-index: 41;
+  position: relative;
   padding: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
   background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
   backdrop-filter: blur(16px) saturate(180%);
-  transform: translateY(-80px);
-  transition:
-    transform $duration-base $ease-standard,
-    opacity $duration-base $ease-standard;
-  opacity: 0;
 }
 
 .visible {

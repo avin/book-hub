@@ -28,19 +28,15 @@ function ReaderFloatingChrome(props: {
           </div>
           {props.actions}
         </div>
-      </header>
 
-      <Show when={props.secondaryBar}>
-        {(secondaryBar) => (
-          <div
-            class={styles.secondaryBar}
-            classList={{ [styles.visible]: props.visible }}
-            onPointerEnter={props.onShow}
-          >
-            {secondaryBar()}
-          </div>
-        )}
-      </Show>
+        <Show when={props.secondaryBar}>
+          {(secondaryBar) => (
+            <div class={styles.secondaryBar} onPointerEnter={props.onShow}>
+              {secondaryBar()}
+            </div>
+          )}
+        </Show>
+      </header>
     </>
   );
 }
