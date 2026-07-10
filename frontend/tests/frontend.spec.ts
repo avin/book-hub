@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures';
 import type { Page } from '@playwright/test';
+import * as bookMocks from './mocks/books';
 import { login } from './support/api';
 
 const readerBookId = '00000000-0000-0000-0000-000000000101';
@@ -231,7 +232,7 @@ test('поиск FB2 запускается явно, подсвечивает �
   await previousButton.click();
   await expect(search.getByText('1/1')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Закрыть поиск' }).click();
+  await searchInput.press('Escape');
   await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
   await page.mouse.move(10, 10);
   await expect(searchInput).toHaveValue('  тестовой   сноски  ');
@@ -496,4 +497,92 @@ test('PDF reader показывает физическую страницу и �
   await pageInput.fill('0');
   await pageInput.blur();
   await expect(pageInput).toHaveValue('1');
+});
+
+test('PDF reader ищет по текстовым слоям, подсвечивает совпадения и синхронизирует страницу', async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
+  await page.mouse.move(10, 10);
+
+  const search = page.getByRole('search');
+  const searchInput = search.getByRole('searchbox');
+  const nextButton = search.getByRole('button', { name: 'Найти следующее' });
+  const previousButton = search.getByRole('button', { name: 'Найти предыдущее' });
+
+  await searchInput.fill('Page');
+  await expect(search.getByText('0/0')).toBeVisible();
+  await searchInput.press('Enter');
+  await expect(search.getByText('1/2')).toBeVisible();
+  await expect(page.locator('mark[data-search-match]')).toHaveCount(2);
+  await expect(page.locator('mark[data-search-match][data-search-active="true"]')).toHaveCount(1);
+
+  await searchInput.fill('One Page');
+  await expect(search.getByText('1/2')).toBeVisible();
+  await searchInput.press('Enter');
+  await expect(search.getByText('0/0')).toBeVisible();
+  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+
+  const pageInput = page.getByRole('spinbutton', { name: 'Номер страницы' });
+  await pageInput.fill('1');
+  await pageInput.press('Enter');
+  await searchInput.fill('Page');
+  await searchInput.press('Enter');
+  await expect(search.getByText('1/2')).toBeVisible();
+
+  const progressResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/v1/books/00000000-0000-0000-0000-000000000103/progress`) &&
+      response.request().method() === 'PUT',
+  );
+  await nextButton.click();
+  await expect(search.getByText('2/2')).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('2');
+  await progressResponse;
+
+  await previousButton.click();
+  await expect(search.getByText('1/2')).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+
+  await nextButton.click();
+  await expect(search.getByText('2/2')).toBeVisible();
+  await nextButton.click();
+  await expect(search.getByText('1/2')).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+
+  await page.locator('[data-page-number="1"]').dispatchEvent('click');
+  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+  await expect(searchInput).toHaveValue('Page');
+
+  await page.mouse.move(10, 10);
+  await searchInput.press('Enter');
+  await expect(search.getByText('2/2')).toBeVisible();
+
+  await searchInput.press('Escape');
+  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
+  await expect(searchInput).toHaveValue('Page');
+});
+
+test('PDF без текстового слоя не запускает OCR и не показывает совпадения', async ({ page }) => {
+  await login(page);
+  await page.route('**/api/v1/books/00000000-0000-0000-0000-000000000102/file', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/pdf',
+      body: bookMocks.pdfFileWithoutText,
+    }),
+  );
+  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
+  await page.mouse.move(10, 10);
+
+  const search = page.getByRole('search');
+  const searchInput = search.getByRole('searchbox');
+
+  await searchInput.fill('текст');
+  await searchInput.press('Enter');
+  await expect(search.getByText('0/0')).toBeVisible();
+  await expect(page.locator('mark[data-search-match]')).toHaveCount(0);
 });

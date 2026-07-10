@@ -141,6 +141,36 @@ startxref
 791
 %%EOF`;
 
+export const pdfFileWithoutText = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 360 520] /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 87 >>
+stream
+q 0.5 g 56 400 240 30 re f Q${' '.repeat(59)}
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000000 00000 f
+0000000216 00000 n
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+353
+%%EOF`;
+
 export const req = {
   list: { method: 'POST', path: '/v1/books/query' },
   tags: { method: 'GET', path: '/v1/books/tags' },

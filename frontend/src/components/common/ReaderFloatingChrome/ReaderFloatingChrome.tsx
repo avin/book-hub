@@ -111,7 +111,7 @@ function ReaderFloatingChrome(props: {
                 <TextInput
                   ref={searchInputRef}
                   class={styles.searchInput}
-                  type="text"
+                  type="search"
                   value={props.searchValue ?? ''}
                   placeholder={t('bookSearch')}
                   aria-label={t('bookSearch')}
