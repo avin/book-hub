@@ -8,9 +8,14 @@ const labelKey: Record<ThemeId, MessageKey> = {
   'light-clay': 'themeLightClay',
   'light-slate': 'themeLightSlate',
   'light-sage': 'themeLightSage',
+  'light-peach': 'themeLightPeach',
+  'light-sand': 'themeLightSand',
+  'light-mint': 'themeLightMint',
   'dark-ink': 'themeDarkInk',
   'dark-green': 'themeDarkGreen',
   'dark-graphite': 'themeDarkGraphite',
+  'dark-ocean': 'themeDarkOcean',
+  'dark-amethyst': 'themeDarkAmethyst',
 };
 
 function Swatch(props: { themeId: ThemeId }) {

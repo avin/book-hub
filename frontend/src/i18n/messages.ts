@@ -429,6 +429,18 @@ export const messages = {
     ru: 'Шалфей',
     en: 'Sage',
   },
+  themeLightPeach: {
+    ru: 'Персик',
+    en: 'Peach',
+  },
+  themeLightSand: {
+    ru: 'Песок',
+    en: 'Sand',
+  },
+  themeLightMint: {
+    ru: 'Мята',
+    en: 'Mint',
+  },
   themeDarkInk: {
     ru: 'Чернила',
     en: 'Ink',
@@ -440,6 +452,14 @@ export const messages = {
   themeDarkGraphite: {
     ru: 'Графит',
     en: 'Graphite',
+  },
+  themeDarkOcean: {
+    ru: 'Океан',
+    en: 'Ocean',
+  },
+  themeDarkAmethyst: {
+    ru: 'Аметист',
+    en: 'Amethyst',
   },
   changePassword: {
     ru: 'Смена пароля',
