@@ -17,6 +17,42 @@ export type PreparedBookFile = {
   coverFile?: File;
 };
 
+export type BookPreparationOptions = {
+  signal?: AbortSignal;
+};
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw new DOMException('The operation was aborted', 'AbortError');
+  }
+}
+
+function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) {
+    return promise;
+  }
+
+  throwIfAborted(signal);
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      reject(new DOMException('The operation was aborted', 'AbortError'));
+    };
+
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 function bookTitle(authors: string[], title: string | undefined) {
   const normalizedTitle = title?.trim();
   const normalizedAuthors = authors.map((author) => author.trim()).filter(Boolean);
@@ -125,8 +161,72 @@ async function compressCover(blob: Blob, bookFileName: string) {
   return new File([compressedBlob], coverFileName(bookFileName, 'jpg'), { type: 'image/jpeg' });
 }
 
-async function extractFb2Cover(file: File): Promise<PreparedBookFile> {
-  const fb2Document = parseFb2(await readFb2BlobText(file));
+async function withPdfDocument<T>(
+  file: File,
+  signal: AbortSignal | undefined,
+  run: (pdfDocument: pdfjs.PDFDocumentProxy) => Promise<T>,
+): Promise<T> {
+  throwIfAborted(signal);
+  const arrayBuffer = await abortable(file.arrayBuffer(), signal);
+  throwIfAborted(signal);
+
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(arrayBuffer),
+    ...pdfjsDocumentParams,
+  });
+  let pdfDocument: pdfjs.PDFDocumentProxy | undefined;
+
+  const destroyLoadingTask = () => {
+    void loadingTask.destroy();
+  };
+  signal?.addEventListener('abort', destroyLoadingTask, { once: true });
+
+  try {
+    pdfDocument = await abortable(loadingTask.promise, signal);
+    throwIfAborted(signal);
+
+    return await run(pdfDocument);
+  } finally {
+    signal?.removeEventListener('abort', destroyLoadingTask);
+    if (pdfDocument) {
+      await pdfDocument.cleanup();
+    }
+    await loadingTask.destroy();
+  }
+}
+
+async function extractPdfCover(
+  file: File,
+  options?: BookPreparationOptions,
+): Promise<PreparedBookFile> {
+  const signal = options?.signal;
+
+  return withPdfDocument(file, signal, async (pdfDocument) => {
+    const page = await abortable(pdfDocument.getPage(1), signal);
+    const viewport = page.getViewport({ scale: 1 });
+    const scale = Math.min(2, MAX_COVER_WIDTH / viewport.width, MAX_COVER_HEIGHT / viewport.height);
+    const renderViewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+
+    canvas.width = Math.max(1, Math.round(renderViewport.width));
+    canvas.height = Math.max(1, Math.round(renderViewport.height));
+
+    await abortable(page.render({ canvas, viewport: renderViewport }).promise, signal);
+
+    const coverBlob = await canvasToBlob(canvas, 'image/jpeg', COVER_QUALITY);
+    return {
+      coverFile: new File([coverBlob], coverFileName(file.name, 'jpg'), { type: 'image/jpeg' }),
+    };
+  });
+}
+
+async function extractFb2Cover(
+  file: File,
+  options?: BookPreparationOptions,
+): Promise<PreparedBookFile> {
+  throwIfAborted(options?.signal);
+  const fb2Document = parseFb2(await abortable(readFb2BlobText(file), options?.signal));
+  throwIfAborted(options?.signal);
   const coverImageId = fb2Document.blocks.find(
     (block) => block.kind === 'image' && block.role === 'metadata',
   )?.imageId;
@@ -141,54 +241,36 @@ async function extractFb2Cover(file: File): Promise<PreparedBookFile> {
   };
 }
 
-async function extractPdfCover(file: File): Promise<PreparedBookFile> {
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(await file.arrayBuffer()),
-    ...pdfjsDocumentParams,
-  });
-  const pdfDocument = await loadingTask.promise;
-
-  try {
-    const page = await pdfDocument.getPage(1);
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(2, MAX_COVER_WIDTH / viewport.width, MAX_COVER_HEIGHT / viewport.height);
-    const renderViewport = page.getViewport({ scale });
-    const canvas = document.createElement('canvas');
-
-    canvas.width = Math.max(1, Math.round(renderViewport.width));
-    canvas.height = Math.max(1, Math.round(renderViewport.height));
-
-    await page.render({ canvas, viewport: renderViewport }).promise;
-
-    const coverBlob = await canvasToBlob(canvas, 'image/jpeg', COVER_QUALITY);
-    return {
-      coverFile: new File([coverBlob], coverFileName(file.name, 'jpg'), { type: 'image/jpeg' }),
-    };
-  } finally {
-    await pdfDocument.cleanup();
-    await loadingTask.destroy();
-  }
-}
-
-export async function prepareBookFile(file: File): Promise<PreparedBookFile> {
+export async function prepareBookFile(
+  file: File,
+  options?: BookPreparationOptions,
+): Promise<PreparedBookFile> {
   if (isFb2(file)) {
-    return extractFb2Cover(file);
+    return extractFb2Cover(file, options);
   }
 
   if (isPdf(file)) {
-    return extractPdfCover(file);
+    return extractPdfCover(file, options);
   }
 
   return {};
 }
 
-export async function prepareCoverFile(file: File, bookFileName: string) {
+export async function prepareCoverFile(
+  file: File,
+  bookFileName: string,
+  options?: BookPreparationOptions,
+) {
+  throwIfAborted(options?.signal);
   return (await compressCover(file, bookFileName)) ?? file;
 }
 
-export async function extractBookTitle(file: File) {
+export async function extractBookTitle(file: File, options?: BookPreparationOptions) {
+  const signal = options?.signal;
+
   if (isFb2(file)) {
-    const fb2Document = parseFb2(await readFb2BlobText(file));
+    throwIfAborted(signal);
+    const fb2Document = parseFb2(await abortable(readFb2BlobText(file), signal));
     return bookTitle(fb2Document.authors, fb2Document.title);
   }
 
@@ -196,14 +278,8 @@ export async function extractBookTitle(file: File) {
     return '';
   }
 
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(await file.arrayBuffer()),
-    ...pdfjsDocumentParams,
-  });
-  const pdfDocument = await loadingTask.promise;
-
-  try {
-    const metadata = await pdfDocument.getMetadata();
+  return withPdfDocument(file, signal, async (pdfDocument) => {
+    const metadata = await abortable(pdfDocument.getMetadata(), signal);
     const info = metadata.info as { Title?: unknown; Author?: unknown };
     const metadataTitle = metadata.metadata?.get('dc:title') ?? metadata.metadata?.get('Title');
     const metadataAuthor = metadata.metadata?.get('dc:creator') ?? metadata.metadata?.get('Author');
@@ -221,8 +297,5 @@ export async function extractBookTitle(file: File) {
           : '';
 
     return bookTitle(author ? [author] : [], title);
-  } finally {
-    await pdfDocument.cleanup();
-    await loadingTask.destroy();
-  }
+  });
 }

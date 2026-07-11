@@ -92,6 +92,10 @@ function errorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
 function revokePreviewUrl(draft: BookDraft) {
   if (draft.coverPreviewUrl) {
     URL.revokeObjectURL(draft.coverPreviewUrl);
@@ -109,6 +113,7 @@ function UploadPage() {
   const [error, setError] = createSignal('');
   let fileInputEl: HTMLInputElement | undefined;
   const coverInputByDraftId = new Map<string, HTMLInputElement>();
+  const preparationAbortByDraftId = new Map<string, AbortController>();
   const activeDraftIds = new Set<string>();
   let isPageActive = true;
   let batchInProgress = false;
@@ -121,6 +126,31 @@ function UploadPage() {
   });
   const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], drafts()));
   const canSubmit = createMemo(() => drafts().length > 0 && !uploading());
+
+  const beginDraftPreparation = (draftId: string) => {
+    preparationAbortByDraftId.get(draftId)?.abort();
+    const controller = new AbortController();
+    preparationAbortByDraftId.set(draftId, controller);
+    return controller;
+  };
+
+  const finishDraftPreparation = (draftId: string, controller: AbortController) => {
+    if (preparationAbortByDraftId.get(draftId) === controller) {
+      preparationAbortByDraftId.delete(draftId);
+    }
+  };
+
+  const cancelDraftPreparation = (draftId: string) => {
+    preparationAbortByDraftId.get(draftId)?.abort();
+    preparationAbortByDraftId.delete(draftId);
+  };
+
+  const cancelAllDraftPreparations = () => {
+    for (const controller of preparationAbortByDraftId.values()) {
+      controller.abort();
+    }
+    preparationAbortByDraftId.clear();
+  };
 
   const updateDraft = (id: string, updater: (draft: BookDraft) => BookDraft) => {
     if (!isPageActive || !activeDraftIds.has(id)) {
@@ -171,9 +201,11 @@ function UploadPage() {
   };
 
   const prepareDraft = async (draft: BookDraft, generation: number) => {
+    const preparation = beginDraftPreparation(draft.id);
+
     try {
       const { prepareBookFile } = await loadCoverExtraction();
-      const prepared = await prepareBookFile(draft.file);
+      const prepared = await prepareBookFile(draft.file, { signal: preparation.signal });
       updatePreparedDraft(draft.id, generation, (currentDraft) => {
         if (currentDraft.coverSource === 'manual') {
           return currentDraft;
@@ -191,6 +223,10 @@ function UploadPage() {
         };
       });
     } catch (nextError) {
+      if (isAbortError(nextError)) {
+        return;
+      }
+
       updatePreparedDraft(draft.id, generation, (currentDraft) => ({
         ...currentDraft,
         coverStatus: currentDraft.coverSource === 'manual' ? currentDraft.coverStatus : 'failed',
@@ -199,6 +235,8 @@ function UploadPage() {
             ? currentDraft.coverError
             : errorMessage(nextError, t('coverCouldNotBeExtracted')),
       }));
+    } finally {
+      finishDraftPreparation(draft.id, preparation);
     }
   };
 
@@ -241,6 +279,7 @@ function UploadPage() {
     }
 
     const generation = preparationGeneration;
+    const preparation = beginDraftPreparation(id);
     updateDraft(id, (currentDraft) => ({
       ...currentDraft,
       titleExtracting: true,
@@ -249,7 +288,9 @@ function UploadPage() {
 
     try {
       const { extractBookTitle } = await loadCoverExtraction();
-      const extractedTitle = (await extractBookTitle(draft.file)).trim();
+      const extractedTitle = (
+        await extractBookTitle(draft.file, { signal: preparation.signal })
+      ).trim();
       updatePreparedDraft(id, generation, (currentDraft) => ({
         ...currentDraft,
         title: extractedTitle || currentDraft.title,
@@ -258,11 +299,17 @@ function UploadPage() {
         uploadError: undefined,
       }));
     } catch (nextError) {
+      if (isAbortError(nextError)) {
+        return;
+      }
+
       updatePreparedDraft(id, generation, (currentDraft) => ({
         ...currentDraft,
         titleExtracting: false,
         titleError: errorMessage(nextError, t('titleCouldNotBeExtracted')),
       }));
+    } finally {
+      finishDraftPreparation(id, preparation);
     }
   };
 
@@ -272,6 +319,7 @@ function UploadPage() {
     }
 
     coverInputByDraftId.delete(id);
+    cancelDraftPreparation(id);
     activeDraftIds.delete(id);
     const draft = drafts().find((currentDraft) => currentDraft.id === id);
     if (draft) {
@@ -291,6 +339,7 @@ function UploadPage() {
     }
 
     const generation = preparationGeneration;
+    const preparation = beginDraftPreparation(id);
     setCover(id, file, 'pending');
 
     const draft = drafts().find((currentDraft) => currentDraft.id === id);
@@ -298,7 +347,9 @@ function UploadPage() {
 
     try {
       const { prepareCoverFile } = await loadCoverExtraction();
-      const preparedCover = await prepareCoverFile(file, bookFileName);
+      const preparedCover = await prepareCoverFile(file, bookFileName, {
+        signal: preparation.signal,
+      });
       updatePreparedDraft(id, generation, (currentDraft) => {
         if (currentDraft.coverFile !== file) {
           return currentDraft;
@@ -316,6 +367,10 @@ function UploadPage() {
         };
       });
     } catch (nextError) {
+      if (isAbortError(nextError)) {
+        return;
+      }
+
       updatePreparedDraft(id, generation, (currentDraft) => {
         if (currentDraft.coverFile !== file) {
           return currentDraft;
@@ -332,6 +387,8 @@ function UploadPage() {
           coverError: errorMessage(nextError, t('coverCouldNotBeExtracted')),
         };
       });
+    } finally {
+      finishDraftPreparation(id, preparation);
     }
   };
 
@@ -400,6 +457,7 @@ function UploadPage() {
     lockPage();
     batchInProgress = true;
     preparationGeneration += 1;
+    cancelAllDraftPreparations();
     finalizePreparationForUpload();
 
     try {
@@ -431,6 +489,7 @@ function UploadPage() {
   onCleanup(() => {
     isPageActive = false;
     preparationGeneration += 1;
+    cancelAllDraftPreparations();
     unlockPage();
 
     for (const draft of drafts()) {

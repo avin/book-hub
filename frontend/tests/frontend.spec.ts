@@ -327,6 +327,75 @@ test('ошибка загрузки обложки не отменяет усп�
   await expect(page).toHaveURL(/\/library$/);
 });
 
+test('ошибка подготовки одной книги не мешает загрузить остальные', async ({ page }) => {
+  await page.addInitScript(() => {
+    const originalArrayBuffer = Blob.prototype.arrayBuffer;
+    Blob.prototype.arrayBuffer = function () {
+      if (this instanceof File && this.name === 'Сломанная обложка.pdf') {
+        return Promise.reject(null);
+      }
+
+      return originalArrayBuffer.call(this);
+    };
+  });
+
+  await login(page);
+  await page.getByRole('link', { name: 'Загрузить книгу' }).click();
+  await page.locator('input[type="file"]').setInputFiles([
+    {
+      name: 'Сломанная обложка.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from(bookMocks.pdfFile),
+    },
+    {
+      name: 'Успешная книга.fb2',
+      mimeType: 'application/xml',
+      buffer: Buffer.from('<FictionBook/>'),
+    },
+  ]);
+
+  await expect(page.getByRole('article')).toHaveCount(2);
+  await expect(page.getByText('Не удалось извлечь обложку')).toBeVisible();
+  await expect(page.getByText('Обложка не найдена')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Загрузить книги' }).click();
+
+  await expect(page).toHaveURL(/\/library$/);
+});
+
+test('удаление черновика во время подготовки обложки не оставляет следов', async ({ page }) => {
+  await page.addInitScript(() => {
+    const originalArrayBuffer = Blob.prototype.arrayBuffer;
+    Blob.prototype.arrayBuffer = function () {
+      if (this instanceof File && this.name === 'Долгая подготовка.pdf') {
+        return new Promise((resolve, reject) => {
+          window.setTimeout(() => {
+            void originalArrayBuffer.call(this).then(resolve, reject);
+          }, 1_000);
+        });
+      }
+
+      return originalArrayBuffer.call(this);
+    };
+  });
+
+  await login(page);
+  await page.getByRole('link', { name: 'Загрузить книгу' }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'Долгая подготовка.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from(bookMocks.pdfFile),
+  });
+
+  await expect(page.getByText('Извлекаем обложку')).toBeVisible();
+  await page.getByRole('button', { name: 'Убрать' }).click();
+
+  await expect(page.getByRole('article')).toHaveCount(0);
+  await page.waitForTimeout(1_500);
+  await expect(page.getByRole('article')).toHaveCount(0);
+  await expect(page.getByText('Извлекаем обложку')).toHaveCount(0);
+});
+
 test('настройки меняют тему, валидируют пароль и сбрасывают прогресс', async ({ page }) => {
   await login(page);
   await page.getByRole('link', { name: 'Настройки' }).click();
