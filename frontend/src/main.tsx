@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { render } from 'solid-js/web';
 import App from './components/App/App';
+import PageLockerProvider from './components/common/PageLockerProvider/PageLockerProvider';
 import { I18nProvider } from './i18n/I18nProvider';
 import ProfileLanguageSync from './i18n/ProfileLanguageSync';
 import ThemeSync from './styles/ThemeSync';
@@ -18,9 +19,11 @@ render(
   () => (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <ProfileLanguageSync />
-        <ThemeSync />
-        <App />
+        <PageLockerProvider>
+          <ProfileLanguageSync />
+          <ThemeSync />
+          <App />
+        </PageLockerProvider>
       </I18nProvider>
     </QueryClientProvider>
   ),

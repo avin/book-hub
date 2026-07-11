@@ -11,6 +11,7 @@ import {
 } from '@/api/books';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
+import usePageLocker from '@/components/common/PageLockerProvider/usePageLocker';
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import TextInput from '@/components/common/TextInput/TextInput';
 import AppLayout from '@/components/layouts/AppLayout/AppLayout';
@@ -34,7 +35,6 @@ type BookDraft = {
   titleError?: string;
   uploadStatus: UploadStatus;
   uploadError?: string;
-  uploadedBookId?: string;
 };
 
 let coverExtractionModule: Promise<typeof import('./coverExtraction')> | undefined;
@@ -102,12 +102,17 @@ function UploadPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { lockPage, unlockPage } = usePageLocker();
   const [drafts, setDrafts] = createSignal<BookDraft[]>([]);
   const [dragActive, setDragActive] = createSignal(false);
   const [uploading, setUploading] = createSignal(false);
   const [error, setError] = createSignal('');
   let fileInputEl: HTMLInputElement | undefined;
   const coverInputByDraftId = new Map<string, HTMLInputElement>();
+  const activeDraftIds = new Set<string>();
+  let isPageActive = true;
+  let batchInProgress = false;
+  let preparationGeneration = 0;
   const bookTagsQuery = createBookTagsQuery();
 
   const selectedBooksText = createMemo(() => {
@@ -115,18 +120,33 @@ function UploadPage() {
     return count > 0 ? t('booksSelected').replace('{count}', String(count)) : t('fileNotSelected');
   });
   const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], drafts()));
-  const preparingCovers = createMemo(() =>
-    drafts().some((draft) => draft.coverStatus === 'pending'),
-  );
-  const preparingTitles = createMemo(() => drafts().some((draft) => draft.titleExtracting));
-  const canSubmit = createMemo(
-    () => drafts().length > 0 && !uploading() && !preparingCovers() && !preparingTitles(),
-  );
+  const canSubmit = createMemo(() => drafts().length > 0 && !uploading());
 
   const updateDraft = (id: string, updater: (draft: BookDraft) => BookDraft) => {
+    if (!isPageActive || !activeDraftIds.has(id)) {
+      return;
+    }
+
     setDrafts((currentDrafts) =>
       currentDrafts.map((draft) => (draft.id === id ? updater(draft) : draft)),
     );
+  };
+
+  const updatePreparedDraft = (
+    id: string,
+    generation: number,
+    updater: (draft: BookDraft) => BookDraft,
+  ) => {
+    if (
+      !isPageActive ||
+      batchInProgress ||
+      generation !== preparationGeneration ||
+      !activeDraftIds.has(id)
+    ) {
+      return;
+    }
+
+    updateDraft(id, updater);
   };
 
   const setCover = (
@@ -150,11 +170,11 @@ function UploadPage() {
     });
   };
 
-  const prepareDraft = async (draft: BookDraft) => {
+  const prepareDraft = async (draft: BookDraft, generation: number) => {
     try {
       const { prepareBookFile } = await loadCoverExtraction();
       const prepared = await prepareBookFile(draft.file);
-      updateDraft(draft.id, (currentDraft) => {
+      updatePreparedDraft(draft.id, generation, (currentDraft) => {
         if (currentDraft.coverSource === 'manual') {
           return currentDraft;
         }
@@ -171,7 +191,7 @@ function UploadPage() {
         };
       });
     } catch (nextError) {
-      updateDraft(draft.id, (currentDraft) => ({
+      updatePreparedDraft(draft.id, generation, (currentDraft) => ({
         ...currentDraft,
         coverStatus: currentDraft.coverSource === 'manual' ? currentDraft.coverStatus : 'failed',
         coverError:
@@ -204,10 +224,13 @@ function UploadPage() {
       return;
     }
 
+    for (const draft of nextDrafts) {
+      activeDraftIds.add(draft.id);
+    }
     setDrafts((currentDrafts) => [...currentDrafts, ...nextDrafts]);
     setError('');
     for (const draft of nextDrafts) {
-      void prepareDraft(draft);
+      void prepareDraft(draft, preparationGeneration);
     }
   };
 
@@ -217,6 +240,7 @@ function UploadPage() {
       return;
     }
 
+    const generation = preparationGeneration;
     updateDraft(id, (currentDraft) => ({
       ...currentDraft,
       titleExtracting: true,
@@ -226,7 +250,7 @@ function UploadPage() {
     try {
       const { extractBookTitle } = await loadCoverExtraction();
       const extractedTitle = (await extractBookTitle(draft.file)).trim();
-      updateDraft(id, (currentDraft) => ({
+      updatePreparedDraft(id, generation, (currentDraft) => ({
         ...currentDraft,
         title: extractedTitle || currentDraft.title,
         titleExtracting: false,
@@ -234,7 +258,7 @@ function UploadPage() {
         uploadError: undefined,
       }));
     } catch (nextError) {
-      updateDraft(id, (currentDraft) => ({
+      updatePreparedDraft(id, generation, (currentDraft) => ({
         ...currentDraft,
         titleExtracting: false,
         titleError: errorMessage(nextError, t('titleCouldNotBeExtracted')),
@@ -243,7 +267,12 @@ function UploadPage() {
   };
 
   const removeDraft = (id: string) => {
+    if (!isPageActive || !activeDraftIds.has(id)) {
+      return;
+    }
+
     coverInputByDraftId.delete(id);
+    activeDraftIds.delete(id);
     const draft = drafts().find((currentDraft) => currentDraft.id === id);
     if (draft) {
       revokePreviewUrl(draft);
@@ -261,6 +290,7 @@ function UploadPage() {
       return;
     }
 
+    const generation = preparationGeneration;
     setCover(id, file, 'pending');
 
     const draft = drafts().find((currentDraft) => currentDraft.id === id);
@@ -269,7 +299,7 @@ function UploadPage() {
     try {
       const { prepareCoverFile } = await loadCoverExtraction();
       const preparedCover = await prepareCoverFile(file, bookFileName);
-      updateDraft(id, (currentDraft) => {
+      updatePreparedDraft(id, generation, (currentDraft) => {
         if (currentDraft.coverFile !== file) {
           return currentDraft;
         }
@@ -286,7 +316,7 @@ function UploadPage() {
         };
       });
     } catch (nextError) {
-      updateDraft(id, (currentDraft) => {
+      updatePreparedDraft(id, generation, (currentDraft) => {
         if (currentDraft.coverFile !== file) {
           return currentDraft;
         }
@@ -305,6 +335,27 @@ function UploadPage() {
     }
   };
 
+  const finalizePreparationForUpload = () => {
+    setDrafts((currentDrafts) =>
+      currentDrafts.map((draft) => {
+        if (draft.coverStatus !== 'pending') {
+          return draft.titleExtracting ? { ...draft, titleExtracting: false } : draft;
+        }
+
+        revokePreviewUrl(draft);
+        return {
+          ...draft,
+          coverFile: undefined,
+          coverPreviewUrl: undefined,
+          coverSource: undefined,
+          coverStatus: 'missing',
+          coverError: undefined,
+          titleExtracting: false,
+        };
+      }),
+    );
+  };
+
   const uploadDraft = async (draft: BookDraft) => {
     updateDraft(draft.id, (currentDraft) => ({
       ...currentDraft,
@@ -312,21 +363,16 @@ function UploadPage() {
       uploadError: undefined,
     }));
 
-    let uploadedBookId = draft.uploadedBookId;
-
     try {
-      if (!uploadedBookId) {
-        const book = await uploadBook({
-          file: draft.file,
-          title: draft.title.trim(),
-          tags: draft.tags,
-          favorite: false,
-        });
-        uploadedBookId = book.id;
-      }
+      const book = await uploadBook({
+        file: draft.file,
+        title: draft.title.trim(),
+        tags: draft.tags,
+        favorite: false,
+      });
 
       if (draft.coverFile) {
-        await uploadBookCover(uploadedBookId, draft.coverFile);
+        await uploadBookCover(book.id, draft.coverFile).catch(() => undefined);
       }
 
       removeDraft(draft.id);
@@ -334,7 +380,6 @@ function UploadPage() {
     } catch (nextError) {
       updateDraft(draft.id, (currentDraft) => ({
         ...currentDraft,
-        uploadedBookId,
         uploadStatus: 'failed',
         uploadError: errorMessage(nextError, t('requestFailedTryAgain')),
       }));
@@ -352,31 +397,48 @@ function UploadPage() {
 
     setUploading(true);
     setError('');
+    lockPage();
+    batchInProgress = true;
+    preparationGeneration += 1;
+    finalizePreparationForUpload();
 
-    const uploadableDrafts = drafts();
-    const results: boolean[] = [];
-    for (const draft of uploadableDrafts) {
-      results.push(await uploadDraft(draft));
+    try {
+      const uploadableDrafts = drafts();
+      const results: boolean[] = [];
+      for (const draft of uploadableDrafts) {
+        results.push(await uploadDraft(draft));
+      }
+
+      if (!isPageActive) {
+        return;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: booksQueryKey });
+      await queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
+
+      if (isPageActive && results.every(Boolean)) {
+        navigate('/library');
+      }
+    } finally {
+      batchInProgress = false;
+      if (isPageActive) {
+        setUploading(false);
+      }
+      unlockPage();
     }
-
-    setUploading(false);
-    await queryClient.invalidateQueries({ queryKey: booksQueryKey });
-    await queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
-
-    if (results.every(Boolean)) {
-      navigate('/library');
-      return;
-    }
-
-    setError(t('someBooksNotUploaded'));
   };
 
   onCleanup(() => {
+    isPageActive = false;
+    preparationGeneration += 1;
+    unlockPage();
+
     for (const draft of drafts()) {
       revokePreviewUrl(draft);
     }
 
     coverInputByDraftId.clear();
+    activeDraftIds.clear();
   });
 
   return (
@@ -434,7 +496,7 @@ function UploadPage() {
                         type="button"
                         class={styles.coverButton}
                         aria-label={t('uploadCover')}
-                        disabled={uploading()}
+                        disabled={uploading() || draft().coverStatus === 'pending'}
                         onClick={() => coverInputByDraftId.get(draft().id)?.click()}
                       >
                         <span class={styles.coverPreview}>
@@ -456,7 +518,7 @@ function UploadPage() {
                         class={styles.fileInput}
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
-                        disabled={uploading()}
+                        disabled={uploading() || draft().coverStatus === 'pending'}
                         onChange={(event) => {
                           void handleCoverChange(draft().id, event.currentTarget.files?.[0]);
                           event.currentTarget.value = '';

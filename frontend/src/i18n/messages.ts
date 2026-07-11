@@ -373,10 +373,6 @@ export const messages = {
     ru: 'Загрузить книги',
     en: 'Upload books',
   },
-  someBooksNotUploaded: {
-    ru: 'Некоторые книги не удалось загрузить. Проверьте ошибки в списке.',
-    en: 'Some books could not be uploaded. Check errors in the list.',
-  },
   remove: {
     ru: 'Убрать',
     en: 'Remove',
