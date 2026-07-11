@@ -129,6 +129,30 @@ export const messages = {
     ru: 'Фильтры PDF',
     en: 'PDF filters',
   },
+  textEnhancement: {
+    ru: 'Усиление текста',
+    en: 'Text enhancement',
+  },
+  strokeWidth: {
+    ru: 'Толщина штриха',
+    en: 'Stroke width',
+  },
+  threshold: {
+    ru: 'Порог',
+    en: 'Threshold',
+  },
+  contrast: {
+    ru: 'Контраст',
+    en: 'Contrast',
+  },
+  grayLevels: {
+    ru: 'Уровни серого',
+    en: 'Gray levels',
+  },
+  toneShift: {
+    ru: 'Сдвиг тона',
+    en: 'Tone shift',
+  },
   invert: {
     ru: 'Инверсия',
     en: 'Invert',

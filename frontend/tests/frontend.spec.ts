@@ -739,7 +739,7 @@ test('PDF reader открывает панель фильтров и показ�
   const panel = page
     .locator('aside')
     .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
-  const invert = panel.getByRole('checkbox');
+  const invert = panel.getByRole('checkbox', { name: 'Инверсия' });
   const strength = panel.getByRole('slider', { name: 'Сила' });
 
   await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeHidden();
@@ -781,6 +781,91 @@ test('PDF reader открывает панель фильтров и показ�
   }
 });
 
+test('PDF reader настраивает усиление текста, применяет его после ползунка и сбрасывает цепочку', async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
+
+  const panel = page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
+  const enhancement = panel.getByRole('checkbox', { name: 'Усиление текста' });
+  const parameterNames = ['Толщина штриха', 'Порог', 'Контраст', 'Уровни серого', 'Сдвиг тона'];
+
+  await expect(enhancement).not.toBeChecked();
+  for (const name of parameterNames) {
+    await expect(panel.getByRole('slider', { name })).toBeHidden();
+  }
+
+  await enhancement.check();
+  await expect
+    .poll(async () => {
+      if (
+        await panel
+          .getByRole('alert')
+          .isVisible()
+          .catch(() => false)
+      )
+        return 'unavailable';
+      if (
+        await panel
+          .getByRole('slider', { name: 'Толщина штриха' })
+          .isVisible()
+          .catch(() => false)
+      ) {
+        return 'available';
+      }
+      return 'pending';
+    })
+    .toMatch(/available|unavailable/);
+
+  if (await panel.getByRole('slider', { name: 'Толщина штриха' }).isVisible()) {
+    await expect(panel.getByRole('slider', { name: 'Толщина штриха' })).toHaveValue('0.7');
+    await expect(panel.getByRole('slider', { name: 'Порог' })).toHaveValue('0.62');
+    await expect(panel.getByRole('slider', { name: 'Контраст' })).toHaveValue('1.85');
+    await expect(panel.getByRole('slider', { name: 'Уровни серого' })).toHaveValue('8');
+    await expect(panel.getByRole('slider', { name: 'Сдвиг тона' })).toHaveValue('-0.65');
+
+    await dragRangeToEnd(page, panel.getByRole('slider', { name: 'Порог' }));
+    await expect(panel.getByRole('slider', { name: 'Порог' })).not.toHaveValue('0.62');
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
+          return preferences.readers?.pdf?.filterChains?.[
+            '00000000-0000-0000-0000-000000000103'
+          ]?.[0]?.threshold;
+        }),
+      )
+      .not.toBe(0.62);
+
+    const searchInput = page.getByRole('search').getByRole('searchbox');
+    await searchInput.fill('Page');
+    await searchInput.press('Enter');
+    await expect(page.getByTestId('pdf-text-layer').locator('.highlight')).toHaveCount(2);
+
+    await panel.getByRole('button', { name: 'Сбросить все' }).click();
+    await expect(enhancement).not.toBeChecked();
+    await expect(panel.getByRole('checkbox', { name: 'Инверсия' })).not.toBeChecked();
+    for (const name of parameterNames) {
+      await expect(panel.getByRole('slider', { name })).toBeHidden();
+    }
+
+    await enhancement.check();
+    await expect(panel.getByRole('slider', { name: 'Толщина штриха' })).toHaveValue('0.7');
+    await expect(panel.getByRole('slider', { name: 'Порог' })).toHaveValue('0.62');
+    await expect(panel.getByRole('slider', { name: 'Контраст' })).toHaveValue('1.85');
+    await expect(panel.getByRole('slider', { name: 'Уровни серого' })).toHaveValue('8');
+    await expect(panel.getByRole('slider', { name: 'Сдвиг тона' })).toHaveValue('-0.65');
+  } else {
+    await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
+  }
+});
+
 test('PDF reader сохраняет фильтры отдельно для каждой книги', async ({ page }) => {
   await login(page);
   await page.evaluate(() => {
@@ -806,7 +891,7 @@ test('PDF reader сохраняет фильтры отдельно для ка�
   const firstPanel = page
     .locator('aside')
     .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
-  await expect(firstPanel.getByRole('checkbox')).toBeChecked();
+  await expect(firstPanel.getByRole('checkbox', { name: 'Инверсия' })).toBeChecked();
 
   await page.goto('/library');
   await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
@@ -816,7 +901,7 @@ test('PDF reader сохраняет фильтры отдельно для ка�
   const secondPanel = page
     .locator('aside')
     .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
-  await expect(secondPanel.getByRole('checkbox')).not.toBeChecked();
+  await expect(secondPanel.getByRole('checkbox', { name: 'Инверсия' })).not.toBeChecked();
 });
 
 test('PDF reader сохраняет исходное отображение без WebGL', async ({ page }) => {
@@ -842,7 +927,7 @@ test('PDF reader сохраняет исходное отображение бе
   const panel = page
     .locator('aside')
     .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
-  await panel.getByRole('checkbox').check();
+  await panel.getByRole('checkbox', { name: 'Инверсия' }).check();
   await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
 });

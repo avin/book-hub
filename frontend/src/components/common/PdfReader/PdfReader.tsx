@@ -46,6 +46,7 @@ import {
   hasEnabledPdfFilters,
   invertFilterFromChain,
   pdfFilterChainKey,
+  textEnhancementFilterFromChain,
   type PdfFilterChain,
 } from './pdfFilters';
 import { createPdfWebglFilterRenderer, isPdfWebglAvailable } from './pdfWebglFilter';
@@ -210,6 +211,7 @@ function PdfReader(props: {
   const tocLabel = createMemo(() => (tocAvailable() ? 'Оглавление' : 'Оглавление недоступно'));
   const filterKey = createMemo(() => pdfFilterChainKey(filterChain()));
   const filtersEnabled = createMemo(() => hasEnabledPdfFilters(filterChain()));
+  const textEnhancementFilter = createMemo(() => textEnhancementFilterFromChain(filterChain()));
   const invertFilter = createMemo(() => invertFilterFromChain(filterChain()));
 
   const handleRulerPointer = (event: PointerEvent) => {
@@ -1139,6 +1141,23 @@ function PdfReader(props: {
     );
   };
 
+  const toggleTextEnhancement = (enabled: boolean) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) => (filter.id === 'textEnhancement' ? { ...filter, enabled } : filter)),
+    );
+  };
+
+  const updateTextEnhancementParameter = (
+    parameter: 'strokeWidth' | 'threshold' | 'contrast' | 'grayLevels' | 'toneShift',
+    value: number,
+  ) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) =>
+        filter.id === 'textEnhancement' ? { ...filter, [parameter]: value } : filter,
+      ),
+    );
+  };
+
   const updateInvertStrength = (strength: number) => {
     updateFilterChain((chain) =>
       chain.map((filter) =>
@@ -1340,10 +1359,15 @@ function PdfReader(props: {
 
       <PdfFilterPanel
         open={filterPanelOpen()}
-        filter={invertFilter() ?? defaultPdfFilterChain()[0]}
+        textEnhancementFilter={
+          textEnhancementFilter() ?? textEnhancementFilterFromChain(defaultPdfFilterChain())!
+        }
+        invertFilter={invertFilter() ?? invertFilterFromChain(defaultPdfFilterChain())!}
         available={!filterError()}
         unavailableMessage={filterError() ? t('pdfFiltersUnavailable') : undefined}
         onClose={() => setFilterPanelOpen(false)}
+        onToggleTextEnhancement={toggleTextEnhancement}
+        onTextEnhancementParameterChange={updateTextEnhancementParameter}
         onToggleInvert={toggleInvert}
         onStrengthChange={updateInvertStrength}
         onReset={resetFilters}

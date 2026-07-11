@@ -1,5 +1,9 @@
 import { I18nProvider } from '@/i18n/I18nProvider';
-import { defaultPdfFilterChain } from '../pdfFilters';
+import {
+  defaultPdfFilterChain,
+  invertFilterFromChain,
+  textEnhancementFilterFromChain,
+} from '../pdfFilters';
 import PdfFilterPanel from './PdfFilterPanel';
 
 export default {
@@ -10,9 +14,12 @@ export const Default = () => (
   <I18nProvider>
     <PdfFilterPanel
       open
-      filter={defaultPdfFilterChain()[0]}
+      textEnhancementFilter={textEnhancementFilterFromChain(defaultPdfFilterChain())!}
+      invertFilter={invertFilterFromChain(defaultPdfFilterChain())!}
       available
       onClose={() => undefined}
+      onToggleTextEnhancement={() => undefined}
+      onTextEnhancementParameterChange={() => undefined}
       onToggleInvert={() => undefined}
       onStrengthChange={() => undefined}
       onReset={() => undefined}
