@@ -192,11 +192,48 @@ test('общий reader chrome открывается с клавиатуры и
   await expect(searchInput).toHaveValue('новый запрос');
   await searchInput.press('Escape');
 
+  const document = page.locator('main');
   await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'false');
+  await document.dispatchEvent('pointerup', { pointerType: 'touch', clientY: 300 });
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
+  await document.dispatchEvent('click');
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
+  await document.dispatchEvent('click');
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'false');
+
   await page.mouse.move(10, 10);
   await expect(searchInput).toHaveValue('новый запрос');
   await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
   await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
+});
+
+test('PDF reader использует те же правила открытия и закрытия chrome', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+
+  const document = page.locator('[data-page-number="1"]');
+  const searchInput = page.getByRole('search').getByRole('searchbox');
+
+  await expect(document.locator('canvas')).toBeVisible();
+  await page.mouse.move(10, 10);
+  await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
+
+  await document.dispatchEvent('click');
+  await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'false');
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'false');
+
+  await page.keyboard.press('Control+f');
+  await expect(searchInput).toBeFocused();
+  await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
+
+  await searchInput.press('Escape');
+  await document.dispatchEvent('pointerup', { pointerType: 'touch', clientY: 300 });
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
+  await document.dispatchEvent('click');
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'true');
+  await document.dispatchEvent('click');
+  await expect(page.getByTestId('reader-floating-footer')).toHaveAttribute('data-visible', 'false');
 });
 
 test('поиск FB2 запускается явно, подсвечивает сноски и циклически навигируется', async ({

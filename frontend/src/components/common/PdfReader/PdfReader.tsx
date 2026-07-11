@@ -20,6 +20,7 @@ import {
 import { ListTree } from 'lucide-solid';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
+import useReaderChrome from '@/components/common/ReaderChrome/useReaderChrome';
 import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
 import TextInput from '@/components/common/TextInput/TextInput';
 import TocPanel from '@/components/common/TocPanel/TocPanel';
@@ -53,8 +54,6 @@ type ScrollAnchor = {
 };
 
 const maxRenderPixelRatio = 2;
-const headerHideOffset = 128;
-const headerShowOffset = 72;
 const documentPaddingX = 20;
 const minPageWidth = 240;
 const minPageHalfWidth = 120;
@@ -130,8 +129,6 @@ function PdfReader(props: {
   let observer: IntersectionObserver | undefined;
   let observeFrame: number | undefined;
   let readyFrame: number | undefined;
-  let touchToggleClickTimeout: number | undefined;
-  let ignoreNextDocumentClick = false;
   let destroyed = false;
   let loadGeneration = 0;
   let lockedScrollAnchor: ScrollAnchor | undefined;
@@ -153,7 +150,6 @@ function PdfReader(props: {
   const [documentWidth, setDocumentWidth] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
-  const [headerVisible, setHeaderVisible] = createSignal(false);
   const [searchValue, setSearchValue] = createSignal('');
   const [searchCount, setSearchCount] = createSignal<{ current: number; total: number }>();
   const [currentPage, setCurrentPage] = createSignal(1);
@@ -868,7 +864,7 @@ function PdfReader(props: {
     target?.setPointerCapture(event.pointerId);
     lockedScrollAnchor = captureScrollAnchor();
     setDraggingWidth(true);
-    setHeaderVisible(true);
+    readerChrome.show();
     handleRulerPointer(event);
   };
 
@@ -954,58 +950,15 @@ function PdfReader(props: {
     setTocOpen((value) => !value);
   };
 
-  const closeChrome = () => {
-    setTocOpen(false);
-    setHeaderVisible(false);
-    clearSearchHighlights();
-  };
-
-  const isReaderInputFocused = () => document.activeElement instanceof HTMLInputElement;
-
-  const toggleChromeOnTouch = (event: PointerEvent) => {
-    if (
-      event.pointerType !== 'touch' ||
-      event.clientY < window.innerHeight * 0.25 ||
-      event.clientY > window.innerHeight * 0.75
-    ) {
-      return false;
-    }
-
-    setHeaderVisible((current) => !current);
-    ignoreNextDocumentClick = true;
-
-    if (touchToggleClickTimeout !== undefined) {
-      window.clearTimeout(touchToggleClickTimeout);
-    }
-
-    touchToggleClickTimeout = window.setTimeout(() => {
-      ignoreNextDocumentClick = false;
-      touchToggleClickTimeout = undefined;
-    }, 500);
-
-    return true;
-  };
-
-  createEffect(() => {
-    if (tocOpen()) {
-      setHeaderVisible(true);
-    }
+  const readerChrome = useReaderChrome({
+    keepVisible: () => tocOpen() || draggingWidth(),
+    onClose: () => {
+      setTocOpen(false);
+      clearSearchHighlights();
+    },
   });
 
   onMount(() => {
-    const onPointerMove = (event: PointerEvent) => {
-      if (event.clientY <= headerShowOffset || event.clientY >= window.innerHeight - 88) {
-        setHeaderVisible(true);
-      } else if (
-        event.clientY >= headerHideOffset &&
-        !draggingWidth() &&
-        !tocOpen() &&
-        !isReaderInputFocused()
-      ) {
-        setHeaderVisible(false);
-      }
-    };
-
     const onScroll = () => syncCurrentPage();
 
     resizeObserver = new ResizeObserver(() => handleViewportResize());
@@ -1040,13 +993,11 @@ function PdfReader(props: {
 
     measureDocument();
     scheduleObservedPagesSync();
-    window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', handleViewportResize);
     window.visualViewport?.addEventListener('resize', handleViewportResize);
 
     onCleanup(() => {
-      window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', handleViewportResize);
       window.visualViewport?.removeEventListener('resize', handleViewportResize);
@@ -1070,10 +1021,6 @@ function PdfReader(props: {
       window.clearTimeout(resizeAnchorTimeout);
     }
 
-    if (touchToggleClickTimeout !== undefined) {
-      window.clearTimeout(touchToggleClickTimeout);
-    }
-
     cancelRenderTasks();
     cancelTextLayerTasks();
     textLayerRefs.clear();
@@ -1086,7 +1033,7 @@ function PdfReader(props: {
   return (
     <div ref={rootRef} class={`${styles.reader} ${props.class ?? ''}`}>
       <ReaderFloatingChrome
-        visible={headerVisible() || draggingWidth() || tocOpen()}
+        visible={readerChrome.visible()}
         title={props.title}
         headerContent={props.headerContent}
         searchValue={searchValue()}
@@ -1125,8 +1072,8 @@ function PdfReader(props: {
         onSearchNext={() => void search('next')}
         onSearchPrevious={() => void search('previous')}
         onSearchOpen={() => setTocOpen(false)}
-        onClose={closeChrome}
-        onShow={() => setHeaderVisible(true)}
+        onClose={readerChrome.close}
+        onShow={readerChrome.show}
         actions={
           <Button
             variant="secondary"
@@ -1182,18 +1129,11 @@ function PdfReader(props: {
           class={styles.document}
           classList={{ [styles.documentFit]: isFitWidth() }}
           onPointerUp={(event) => {
-            if (toggleChromeOnTouch(event)) {
+            if (readerChrome.toggleOnTouch(event)) {
               event.preventDefault();
             }
           }}
-          onClick={() => {
-            if (ignoreNextDocumentClick) {
-              ignoreNextDocumentClick = false;
-              return;
-            }
-
-            closeChrome();
-          }}
+          onClick={readerChrome.onDocumentClick}
         >
           <For each={pages()}>
             {(page) => (
