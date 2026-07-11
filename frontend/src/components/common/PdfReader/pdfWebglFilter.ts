@@ -149,8 +149,9 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
       gl.viewport(0, 0, source.width, source.height);
       gl.useProgram(program);
       gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+      const textureUploadError = gl.getError();
 
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
       gl.enableVertexAttribArray(positionLocation);
@@ -161,8 +162,9 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
       gl.uniform1f(invertStrengthLocation, invertStrength);
       gl.uniform1i(imageLocation, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+      const drawError = gl.getError();
 
-      if (gl.getError() !== gl.NO_ERROR) {
+      if (textureUploadError !== gl.NO_ERROR || drawError !== gl.NO_ERROR) {
         throw new Error('WebGL завершил обработку страницы с ошибкой.');
       }
     },

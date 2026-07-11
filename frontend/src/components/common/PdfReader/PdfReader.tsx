@@ -737,6 +737,16 @@ function PdfReader(props: {
       }
     }
 
+    if (
+      filteredCanvas &&
+      (filteredCanvas.width !== canvas.width || filteredCanvas.height !== canvas.height)
+    ) {
+      filteredCanvas.width = canvas.width;
+      filteredCanvas.height = canvas.height;
+      filteredCanvas.style.width = `${displayWidth}px`;
+      filteredCanvas.style.height = `${displayHeight}px`;
+    }
+
     if (!hasFilters) {
       return;
     }
