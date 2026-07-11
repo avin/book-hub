@@ -53,7 +53,12 @@ import {
   warmthFilterFromChain,
   type PdfFilterChain,
 } from './pdfFilters';
-import { createPdfWebglFilterRenderer, isPdfWebglAvailable } from './pdfWebglFilter';
+import {
+  destroySharedPdfWebglFilterRenderer,
+  isPdfWebglAvailable,
+  isRecoverablePdfFilterError,
+  renderPdfPageFilter,
+} from './pdfWebglFilter';
 import styles from './PdfReader.module.scss';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
@@ -160,16 +165,10 @@ function PdfReader(props: {
   const textLayerRefs = new Map<number, HTMLDivElement>();
   const pageCache = new Map<number, PDFPageProxy>();
   const renderTasks = new Map<number, RenderTask>();
-  const filterRenderers = new Map<number, ReturnType<typeof createPdfWebglFilterRenderer>>();
-  const pendingFilterRendererCreations = new Map<
-    number,
-    {
-      epoch: number;
-      promise: Promise<ReturnType<typeof createPdfWebglFilterRenderer>>;
-    }
-  >();
-  let filterRendererCreationEpoch = 0;
   let filterRenderGeneration = 0;
+  let filterRenderDebounceTimeout: number | undefined;
+  let sharedFilterRenderQueue: Promise<void> = Promise.resolve();
+  const filterRenderDebounceMs = 50;
   const textLayerTasks = new Map<number, pdfjs.TextLayer>();
   const textHighlighters = new Map<number, ReturnType<typeof PdfTextHighlighter>>();
   const renderedKeys = new Map<number, string>();
@@ -197,7 +196,6 @@ function PdfReader(props: {
   const [appliedFilterKeys, setAppliedFilterKeys] = createSignal<ReadonlyMap<number, string>>(
     new Map(),
   );
-  const [canvasRefsVersion, setCanvasRefsVersion] = createSignal(0);
   const [filterError, setFilterError] = createSignal<string>();
   const [outlineEntries, setOutlineEntries] = createSignal<PdfOutlineEntry[]>([]);
   const [outlineLoaded, setOutlineLoaded] = createSignal(false);
@@ -535,32 +533,21 @@ function PdfReader(props: {
     renderTasks.clear();
   };
 
-  const destroyFilterRendererForPage = (pageNumber: number) => {
-    filterRenderers.get(pageNumber)?.destroy();
-    filterRenderers.delete(pageNumber);
-    pendingFilterRendererCreations.delete(pageNumber);
-  };
-
   const destroyFilterRenderers = () => {
-    filterRendererCreationEpoch += 1;
-
-    for (const renderer of filterRenderers.values()) {
-      renderer.destroy();
-    }
-
-    filterRenderers.clear();
-    pendingFilterRendererCreations.clear();
+    destroySharedPdfWebglFilterRenderer();
   };
 
-  const invalidateFilteredPages = () => {
+  const invalidateFilteredPages = (options?: { hideFilteredPages?: boolean }) => {
     filterRenderGeneration += 1;
     filteredKeys.clear();
-    setFilteredPages(new Set<number>());
-    setAppliedFilterKeys(new Map());
+
+    if (options?.hideFilteredPages) {
+      setFilteredPages(new Set<number>());
+      setAppliedFilterKeys(new Map());
+    }
   };
 
   const resizeFilteredCanvas = (
-    pageNumber: number,
     filteredCanvas: HTMLCanvasElement,
     width: number,
     height: number,
@@ -571,60 +558,26 @@ function PdfReader(props: {
       return;
     }
 
-    destroyFilterRendererForPage(pageNumber);
     filteredCanvas.width = width;
     filteredCanvas.height = height;
     filteredCanvas.style.width = `${displayWidth}px`;
     filteredCanvas.style.height = `${displayHeight}px`;
   };
 
-  const ensureFilterRenderer = async (pageNumber: number, filteredCanvas: HTMLCanvasElement) => {
-    const existingRenderer = filterRenderers.get(pageNumber);
+  const runExclusiveFilterRender = async (action: () => Promise<void>) => {
+    const previous = sharedFilterRenderQueue;
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    sharedFilterRenderQueue = previous.catch(() => undefined).then(() => current);
 
-    if (existingRenderer) {
-      return existingRenderer;
-    }
-
-    let pendingCreation = pendingFilterRendererCreations.get(pageNumber);
-
-    if (!pendingCreation) {
-      const creationEpoch = filterRendererCreationEpoch;
-      pendingCreation = {
-        epoch: creationEpoch,
-        promise: Promise.resolve().then(() => {
-          if (creationEpoch !== filterRendererCreationEpoch) {
-            throw new Error('Создание WebGL-рендерера фильтра отменено.');
-          }
-
-          return createPdfWebglFilterRenderer(filteredCanvas);
-        }),
-      };
-      pendingFilterRendererCreations.set(pageNumber, pendingCreation);
-    }
+    await previous.catch(() => undefined);
 
     try {
-      const renderer = await pendingCreation.promise;
-
-      if (pendingCreation.epoch !== filterRendererCreationEpoch) {
-        renderer.destroy();
-        return undefined;
-      }
-
-      filterRenderers.set(pageNumber, renderer);
-      return renderer;
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === 'Создание WebGL-рендерера фильтра отменено.'
-      ) {
-        return undefined;
-      }
-
-      throw error;
+      await action();
     } finally {
-      if (pendingFilterRendererCreations.get(pageNumber) === pendingCreation) {
-        pendingFilterRendererCreations.delete(pageNumber);
-      }
+      release();
     }
   };
 
@@ -635,31 +588,45 @@ function PdfReader(props: {
         ? 'pdfFiltersUnavailable'
         : undefined,
     );
-    invalidateFilteredPages();
+    const allFiltersDisabled = !hasEnabledPdfFilters(nextChain);
+
+    invalidateFilteredPages({ hideFilteredPages: allFiltersDisabled });
+
+    if (allFiltersDisabled) {
+      destroyFilterRenderers();
+    }
   };
 
   const disablePdfFilters = () => {
     setFilterError('pdfFiltersUnavailable');
-    invalidateFilteredPages();
+    invalidateFilteredPages({ hideFilteredPages: true });
     destroyFilterRenderers();
   };
 
   const scheduleVisiblePageFilterRender = () => {
+    if (filterRenderDebounceTimeout !== undefined) {
+      clearTimeout(filterRenderDebounceTimeout);
+    }
+
     if (filterRenderFrame !== undefined) {
       cancelAnimationFrame(filterRenderFrame);
     }
 
-    filterRenderFrame = requestAnimationFrame(() => {
-      filterRenderFrame = undefined;
-      const currentPages = pages();
-      const currentVisiblePages = visiblePages();
+    filterRenderDebounceTimeout = window.setTimeout(() => {
+      filterRenderDebounceTimeout = undefined;
 
-      for (const descriptor of currentPages) {
-        if (currentVisiblePages.has(descriptor.pageNumber)) {
-          void renderPage(descriptor);
+      filterRenderFrame = requestAnimationFrame(() => {
+        filterRenderFrame = undefined;
+        const currentPages = pages();
+        const currentVisiblePages = visiblePages();
+
+        for (const descriptor of currentPages) {
+          if (currentVisiblePages.has(descriptor.pageNumber)) {
+            void renderPage(descriptor);
+          }
         }
-      }
-    });
+      });
+    }, filterRenderDebounceMs);
   };
 
   const updateFilterChain = (update: (chain: PdfFilterChain) => PdfFilterChain) => {
@@ -828,7 +795,6 @@ function PdfReader(props: {
       canvas.style.height = `${displayHeight}px`;
       if (filteredCanvas) {
         resizeFilteredCanvas(
-          descriptor.pageNumber,
           filteredCanvas,
           canvas.width,
           canvas.height,
@@ -876,7 +842,6 @@ function PdfReader(props: {
 
     if (filteredCanvas) {
       resizeFilteredCanvas(
-        descriptor.pageNumber,
         filteredCanvas,
         canvas.width,
         canvas.height,
@@ -899,34 +864,42 @@ function PdfReader(props: {
 
     const filterGenerationAtStart = filterRenderGeneration;
 
-    try {
-      const renderer = await ensureFilterRenderer(descriptor.pageNumber, filteredCanvas);
-
+    await runExclusiveFilterRender(async () => {
       if (
-        !renderer ||
         filterGenerationAtStart !== filterRenderGeneration ||
         filteredKeys.get(descriptor.pageNumber) === filterKey()
       ) {
         return;
       }
 
-      renderer.render(canvas, filterChain());
+      try {
+        renderPdfPageFilter(canvas, filteredCanvas, filterChain());
 
-      if (filterGenerationAtStart !== filterRenderGeneration) {
-        return;
+        if (filterGenerationAtStart !== filterRenderGeneration) {
+          return;
+        }
+
+        filteredKeys.set(descriptor.pageNumber, currentFilterKey);
+        setAppliedFilterKeys((current) => {
+          const next = new Map(current);
+          next.set(descriptor.pageNumber, currentFilterKey);
+          return next;
+        });
+        setFilteredPages((current) => new Set(current).add(descriptor.pageNumber));
+      } catch (error) {
+        if (filterGenerationAtStart !== filterRenderGeneration) {
+          return;
+        }
+
+        if (isRecoverablePdfFilterError(error)) {
+          destroyFilterRenderers();
+          return;
+        }
+
+        console.error('Failed to apply PDF page filter', error);
+        disablePdfFilters();
       }
-
-      filteredKeys.set(descriptor.pageNumber, currentFilterKey);
-      setAppliedFilterKeys((current) => {
-        const next = new Map(current);
-        next.set(descriptor.pageNumber, currentFilterKey);
-        return next;
-      });
-      setFilteredPages((current) => new Set(current).add(descriptor.pageNumber));
-    } catch (error) {
-      console.error('Failed to apply PDF page filter', error);
-      disablePdfFilters();
-    }
+    });
   };
 
   const renderTextLayer = async (descriptor: PdfPageDescriptor) => {
@@ -1033,6 +1006,10 @@ function PdfReader(props: {
     if (readyFrame !== undefined) {
       cancelAnimationFrame(readyFrame);
       readyFrame = undefined;
+    }
+    if (filterRenderDebounceTimeout !== undefined) {
+      clearTimeout(filterRenderDebounceTimeout);
+      filterRenderDebounceTimeout = undefined;
     }
     if (filterRenderFrame !== undefined) {
       cancelAnimationFrame(filterRenderFrame);
@@ -1141,8 +1118,6 @@ function PdfReader(props: {
     void documentWidth();
     void pageWidth();
     void isFitWidth();
-    void filterKey();
-    void canvasRefsVersion();
 
     for (const descriptor of currentPages) {
       if (currentVisiblePages.has(descriptor.pageNumber)) {
@@ -1433,6 +1408,10 @@ function PdfReader(props: {
       cancelAnimationFrame(readyFrame);
     }
 
+    if (filterRenderDebounceTimeout !== undefined) {
+      clearTimeout(filterRenderDebounceTimeout);
+    }
+
     if (filterRenderFrame !== undefined) {
       cancelAnimationFrame(filterRenderFrame);
     }
@@ -1641,8 +1620,16 @@ function PdfReader(props: {
                       [styles.filteredCanvasVisible]: filteredPages().has(page.pageNumber),
                     }}
                     ref={(element) => {
+                      if (!element) {
+                        filteredCanvasRefs.delete(page.pageNumber);
+                        return;
+                      }
+
                       filteredCanvasRefs.set(page.pageNumber, element);
-                      setCanvasRefsVersion((version) => version + 1);
+
+                      onCleanup(() => {
+                        filteredCanvasRefs.delete(page.pageNumber);
+                      });
                     }}
                     aria-hidden="true"
                   />

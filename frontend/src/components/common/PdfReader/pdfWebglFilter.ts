@@ -150,10 +150,30 @@ const fragmentShaderSource = `
   }
 `;
 
+export const pdfWebglContextLostMessage = 'WebGL-контекст фильтра страницы был потерян.';
+
+export function isRecoverablePdfFilterError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message === pdfWebglContextLostMessage ||
+    error.message.includes('WebGL-контекст был потерян') ||
+    error.message === 'Неизвестная ошибка компиляции shader.' ||
+    error.message === 'WebGL завершил обработку страницы с ошибкой.'
+  );
+}
+
 type PdfWebglFilterRenderer = {
+  canvas: HTMLCanvasElement;
   render: (source: HTMLCanvasElement, chain: PdfFilterChain) => void;
   destroy: () => void;
+  isUsable: () => boolean;
 };
+
+let sharedOffscreenCanvas: HTMLCanvasElement | undefined;
+let sharedRenderer: PdfWebglFilterRenderer | undefined;
 
 function createShader(gl: WebGLRenderingContext, type: number, source: string) {
   if (gl.isContextLost()) {
@@ -216,17 +236,23 @@ function getWebglContext(canvas: HTMLCanvasElement) {
   });
 }
 
-export function isPdfWebglAvailable() {
-  const canvas = document.createElement('canvas');
+function getOffscreenCanvas() {
+  if (!sharedOffscreenCanvas) {
+    sharedOffscreenCanvas = document.createElement('canvas');
+  }
 
-  return getWebglContext(canvas) !== null;
+  return sharedOffscreenCanvas;
 }
 
-export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebglFilterRenderer {
+function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebglFilterRenderer {
   const gl = getWebglContext(canvas);
 
   if (!gl) {
     throw new Error('WebGL недоступен в этом браузере.');
+  }
+
+  if (gl.isContextLost()) {
+    throw new Error('WebGL-контекст был потерян до инициализации фильтра.');
   }
 
   const program = createProgram(gl);
@@ -308,9 +334,10 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
   return {
+    canvas,
     render(source, chain) {
       if (gl.isContextLost()) {
-        throw new Error('WebGL-контекст фильтра страницы был потерян.');
+        throw new Error(pdfWebglContextLostMessage);
       }
 
       const filterType = (filter: (typeof chain)[number] | undefined) => {
@@ -332,6 +359,8 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
           case 'softTextEnhancement':
             return softTextEnhancementPdfFilterType;
         }
+
+        return noPdfFilterType;
       };
       const firstFilter = chain[0];
       const secondFilter = chain[1];
@@ -423,10 +452,72 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
       }
     },
     destroy() {
-      gl.deleteTexture(texture);
-      gl.deleteBuffer(positionBuffer);
-      gl.deleteBuffer(texturePositionBuffer);
-      gl.deleteProgram(program);
+      if (!gl.isContextLost()) {
+        gl.deleteTexture(texture);
+        gl.deleteBuffer(positionBuffer);
+        gl.deleteBuffer(texturePositionBuffer);
+        gl.deleteProgram(program);
+        gl.getExtension('WEBGL_lose_context')?.loseContext();
+      }
+    },
+    isUsable() {
+      return !gl.isContextLost();
     },
   };
+}
+
+function ensureSharedRenderer(width: number, height: number): PdfWebglFilterRenderer {
+  const offscreenCanvas = getOffscreenCanvas();
+  const sizeChanged = offscreenCanvas.width !== width || offscreenCanvas.height !== height;
+
+  if (sharedRenderer?.isUsable() && !sizeChanged) {
+    return sharedRenderer;
+  }
+
+  sharedRenderer?.destroy();
+  sharedRenderer = undefined;
+
+  if (sizeChanged) {
+    offscreenCanvas.width = width;
+    offscreenCanvas.height = height;
+  }
+
+  sharedRenderer = createPdfWebglFilterRenderer(offscreenCanvas);
+
+  return sharedRenderer;
+}
+
+export function isPdfWebglAvailable() {
+  const canvas = document.createElement('canvas');
+
+  return getWebglContext(canvas) !== null;
+}
+
+export function destroySharedPdfWebglFilterRenderer() {
+  sharedRenderer?.destroy();
+  sharedRenderer = undefined;
+  sharedOffscreenCanvas = undefined;
+}
+
+export function renderPdfPageFilter(
+  source: HTMLCanvasElement,
+  target: HTMLCanvasElement,
+  chain: PdfFilterChain,
+) {
+  const renderer = ensureSharedRenderer(source.width, source.height);
+
+  renderer.render(source, chain);
+
+  if (target.width !== source.width || target.height !== source.height) {
+    target.width = source.width;
+    target.height = source.height;
+  }
+
+  const context = target.getContext('2d');
+
+  if (!context) {
+    throw new Error('Не удалось получить 2D-контекст для отфильтрованной страницы.');
+  }
+
+  context.drawImage(renderer.canvas, 0, 0);
 }
