@@ -17,9 +17,10 @@ import {
   type JSX,
   untrack,
 } from 'solid-js';
-import { ListTree } from 'lucide-solid';
+import { ListTree, SlidersHorizontal } from 'lucide-solid';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
+import PdfFilterPanel from './PdfFilterPanel/PdfFilterPanel';
 import useReaderChrome from '@/components/common/ReaderChrome/useReaderChrome';
 import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
 import TextInput from '@/components/common/TextInput/TextInput';
@@ -34,10 +35,20 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import {
   getPdfReaderContentWidthPreference,
+  getPdfReaderFilterChainPreference,
   setPdfReaderContentWidthPreference,
+  setPdfReaderFilterChainPreference,
 } from '@/storage/browserPreferences';
 import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import PdfTextHighlighter from './PdfTextHighlighter';
+import {
+  defaultPdfFilterChain,
+  hasEnabledPdfFilters,
+  invertFilterFromChain,
+  pdfFilterChainKey,
+  type PdfFilterChain,
+} from './pdfFilters';
+import { createPdfWebglFilterRenderer, isPdfWebglAvailable } from './pdfWebglFilter';
 import styles from './PdfReader.module.scss';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
@@ -114,6 +125,7 @@ function scrollYForAnchor(
 }
 
 function PdfReader(props: {
+  bookId?: string;
   fileUrl: string;
   title?: string;
   headerContent?: JSX.Element;
@@ -138,12 +150,15 @@ function PdfReader(props: {
   let executedSearchQuery: string | undefined;
   const pageRefs = new Map<number, HTMLElement>();
   const canvasRefs = new Map<number, HTMLCanvasElement>();
+  const filteredCanvasRefs = new Map<number, HTMLCanvasElement>();
   const textLayerRefs = new Map<number, HTMLDivElement>();
   const pageCache = new Map<number, PDFPageProxy>();
   const renderTasks = new Map<number, RenderTask>();
+  const filterRenderers = new Map<number, ReturnType<typeof createPdfWebglFilterRenderer>>();
   const textLayerTasks = new Map<number, pdfjs.TextLayer>();
   const textHighlighters = new Map<number, ReturnType<typeof PdfTextHighlighter>>();
   const renderedKeys = new Map<number, string>();
+  const filteredKeys = new Map<number, string>();
   const textLayerKeys = new Map<number, string>();
   const [pages, setPages] = createSignal<PdfPageDescriptor[]>([]);
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
@@ -156,6 +171,16 @@ function PdfReader(props: {
   const [pageInputValue, setPageInputValue] = createSignal('1');
   const [pageInputFocused, setPageInputFocused] = createSignal(false);
   const [tocOpen, setTocOpen] = createSignal(false);
+  const [filterPanelOpen, setFilterPanelOpen] = createSignal(false);
+  const [filterChain, setFilterChain] = createSignal<PdfFilterChain>(
+    untrack(
+      () =>
+        getPdfReaderFilterChainPreference(props.bookId ?? props.fileUrl) ?? defaultPdfFilterChain(),
+    ),
+  );
+  const [filteredPages, setFilteredPages] = createSignal<ReadonlySet<number>>(new Set());
+  const [canvasRefsVersion, setCanvasRefsVersion] = createSignal(0);
+  const [filterError, setFilterError] = createSignal<string>();
   const [outlineEntries, setOutlineEntries] = createSignal<PdfOutlineEntry[]>([]);
   const [outlineLoaded, setOutlineLoaded] = createSignal(false);
   const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(
@@ -181,6 +206,9 @@ function PdfReader(props: {
   const tocEntries = createMemo<TocEntry[]>(() => outlineEntries());
   const tocAvailable = createMemo(() => outlineLoaded() && tocEntries().length > 0);
   const tocLabel = createMemo(() => (tocAvailable() ? 'Оглавление' : 'Оглавление недоступно'));
+  const filterKey = createMemo(() => pdfFilterChainKey(filterChain()));
+  const filtersEnabled = createMemo(() => hasEnabledPdfFilters(filterChain()));
+  const invertFilter = createMemo(() => invertFilterFromChain(filterChain()));
 
   const handleRulerPointer = (event: PointerEvent) => {
     const currentRulerElement = rulerElement();
@@ -464,6 +492,7 @@ function PdfReader(props: {
     setMaxPageWidth(width);
     setPdfReaderContentWidthPreference(width);
     renderedKeys.clear();
+    invalidateFilteredPages();
     textLayerKeys.clear();
   };
 
@@ -478,6 +507,43 @@ function PdfReader(props: {
     }
 
     renderTasks.clear();
+  };
+
+  const destroyFilterRenderers = () => {
+    for (const renderer of filterRenderers.values()) {
+      renderer.destroy();
+    }
+
+    filterRenderers.clear();
+  };
+
+  const invalidateFilteredPages = () => {
+    filteredKeys.clear();
+    setFilteredPages(new Set<number>());
+  };
+
+  const setFilterChainState = (nextChain: PdfFilterChain) => {
+    setFilterChain(nextChain);
+    setFilterError(
+      hasEnabledPdfFilters(nextChain) && !isPdfWebglAvailable()
+        ? 'pdfFiltersUnavailable'
+        : undefined,
+    );
+    invalidateFilteredPages();
+  };
+
+  const disablePdfFilters = () => {
+    setFilterError('pdfFiltersUnavailable');
+    invalidateFilteredPages();
+    destroyFilterRenderers();
+  };
+
+  const updateFilterChain = (update: (chain: PdfFilterChain) => PdfFilterChain) => {
+    const nextChain = update(filterChain());
+
+    setFilterChainState(nextChain);
+    setPdfReaderFilterChainPreference(props.bookId ?? props.fileUrl, nextChain);
+    destroyFilterRenderers();
   };
 
   const cancelTextLayerTask = (pageNumber: number) => {
@@ -540,6 +606,7 @@ function PdfReader(props: {
 
     if (isFitWidth()) {
       renderedKeys.clear();
+      invalidateFilteredPages();
       textLayerKeys.clear();
     }
 
@@ -596,6 +663,7 @@ function PdfReader(props: {
 
   const renderPage = async (descriptor: PdfPageDescriptor) => {
     const canvas = canvasRefs.get(descriptor.pageNumber);
+    const filteredCanvas = filteredCanvasRefs.get(descriptor.pageNumber);
     const pageElement = pageRefs.get(descriptor.pageNumber);
 
     if (!canvas || !pageElement || !pdfDocument) {
@@ -611,41 +679,96 @@ function PdfReader(props: {
     const ratio = renderPixelRatio();
     const displayHeight = Math.round(displayWidth * (descriptor.height / descriptor.width));
     const renderKey = `${displayWidth}:${ratio}`;
+    const currentFilterKey = filterKey();
+    const hasFilters = filtersEnabled() && !filterError();
 
-    if (renderedKeys.get(descriptor.pageNumber) === renderKey) {
+    if (hasFilters && !filteredCanvas) {
       return;
     }
 
-    const page = await getPage(descriptor.pageNumber);
+    if (renderedKeys.get(descriptor.pageNumber) !== renderKey) {
+      const page = await getPage(descriptor.pageNumber);
 
-    if (!page || destroyed) {
+      if (!page || destroyed) {
+        return;
+      }
+
+      cancelRenderTask(descriptor.pageNumber);
+
+      const scale = (displayWidth * ratio) / descriptor.width;
+      const viewport = page.getViewport({ scale });
+
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+      if (filteredCanvas) {
+        filteredCanvas.width = canvas.width;
+        filteredCanvas.height = canvas.height;
+        filteredCanvas.style.width = `${displayWidth}px`;
+        filteredCanvas.style.height = `${displayHeight}px`;
+      }
+
+      const task = page.render({ canvas, viewport });
+      renderTasks.set(descriptor.pageNumber, task);
+
+      try {
+        await task.promise;
+        renderedKeys.set(descriptor.pageNumber, renderKey);
+        filteredKeys.delete(descriptor.pageNumber);
+        setFilteredPages((current) => {
+          if (!current.has(descriptor.pageNumber)) {
+            return current;
+          }
+
+          const next = new Set(current);
+          next.delete(descriptor.pageNumber);
+          return next;
+        });
+      } catch (error) {
+        if (!isRenderCancelled(error)) {
+          setFailed(true);
+        }
+        return;
+      } finally {
+        if (renderTasks.get(descriptor.pageNumber) === task) {
+          renderTasks.delete(descriptor.pageNumber);
+        }
+      }
+    }
+
+    if (!hasFilters) {
       return;
     }
 
-    cancelRenderTask(descriptor.pageNumber);
+    if (filteredKeys.get(descriptor.pageNumber) === currentFilterKey) {
+      return;
+    }
 
-    const scale = (displayWidth * ratio) / descriptor.width;
-    const viewport = page.getViewport({ scale });
+    if (!filteredCanvas) {
+      return;
+    }
 
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
-
-    const task = page.render({ canvas, viewport });
-    renderTasks.set(descriptor.pageNumber, task);
+    let renderer = filterRenderers.get(descriptor.pageNumber);
 
     try {
-      await task.promise;
-      renderedKeys.set(descriptor.pageNumber, renderKey);
+      if (!renderer) {
+        renderer = createPdfWebglFilterRenderer(filteredCanvas);
+        filterRenderers.set(descriptor.pageNumber, renderer);
+      }
+
+      renderer.render(canvas, filterChain());
+      filteredKeys.set(descriptor.pageNumber, currentFilterKey);
+      setFilteredPages((current) => {
+        if (current.has(descriptor.pageNumber)) {
+          return current;
+        }
+
+        return new Set(current).add(descriptor.pageNumber);
+      });
     } catch (error) {
-      if (!isRenderCancelled(error)) {
-        setFailed(true);
-      }
-    } finally {
-      if (renderTasks.get(descriptor.pageNumber) === task) {
-        renderTasks.delete(descriptor.pageNumber);
-      }
+      console.error('Failed to apply PDF page filter', error);
+      disablePdfFilters();
     }
   };
 
@@ -741,10 +864,13 @@ function PdfReader(props: {
     setTocOpen(false);
     pageRefs.clear();
     canvasRefs.clear();
+    filteredCanvasRefs.clear();
     textLayerRefs.clear();
     pageCache.clear();
     renderedKeys.clear();
+    invalidateFilteredPages();
     textLayerKeys.clear();
+    destroyFilterRenderers();
     cancelRenderTasks();
     cancelTextLayerTasks();
     if (readyFrame !== undefined) {
@@ -823,6 +949,13 @@ function PdfReader(props: {
   };
 
   createEffect(() => {
+    const storageKey = props.bookId ?? props.fileUrl;
+    const nextChain = getPdfReaderFilterChainPreference(storageKey) ?? defaultPdfFilterChain();
+
+    setFilterChainState(nextChain);
+  });
+
+  createEffect(() => {
     void props.fileUrl;
     void loadDocument();
   });
@@ -839,6 +972,8 @@ function PdfReader(props: {
     void documentWidth();
     void pageWidth();
     void isFitWidth();
+    void filterKey();
+    void canvasRefsVersion();
 
     for (const descriptor of currentPages) {
       if (currentVisiblePages.has(descriptor.pageNumber)) {
@@ -947,13 +1082,38 @@ function PdfReader(props: {
   };
 
   const toggleToc = () => {
+    setFilterPanelOpen(false);
     setTocOpen((value) => !value);
   };
 
+  const toggleFilterPanel = () => {
+    setTocOpen(false);
+    setFilterPanelOpen((value) => !value);
+  };
+
+  const toggleInvert = (enabled: boolean) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) => (filter.id === 'invert' ? { ...filter, enabled } : filter)),
+    );
+  };
+
+  const updateInvertStrength = (strength: number) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) =>
+        filter.id === 'invert' ? { ...filter, strength: clamp(strength, 0, 1) } : filter,
+      ),
+    );
+  };
+
+  const resetFilters = () => {
+    updateFilterChain(() => defaultPdfFilterChain());
+  };
+
   const readerChrome = useReaderChrome({
-    keepVisible: () => tocOpen() || draggingWidth(),
+    keepVisible: () => tocOpen() || filterPanelOpen() || draggingWidth(),
     onClose: () => {
       setTocOpen(false);
+      setFilterPanelOpen(false);
       clearSearchHighlights();
     },
   });
@@ -1023,6 +1183,8 @@ function PdfReader(props: {
 
     cancelRenderTasks();
     cancelTextLayerTasks();
+    destroyFilterRenderers();
+    filteredCanvasRefs.clear();
     textLayerRefs.clear();
     textLayerTasks.clear();
     textLayerKeys.clear();
@@ -1071,21 +1233,36 @@ function PdfReader(props: {
         onSearchValueChange={setSearchValue}
         onSearchNext={() => void search('next')}
         onSearchPrevious={() => void search('previous')}
-        onSearchOpen={() => setTocOpen(false)}
+        onSearchOpen={() => {
+          setTocOpen(false);
+          setFilterPanelOpen(false);
+        }}
         onClose={readerChrome.close}
         onShow={readerChrome.show}
         actions={
-          <Button
-            variant="secondary"
-            type="button"
-            iconOnly
-            iconStart={<ListTree />}
-            title={tocLabel()}
-            aria-label={tocLabel()}
-            aria-pressed={tocOpen()}
-            disabled={!tocAvailable()}
-            onClick={toggleToc}
-          />
+          <>
+            <Button
+              variant="secondary"
+              type="button"
+              iconOnly
+              iconStart={<SlidersHorizontal />}
+              title={t('pdfFilters')}
+              aria-label={t('pdfFilters')}
+              aria-pressed={filterPanelOpen()}
+              onClick={toggleFilterPanel}
+            />
+            <Button
+              variant="secondary"
+              type="button"
+              iconOnly
+              iconStart={<ListTree />}
+              title={tocLabel()}
+              aria-label={tocLabel()}
+              aria-pressed={tocOpen()}
+              disabled={!tocAvailable()}
+              onClick={toggleToc}
+            />
+          </>
         }
         secondaryBar={
           <WidthRuler
@@ -1113,6 +1290,17 @@ function PdfReader(props: {
         entries={tocEntries()}
         onClose={() => setTocOpen(false)}
         onSelect={onTocSelect}
+      />
+
+      <PdfFilterPanel
+        open={filterPanelOpen()}
+        filter={invertFilter() ?? defaultPdfFilterChain()[0]}
+        available={!filterError()}
+        unavailableMessage={filterError() ? t('pdfFiltersUnavailable') : undefined}
+        onClose={() => setFilterPanelOpen(false)}
+        onToggleInvert={toggleInvert}
+        onStrengthChange={updateInvertStrength}
+        onReset={resetFilters}
       />
 
       <Show when={loading()}>
@@ -1152,10 +1340,28 @@ function PdfReader(props: {
                 aria-label={`Страница ${page.pageNumber}`}
               >
                 <canvas
+                  class={styles.sourceCanvas}
+                  classList={{
+                    [styles.sourceCanvasHidden]:
+                      filtersEnabled() && filteredPages().has(page.pageNumber),
+                  }}
                   ref={(element) => {
                     canvasRefs.set(page.pageNumber, element);
                   }}
                 />
+                <Show when={filtersEnabled()}>
+                  <canvas
+                    class={styles.filteredCanvas}
+                    classList={{
+                      [styles.filteredCanvasVisible]: filteredPages().has(page.pageNumber),
+                    }}
+                    ref={(element) => {
+                      filteredCanvasRefs.set(page.pageNumber, element);
+                      setCanvasRefsVersion((version) => version + 1);
+                    }}
+                    aria-hidden="true"
+                  />
+                </Show>
                 <div
                   ref={(element) => {
                     textLayerRefs.set(page.pageNumber, element);

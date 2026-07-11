@@ -59,6 +59,22 @@
     display: block;
     background: var(--surface-raised);
   }
+
+  .sourceCanvasHidden {
+    display: none;
+  }
+
+  .filteredCanvas {
+    position: absolute;
+    inset: 0;
+    display: none;
+    width: 100%;
+    height: 100%;
+  }
+
+  .filteredCanvasVisible {
+    display: block;
+  }
 }
 
 .textLayer {

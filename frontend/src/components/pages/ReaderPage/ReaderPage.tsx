@@ -231,6 +231,7 @@ function ReaderPage() {
       <Show when={isPdf()}>
         <Suspense fallback={<LoadingScreen label={t('loading')} />}>
           <PdfReader
+            bookId={bookId()}
             fileUrl={getBookFileUrl(bookId())}
             class={styles.pdfReader}
             headerContent={chromeContent()}

@@ -125,6 +125,26 @@ export const messages = {
     ru: 'Номер страницы',
     en: 'Page number',
   },
+  pdfFilters: {
+    ru: 'Фильтры PDF',
+    en: 'PDF filters',
+  },
+  invert: {
+    ru: 'Инверсия',
+    en: 'Invert',
+  },
+  filterStrength: {
+    ru: 'Сила',
+    en: 'Strength',
+  },
+  resetAll: {
+    ru: 'Сбросить все',
+    en: 'Reset all',
+  },
+  pdfFiltersUnavailable: {
+    ru: 'Фильтры недоступны: браузер не поддерживает WebGL или обработка страницы завершилась ошибкой. PDF продолжает отображаться без фильтров.',
+    en: 'Filters are unavailable: the browser does not support WebGL or page processing failed. The PDF remains available without filters.',
+  },
   tags: {
     ru: 'Теги',
     en: 'Tags',

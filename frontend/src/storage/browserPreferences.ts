@@ -1,4 +1,8 @@
 import type { Fb2ReaderSettings } from '@/components/common/Fb2Reader/fb2Types';
+import {
+  sanitizePdfFilterChain,
+  type PdfFilterChain,
+} from '@/components/common/PdfReader/pdfFilters';
 import { type Language, languages } from '@/i18n/messages';
 import { type ThemeId, isThemeId } from '@/styles/themes';
 
@@ -22,6 +26,7 @@ type BrowserPreferences = {
     };
     pdf?: {
       contentWidth?: number;
+      filterChains?: Record<string, unknown>;
     };
   };
 };
@@ -149,6 +154,13 @@ function readerPreferencesForWrite(preferences: BrowserPreferences) {
   return isRecord(preferences.readers) ? preferences.readers : undefined;
 }
 
+function pdfReaderPreferencesForWrite(preferences: BrowserPreferences) {
+  const readers = preferences.readers;
+  const pdf = isRecord(readers) ? readers.pdf : undefined;
+
+  return isRecord(pdf) ? pdf : undefined;
+}
+
 function sanitizeFb2ReaderSettings(settings: unknown): Partial<Fb2ReaderSettings> | undefined {
   if (!isRecord(settings)) {
     return undefined;
@@ -252,7 +264,41 @@ export function setPdfReaderContentWidthPreference(contentWidth: number | undefi
     ...preferences,
     readers: {
       ...readerPreferencesForWrite(preferences),
-      pdf: contentWidth === undefined ? {} : { contentWidth },
+      pdf: {
+        ...pdfReaderPreferencesForWrite(preferences),
+        ...(contentWidth === undefined ? { contentWidth: undefined } : { contentWidth }),
+      },
     },
   }));
+}
+
+export function getPdfReaderFilterChainPreference(bookId: string) {
+  const filterChains = readReaderPreferences()?.pdf?.filterChains;
+
+  if (!isRecord(filterChains)) {
+    return undefined;
+  }
+
+  return sanitizePdfFilterChain(filterChains[bookId]);
+}
+
+export function setPdfReaderFilterChainPreference(bookId: string, chain: PdfFilterChain) {
+  updatePreferences((preferences) => {
+    const currentFilterChains = pdfReaderPreferencesForWrite(preferences)?.filterChains;
+    const filterChains = isRecord(currentFilterChains) ? currentFilterChains : {};
+
+    return {
+      ...preferences,
+      readers: {
+        ...readerPreferencesForWrite(preferences),
+        pdf: {
+          ...pdfReaderPreferencesForWrite(preferences),
+          filterChains: {
+            ...filterChains,
+            [bookId]: chain,
+          },
+        },
+      },
+    };
+  });
 }

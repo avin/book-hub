@@ -1,0 +1,28 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+
+.filterGroup {
+  display: grid;
+  gap: $space-4;
+}
+
+.filterToggle {
+  display: flex;
+  gap: $space-2;
+  align-items: center;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.filterToggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.unavailableMessage {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}

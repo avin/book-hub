@@ -726,6 +726,118 @@ test('PDF reader отключает оглавление без document outline
   await expect(tocButton).toBeDisabled();
 });
 
+test('PDF reader открывает панель фильтров и показывает параметры инверсии', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  await page.mouse.move(10, 10);
+
+  await page.getByRole('button', { name: 'Оглавление', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeVisible();
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
+
+  const panel = page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
+  const invert = panel.getByRole('checkbox');
+  const strength = panel.getByRole('slider', { name: 'Сила' });
+
+  await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeHidden();
+  await expect(panel).toBeVisible();
+  await expect(invert).not.toBeChecked();
+  await expect(strength).toBeHidden();
+
+  await invert.check();
+  await expect
+    .poll(async () => {
+      if (
+        await panel
+          .getByRole('alert')
+          .isVisible()
+          .catch(() => false)
+      )
+        return 'unavailable';
+      if (await strength.isVisible().catch(() => false)) return 'available';
+      return 'pending';
+    })
+    .toMatch(/available|unavailable/);
+
+  if (await strength.isVisible()) {
+    await expect(strength).toHaveValue('1');
+    await invert.uncheck();
+    await expect(strength).toBeHidden();
+  } else {
+    await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
+    await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  }
+});
+
+test('PDF reader сохраняет фильтры отдельно для каждой книги', async ({ page }) => {
+  await login(page);
+  await page.evaluate(() => {
+    const preferences = {
+      version: 1,
+      readers: {
+        pdf: {
+          filterChains: {
+            '00000000-0000-0000-0000-000000000103': [
+              { id: 'invert', enabled: true, strength: 0.65 },
+            ],
+          },
+        },
+      },
+    };
+    localStorage.setItem('book-hub-preferences', JSON.stringify(preferences));
+  });
+
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
+  const firstPanel = page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
+  await expect(firstPanel.getByRole('checkbox')).toBeChecked();
+
+  await page.goto('/library');
+  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
+  const secondPanel = page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
+  await expect(secondPanel.getByRole('checkbox')).not.toBeChecked();
+});
+
+test('PDF reader сохраняет исходное отображение без WebGL', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  await page.evaluate(() => {
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      configurable: true,
+      writable: true,
+      value: function getContext(type: string, ...args: unknown[]) {
+        if (type === 'webgl') return null;
+        return originalGetContext.call(this, type, ...(args as []));
+      },
+    });
+  });
+  expect(
+    await page.evaluate(() => document.createElement('canvas').getContext('webgl')),
+  ).toBeNull();
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
+  const panel = page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
+  await panel.getByRole('checkbox').check();
+  await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+});
+
 test('PDF reader открывает оглавление и переходит к пункту outline', async ({ page }) => {
   await login(page);
   await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
