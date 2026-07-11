@@ -43,7 +43,7 @@ const fragmentShaderSource = `
 
     for (int x = -2; x <= 2; x += 1) {
       for (int y = -2; y <= 2; y += 1) {
-        if (float(abs(x) + abs(y)) <= radius) {
+        if (abs(float(x)) + abs(float(y)) <= radius) {
           vec2 offset = vec2(float(x), float(y)) * u_texelSize;
           darkest = min(darkest, luminance(texture2D(u_image, v_texturePosition + offset).rgb));
         }

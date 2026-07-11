@@ -802,26 +802,15 @@ test('PDF reader настраивает усиление текста, прим�
   }
 
   await enhancement.check();
-  await expect
-    .poll(async () => {
-      if (
-        await panel
-          .getByRole('alert')
-          .isVisible()
-          .catch(() => false)
-      )
-        return 'unavailable';
-      if (
-        await panel
-          .getByRole('slider', { name: 'Толщина штриха' })
-          .isVisible()
-          .catch(() => false)
-      ) {
-        return 'available';
-      }
-      return 'pending';
-    })
-    .toMatch(/available|unavailable/);
+  const webglAvailable = await page.evaluate(
+    () => document.createElement('canvas').getContext('webgl') !== null,
+  );
+
+  if (webglAvailable) {
+    await expect(panel.getByRole('slider', { name: 'Толщина штриха' })).toBeVisible();
+  } else {
+    await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
+  }
 
   if (await panel.getByRole('slider', { name: 'Толщина штриха' }).isVisible()) {
     await expect(panel.getByRole('slider', { name: 'Толщина штриха' })).toHaveValue('0.7');
