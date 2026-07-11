@@ -156,6 +156,10 @@ type PdfWebglFilterRenderer = {
 };
 
 function createShader(gl: WebGLRenderingContext, type: number, source: string) {
+  if (gl.isContextLost()) {
+    throw new Error('WebGL-контекст был потерян до компиляции shader.');
+  }
+
   const shader = gl.createShader(type);
 
   if (!shader) {
@@ -164,6 +168,11 @@ function createShader(gl: WebGLRenderingContext, type: number, source: string) {
 
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
+
+  if (gl.isContextLost()) {
+    gl.deleteShader(shader);
+    throw new Error('WebGL-контекст был потерян во время компиляции shader.');
+  }
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     const message = gl.getShaderInfoLog(shader) ?? 'Неизвестная ошибка компиляции shader.';

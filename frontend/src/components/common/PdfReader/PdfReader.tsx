@@ -161,6 +161,15 @@ function PdfReader(props: {
   const pageCache = new Map<number, PDFPageProxy>();
   const renderTasks = new Map<number, RenderTask>();
   const filterRenderers = new Map<number, ReturnType<typeof createPdfWebglFilterRenderer>>();
+  const pendingFilterRendererCreations = new Map<
+    number,
+    {
+      epoch: number;
+      promise: Promise<ReturnType<typeof createPdfWebglFilterRenderer>>;
+    }
+  >();
+  let filterRendererCreationEpoch = 0;
+  let filterRenderGeneration = 0;
   const textLayerTasks = new Map<number, pdfjs.TextLayer>();
   const textHighlighters = new Map<number, ReturnType<typeof PdfTextHighlighter>>();
   const renderedKeys = new Map<number, string>();
@@ -526,18 +535,97 @@ function PdfReader(props: {
     renderTasks.clear();
   };
 
+  const destroyFilterRendererForPage = (pageNumber: number) => {
+    filterRenderers.get(pageNumber)?.destroy();
+    filterRenderers.delete(pageNumber);
+    pendingFilterRendererCreations.delete(pageNumber);
+  };
+
   const destroyFilterRenderers = () => {
+    filterRendererCreationEpoch += 1;
+
     for (const renderer of filterRenderers.values()) {
       renderer.destroy();
     }
 
     filterRenderers.clear();
+    pendingFilterRendererCreations.clear();
   };
 
   const invalidateFilteredPages = () => {
+    filterRenderGeneration += 1;
     filteredKeys.clear();
     setFilteredPages(new Set<number>());
     setAppliedFilterKeys(new Map());
+  };
+
+  const resizeFilteredCanvas = (
+    pageNumber: number,
+    filteredCanvas: HTMLCanvasElement,
+    width: number,
+    height: number,
+    displayWidth: number,
+    displayHeight: number,
+  ) => {
+    if (filteredCanvas.width === width && filteredCanvas.height === height) {
+      return;
+    }
+
+    destroyFilterRendererForPage(pageNumber);
+    filteredCanvas.width = width;
+    filteredCanvas.height = height;
+    filteredCanvas.style.width = `${displayWidth}px`;
+    filteredCanvas.style.height = `${displayHeight}px`;
+  };
+
+  const ensureFilterRenderer = async (pageNumber: number, filteredCanvas: HTMLCanvasElement) => {
+    const existingRenderer = filterRenderers.get(pageNumber);
+
+    if (existingRenderer) {
+      return existingRenderer;
+    }
+
+    let pendingCreation = pendingFilterRendererCreations.get(pageNumber);
+
+    if (!pendingCreation) {
+      const creationEpoch = filterRendererCreationEpoch;
+      pendingCreation = {
+        epoch: creationEpoch,
+        promise: Promise.resolve().then(() => {
+          if (creationEpoch !== filterRendererCreationEpoch) {
+            throw new Error('Создание WebGL-рендерера фильтра отменено.');
+          }
+
+          return createPdfWebglFilterRenderer(filteredCanvas);
+        }),
+      };
+      pendingFilterRendererCreations.set(pageNumber, pendingCreation);
+    }
+
+    try {
+      const renderer = await pendingCreation.promise;
+
+      if (pendingCreation.epoch !== filterRendererCreationEpoch) {
+        renderer.destroy();
+        return undefined;
+      }
+
+      filterRenderers.set(pageNumber, renderer);
+      return renderer;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === 'Создание WebGL-рендерера фильтра отменено.'
+      ) {
+        return undefined;
+      }
+
+      throw error;
+    } finally {
+      if (pendingFilterRendererCreations.get(pageNumber) === pendingCreation) {
+        pendingFilterRendererCreations.delete(pageNumber);
+      }
+    }
   };
 
   const setFilterChainState = (nextChain: PdfFilterChain) => {
@@ -579,7 +667,6 @@ function PdfReader(props: {
 
     setFilterChainState(nextChain);
     setPdfReaderFilterChainPreference(props.bookId ?? props.fileUrl, nextChain);
-    destroyFilterRenderers();
     scheduleVisiblePageFilterRender();
   };
 
@@ -740,10 +827,14 @@ function PdfReader(props: {
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
       if (filteredCanvas) {
-        filteredCanvas.width = canvas.width;
-        filteredCanvas.height = canvas.height;
-        filteredCanvas.style.width = `${displayWidth}px`;
-        filteredCanvas.style.height = `${displayHeight}px`;
+        resizeFilteredCanvas(
+          descriptor.pageNumber,
+          filteredCanvas,
+          canvas.width,
+          canvas.height,
+          displayWidth,
+          displayHeight,
+        );
       }
 
       const task = page.render({ canvas, viewport });
@@ -783,14 +874,15 @@ function PdfReader(props: {
       }
     }
 
-    if (
-      filteredCanvas &&
-      (filteredCanvas.width !== canvas.width || filteredCanvas.height !== canvas.height)
-    ) {
-      filteredCanvas.width = canvas.width;
-      filteredCanvas.height = canvas.height;
-      filteredCanvas.style.width = `${displayWidth}px`;
-      filteredCanvas.style.height = `${displayHeight}px`;
+    if (filteredCanvas) {
+      resizeFilteredCanvas(
+        descriptor.pageNumber,
+        filteredCanvas,
+        canvas.width,
+        canvas.height,
+        displayWidth,
+        displayHeight,
+      );
     }
 
     if (!hasFilters) {
@@ -805,15 +897,25 @@ function PdfReader(props: {
       return;
     }
 
-    let renderer = filterRenderers.get(descriptor.pageNumber);
+    const filterGenerationAtStart = filterRenderGeneration;
 
     try {
-      if (!renderer) {
-        renderer = createPdfWebglFilterRenderer(filteredCanvas);
-        filterRenderers.set(descriptor.pageNumber, renderer);
+      const renderer = await ensureFilterRenderer(descriptor.pageNumber, filteredCanvas);
+
+      if (
+        !renderer ||
+        filterGenerationAtStart !== filterRenderGeneration ||
+        filteredKeys.get(descriptor.pageNumber) === filterKey()
+      ) {
+        return;
       }
 
       renderer.render(canvas, filterChain());
+
+      if (filterGenerationAtStart !== filterRenderGeneration) {
+        return;
+      }
+
       filteredKeys.set(descriptor.pageNumber, currentFilterKey);
       setAppliedFilterKeys((current) => {
         const next = new Map(current);
@@ -1017,6 +1119,7 @@ function PdfReader(props: {
     filterPreferenceStorageKey = storageKey;
     const nextChain = getPdfReaderFilterChainPreference(storageKey) ?? defaultPdfFilterChain();
 
+    destroyFilterRenderers();
     setFilterChainState(nextChain);
     scheduleVisiblePageFilterRender();
   });
