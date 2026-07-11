@@ -181,6 +181,9 @@ function PdfReader(props: {
     ),
   );
   const [filteredPages, setFilteredPages] = createSignal<ReadonlySet<number>>(new Set());
+  const [appliedFilterKeys, setAppliedFilterKeys] = createSignal<ReadonlyMap<number, string>>(
+    new Map(),
+  );
   const [canvasRefsVersion, setCanvasRefsVersion] = createSignal(0);
   const [filterError, setFilterError] = createSignal<string>();
   const [outlineEntries, setOutlineEntries] = createSignal<PdfOutlineEntry[]>([]);
@@ -524,6 +527,7 @@ function PdfReader(props: {
   const invalidateFilteredPages = () => {
     filteredKeys.clear();
     setFilteredPages(new Set<number>());
+    setAppliedFilterKeys(new Map());
   };
 
   const setFilterChainState = (nextChain: PdfFilterChain) => {
@@ -748,6 +752,15 @@ function PdfReader(props: {
           next.delete(descriptor.pageNumber);
           return next;
         });
+        setAppliedFilterKeys((current) => {
+          if (!current.has(descriptor.pageNumber)) {
+            return current;
+          }
+
+          const next = new Map(current);
+          next.delete(descriptor.pageNumber);
+          return next;
+        });
       } catch (error) {
         if (!isRenderCancelled(error)) {
           setFailed(true);
@@ -792,13 +805,12 @@ function PdfReader(props: {
 
       renderer.render(canvas, filterChain());
       filteredKeys.set(descriptor.pageNumber, currentFilterKey);
-      setFilteredPages((current) => {
-        if (current.has(descriptor.pageNumber)) {
-          return current;
-        }
-
-        return new Set(current).add(descriptor.pageNumber);
+      setAppliedFilterKeys((current) => {
+        const next = new Map(current);
+        next.set(descriptor.pageNumber, currentFilterKey);
+        return next;
       });
+      setFilteredPages((current) => new Set(current).add(descriptor.pageNumber));
     } catch (error) {
       console.error('Failed to apply PDF page filter', error);
       disablePdfFilters();
@@ -1166,6 +1178,26 @@ function PdfReader(props: {
     );
   };
 
+  const moveFilter = (filterId: PdfFilterChain[number]['id'], targetIndex: number) => {
+    updateFilterChain((chain) => {
+      const sourceIndex = chain.findIndex((filter) => filter.id === filterId);
+
+      if (sourceIndex < 0 || sourceIndex === targetIndex) {
+        return chain;
+      }
+
+      const nextChain = [...chain];
+      const [movedFilter] = nextChain.splice(sourceIndex, 1);
+
+      if (!movedFilter) {
+        return chain;
+      }
+
+      nextChain.splice(Math.min(targetIndex, nextChain.length), 0, movedFilter);
+      return nextChain;
+    });
+  };
+
   const resetFilters = () => {
     updateFilterChain(() => defaultPdfFilterChain());
   };
@@ -1359,6 +1391,7 @@ function PdfReader(props: {
 
       <PdfFilterPanel
         open={filterPanelOpen()}
+        filterChain={filterChain()}
         textEnhancementFilter={
           textEnhancementFilter() ?? textEnhancementFilterFromChain(defaultPdfFilterChain())!
         }
@@ -1370,6 +1403,7 @@ function PdfReader(props: {
         onTextEnhancementParameterChange={updateTextEnhancementParameter}
         onToggleInvert={toggleInvert}
         onStrengthChange={updateInvertStrength}
+        onMoveFilter={moveFilter}
         onReset={resetFilters}
       />
 
@@ -1402,6 +1436,7 @@ function PdfReader(props: {
                 class={styles.page}
                 classList={{ [styles.pageFit]: isFitWidth() }}
                 data-page-number={page.pageNumber}
+                data-applied-filter-key={appliedFilterKeys().get(page.pageNumber) ?? ''}
                 style={{
                   width: `${Math.round(pageWidth())}px`,
                   'max-width': '100%',

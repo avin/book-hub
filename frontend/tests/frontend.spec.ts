@@ -79,6 +79,59 @@ async function dragRangeToEnd(page: Page, range: ReturnType<Page['locator']>) {
   await page.mouse.up();
 }
 
+const pdfOutlineBookId = '00000000-0000-0000-0000-000000000103';
+
+async function openPdfFiltersPanel(page: Page) {
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
+  return page.locator('aside').filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
+}
+
+async function pdfAppliedFilterKey(page: Page, pageNumber = '1') {
+  return page.locator(`[data-page-number="${pageNumber}"]`).getAttribute('data-applied-filter-key');
+}
+
+function parsePdfFilterChain(key: string | null) {
+  if (!key) {
+    return undefined;
+  }
+
+  return JSON.parse(key) as Array<{ id: string; enabled: boolean; [key: string]: unknown }>;
+}
+
+async function isWebglAvailable(page: Page) {
+  return page.evaluate(() => document.createElement('canvas').getContext('webgl') !== null);
+}
+
+async function reorderPdfFilter(
+  page: Page,
+  sourceId: 'textEnhancement' | 'invert',
+  targetId: 'textEnhancement' | 'invert',
+) {
+  await page.evaluate(
+    ({ source, target }) => {
+      const handle = document.querySelector(`[data-testid="pdf-filter-drag-handle-${source}"]`);
+      const targetElement = document.querySelector(`[data-testid="pdf-filter-item-${target}"]`);
+
+      if (!handle || !targetElement) {
+        throw new Error(`Missing drag source or target for ${source} -> ${target}`);
+      }
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.setData('text/plain', source);
+      handle.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer }));
+      targetElement.dispatchEvent(
+        new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }),
+      );
+      targetElement.dispatchEvent(
+        new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }),
+      );
+      handle.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer }));
+    },
+    { source: sourceId, target: targetId },
+  );
+}
+
 test('гость видит форму входа, валидацию и может зарегистрироваться', async ({ page }) => {
   await page.goto('/login');
   await expect(page.getByRole('heading', { name: 'Book Hub' })).toBeVisible();
@@ -764,17 +817,10 @@ test('PDF reader открывает панель фильтров и показ�
 
   if (await strength.isVisible()) {
     await expect(strength).toHaveValue('1');
-    await expect
-      .poll(() =>
-        page.locator('[data-page-number="1"] canvas').evaluateAll((canvases) => ({
-          canvasCount: canvases.length,
-          sourceDisplay: canvases[0] ? getComputedStyle(canvases[0]).display : undefined,
-          filteredDisplay: canvases[1] ? getComputedStyle(canvases[1]).display : undefined,
-        })),
-      )
-      .toEqual({ canvasCount: 2, sourceDisplay: 'none', filteredDisplay: 'block' });
+    await expect.poll(() => pdfAppliedFilterKey(page)).toMatch(/"id":"invert","enabled":true/);
     await invert.uncheck();
     await expect(strength).toBeHidden();
+    await expect.poll(() => pdfAppliedFilterKey(page)).toBe('');
   } else {
     await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
     await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
@@ -787,13 +833,9 @@ test('PDF reader настраивает усиление текста, прим�
   await login(page);
   await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
-  await page.mouse.move(10, 10);
-  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
-
-  const panel = page
-    .locator('aside')
-    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
+  const panel = await openPdfFiltersPanel(page);
   const enhancement = panel.getByRole('checkbox', { name: 'Усиление текста' });
+  const invert = panel.getByRole('checkbox', { name: 'Инверсия' });
   const parameterNames = ['Толщина штриха', 'Порог', 'Контраст', 'Уровни серого', 'Сдвиг тона'];
 
   await expect(enhancement).not.toBeChecked();
@@ -802,9 +844,7 @@ test('PDF reader настраивает усиление текста, прим�
   }
 
   await enhancement.check();
-  const webglAvailable = await page.evaluate(
-    () => document.createElement('canvas').getContext('webgl') !== null,
-  );
+  const webglAvailable = await isWebglAvailable(page);
 
   if (webglAvailable) {
     await expect(panel.getByRole('slider', { name: 'Толщина штриха' })).toBeVisible();
@@ -822,27 +862,41 @@ test('PDF reader настраивает усиление текста, прим�
     await dragRangeToEnd(page, panel.getByRole('slider', { name: 'Порог' }));
     await expect(panel.getByRole('slider', { name: 'Порог' })).not.toHaveValue('0.62');
     await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
-          return preferences.readers?.pdf?.filterChains?.[
-            '00000000-0000-0000-0000-000000000103'
-          ]?.[0]?.threshold;
-        }),
-      )
+      .poll(async () => {
+        const chain = parsePdfFilterChain(await pdfAppliedFilterKey(page));
+        return chain?.find((filter) => filter.id === 'textEnhancement')?.threshold;
+      })
       .not.toBe(0.62);
+
+    await invert.check();
+    await expect.poll(() => pdfAppliedFilterKey(page)).toMatch(/"id":"invert","enabled":true/);
 
     const searchInput = page.getByRole('search').getByRole('searchbox');
     await searchInput.fill('Page');
     await searchInput.press('Enter');
     await expect(page.getByTestId('pdf-text-layer').locator('.highlight')).toHaveCount(2);
 
+    await reorderPdfFilter(page, 'invert', 'textEnhancement');
+    await expect(panel.locator('[data-testid^="pdf-filter-item-"]').nth(0)).toHaveAttribute(
+      'data-testid',
+      'pdf-filter-item-invert',
+    );
+
     await panel.getByRole('button', { name: 'Сбросить все' }).click();
     await expect(enhancement).not.toBeChecked();
-    await expect(panel.getByRole('checkbox', { name: 'Инверсия' })).not.toBeChecked();
+    await expect(invert).not.toBeChecked();
     for (const name of parameterNames) {
       await expect(panel.getByRole('slider', { name })).toBeHidden();
     }
+    await expect(panel.locator('[data-testid^="pdf-filter-item-"]').nth(0)).toHaveAttribute(
+      'data-testid',
+      'pdf-filter-item-textEnhancement',
+    );
+    await expect(panel.locator('[data-testid^="pdf-filter-item-"]').nth(1)).toHaveAttribute(
+      'data-testid',
+      'pdf-filter-item-invert',
+    );
+    await expect.poll(() => pdfAppliedFilterKey(page)).toBe('');
 
     await enhancement.check();
     await expect(panel.getByRole('slider', { name: 'Толщина штриха' })).toHaveValue('0.7');
@@ -852,6 +906,94 @@ test('PDF reader настраивает усиление текста, прим�
     await expect(panel.getByRole('slider', { name: 'Сдвиг тона' })).toHaveValue('-0.65');
   } else {
     await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
+  }
+});
+
+test('PDF reader меняет и сохраняет порядок выключенных фильтров', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  const panel = await openPdfFiltersPanel(page);
+  const filterItems = panel.locator('[data-testid^="pdf-filter-item-"]');
+  const enhancement = panel.getByRole('checkbox', { name: 'Усиление текста' });
+  const invert = panel.getByRole('checkbox', { name: 'Инверсия' });
+
+  await expect(filterItems).toHaveCount(2);
+  await expect(filterItems.nth(0)).toHaveAttribute(
+    'data-testid',
+    'pdf-filter-item-textEnhancement',
+  );
+  await expect(filterItems.nth(1)).toHaveAttribute('data-testid', 'pdf-filter-item-invert');
+
+  await reorderPdfFilter(page, 'invert', 'textEnhancement');
+  await expect(filterItems.nth(0)).toHaveAttribute('data-testid', 'pdf-filter-item-invert');
+  await expect(filterItems.nth(1)).toHaveAttribute(
+    'data-testid',
+    'pdf-filter-item-textEnhancement',
+  );
+  await expect(invert).not.toBeChecked();
+
+  await expect
+    .poll(() =>
+      page.evaluate((bookId) => {
+        const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
+        return preferences.readers?.pdf?.filterChains?.[bookId]?.map(
+          (filter: { id: string }) => filter.id,
+        );
+      }, pdfOutlineBookId),
+    )
+    .toEqual(['invert', 'textEnhancement']);
+
+  if (await isWebglAvailable(page)) {
+    await enhancement.check();
+    await dragRangeToEnd(page, panel.getByRole('slider', { name: 'Порог' }));
+    await expect(panel.getByRole('slider', { name: 'Порог' })).not.toHaveValue('0.62');
+    await enhancement.uncheck();
+    await expect(panel.getByRole('slider', { name: 'Порог' })).toBeHidden();
+
+    await reorderPdfFilter(page, 'textEnhancement', 'invert');
+    await expect(filterItems.nth(0)).toHaveAttribute(
+      'data-testid',
+      'pdf-filter-item-textEnhancement',
+    );
+    await expect(filterItems.nth(1)).toHaveAttribute('data-testid', 'pdf-filter-item-invert');
+
+    await enhancement.check();
+    await invert.check();
+    await expect(panel.getByRole('slider', { name: 'Порог' })).not.toHaveValue('0.62');
+    await expect
+      .poll(async () =>
+        parsePdfFilterChain(await pdfAppliedFilterKey(page))?.map((filter) => filter.id),
+      )
+      .toEqual(['textEnhancement', 'invert']);
+
+    await reorderPdfFilter(page, 'invert', 'textEnhancement');
+    await expect
+      .poll(async () =>
+        parsePdfFilterChain(await pdfAppliedFilterKey(page))?.map((filter) => filter.id),
+      )
+      .toEqual(['invert', 'textEnhancement']);
+
+    await invert.uncheck();
+    await enhancement.uncheck();
+  }
+
+  await page.goto('/library');
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  const reopenedPanel = await openPdfFiltersPanel(page);
+  const reopenedItems = reopenedPanel.locator('[data-testid^="pdf-filter-item-"]');
+
+  await expect(reopenedItems.nth(0)).toHaveAttribute('data-testid', 'pdf-filter-item-invert');
+  await expect(reopenedItems.nth(1)).toHaveAttribute(
+    'data-testid',
+    'pdf-filter-item-textEnhancement',
+  );
+  await expect(reopenedPanel.getByRole('checkbox', { name: 'Инверсия' })).not.toBeChecked();
+
+  if (await isWebglAvailable(page)) {
+    await reopenedPanel.getByRole('checkbox', { name: 'Усиление текста' }).check();
+    await expect(reopenedPanel.getByRole('slider', { name: 'Порог' })).not.toHaveValue('0.62');
   }
 });
 

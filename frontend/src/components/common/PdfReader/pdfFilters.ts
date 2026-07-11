@@ -112,16 +112,35 @@ export function sanitizePdfFilterChain(value: unknown): PdfFilterChain | undefin
   }
 
   const filters = value.filter(isRecord);
-  const enhancement = filters.find(
-    (filter) => filter.id === 'textEnhancement' || filter.id === 'enhanceText',
-  );
-  const invert = filters.find((filter) => filter.id === 'invert');
+  const sanitizedFilters: PdfFilterChain = [];
+  const seen = new Set<PdfFilter['id']>();
 
-  if (!enhancement && !invert) {
+  for (const filter of filters) {
+    if (
+      (filter.id === 'textEnhancement' || filter.id === 'enhanceText') &&
+      !seen.has('textEnhancement')
+    ) {
+      sanitizedFilters.push(sanitizeTextEnhancementFilter(filter));
+      seen.add('textEnhancement');
+    }
+
+    if (filter.id === 'invert' && !seen.has('invert')) {
+      sanitizedFilters.push(sanitizeInvertFilter(filter));
+      seen.add('invert');
+    }
+  }
+
+  if (sanitizedFilters.length === 0) {
     return undefined;
   }
 
-  return [sanitizeTextEnhancementFilter(enhancement ?? {}), sanitizeInvertFilter(invert ?? {})];
+  for (const filter of defaultPdfFilterChain()) {
+    if (!seen.has(filter.id)) {
+      sanitizedFilters.push(filter);
+    }
+  }
+
+  return sanitizedFilters;
 }
 
 export function normalizedPdfFilterChain(value: unknown): PdfFilterChain {

@@ -161,6 +161,10 @@ export const messages = {
     ru: 'Сила',
     en: 'Strength',
   },
+  moveFilter: {
+    ru: 'Переместить фильтр',
+    en: 'Move filter',
+  },
   resetAll: {
     ru: 'Сбросить все',
     en: 'Reset all',

@@ -4,6 +4,30 @@
 .filterGroup {
   display: grid;
   gap: $space-4;
+  padding: $space-3;
+  border: 1px solid var(--border-default);
+  border-radius: $radius-sm;
+}
+
+.filterDragging {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.filterHeader {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+}
+
+.dragHandle {
+  flex: 0 0 auto;
+  min-height: 32px;
+  cursor: grab;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
 }
 
 .filterToggle {

@@ -14,6 +14,7 @@ export const Default = () => (
   <I18nProvider>
     <PdfFilterPanel
       open
+      filterChain={defaultPdfFilterChain()}
       textEnhancementFilter={textEnhancementFilterFromChain(defaultPdfFilterChain())!}
       invertFilter={invertFilterFromChain(defaultPdfFilterChain())!}
       available
@@ -22,6 +23,7 @@ export const Default = () => (
       onTextEnhancementParameterChange={() => undefined}
       onToggleInvert={() => undefined}
       onStrengthChange={() => undefined}
+      onMoveFilter={() => undefined}
       onReset={() => undefined}
     />
   </I18nProvider>
