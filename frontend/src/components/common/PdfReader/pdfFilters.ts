@@ -14,6 +14,16 @@ export const pdfTextEnhancementRanges = {
   toneShift: { min: -1, max: 1, step: 0.01 },
 } as const;
 
+export const pdfSoftTextEnhancementDefaults = {
+  strokeWidth: 0.65,
+  strength: 0.8,
+} as const;
+
+export const pdfSoftTextEnhancementRanges = {
+  strokeWidth: { min: 0, max: 2, step: 0.01 },
+  strength: { min: 0, max: 1, step: 0.01 },
+} as const;
+
 export const pdfVisualAdjustmentDefaults = {
   brightness: 0,
   contrast: 1,
@@ -34,6 +44,13 @@ export type PdfTextEnhancementFilter = {
   contrast: number;
   grayLevels: number;
   toneShift: number;
+};
+
+export type PdfSoftTextEnhancementFilter = {
+  id: 'softTextEnhancement';
+  enabled: boolean;
+  strokeWidth: number;
+  strength: number;
 };
 
 export type PdfInvertFilter = {
@@ -64,6 +81,7 @@ export type PdfGrayscaleFilter = {
 
 export type PdfFilter =
   | PdfTextEnhancementFilter
+  | PdfSoftTextEnhancementFilter
   | PdfInvertFilter
   | PdfVisualAdjustmentFilter
   | PdfWarmthFilter
@@ -95,6 +113,11 @@ export const defaultPdfFilterChain = (): PdfFilterChain => [
     id: 'grayscale',
     enabled: false,
     strength: 1,
+  },
+  {
+    id: 'softTextEnhancement',
+    enabled: false,
+    ...pdfSoftTextEnhancementDefaults,
   },
 ];
 
@@ -144,6 +167,28 @@ function sanitizeTextEnhancementFilter(value: Record<string, unknown>): PdfTextE
       toneShift ?? pdfTextEnhancementDefaults.toneShift,
       pdfTextEnhancementRanges.toneShift.min,
       pdfTextEnhancementRanges.toneShift.max,
+    ),
+  };
+}
+
+function sanitizeSoftTextEnhancementFilter(
+  value: Record<string, unknown>,
+): PdfSoftTextEnhancementFilter {
+  const strokeWidth = finiteNumber(value.strokeWidth);
+  const strength = finiteNumber(value.strength);
+
+  return {
+    id: 'softTextEnhancement',
+    enabled: value.enabled === true,
+    strokeWidth: clamp(
+      strokeWidth ?? pdfSoftTextEnhancementDefaults.strokeWidth,
+      pdfSoftTextEnhancementRanges.strokeWidth.min,
+      pdfSoftTextEnhancementRanges.strokeWidth.max,
+    ),
+    strength: clamp(
+      strength ?? pdfSoftTextEnhancementDefaults.strength,
+      pdfSoftTextEnhancementRanges.strength.min,
+      pdfSoftTextEnhancementRanges.strength.max,
     ),
   };
 }
@@ -216,6 +261,11 @@ export function sanitizePdfFilterChain(value: unknown): PdfFilterChain | undefin
       seen.add('textEnhancement');
     }
 
+    if (filter.id === 'softTextEnhancement' && !seen.has('softTextEnhancement')) {
+      sanitizedFilters.push(sanitizeSoftTextEnhancementFilter(filter));
+      seen.add('softTextEnhancement');
+    }
+
     if (filter.id === 'invert' && !seen.has('invert')) {
       sanitizedFilters.push(sanitizeInvertFilter(filter));
       seen.add('invert');
@@ -265,6 +315,12 @@ export function hasEnabledPdfFilters(chain: PdfFilterChain) {
 export function textEnhancementFilterFromChain(chain: PdfFilterChain) {
   return chain.find(
     (filter): filter is PdfTextEnhancementFilter => filter.id === 'textEnhancement',
+  );
+}
+
+export function softTextEnhancementFilterFromChain(chain: PdfFilterChain) {
+  return chain.find(
+    (filter): filter is PdfSoftTextEnhancementFilter => filter.id === 'softTextEnhancement',
   );
 }
 

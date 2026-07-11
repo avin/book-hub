@@ -4,6 +4,7 @@ import {
   defaultPdfFilterChain,
   grayscaleFilterFromChain,
   invertFilterFromChain,
+  softTextEnhancementFilterFromChain,
   textEnhancementFilterFromChain,
   visualAdjustmentFilterFromChain,
   warmthFilterFromChain,
@@ -17,6 +18,9 @@ export default {
 export const Default = () => {
   const [filterChain, setFilterChain] = createSignal(defaultPdfFilterChain());
   const textEnhancementFilter = createMemo(() => textEnhancementFilterFromChain(filterChain())!);
+  const softTextEnhancementFilter = createMemo(() =>
+    softTextEnhancementFilterFromChain(filterChain())!,
+  );
   const invertFilter = createMemo(() => invertFilterFromChain(filterChain())!);
   const visualAdjustmentFilter = createMemo(() => visualAdjustmentFilterFromChain(filterChain())!);
   const warmthFilter = createMemo(() => warmthFilterFromChain(filterChain())!);
@@ -28,6 +32,7 @@ export const Default = () => {
         open
         filterChain={filterChain()}
         textEnhancementFilter={textEnhancementFilter()}
+        softTextEnhancementFilter={softTextEnhancementFilter()}
         invertFilter={invertFilter()}
         visualAdjustmentFilter={visualAdjustmentFilter()}
         warmthFilter={warmthFilter()}
@@ -45,6 +50,20 @@ export const Default = () => {
           setFilterChain((chain) =>
             chain.map((filter) =>
               filter.id === 'textEnhancement' ? { ...filter, [parameter]: value } : filter,
+            ),
+          )
+        }
+        onToggleSoftTextEnhancement={(enabled) =>
+          setFilterChain((chain) =>
+            chain.map((filter) =>
+              filter.id === 'softTextEnhancement' ? { ...filter, enabled } : filter,
+            ),
+          )
+        }
+        onSoftTextEnhancementParameterChange={(parameter, value) =>
+          setFilterChain((chain) =>
+            chain.map((filter) =>
+              filter.id === 'softTextEnhancement' ? { ...filter, [parameter]: value } : filter,
             ),
           )
         }

@@ -6,12 +6,14 @@ import InputContainer from '@/components/common/InputContainer/InputContainer';
 import ReaderSidePanel from '@/components/common/ReaderSidePanel/ReaderSidePanel';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
+  pdfSoftTextEnhancementRanges,
   pdfTextEnhancementRanges,
   pdfVisualAdjustmentRanges,
   type PdfFilter,
   type PdfFilterChain,
   type PdfGrayscaleFilter,
   type PdfInvertFilter,
+  type PdfSoftTextEnhancementFilter,
   type PdfTextEnhancementFilter,
   type PdfVisualAdjustmentFilter,
   type PdfWarmthFilter,
@@ -19,15 +21,21 @@ import {
 import styles from './PdfFilterPanel.module.scss';
 
 function isPdfFilterId(value: string | null): value is PdfFilter['id'] {
-  return ['textEnhancement', 'invert', 'visualAdjustment', 'warmth', 'grayscale'].includes(
-    value ?? '',
-  );
+  return [
+    'textEnhancement',
+    'softTextEnhancement',
+    'invert',
+    'visualAdjustment',
+    'warmth',
+    'grayscale',
+  ].includes(value ?? '');
 }
 
 function PdfFilterPanel(props: {
   open: boolean;
   filterChain: PdfFilterChain;
   textEnhancementFilter: PdfTextEnhancementFilter;
+  softTextEnhancementFilter: PdfSoftTextEnhancementFilter;
   invertFilter: PdfInvertFilter;
   visualAdjustmentFilter: PdfVisualAdjustmentFilter;
   warmthFilter: PdfWarmthFilter;
@@ -38,6 +46,11 @@ function PdfFilterPanel(props: {
   onToggleTextEnhancement: (enabled: boolean) => void;
   onTextEnhancementParameterChange: (
     parameter: keyof Omit<PdfTextEnhancementFilter, 'id' | 'enabled'>,
+    value: number,
+  ) => void;
+  onToggleSoftTextEnhancement: (enabled: boolean) => void;
+  onSoftTextEnhancementParameterChange: (
+    parameter: keyof Omit<PdfSoftTextEnhancementFilter, 'id' | 'enabled'>,
     value: number,
   ) => void;
   onToggleInvert: (enabled: boolean) => void;
@@ -70,6 +83,12 @@ function PdfFilterPanel(props: {
   const [draftToneShift, setDraftToneShift] = createSignal(
     untrack(() => props.textEnhancementFilter.toneShift),
   );
+  const [draftSoftStrokeWidth, setDraftSoftStrokeWidth] = createSignal(
+    untrack(() => props.softTextEnhancementFilter.strokeWidth),
+  );
+  const [draftSoftStrength, setDraftSoftStrength] = createSignal(
+    untrack(() => props.softTextEnhancementFilter.strength),
+  );
   const [draftStrength, setDraftStrength] = createSignal(
     untrack(() => props.invertFilter.strength),
   );
@@ -99,6 +118,12 @@ function PdfFilterPanel(props: {
   });
 
   createEffect(() => {
+    const filter = props.softTextEnhancementFilter;
+    setDraftSoftStrokeWidth(filter.strokeWidth);
+    setDraftSoftStrength(filter.strength);
+  });
+
+  createEffect(() => {
     setDraftStrength(props.invertFilter.strength);
   });
 
@@ -121,6 +146,13 @@ function PdfFilterPanel(props: {
     props.onTextEnhancementParameterChange(parameter, value);
   };
 
+  const commitSoftTextEnhancementParameter = (
+    parameter: keyof Omit<PdfSoftTextEnhancementFilter, 'id' | 'enabled'>,
+    value: number,
+  ) => {
+    props.onSoftTextEnhancementParameterChange(parameter, value);
+  };
+
   const commitStrength = () => {
     props.onStrengthChange(draftStrength());
   };
@@ -140,6 +172,8 @@ function PdfFilterPanel(props: {
     switch (filter.id) {
       case 'textEnhancement':
         return t('textEnhancement');
+      case 'softTextEnhancement':
+        return t('softTextEnhancement');
       case 'invert':
         return t('invert');
       case 'visualAdjustment':
@@ -231,6 +265,9 @@ function PdfFilterPanel(props: {
                       switch (filter.id) {
                         case 'textEnhancement':
                           props.onToggleTextEnhancement(enabled);
+                          break;
+                        case 'softTextEnhancement':
+                          props.onToggleSoftTextEnhancement(enabled);
                           break;
                         case 'invert':
                           props.onToggleInvert(enabled);
@@ -342,6 +379,52 @@ function PdfFilterPanel(props: {
                       commitTextEnhancementParameter('toneShift', draftToneShift())
                     }
                     onInput={(event) => setDraftToneShift(Number(event.currentTarget.value))}
+                  />
+                </InputContainer>
+              </Show>
+
+              <Show when={filter.id === 'softTextEnhancement' && filter.enabled && props.available}>
+                <InputContainer
+                  label={t('strokeWidth')}
+                  labelEnd={draftSoftStrokeWidth().toFixed(2)}
+                >
+                  <input
+                    type="range"
+                    min={pdfSoftTextEnhancementRanges.strokeWidth.min}
+                    max={pdfSoftTextEnhancementRanges.strokeWidth.max}
+                    step={pdfSoftTextEnhancementRanges.strokeWidth.step}
+                    value={draftSoftStrokeWidth()}
+                    aria-label={t('strokeWidth')}
+                    onPointerDown={capturePointer}
+                    onPointerUp={() =>
+                      commitSoftTextEnhancementParameter('strokeWidth', draftSoftStrokeWidth())
+                    }
+                    onPointerCancel={() =>
+                      commitSoftTextEnhancementParameter('strokeWidth', draftSoftStrokeWidth())
+                    }
+                    onInput={(event) => setDraftSoftStrokeWidth(Number(event.currentTarget.value))}
+                  />
+                </InputContainer>
+
+                <InputContainer
+                  label={t('filterStrength')}
+                  labelEnd={`${Math.round(draftSoftStrength() * 100)}%`}
+                >
+                  <input
+                    type="range"
+                    min={pdfSoftTextEnhancementRanges.strength.min}
+                    max={pdfSoftTextEnhancementRanges.strength.max}
+                    step={pdfSoftTextEnhancementRanges.strength.step}
+                    value={draftSoftStrength()}
+                    aria-label={t('filterStrength')}
+                    onPointerDown={capturePointer}
+                    onPointerUp={() =>
+                      commitSoftTextEnhancementParameter('strength', draftSoftStrength())
+                    }
+                    onPointerCancel={() =>
+                      commitSoftTextEnhancementParameter('strength', draftSoftStrength())
+                    }
+                    onInput={(event) => setDraftSoftStrength(Number(event.currentTarget.value))}
                   />
                 </InputContainer>
               </Show>

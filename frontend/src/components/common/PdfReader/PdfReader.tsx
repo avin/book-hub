@@ -47,6 +47,7 @@ import {
   hasEnabledPdfFilters,
   invertFilterFromChain,
   pdfFilterChainKey,
+  softTextEnhancementFilterFromChain,
   textEnhancementFilterFromChain,
   visualAdjustmentFilterFromChain,
   warmthFilterFromChain,
@@ -218,6 +219,9 @@ function PdfReader(props: {
   const filterKey = createMemo(() => pdfFilterChainKey(filterChain()));
   const filtersEnabled = createMemo(() => hasEnabledPdfFilters(filterChain()));
   const textEnhancementFilter = createMemo(() => textEnhancementFilterFromChain(filterChain()));
+  const softTextEnhancementFilter = createMemo(() =>
+    softTextEnhancementFilterFromChain(filterChain()),
+  );
   const invertFilter = createMemo(() => invertFilterFromChain(filterChain()));
   const visualAdjustmentFilter = createMemo(() => visualAdjustmentFilterFromChain(filterChain()));
   const warmthFilter = createMemo(() => warmthFilterFromChain(filterChain()));
@@ -1165,6 +1169,14 @@ function PdfReader(props: {
     );
   };
 
+  const toggleSoftTextEnhancement = (enabled: boolean) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) =>
+        filter.id === 'softTextEnhancement' ? { ...filter, enabled } : filter,
+      ),
+    );
+  };
+
   const updateTextEnhancementParameter = (
     parameter: 'strokeWidth' | 'threshold' | 'contrast' | 'grayLevels' | 'toneShift',
     value: number,
@@ -1172,6 +1184,17 @@ function PdfReader(props: {
     updateFilterChain((chain) =>
       chain.map((filter) =>
         filter.id === 'textEnhancement' ? { ...filter, [parameter]: value } : filter,
+      ),
+    );
+  };
+
+  const updateSoftTextEnhancementParameter = (
+    parameter: 'strokeWidth' | 'strength',
+    value: number,
+  ) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) =>
+        filter.id === 'softTextEnhancement' ? { ...filter, [parameter]: value } : filter,
       ),
     );
   };
@@ -1432,6 +1455,10 @@ function PdfReader(props: {
         textEnhancementFilter={
           textEnhancementFilter() ?? textEnhancementFilterFromChain(defaultPdfFilterChain())!
         }
+        softTextEnhancementFilter={
+          softTextEnhancementFilter() ??
+          softTextEnhancementFilterFromChain(defaultPdfFilterChain())!
+        }
         invertFilter={invertFilter() ?? invertFilterFromChain(defaultPdfFilterChain())!}
         visualAdjustmentFilter={
           visualAdjustmentFilter() ?? visualAdjustmentFilterFromChain(defaultPdfFilterChain())!
@@ -1443,6 +1470,8 @@ function PdfReader(props: {
         onClose={() => setFilterPanelOpen(false)}
         onToggleTextEnhancement={toggleTextEnhancement}
         onTextEnhancementParameterChange={updateTextEnhancementParameter}
+        onToggleSoftTextEnhancement={toggleSoftTextEnhancement}
+        onSoftTextEnhancementParameterChange={updateSoftTextEnhancementParameter}
         onToggleInvert={toggleInvert}
         onStrengthChange={updateInvertStrength}
         onToggleVisualAdjustment={toggleVisualAdjustment}

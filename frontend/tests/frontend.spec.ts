@@ -67,12 +67,12 @@ async function openReaderToc(page: Page) {
 }
 
 async function dragRangeToEnd(page: Page, range: ReturnType<Page['locator']>) {
+  await range.scrollIntoViewIfNeeded();
   const box = await range.boundingBox();
   expect(box).not.toBeNull();
 
   if (!box) return;
   const y = box.y + box.height / 2;
-  await range.scrollIntoViewIfNeeded();
   await page.mouse.move(box.x + box.width * 0.35, y);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width - 2, y, { steps: 8 });
@@ -929,12 +929,16 @@ test('PDF reader меняет и сохраняет порядок выключ�
   const enhancement = panel.getByRole('checkbox', { name: 'Усиление текста' });
   const invert = panel.getByRole('checkbox', { name: 'Инверсия' });
 
-  await expect(filterItems).toHaveCount(2);
+  await expect(filterItems).toHaveCount(6);
   await expect(filterItems.nth(0)).toHaveAttribute(
     'data-testid',
     'pdf-filter-item-textEnhancement',
   );
   await expect(filterItems.nth(1)).toHaveAttribute('data-testid', 'pdf-filter-item-invert');
+  await expect(filterItems.nth(5)).toHaveAttribute(
+    'data-testid',
+    'pdf-filter-item-softTextEnhancement',
+  );
 
   await reorderPdfFilter(page, 'invert', 'textEnhancement');
   await expect(filterItems.nth(0)).toHaveAttribute('data-testid', 'pdf-filter-item-invert');
@@ -953,7 +957,14 @@ test('PDF reader меняет и сохраняет порядок выключ�
         );
       }, pdfOutlineBookId),
     )
-    .toEqual(['invert', 'textEnhancement']);
+    .toEqual([
+      'invert',
+      'textEnhancement',
+      'visualAdjustment',
+      'warmth',
+      'grayscale',
+      'softTextEnhancement',
+    ]);
 
   if (await isWebglAvailable(page)) {
     await enhancement.check();
@@ -976,14 +987,28 @@ test('PDF reader меняет и сохраняет порядок выключ�
       .poll(async () =>
         parsePdfFilterChain(await pdfAppliedFilterKey(page))?.map((filter) => filter.id),
       )
-      .toEqual(['textEnhancement', 'invert']);
+      .toEqual([
+        'textEnhancement',
+        'invert',
+        'visualAdjustment',
+        'warmth',
+        'grayscale',
+        'softTextEnhancement',
+      ]);
 
     await reorderPdfFilter(page, 'invert', 'textEnhancement');
     await expect
       .poll(async () =>
         parsePdfFilterChain(await pdfAppliedFilterKey(page))?.map((filter) => filter.id),
       )
-      .toEqual(['invert', 'textEnhancement']);
+      .toEqual([
+        'invert',
+        'textEnhancement',
+        'visualAdjustment',
+        'warmth',
+        'grayscale',
+        'softTextEnhancement',
+      ]);
 
     await invert.uncheck();
     await enhancement.uncheck();
@@ -1005,6 +1030,41 @@ test('PDF reader меняет и сохраняет порядок выключ�
   if (await isWebglAvailable(page)) {
     await reopenedPanel.getByRole('checkbox', { name: 'Усиление текста' }).check();
     await expect(reopenedPanel.getByRole('slider', { name: 'Порог' })).not.toHaveValue('0.62');
+  }
+});
+
+test('PDF reader настраивает мягкое утолщение текста отдельно от исходного фильтра', async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+  const panel = await openPdfFiltersPanel(page);
+  const filter = panel.getByTestId('pdf-filter-item-softTextEnhancement');
+  const toggle = filter.getByRole('checkbox', { name: 'Мягкое утолщение текста' });
+
+  await expect(toggle).not.toBeChecked();
+  await expect(filter.getByRole('slider', { name: 'Толщина штриха' })).toBeHidden();
+  await expect(filter.getByRole('slider', { name: 'Сила' })).toBeHidden();
+
+  await toggle.check();
+
+  if (await isWebglAvailable(page)) {
+    const strokeWidth = filter.getByRole('slider', { name: 'Толщина штриха' });
+    const strength = filter.getByRole('slider', { name: 'Сила' });
+    await expect(strokeWidth).toHaveValue('0.65');
+    await expect(strength).toHaveValue('0.8');
+
+    await dragRangeToEnd(page, strength);
+    await expect(strength).not.toHaveValue('0.8');
+    await expect
+      .poll(async () => {
+        const chain = parsePdfFilterChain(await pdfAppliedFilterKey(page));
+        return chain?.find((item) => item.id === 'softTextEnhancement')?.strength;
+      })
+      .not.toBe(0.8);
+  } else {
+    await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
   }
 });
 

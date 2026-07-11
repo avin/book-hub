@@ -133,6 +133,10 @@ export const messages = {
     ru: 'Усиление текста',
     en: 'Text enhancement',
   },
+  softTextEnhancement: {
+    ru: 'Мягкое утолщение текста',
+    en: 'Soft text thickening',
+  },
   strokeWidth: {
     ru: 'Толщина штриха',
     en: 'Stroke width',

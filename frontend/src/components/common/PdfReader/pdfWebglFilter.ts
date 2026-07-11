@@ -1,4 +1,5 @@
 import {
+  pdfSoftTextEnhancementDefaults,
   pdfTextEnhancementDefaults,
   pdfVisualAdjustmentDefaults,
   type PdfFilterChain,
@@ -10,6 +11,7 @@ const invertPdfFilterType = 2;
 const visualAdjustmentPdfFilterType = 3;
 const warmthPdfFilterType = 4;
 const grayscalePdfFilterType = 5;
+const softTextEnhancementPdfFilterType = 6;
 const vertexShaderSource = `
   attribute vec2 a_position;
   attribute vec2 a_texturePosition;
@@ -30,6 +32,7 @@ const fragmentShaderSource = `
   uniform int u_thirdFilter;
   uniform int u_fourthFilter;
   uniform int u_fifthFilter;
+  uniform int u_sixthFilter;
   uniform vec2 u_texelSize;
   uniform float u_strokeWidth;
   uniform float u_threshold;
@@ -42,6 +45,8 @@ const fragmentShaderSource = `
   uniform float u_gamma;
   uniform float u_warmthStrength;
   uniform float u_grayscaleStrength;
+  uniform float u_softStrokeWidth;
+  uniform float u_softStrength;
   varying vec2 v_texturePosition;
 
   const int FILTER_NONE = 0;
@@ -50,6 +55,7 @@ const fragmentShaderSource = `
   const int FILTER_VISUAL_ADJUSTMENT = 3;
   const int FILTER_WARMTH = 4;
   const int FILTER_GRAYSCALE = 5;
+  const int FILTER_SOFT_TEXT_ENHANCEMENT = 6;
 
   float luminance(vec3 color) {
     return dot(color, vec3(0.2126, 0.7152, 0.0722));
@@ -78,9 +84,35 @@ const fragmentShaderSource = `
     return vec4(vec3(enhanced), source.a);
   }
 
+  vec4 applySoftTextEnhancement(vec4 source) {
+    float currentInk = 1.0 - luminance(source.rgb);
+    float strongestInk = currentInk;
+    float radius = max(u_softStrokeWidth, 0.0);
+    vec2 horizontal = vec2(radius, 0.0) * u_texelSize;
+    vec2 vertical = vec2(0.0, radius) * u_texelSize;
+    vec2 diagonal = vec2(radius * 0.70710678) * u_texelSize;
+
+    strongestInk = max(strongestInk, 1.0 - luminance(texture2D(u_image, v_texturePosition + horizontal).rgb));
+    strongestInk = max(strongestInk, 1.0 - luminance(texture2D(u_image, v_texturePosition - horizontal).rgb));
+    strongestInk = max(strongestInk, 1.0 - luminance(texture2D(u_image, v_texturePosition + vertical).rgb));
+    strongestInk = max(strongestInk, 1.0 - luminance(texture2D(u_image, v_texturePosition - vertical).rgb));
+    strongestInk = max(strongestInk, 1.0 - luminance(texture2D(u_image, v_texturePosition + diagonal).rgb));
+    strongestInk = max(strongestInk, 1.0 - luminance(texture2D(u_image, v_texturePosition - diagonal).rgb));
+    strongestInk = max(strongestInk, 1.0 - luminance(texture2D(u_image, v_texturePosition + vec2(diagonal.x, -diagonal.y)).rgb));
+    strongestInk = max(strongestInk, 1.0 - luminance(texture2D(u_image, v_texturePosition + vec2(-diagonal.x, diagonal.y)).rgb));
+
+    float darkening = max(strongestInk - currentInk, 0.0) * u_softStrength;
+    source.rgb = clamp(source.rgb - vec3(darkening), 0.0, 1.0);
+    return source;
+  }
+
   vec4 applyFilter(vec4 color, int filterId) {
     if (filterId == FILTER_TEXT_ENHANCEMENT) {
       return applyTextEnhancement(color);
+    }
+
+    if (filterId == FILTER_SOFT_TEXT_ENHANCEMENT) {
+      return applySoftTextEnhancement(color);
     }
 
     if (filterId == FILTER_INVERT) {
@@ -113,6 +145,7 @@ const fragmentShaderSource = `
     color = applyFilter(color, u_thirdFilter);
     color = applyFilter(color, u_fourthFilter);
     color = applyFilter(color, u_fifthFilter);
+    color = applyFilter(color, u_sixthFilter);
     gl_FragColor = color;
   }
 `;
@@ -195,6 +228,7 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
   const thirdFilterLocation = gl.getUniformLocation(program, 'u_thirdFilter');
   const fourthFilterLocation = gl.getUniformLocation(program, 'u_fourthFilter');
   const fifthFilterLocation = gl.getUniformLocation(program, 'u_fifthFilter');
+  const sixthFilterLocation = gl.getUniformLocation(program, 'u_sixthFilter');
   const texelSizeLocation = gl.getUniformLocation(program, 'u_texelSize');
   const strokeWidthLocation = gl.getUniformLocation(program, 'u_strokeWidth');
   const thresholdLocation = gl.getUniformLocation(program, 'u_threshold');
@@ -207,6 +241,8 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
   const gammaLocation = gl.getUniformLocation(program, 'u_gamma');
   const warmthStrengthLocation = gl.getUniformLocation(program, 'u_warmthStrength');
   const grayscaleStrengthLocation = gl.getUniformLocation(program, 'u_grayscaleStrength');
+  const softStrokeWidthLocation = gl.getUniformLocation(program, 'u_softStrokeWidth');
+  const softStrengthLocation = gl.getUniformLocation(program, 'u_softStrength');
   const imageLocation = gl.getUniformLocation(program, 'u_image');
   const positionBuffer = gl.createBuffer();
   const texturePositionBuffer = gl.createBuffer();
@@ -220,6 +256,7 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
     !thirdFilterLocation ||
     !fourthFilterLocation ||
     !fifthFilterLocation ||
+    !sixthFilterLocation ||
     !texelSizeLocation ||
     !strokeWidthLocation ||
     !thresholdLocation ||
@@ -232,6 +269,8 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
     !gammaLocation ||
     !warmthStrengthLocation ||
     !grayscaleStrengthLocation ||
+    !softStrokeWidthLocation ||
+    !softStrengthLocation ||
     !imageLocation ||
     !positionBuffer ||
     !texturePositionBuffer ||
@@ -281,6 +320,8 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
             return warmthPdfFilterType;
           case 'grayscale':
             return grayscalePdfFilterType;
+          case 'softTextEnhancement':
+            return softTextEnhancementPdfFilterType;
         }
       };
       const firstFilter = chain[0];
@@ -288,7 +329,9 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
       const thirdFilter = chain[2];
       const fourthFilter = chain[3];
       const fifthFilter = chain[4];
+      const sixthFilter = chain[5];
       const enhancementFilter = chain.find((filter) => filter.id === 'textEnhancement');
+      const softEnhancementFilter = chain.find((filter) => filter.id === 'softTextEnhancement');
       const invertFilter = chain.find((filter) => filter.id === 'invert');
       const visualAdjustmentFilter = chain.find((filter) => filter.id === 'visualAdjustment');
       const warmthFilter = chain.find((filter) => filter.id === 'warmth');
@@ -312,6 +355,7 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
       gl.uniform1i(thirdFilterLocation, filterType(thirdFilter));
       gl.uniform1i(fourthFilterLocation, filterType(fourthFilter));
       gl.uniform1i(fifthFilterLocation, filterType(fifthFilter));
+      gl.uniform1i(sixthFilterLocation, filterType(sixthFilter));
       gl.uniform2f(texelSizeLocation, 1 / source.width, 1 / source.height);
       gl.uniform1f(
         strokeWidthLocation,
@@ -350,6 +394,16 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
       gl.uniform1f(
         grayscaleStrengthLocation,
         grayscaleFilter?.enabled ? grayscaleFilter.strength : 0,
+      );
+      gl.uniform1f(
+        softStrokeWidthLocation,
+        softEnhancementFilter?.strokeWidth ?? pdfSoftTextEnhancementDefaults.strokeWidth,
+      );
+      gl.uniform1f(
+        softStrengthLocation,
+        softEnhancementFilter?.enabled
+          ? softEnhancementFilter.strength
+          : pdfSoftTextEnhancementDefaults.strength,
       );
       gl.uniform1i(imageLocation, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);

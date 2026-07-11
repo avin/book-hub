@@ -16,6 +16,10 @@
   will-change: transform;
 }
 
+.filterGroup :global(input[type='range']) {
+  width: 100%;
+}
+
 .filterPlaceholder {
   border-color: transparent;
   background: transparent;
