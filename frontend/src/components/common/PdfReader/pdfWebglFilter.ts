@@ -1,8 +1,15 @@
-import { pdfTextEnhancementDefaults, type PdfFilterChain } from './pdfFilters';
+import {
+  pdfTextEnhancementDefaults,
+  pdfVisualAdjustmentDefaults,
+  type PdfFilterChain,
+} from './pdfFilters';
 
 const noPdfFilterType = 0;
 const textEnhancementPdfFilterType = 1;
 const invertPdfFilterType = 2;
+const visualAdjustmentPdfFilterType = 3;
+const warmthPdfFilterType = 4;
+const grayscalePdfFilterType = 5;
 const vertexShaderSource = `
   attribute vec2 a_position;
   attribute vec2 a_texturePosition;
@@ -20,6 +27,9 @@ const fragmentShaderSource = `
   uniform sampler2D u_image;
   uniform int u_firstFilter;
   uniform int u_secondFilter;
+  uniform int u_thirdFilter;
+  uniform int u_fourthFilter;
+  uniform int u_fifthFilter;
   uniform vec2 u_texelSize;
   uniform float u_strokeWidth;
   uniform float u_threshold;
@@ -27,11 +37,19 @@ const fragmentShaderSource = `
   uniform float u_grayLevels;
   uniform float u_toneShift;
   uniform float u_invertStrength;
+  uniform float u_brightness;
+  uniform float u_visualContrast;
+  uniform float u_gamma;
+  uniform float u_warmthStrength;
+  uniform float u_grayscaleStrength;
   varying vec2 v_texturePosition;
 
   const int FILTER_NONE = 0;
   const int FILTER_TEXT_ENHANCEMENT = 1;
   const int FILTER_INVERT = 2;
+  const int FILTER_VISUAL_ADJUSTMENT = 3;
+  const int FILTER_WARMTH = 4;
+  const int FILTER_GRAYSCALE = 5;
 
   float luminance(vec3 color) {
     return dot(color, vec3(0.2126, 0.7152, 0.0722));
@@ -70,6 +88,21 @@ const fragmentShaderSource = `
       color.rgb = mix(color.rgb, inverted, u_invertStrength);
     }
 
+    if (filterId == FILTER_VISUAL_ADJUSTMENT) {
+      color.rgb = clamp((color.rgb - 0.5) * u_visualContrast + 0.5 + u_brightness, 0.0, 1.0);
+      color.rgb = pow(color.rgb, vec3(1.0 / u_gamma));
+    }
+
+    if (filterId == FILTER_WARMTH) {
+      vec3 warmed = color.rgb * vec3(1.08, 1.02, 0.84);
+      color.rgb = mix(color.rgb, clamp(warmed, 0.0, 1.0), u_warmthStrength);
+    }
+
+    if (filterId == FILTER_GRAYSCALE) {
+      vec3 gray = vec3(luminance(color.rgb));
+      color.rgb = mix(color.rgb, gray, u_grayscaleStrength);
+    }
+
     return color;
   }
 
@@ -77,6 +110,9 @@ const fragmentShaderSource = `
     vec4 color = texture2D(u_image, v_texturePosition);
     color = applyFilter(color, u_firstFilter);
     color = applyFilter(color, u_secondFilter);
+    color = applyFilter(color, u_thirdFilter);
+    color = applyFilter(color, u_fourthFilter);
+    color = applyFilter(color, u_fifthFilter);
     gl_FragColor = color;
   }
 `;
@@ -156,6 +192,9 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
   const texturePositionLocation = gl.getAttribLocation(program, 'a_texturePosition');
   const firstFilterLocation = gl.getUniformLocation(program, 'u_firstFilter');
   const secondFilterLocation = gl.getUniformLocation(program, 'u_secondFilter');
+  const thirdFilterLocation = gl.getUniformLocation(program, 'u_thirdFilter');
+  const fourthFilterLocation = gl.getUniformLocation(program, 'u_fourthFilter');
+  const fifthFilterLocation = gl.getUniformLocation(program, 'u_fifthFilter');
   const texelSizeLocation = gl.getUniformLocation(program, 'u_texelSize');
   const strokeWidthLocation = gl.getUniformLocation(program, 'u_strokeWidth');
   const thresholdLocation = gl.getUniformLocation(program, 'u_threshold');
@@ -163,6 +202,11 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
   const grayLevelsLocation = gl.getUniformLocation(program, 'u_grayLevels');
   const toneShiftLocation = gl.getUniformLocation(program, 'u_toneShift');
   const invertStrengthLocation = gl.getUniformLocation(program, 'u_invertStrength');
+  const brightnessLocation = gl.getUniformLocation(program, 'u_brightness');
+  const visualContrastLocation = gl.getUniformLocation(program, 'u_visualContrast');
+  const gammaLocation = gl.getUniformLocation(program, 'u_gamma');
+  const warmthStrengthLocation = gl.getUniformLocation(program, 'u_warmthStrength');
+  const grayscaleStrengthLocation = gl.getUniformLocation(program, 'u_grayscaleStrength');
   const imageLocation = gl.getUniformLocation(program, 'u_image');
   const positionBuffer = gl.createBuffer();
   const texturePositionBuffer = gl.createBuffer();
@@ -173,6 +217,9 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
     texturePositionLocation < 0 ||
     !firstFilterLocation ||
     !secondFilterLocation ||
+    !thirdFilterLocation ||
+    !fourthFilterLocation ||
+    !fifthFilterLocation ||
     !texelSizeLocation ||
     !strokeWidthLocation ||
     !thresholdLocation ||
@@ -180,6 +227,11 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
     !grayLevelsLocation ||
     !toneShiftLocation ||
     !invertStrengthLocation ||
+    !brightnessLocation ||
+    !visualContrastLocation ||
+    !gammaLocation ||
+    !warmthStrengthLocation ||
+    !grayscaleStrengthLocation ||
     !imageLocation ||
     !positionBuffer ||
     !texturePositionBuffer ||
@@ -218,12 +270,29 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
           return noPdfFilterType;
         }
 
-        return filter.id === 'textEnhancement' ? textEnhancementPdfFilterType : invertPdfFilterType;
+        switch (filter.id) {
+          case 'textEnhancement':
+            return textEnhancementPdfFilterType;
+          case 'invert':
+            return invertPdfFilterType;
+          case 'visualAdjustment':
+            return visualAdjustmentPdfFilterType;
+          case 'warmth':
+            return warmthPdfFilterType;
+          case 'grayscale':
+            return grayscalePdfFilterType;
+        }
       };
       const firstFilter = chain[0];
       const secondFilter = chain[1];
+      const thirdFilter = chain[2];
+      const fourthFilter = chain[3];
+      const fifthFilter = chain[4];
       const enhancementFilter = chain.find((filter) => filter.id === 'textEnhancement');
       const invertFilter = chain.find((filter) => filter.id === 'invert');
+      const visualAdjustmentFilter = chain.find((filter) => filter.id === 'visualAdjustment');
+      const warmthFilter = chain.find((filter) => filter.id === 'warmth');
+      const grayscaleFilter = chain.find((filter) => filter.id === 'grayscale');
 
       gl.viewport(0, 0, source.width, source.height);
       gl.useProgram(program);
@@ -240,6 +309,9 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
       gl.vertexAttribPointer(texturePositionLocation, 2, gl.FLOAT, false, 0, 0);
       gl.uniform1i(firstFilterLocation, filterType(firstFilter));
       gl.uniform1i(secondFilterLocation, filterType(secondFilter));
+      gl.uniform1i(thirdFilterLocation, filterType(thirdFilter));
+      gl.uniform1i(fourthFilterLocation, filterType(fourthFilter));
+      gl.uniform1i(fifthFilterLocation, filterType(fifthFilter));
       gl.uniform2f(texelSizeLocation, 1 / source.width, 1 / source.height);
       gl.uniform1f(
         strokeWidthLocation,
@@ -262,6 +334,23 @@ export function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebg
         enhancementFilter?.toneShift ?? pdfTextEnhancementDefaults.toneShift,
       );
       gl.uniform1f(invertStrengthLocation, invertFilter?.enabled ? invertFilter.strength : 0);
+      gl.uniform1f(
+        brightnessLocation,
+        visualAdjustmentFilter?.brightness ?? pdfVisualAdjustmentDefaults.brightness,
+      );
+      gl.uniform1f(
+        visualContrastLocation,
+        visualAdjustmentFilter?.contrast ?? pdfVisualAdjustmentDefaults.contrast,
+      );
+      gl.uniform1f(
+        gammaLocation,
+        visualAdjustmentFilter?.gamma ?? pdfVisualAdjustmentDefaults.gamma,
+      );
+      gl.uniform1f(warmthStrengthLocation, warmthFilter?.enabled ? warmthFilter.strength : 0);
+      gl.uniform1f(
+        grayscaleStrengthLocation,
+        grayscaleFilter?.enabled ? grayscaleFilter.strength : 0,
+      );
       gl.uniform1i(imageLocation, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       const drawError = gl.getError();

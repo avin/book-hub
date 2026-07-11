@@ -14,6 +14,18 @@ export const pdfTextEnhancementRanges = {
   toneShift: { min: -1, max: 1, step: 0.01 },
 } as const;
 
+export const pdfVisualAdjustmentDefaults = {
+  brightness: 0,
+  contrast: 1,
+  gamma: 1,
+} as const;
+
+export const pdfVisualAdjustmentRanges = {
+  brightness: { min: -1, max: 1, step: 0.01 },
+  contrast: { min: 0, max: 3, step: 0.01 },
+  gamma: { min: 0.2, max: 3, step: 0.01 },
+} as const;
+
 export type PdfTextEnhancementFilter = {
   id: 'textEnhancement';
   enabled: boolean;
@@ -30,7 +42,32 @@ export type PdfInvertFilter = {
   strength: number;
 };
 
-export type PdfFilter = PdfTextEnhancementFilter | PdfInvertFilter;
+export type PdfVisualAdjustmentFilter = {
+  id: 'visualAdjustment';
+  enabled: boolean;
+  brightness: number;
+  contrast: number;
+  gamma: number;
+};
+
+export type PdfWarmthFilter = {
+  id: 'warmth';
+  enabled: boolean;
+  strength: number;
+};
+
+export type PdfGrayscaleFilter = {
+  id: 'grayscale';
+  enabled: boolean;
+  strength: number;
+};
+
+export type PdfFilter =
+  | PdfTextEnhancementFilter
+  | PdfInvertFilter
+  | PdfVisualAdjustmentFilter
+  | PdfWarmthFilter
+  | PdfGrayscaleFilter;
 export type PdfFilterChain = PdfFilter[];
 
 export const defaultPdfFilterChain = (): PdfFilterChain => [
@@ -41,6 +78,21 @@ export const defaultPdfFilterChain = (): PdfFilterChain => [
   },
   {
     id: 'invert',
+    enabled: false,
+    strength: 1,
+  },
+  {
+    id: 'visualAdjustment',
+    enabled: false,
+    ...pdfVisualAdjustmentDefaults,
+  },
+  {
+    id: 'warmth',
+    enabled: false,
+    strength: 0.5,
+  },
+  {
+    id: 'grayscale',
     enabled: false,
     strength: 1,
   },
@@ -106,6 +158,46 @@ function sanitizeInvertFilter(value: Record<string, unknown>): PdfInvertFilter {
   };
 }
 
+function sanitizeVisualAdjustmentFilter(value: Record<string, unknown>): PdfVisualAdjustmentFilter {
+  const brightness = finiteNumber(value.brightness);
+  const contrast = finiteNumber(value.contrast);
+  const gamma = finiteNumber(value.gamma);
+
+  return {
+    id: 'visualAdjustment',
+    enabled: value.enabled === true,
+    brightness: clamp(
+      brightness ?? pdfVisualAdjustmentDefaults.brightness,
+      pdfVisualAdjustmentRanges.brightness.min,
+      pdfVisualAdjustmentRanges.brightness.max,
+    ),
+    contrast: clamp(
+      contrast ?? pdfVisualAdjustmentDefaults.contrast,
+      pdfVisualAdjustmentRanges.contrast.min,
+      pdfVisualAdjustmentRanges.contrast.max,
+    ),
+    gamma: clamp(
+      gamma ?? pdfVisualAdjustmentDefaults.gamma,
+      pdfVisualAdjustmentRanges.gamma.min,
+      pdfVisualAdjustmentRanges.gamma.max,
+    ),
+  };
+}
+
+function sanitizeStrengthFilter<T extends PdfWarmthFilter | PdfGrayscaleFilter>(
+  value: Record<string, unknown>,
+  id: T['id'],
+  defaultStrength: number,
+): T {
+  const strength = finiteNumber(value.strength);
+
+  return {
+    id,
+    enabled: value.enabled === true,
+    strength: clamp(strength ?? defaultStrength, 0, 1),
+  } as T;
+}
+
 export function sanitizePdfFilterChain(value: unknown): PdfFilterChain | undefined {
   if (!Array.isArray(value)) {
     return undefined;
@@ -127,6 +219,21 @@ export function sanitizePdfFilterChain(value: unknown): PdfFilterChain | undefin
     if (filter.id === 'invert' && !seen.has('invert')) {
       sanitizedFilters.push(sanitizeInvertFilter(filter));
       seen.add('invert');
+    }
+
+    if (filter.id === 'visualAdjustment' && !seen.has('visualAdjustment')) {
+      sanitizedFilters.push(sanitizeVisualAdjustmentFilter(filter));
+      seen.add('visualAdjustment');
+    }
+
+    if (filter.id === 'warmth' && !seen.has('warmth')) {
+      sanitizedFilters.push(sanitizeStrengthFilter<PdfWarmthFilter>(filter, 'warmth', 0.5));
+      seen.add('warmth');
+    }
+
+    if (filter.id === 'grayscale' && !seen.has('grayscale')) {
+      sanitizedFilters.push(sanitizeStrengthFilter<PdfGrayscaleFilter>(filter, 'grayscale', 1));
+      seen.add('grayscale');
     }
   }
 
@@ -163,4 +270,18 @@ export function textEnhancementFilterFromChain(chain: PdfFilterChain) {
 
 export function invertFilterFromChain(chain: PdfFilterChain) {
   return chain.find((filter): filter is PdfInvertFilter => filter.id === 'invert');
+}
+
+export function visualAdjustmentFilterFromChain(chain: PdfFilterChain) {
+  return chain.find(
+    (filter): filter is PdfVisualAdjustmentFilter => filter.id === 'visualAdjustment',
+  );
+}
+
+export function warmthFilterFromChain(chain: PdfFilterChain) {
+  return chain.find((filter): filter is PdfWarmthFilter => filter.id === 'warmth');
+}
+
+export function grayscaleFilterFromChain(chain: PdfFilterChain) {
+  return chain.find((filter): filter is PdfGrayscaleFilter => filter.id === 'grayscale');
 }

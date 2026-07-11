@@ -2,8 +2,11 @@ import { I18nProvider } from '@/i18n/I18nProvider';
 import { createMemo, createSignal } from 'solid-js';
 import {
   defaultPdfFilterChain,
+  grayscaleFilterFromChain,
   invertFilterFromChain,
   textEnhancementFilterFromChain,
+  visualAdjustmentFilterFromChain,
+  warmthFilterFromChain,
 } from '../pdfFilters';
 import PdfFilterPanel from './PdfFilterPanel';
 
@@ -15,6 +18,9 @@ export const Default = () => {
   const [filterChain, setFilterChain] = createSignal(defaultPdfFilterChain());
   const textEnhancementFilter = createMemo(() => textEnhancementFilterFromChain(filterChain())!);
   const invertFilter = createMemo(() => invertFilterFromChain(filterChain())!);
+  const visualAdjustmentFilter = createMemo(() => visualAdjustmentFilterFromChain(filterChain())!);
+  const warmthFilter = createMemo(() => warmthFilterFromChain(filterChain())!);
+  const grayscaleFilter = createMemo(() => grayscaleFilterFromChain(filterChain())!);
 
   return (
     <I18nProvider>
@@ -23,6 +29,9 @@ export const Default = () => {
         filterChain={filterChain()}
         textEnhancementFilter={textEnhancementFilter()}
         invertFilter={invertFilter()}
+        visualAdjustmentFilter={visualAdjustmentFilter()}
+        warmthFilter={warmthFilter()}
+        grayscaleFilter={grayscaleFilter()}
         available
         onClose={() => undefined}
         onToggleTextEnhancement={(enabled) =>
@@ -47,6 +56,40 @@ export const Default = () => {
         onStrengthChange={(strength) =>
           setFilterChain((chain) =>
             chain.map((filter) => (filter.id === 'invert' ? { ...filter, strength } : filter)),
+          )
+        }
+        onToggleVisualAdjustment={(enabled) =>
+          setFilterChain((chain) =>
+            chain.map((filter) =>
+              filter.id === 'visualAdjustment' ? { ...filter, enabled } : filter,
+            ),
+          )
+        }
+        onVisualAdjustmentParameterChange={(parameter, value) =>
+          setFilterChain((chain) =>
+            chain.map((filter) =>
+              filter.id === 'visualAdjustment' ? { ...filter, [parameter]: value } : filter,
+            ),
+          )
+        }
+        onToggleWarmth={(enabled) =>
+          setFilterChain((chain) =>
+            chain.map((filter) => (filter.id === 'warmth' ? { ...filter, enabled } : filter)),
+          )
+        }
+        onWarmthStrengthChange={(strength) =>
+          setFilterChain((chain) =>
+            chain.map((filter) => (filter.id === 'warmth' ? { ...filter, strength } : filter)),
+          )
+        }
+        onToggleGrayscale={(enabled) =>
+          setFilterChain((chain) =>
+            chain.map((filter) => (filter.id === 'grayscale' ? { ...filter, enabled } : filter)),
+          )
+        }
+        onGrayscaleStrengthChange={(strength) =>
+          setFilterChain((chain) =>
+            chain.map((filter) => (filter.id === 'grayscale' ? { ...filter, strength } : filter)),
           )
         }
         onMoveFilter={(filterId, targetIndex) =>

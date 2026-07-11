@@ -43,10 +43,13 @@ import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './p
 import PdfTextHighlighter from './PdfTextHighlighter';
 import {
   defaultPdfFilterChain,
+  grayscaleFilterFromChain,
   hasEnabledPdfFilters,
   invertFilterFromChain,
   pdfFilterChainKey,
   textEnhancementFilterFromChain,
+  visualAdjustmentFilterFromChain,
+  warmthFilterFromChain,
   type PdfFilterChain,
 } from './pdfFilters';
 import { createPdfWebglFilterRenderer, isPdfWebglAvailable } from './pdfWebglFilter';
@@ -216,6 +219,9 @@ function PdfReader(props: {
   const filtersEnabled = createMemo(() => hasEnabledPdfFilters(filterChain()));
   const textEnhancementFilter = createMemo(() => textEnhancementFilterFromChain(filterChain()));
   const invertFilter = createMemo(() => invertFilterFromChain(filterChain()));
+  const visualAdjustmentFilter = createMemo(() => visualAdjustmentFilterFromChain(filterChain()));
+  const warmthFilter = createMemo(() => warmthFilterFromChain(filterChain()));
+  const grayscaleFilter = createMemo(() => grayscaleFilterFromChain(filterChain()));
 
   const handleRulerPointer = (event: PointerEvent) => {
     const currentRulerElement = rulerElement();
@@ -1178,6 +1184,37 @@ function PdfReader(props: {
     );
   };
 
+  const toggleVisualAdjustment = (enabled: boolean) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) => (filter.id === 'visualAdjustment' ? { ...filter, enabled } : filter)),
+    );
+  };
+
+  const updateVisualAdjustmentParameter = (
+    parameter: 'brightness' | 'contrast' | 'gamma',
+    value: number,
+  ) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) =>
+        filter.id === 'visualAdjustment' ? { ...filter, [parameter]: value } : filter,
+      ),
+    );
+  };
+
+  const toggleStrengthFilter = (filterId: 'warmth' | 'grayscale', enabled: boolean) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) => (filter.id === filterId ? { ...filter, enabled } : filter)),
+    );
+  };
+
+  const updateStrengthFilter = (filterId: 'warmth' | 'grayscale', strength: number) => {
+    updateFilterChain((chain) =>
+      chain.map((filter) =>
+        filter.id === filterId ? { ...filter, strength: clamp(strength, 0, 1) } : filter,
+      ),
+    );
+  };
+
   const moveFilter = (filterId: PdfFilterChain[number]['id'], targetIndex: number) => {
     updateFilterChain((chain) => {
       const sourceIndex = chain.findIndex((filter) => filter.id === filterId);
@@ -1396,6 +1433,11 @@ function PdfReader(props: {
           textEnhancementFilter() ?? textEnhancementFilterFromChain(defaultPdfFilterChain())!
         }
         invertFilter={invertFilter() ?? invertFilterFromChain(defaultPdfFilterChain())!}
+        visualAdjustmentFilter={
+          visualAdjustmentFilter() ?? visualAdjustmentFilterFromChain(defaultPdfFilterChain())!
+        }
+        warmthFilter={warmthFilter() ?? warmthFilterFromChain(defaultPdfFilterChain())!}
+        grayscaleFilter={grayscaleFilter() ?? grayscaleFilterFromChain(defaultPdfFilterChain())!}
         available={!filterError()}
         unavailableMessage={filterError() ? t('pdfFiltersUnavailable') : undefined}
         onClose={() => setFilterPanelOpen(false)}
@@ -1403,6 +1445,12 @@ function PdfReader(props: {
         onTextEnhancementParameterChange={updateTextEnhancementParameter}
         onToggleInvert={toggleInvert}
         onStrengthChange={updateInvertStrength}
+        onToggleVisualAdjustment={toggleVisualAdjustment}
+        onVisualAdjustmentParameterChange={updateVisualAdjustmentParameter}
+        onToggleWarmth={(enabled) => toggleStrengthFilter('warmth', enabled)}
+        onWarmthStrengthChange={(strength) => updateStrengthFilter('warmth', strength)}
+        onToggleGrayscale={(enabled) => toggleStrengthFilter('grayscale', enabled)}
+        onGrayscaleStrengthChange={(strength) => updateStrengthFilter('grayscale', strength)}
         onMoveFilter={moveFilter}
         onReset={resetFilters}
       />

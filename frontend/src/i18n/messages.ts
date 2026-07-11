@@ -153,6 +153,26 @@ export const messages = {
     ru: 'Сдвиг тона',
     en: 'Tone shift',
   },
+  visualAdjustment: {
+    ru: 'Яркость, контраст и гамма',
+    en: 'Brightness, contrast and gamma',
+  },
+  brightness: {
+    ru: 'Яркость',
+    en: 'Brightness',
+  },
+  gamma: {
+    ru: 'Гамма',
+    en: 'Gamma',
+  },
+  warmth: {
+    ru: 'Тёплый фильтр',
+    en: 'Warm filter',
+  },
+  grayscale: {
+    ru: 'Оттенки серого',
+    en: 'Grayscale',
+  },
   invert: {
     ru: 'Инверсия',
     en: 'Invert',
