@@ -37,11 +37,13 @@
     "lucide-solid": "^1.23.0",
     "openapi-fetch": "^0.17.0",
     "pdfjs-dist": "^6.1.200",
-    "solid-js": "^1.9.14"
+    "solid-js": "^1.9.14",
+    "sortablejs": "^1.15.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@playwright/test": "^1.61.1",
+    "@types/sortablejs": "^1.15.9",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-solid": "^0.14.5",

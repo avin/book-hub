@@ -1,5 +1,6 @@
 import { GripVertical, RotateCcw } from 'lucide-solid';
-import { createEffect, createSignal, For, Show, untrack } from 'solid-js';
+import Sortable from 'sortablejs';
+import { createEffect, createSignal, For, onCleanup, onMount, Show, untrack } from 'solid-js';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import ReaderSidePanel from '@/components/common/ReaderSidePanel/ReaderSidePanel';
@@ -50,8 +51,7 @@ function PdfFilterPanel(props: {
   const [draftStrength, setDraftStrength] = createSignal(
     untrack(() => props.invertFilter.strength),
   );
-  const [draggedFilterId, setDraggedFilterId] = createSignal<PdfFilter['id']>();
-
+  let filterListElement: HTMLDivElement | undefined;
   createEffect(() => {
     const filter = props.textEnhancementFilter;
     setDraftStrokeWidth(filter.strokeWidth);
@@ -83,30 +83,37 @@ function PdfFilterPanel(props: {
   const filterTitle = (filter: PdfFilter) =>
     filter.id === 'textEnhancement' ? t('textEnhancement') : t('invert');
 
-  const handleDragStart = (event: DragEvent, filterId: PdfFilter['id']) => {
-    setDraggedFilterId(filterId);
-    event.dataTransfer?.setData('text/plain', filterId);
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
-    }
-  };
-
-  const handleDrop = (event: DragEvent, targetId: PdfFilter['id']) => {
-    event.preventDefault();
-    const sourceId = draggedFilterId() ?? event.dataTransfer?.getData('text/plain');
-
-    if ((sourceId !== 'textEnhancement' && sourceId !== 'invert') || sourceId === targetId) {
-      setDraggedFilterId();
+  onMount(() => {
+    if (!filterListElement) {
       return;
     }
 
-    const targetIndex = props.filterChain.findIndex((filter) => filter.id === targetId);
-    if (targetIndex >= 0) {
-      props.onMoveFilter(sourceId, targetIndex);
-    }
+    const sortable = Sortable.create(filterListElement, {
+      animation: 180,
+      easing: 'cubic-bezier(0.2, 0, 0, 1)',
+      handle: '[data-testid^="pdf-filter-drag-handle-"]',
+      draggable: `.${styles.filterGroup}`,
+      forceFallback: true,
+      fallbackOnBody: true,
+      fallbackTolerance: 4,
+      ghostClass: styles.filterPlaceholder,
+      onEnd: ({ item, oldIndex, newIndex }) => {
+        const filterId = item.getAttribute('data-filter-id');
+        if (
+          oldIndex === undefined ||
+          newIndex === undefined ||
+          oldIndex === newIndex ||
+          (filterId !== 'textEnhancement' && filterId !== 'invert')
+        ) {
+          return;
+        }
 
-    setDraggedFilterId();
-  };
+        props.onMoveFilter(filterId, newIndex);
+      },
+    });
+
+    onCleanup(() => sortable.destroy());
+  });
 
   return (
     <ReaderSidePanel
@@ -125,157 +132,162 @@ function PdfFilterPanel(props: {
         </Button>
       }
     >
-      <For each={props.filterChain}>
-        {(filter) => (
-          <section
-            class={styles.filterGroup}
-            classList={{ [styles.filterDragging]: draggedFilterId() === filter.id }}
-            data-testid={`pdf-filter-item-${filter.id}`}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => handleDrop(event, filter.id)}
-          >
-            <div class={styles.filterHeader}>
-              <Button
-                variant="ghost"
-                iconOnly
-                type="button"
-                draggable="true"
-                class={styles.dragHandle}
-                iconStart={<GripVertical />}
-                title={`${t('moveFilter')}: ${filterTitle(filter)}`}
-                aria-label={`${t('moveFilter')}: ${filterTitle(filter)}`}
-                data-testid={`pdf-filter-drag-handle-${filter.id}`}
-                onDragStart={(event) => handleDragStart(event, filter.id)}
-                onDragEnd={() => setDraggedFilterId()}
-              />
-              <label class={styles.filterToggle}>
-                <input
-                  type="checkbox"
-                  checked={filter.enabled}
-                  disabled={!props.available}
-                  onChange={(event) =>
-                    filter.id === 'textEnhancement'
-                      ? props.onToggleTextEnhancement(event.currentTarget.checked)
-                      : props.onToggleInvert(event.currentTarget.checked)
-                  }
-                />
-                <span>{filter.id === 'textEnhancement' ? t('textEnhancement') : t('invert')}</span>
-              </label>
-            </div>
+      <div ref={(element) => (filterListElement = element)} class={styles.filterList}>
+        <For each={props.filterChain}>
+          {(filter) => (
+            <section
+              class={styles.filterGroup}
+              data-filter-id={filter.id}
+              data-testid={`pdf-filter-item-${filter.id}`}
+            >
+              <div class={styles.filterHeader}>
+                <span class={styles.dragHandleWrapper}>
+                  <Button
+                    variant="ghost"
+                    iconOnly
+                    type="button"
+                    class={styles.dragHandle}
+                    iconStart={<GripVertical />}
+                    title={`${t('moveFilter')}: ${filterTitle(filter)}`}
+                    aria-label={`${t('moveFilter')}: ${filterTitle(filter)}`}
+                    data-testid={`pdf-filter-drag-handle-${filter.id}`}
+                  />
+                </span>
+                <label class={styles.filterToggle}>
+                  <input
+                    type="checkbox"
+                    checked={filter.enabled}
+                    disabled={!props.available}
+                    onChange={(event) =>
+                      filter.id === 'textEnhancement'
+                        ? props.onToggleTextEnhancement(event.currentTarget.checked)
+                        : props.onToggleInvert(event.currentTarget.checked)
+                    }
+                  />
+                  <span>
+                    {filter.id === 'textEnhancement' ? t('textEnhancement') : t('invert')}
+                  </span>
+                </label>
+              </div>
 
-            <Show when={filter.id === 'textEnhancement' && filter.enabled && props.available}>
-              <InputContainer label={t('strokeWidth')} labelEnd={draftStrokeWidth().toFixed(2)}>
-                <input
-                  type="range"
-                  min={pdfTextEnhancementRanges.strokeWidth.min}
-                  max={pdfTextEnhancementRanges.strokeWidth.max}
-                  step={pdfTextEnhancementRanges.strokeWidth.step}
-                  value={draftStrokeWidth()}
-                  aria-label={t('strokeWidth')}
-                  onPointerDown={capturePointer}
-                  onPointerUp={() =>
-                    commitTextEnhancementParameter('strokeWidth', draftStrokeWidth())
-                  }
-                  onPointerCancel={() =>
-                    commitTextEnhancementParameter('strokeWidth', draftStrokeWidth())
-                  }
-                  onInput={(event) => setDraftStrokeWidth(Number(event.currentTarget.value))}
-                />
-              </InputContainer>
+              <Show when={filter.id === 'textEnhancement' && filter.enabled && props.available}>
+                <InputContainer label={t('strokeWidth')} labelEnd={draftStrokeWidth().toFixed(2)}>
+                  <input
+                    type="range"
+                    min={pdfTextEnhancementRanges.strokeWidth.min}
+                    max={pdfTextEnhancementRanges.strokeWidth.max}
+                    step={pdfTextEnhancementRanges.strokeWidth.step}
+                    value={draftStrokeWidth()}
+                    aria-label={t('strokeWidth')}
+                    onPointerDown={capturePointer}
+                    onPointerUp={() =>
+                      commitTextEnhancementParameter('strokeWidth', draftStrokeWidth())
+                    }
+                    onPointerCancel={() =>
+                      commitTextEnhancementParameter('strokeWidth', draftStrokeWidth())
+                    }
+                    onInput={(event) => setDraftStrokeWidth(Number(event.currentTarget.value))}
+                  />
+                </InputContainer>
 
-              <InputContainer label={t('threshold')} labelEnd={draftThreshold().toFixed(2)}>
-                <input
-                  type="range"
-                  min={pdfTextEnhancementRanges.threshold.min}
-                  max={pdfTextEnhancementRanges.threshold.max}
-                  step={pdfTextEnhancementRanges.threshold.step}
-                  value={draftThreshold()}
-                  aria-label={t('threshold')}
-                  onPointerDown={capturePointer}
-                  onPointerUp={() => commitTextEnhancementParameter('threshold', draftThreshold())}
-                  onPointerCancel={() =>
-                    commitTextEnhancementParameter('threshold', draftThreshold())
-                  }
-                  onInput={(event) => setDraftThreshold(Number(event.currentTarget.value))}
-                />
-              </InputContainer>
+                <InputContainer label={t('threshold')} labelEnd={draftThreshold().toFixed(2)}>
+                  <input
+                    type="range"
+                    min={pdfTextEnhancementRanges.threshold.min}
+                    max={pdfTextEnhancementRanges.threshold.max}
+                    step={pdfTextEnhancementRanges.threshold.step}
+                    value={draftThreshold()}
+                    aria-label={t('threshold')}
+                    onPointerDown={capturePointer}
+                    onPointerUp={() =>
+                      commitTextEnhancementParameter('threshold', draftThreshold())
+                    }
+                    onPointerCancel={() =>
+                      commitTextEnhancementParameter('threshold', draftThreshold())
+                    }
+                    onInput={(event) => setDraftThreshold(Number(event.currentTarget.value))}
+                  />
+                </InputContainer>
 
-              <InputContainer label={t('contrast')} labelEnd={draftContrast().toFixed(2)}>
-                <input
-                  type="range"
-                  min={pdfTextEnhancementRanges.contrast.min}
-                  max={pdfTextEnhancementRanges.contrast.max}
-                  step={pdfTextEnhancementRanges.contrast.step}
-                  value={draftContrast()}
-                  aria-label={t('contrast')}
-                  onPointerDown={capturePointer}
-                  onPointerUp={() => commitTextEnhancementParameter('contrast', draftContrast())}
-                  onPointerCancel={() =>
-                    commitTextEnhancementParameter('contrast', draftContrast())
-                  }
-                  onInput={(event) => setDraftContrast(Number(event.currentTarget.value))}
-                />
-              </InputContainer>
+                <InputContainer label={t('contrast')} labelEnd={draftContrast().toFixed(2)}>
+                  <input
+                    type="range"
+                    min={pdfTextEnhancementRanges.contrast.min}
+                    max={pdfTextEnhancementRanges.contrast.max}
+                    step={pdfTextEnhancementRanges.contrast.step}
+                    value={draftContrast()}
+                    aria-label={t('contrast')}
+                    onPointerDown={capturePointer}
+                    onPointerUp={() => commitTextEnhancementParameter('contrast', draftContrast())}
+                    onPointerCancel={() =>
+                      commitTextEnhancementParameter('contrast', draftContrast())
+                    }
+                    onInput={(event) => setDraftContrast(Number(event.currentTarget.value))}
+                  />
+                </InputContainer>
 
-              <InputContainer label={t('grayLevels')} labelEnd={String(draftGrayLevels())}>
-                <input
-                  type="range"
-                  min={pdfTextEnhancementRanges.grayLevels.min}
-                  max={pdfTextEnhancementRanges.grayLevels.max}
-                  step={pdfTextEnhancementRanges.grayLevels.step}
-                  value={draftGrayLevels()}
-                  aria-label={t('grayLevels')}
-                  onPointerDown={capturePointer}
-                  onPointerUp={() =>
-                    commitTextEnhancementParameter('grayLevels', draftGrayLevels())
-                  }
-                  onPointerCancel={() =>
-                    commitTextEnhancementParameter('grayLevels', draftGrayLevels())
-                  }
-                  onInput={(event) => setDraftGrayLevels(Number(event.currentTarget.value))}
-                />
-              </InputContainer>
+                <InputContainer label={t('grayLevels')} labelEnd={String(draftGrayLevels())}>
+                  <input
+                    type="range"
+                    min={pdfTextEnhancementRanges.grayLevels.min}
+                    max={pdfTextEnhancementRanges.grayLevels.max}
+                    step={pdfTextEnhancementRanges.grayLevels.step}
+                    value={draftGrayLevels()}
+                    aria-label={t('grayLevels')}
+                    onPointerDown={capturePointer}
+                    onPointerUp={() =>
+                      commitTextEnhancementParameter('grayLevels', draftGrayLevels())
+                    }
+                    onPointerCancel={() =>
+                      commitTextEnhancementParameter('grayLevels', draftGrayLevels())
+                    }
+                    onInput={(event) => setDraftGrayLevels(Number(event.currentTarget.value))}
+                  />
+                </InputContainer>
 
-              <InputContainer label={t('toneShift')} labelEnd={draftToneShift().toFixed(2)}>
-                <input
-                  type="range"
-                  min={pdfTextEnhancementRanges.toneShift.min}
-                  max={pdfTextEnhancementRanges.toneShift.max}
-                  step={pdfTextEnhancementRanges.toneShift.step}
-                  value={draftToneShift()}
-                  aria-label={t('toneShift')}
-                  onPointerDown={capturePointer}
-                  onPointerUp={() => commitTextEnhancementParameter('toneShift', draftToneShift())}
-                  onPointerCancel={() =>
-                    commitTextEnhancementParameter('toneShift', draftToneShift())
-                  }
-                  onInput={(event) => setDraftToneShift(Number(event.currentTarget.value))}
-                />
-              </InputContainer>
-            </Show>
+                <InputContainer label={t('toneShift')} labelEnd={draftToneShift().toFixed(2)}>
+                  <input
+                    type="range"
+                    min={pdfTextEnhancementRanges.toneShift.min}
+                    max={pdfTextEnhancementRanges.toneShift.max}
+                    step={pdfTextEnhancementRanges.toneShift.step}
+                    value={draftToneShift()}
+                    aria-label={t('toneShift')}
+                    onPointerDown={capturePointer}
+                    onPointerUp={() =>
+                      commitTextEnhancementParameter('toneShift', draftToneShift())
+                    }
+                    onPointerCancel={() =>
+                      commitTextEnhancementParameter('toneShift', draftToneShift())
+                    }
+                    onInput={(event) => setDraftToneShift(Number(event.currentTarget.value))}
+                  />
+                </InputContainer>
+              </Show>
 
-            <Show when={filter.id === 'invert' && filter.enabled && props.available}>
-              <InputContainer
-                label={t('filterStrength')}
-                labelEnd={`${Math.round(draftStrength() * 100)}%`}
-              >
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={draftStrength()}
-                  aria-label={t('filterStrength')}
-                  onPointerDown={capturePointer}
-                  onPointerUp={commitStrength}
-                  onPointerCancel={commitStrength}
-                  onInput={(event) => setDraftStrength(Number(event.currentTarget.value))}
-                />
-              </InputContainer>
-            </Show>
-          </section>
-        )}
-      </For>
+              <Show when={filter.id === 'invert' && filter.enabled && props.available}>
+                <InputContainer
+                  label={t('filterStrength')}
+                  labelEnd={`${Math.round(draftStrength() * 100)}%`}
+                >
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={draftStrength()}
+                    aria-label={t('filterStrength')}
+                    onPointerDown={capturePointer}
+                    onPointerUp={commitStrength}
+                    onPointerCancel={commitStrength}
+                    onInput={(event) => setDraftStrength(Number(event.currentTarget.value))}
+                  />
+                </InputContainer>
+              </Show>
+            </section>
+          )}
+        </For>
+      </div>
 
       <Show when={props.unavailableMessage}>
         <p class={styles.unavailableMessage} role="alert">

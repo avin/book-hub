@@ -109,7 +109,7 @@ async function reorderPdfFilter(
   targetId: 'textEnhancement' | 'invert',
 ) {
   await page.evaluate(
-    ({ source, target }) => {
+    async ({ source, target }) => {
       const handle = document.querySelector(`[data-testid="pdf-filter-drag-handle-${source}"]`);
       const targetElement = document.querySelector(`[data-testid="pdf-filter-item-${target}"]`);
 
@@ -117,16 +117,27 @@ async function reorderPdfFilter(
         throw new Error(`Missing drag source or target for ${source} -> ${target}`);
       }
 
-      const dataTransfer = new DataTransfer();
-      dataTransfer.setData('text/plain', source);
-      handle.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer }));
-      targetElement.dispatchEvent(
-        new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }),
-      );
-      targetElement.dispatchEvent(
-        new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }),
-      );
-      handle.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer }));
+      const handleRect = handle.getBoundingClientRect();
+      const targetRect = targetElement.getBoundingClientRect();
+      const sourceX = handleRect.left + handleRect.width / 2;
+      const sourceY = handleRect.top + handleRect.height / 2;
+      const targetX = targetRect.left + targetRect.width / 2;
+      const targetY = targetRect.top + 8;
+      const mouseEvent = (type: string, x: number, y: number, buttons: number) =>
+        new MouseEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+          buttons,
+          clientX: x,
+          clientY: y,
+        });
+
+      handle.dispatchEvent(mouseEvent('mousedown', sourceX, sourceY, 1));
+      await new Promise((resolve) => window.setTimeout(resolve));
+      targetElement.dispatchEvent(mouseEvent('mousemove', targetX, targetY, 1));
+      await new Promise((resolve) => window.setTimeout(resolve));
+      document.dispatchEvent(mouseEvent('mouseup', targetX, targetY, 0));
     },
     { source: sourceId, target: targetId },
   );

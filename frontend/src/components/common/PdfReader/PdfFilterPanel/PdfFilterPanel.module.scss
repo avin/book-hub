@@ -1,17 +1,26 @@
 @use '@/styles/_variables.scss' as *;
 @use '@/styles/_mixins.scss' as *;
 
+.filterList {
+  display: grid;
+  gap: $space-3;
+}
+
 .filterGroup {
   display: grid;
   gap: $space-4;
   padding: $space-3;
   border: 1px solid var(--border-default);
   border-radius: $radius-sm;
+  background: var(--surface-raised);
+  will-change: transform;
 }
 
-.filterDragging {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+.filterPlaceholder {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
 }
 
 .filterHeader {
@@ -20,8 +29,12 @@
   gap: $space-2;
 }
 
-.dragHandle {
+.dragHandleWrapper {
+  display: flex;
   flex: 0 0 auto;
+}
+
+.dragHandle {
   min-height: 32px;
   cursor: grab;
 }

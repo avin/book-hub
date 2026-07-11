@@ -1193,7 +1193,7 @@ function PdfReader(props: {
         return chain;
       }
 
-      nextChain.splice(Math.min(targetIndex, nextChain.length), 0, movedFilter);
+      nextChain.splice(Math.min(Math.max(targetIndex, 0), nextChain.length), 0, movedFilter);
       return nextChain;
     });
   };
