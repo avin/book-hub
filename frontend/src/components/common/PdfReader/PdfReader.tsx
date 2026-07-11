@@ -147,6 +147,7 @@ function PdfReader(props: {
   let resizeScrollAnchor: ScrollAnchor | undefined;
   let resizeAnchorTimeout: number | undefined;
   let searchScrollFrame: number | undefined;
+  let filterRenderFrame: number | undefined;
   let executedSearchQuery: string | undefined;
   const pageRefs = new Map<number, HTMLElement>();
   const canvasRefs = new Map<number, HTMLCanvasElement>();
@@ -189,6 +190,7 @@ function PdfReader(props: {
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
+  let filterPreferenceStorageKey: string | undefined;
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
@@ -538,12 +540,31 @@ function PdfReader(props: {
     destroyFilterRenderers();
   };
 
+  const scheduleVisiblePageFilterRender = () => {
+    if (filterRenderFrame !== undefined) {
+      cancelAnimationFrame(filterRenderFrame);
+    }
+
+    filterRenderFrame = requestAnimationFrame(() => {
+      filterRenderFrame = undefined;
+      const currentPages = pages();
+      const currentVisiblePages = visiblePages();
+
+      for (const descriptor of currentPages) {
+        if (currentVisiblePages.has(descriptor.pageNumber)) {
+          void renderPage(descriptor);
+        }
+      }
+    });
+  };
+
   const updateFilterChain = (update: (chain: PdfFilterChain) => PdfFilterChain) => {
     const nextChain = update(filterChain());
 
     setFilterChainState(nextChain);
     setPdfReaderFilterChainPreference(props.bookId ?? props.fileUrl, nextChain);
     destroyFilterRenderers();
+    scheduleVisiblePageFilterRender();
   };
 
   const cancelTextLayerTask = (pageNumber: number) => {
@@ -887,6 +908,10 @@ function PdfReader(props: {
       cancelAnimationFrame(readyFrame);
       readyFrame = undefined;
     }
+    if (filterRenderFrame !== undefined) {
+      cancelAnimationFrame(filterRenderFrame);
+      filterRenderFrame = undefined;
+    }
     const previousLoadingTask = loadingTask;
     const previousDocument = pdfDocument;
 
@@ -960,9 +985,16 @@ function PdfReader(props: {
 
   createEffect(() => {
     const storageKey = props.bookId ?? props.fileUrl;
+
+    if (storageKey === filterPreferenceStorageKey) {
+      return;
+    }
+
+    filterPreferenceStorageKey = storageKey;
     const nextChain = getPdfReaderFilterChainPreference(storageKey) ?? defaultPdfFilterChain();
 
     setFilterChainState(nextChain);
+    scheduleVisiblePageFilterRender();
   });
 
   createEffect(() => {
@@ -1185,6 +1217,10 @@ function PdfReader(props: {
 
     if (readyFrame !== undefined) {
       cancelAnimationFrame(readyFrame);
+    }
+
+    if (filterRenderFrame !== undefined) {
+      cancelAnimationFrame(filterRenderFrame);
     }
 
     if (resizeAnchorTimeout !== undefined) {

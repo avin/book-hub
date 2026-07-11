@@ -764,6 +764,15 @@ test('PDF reader открывает панель фильтров и показ�
 
   if (await strength.isVisible()) {
     await expect(strength).toHaveValue('1');
+    await expect
+      .poll(() =>
+        page.locator('[data-page-number="1"] canvas').evaluateAll((canvases) => ({
+          canvasCount: canvases.length,
+          sourceDisplay: canvases[0] ? getComputedStyle(canvases[0]).display : undefined,
+          filteredDisplay: canvases[1] ? getComputedStyle(canvases[1]).display : undefined,
+        })),
+      )
+      .toEqual({ canvasCount: 2, sourceDisplay: 'none', filteredDisplay: 'block' });
     await invert.uncheck();
     await expect(strength).toBeHidden();
   } else {
