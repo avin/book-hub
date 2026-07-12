@@ -1,7 +1,7 @@
-import { AlignLeft, Palette, RotateCcw, SlidersHorizontal, Type } from 'lucide-solid';
+import { AlignLeft, Palette, Type } from 'lucide-solid';
 import { For } from 'solid-js';
-import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
+import ReaderPanelActions from '@/components/common/ReaderPanelActions/ReaderPanelActions';
 import ReaderSidePanel from '@/components/common/ReaderSidePanel/ReaderSidePanel';
 import { fontOptions } from '../fb2ReaderSettings';
 import type { Fb2ReaderSettings } from '../fb2Types';
@@ -33,28 +33,7 @@ function SettingsPanel(props: {
       open={props.open}
       title="Внешний вид"
       onClose={props.onClose}
-      footer={
-        <div class={styles.panelActions}>
-          <Button
-            fullWidth
-            variant="secondary"
-            type="button"
-            iconStart={<RotateCcw />}
-            onClick={props.onReset}
-          >
-            Сбросить
-          </Button>
-          <Button
-            fullWidth
-            variant="secondary"
-            type="button"
-            iconStart={<SlidersHorizontal />}
-            onClick={props.onAutoWidth}
-          >
-            Автоширина
-          </Button>
-        </div>
-      }
+      footer={<ReaderPanelActions onReset={props.onReset} onAutoWidth={props.onAutoWidth} />}
     >
       <section class={styles.settingGroup}>
         <h3>

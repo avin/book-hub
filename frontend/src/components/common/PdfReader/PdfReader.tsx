@@ -36,8 +36,10 @@ import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import {
   getPdfReaderContentWidthPreference,
   getPdfReaderFilterChainPreference,
+  getPdfReaderPageExpansionPreference,
   setPdfReaderContentWidthPreference,
   setPdfReaderFilterChainPreference,
+  setPdfReaderPageExpansionPreference,
 } from '@/storage/browserPreferences';
 import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import PdfTextHighlighter from './PdfTextHighlighter';
@@ -105,6 +107,10 @@ function pageWidthForAvailableWidth(customWidth: number | undefined, availableWi
   return Math.min(availableWidth, Math.max(minPageWidth, customWidth));
 }
 
+function expandedPageWidth(pageWidth: number, expansion: number) {
+  return pageWidth / (1 - (expansion * 2) / 100);
+}
+
 function scrollYForAnchor(
   anchor: ScrollAnchor,
   pageList: PdfPageDescriptor[],
@@ -160,6 +166,7 @@ function PdfReader(props: {
   let filterRenderFrame: number | undefined;
   let executedSearchQuery: string | undefined;
   const pageRefs = new Map<number, HTMLElement>();
+  const pageContentRefs = new Map<number, HTMLDivElement>();
   const canvasRefs = new Map<number, HTMLCanvasElement>();
   const filteredCanvasRefs = new Map<number, HTMLCanvasElement>();
   const textLayerRefs = new Map<number, HTMLDivElement>();
@@ -186,6 +193,9 @@ function PdfReader(props: {
   const [pageInputFocused, setPageInputFocused] = createSignal(false);
   const [tocOpen, setTocOpen] = createSignal(false);
   const [filterPanelOpen, setFilterPanelOpen] = createSignal(false);
+  const [pageExpansion, setPageExpansion] = createSignal(
+    untrack(() => getPdfReaderPageExpansionPreference(props.bookId ?? props.fileUrl) ?? 0),
+  );
   const [filterChain, setFilterChain] = createSignal<PdfFilterChain>(
     untrack(
       () =>
@@ -205,13 +215,15 @@ function PdfReader(props: {
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
-  let filterPreferenceStorageKey: string | undefined;
+  let appearancePreferenceStorageKey: string | undefined;
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
   const pageWidth = createMemo(() =>
     pageWidthForAvailableWidth(maxPageWidth(), availablePageWidth()),
   );
+  const renderPageWidth = createMemo(() => expandedPageWidth(pageWidth(), pageExpansion()));
+  const pageCropOffset = createMemo(() => (renderPageWidth() - pageWidth()) / 2);
   const markerStyles = createMemo(() =>
     computeWidthRulerMarkers(
       rulerElement(),
@@ -503,7 +515,7 @@ function PdfReader(props: {
 
   const updatePageWidth = (width: number | undefined) => {
     const anchor = currentScrollAnchor();
-    const targetWidthPx = resolvePageWidthPx(width);
+    const targetWidthPx = expandedPageWidth(resolvePageWidthPx(width), pageExpansion());
 
     if (anchor) {
       applySynchronizedScrollAnchor(anchor, targetWidthPx);
@@ -691,7 +703,7 @@ function PdfReader(props: {
       const anchor = currentScrollAnchor();
 
       if (anchor) {
-        applySynchronizedScrollAnchor(anchor, nextPageWidth);
+        applySynchronizedScrollAnchor(anchor, expandedPageWidth(nextPageWidth, pageExpansion()));
       }
     }
 
@@ -706,6 +718,26 @@ function PdfReader(props: {
 
   const resetToFitWidth = () => {
     updatePageWidth(undefined);
+  };
+
+  const updatePageExpansion = (expansion: number) => {
+    const nextExpansion = clamp(Math.round(expansion), 0, 25);
+
+    if (nextExpansion === pageExpansion()) {
+      return;
+    }
+
+    const anchor = currentScrollAnchor();
+
+    if (anchor) {
+      applySynchronizedScrollAnchor(anchor, expandedPageWidth(pageWidth(), nextExpansion));
+    }
+
+    setPageExpansion(nextExpansion);
+    setPdfReaderPageExpansionPreference(props.bookId ?? props.fileUrl, nextExpansion);
+    renderedKeys.clear();
+    invalidateFilteredPages();
+    textLayerKeys.clear();
   };
 
   const syncObservedPages = () => {
@@ -755,13 +787,13 @@ function PdfReader(props: {
   const renderPage = async (descriptor: PdfPageDescriptor) => {
     const canvas = canvasRefs.get(descriptor.pageNumber);
     const filteredCanvas = filteredCanvasRefs.get(descriptor.pageNumber);
-    const pageElement = pageRefs.get(descriptor.pageNumber);
+    const pageContentElement = pageContentRefs.get(descriptor.pageNumber);
 
-    if (!canvas || !pageElement || !pdfDocument) {
+    if (!canvas || !pageContentElement || !pdfDocument) {
       return;
     }
 
-    const displayWidth = Math.round(pageElement.clientWidth);
+    const displayWidth = Math.round(pageContentElement.clientWidth);
 
     if (displayWidth <= 0) {
       return;
@@ -905,13 +937,13 @@ function PdfReader(props: {
   const renderTextLayer = async (descriptor: PdfPageDescriptor) => {
     const generation = loadGeneration;
     const layer = textLayerRefs.get(descriptor.pageNumber);
-    const pageElement = pageRefs.get(descriptor.pageNumber);
+    const pageContentElement = pageContentRefs.get(descriptor.pageNumber);
 
-    if (!layer || !pageElement) {
+    if (!layer || !pageContentElement) {
       return;
     }
 
-    const displayWidth = Math.round(pageElement.clientWidth);
+    const displayWidth = Math.round(pageContentElement.clientWidth);
 
     if (displayWidth <= 0) {
       return;
@@ -936,7 +968,7 @@ function PdfReader(props: {
     const scale = (displayWidth * ratio) / descriptor.width;
     const viewport = page.getViewport({ scale });
 
-    pageElement.style.setProperty('--scale-factor', `${displayWidth / descriptor.width}`);
+    pageContentElement.style.setProperty('--scale-factor', `${displayWidth / descriptor.width}`);
     layer.style.width = `${displayWidth}px`;
     layer.style.height = `${displayHeight}px`;
     layer.textContent = '';
@@ -993,6 +1025,7 @@ function PdfReader(props: {
     setOutlineLoaded(false);
     setTocOpen(false);
     pageRefs.clear();
+    pageContentRefs.clear();
     canvasRefs.clear();
     filteredCanvasRefs.clear();
     textLayerRefs.clear();
@@ -1089,15 +1122,17 @@ function PdfReader(props: {
   createEffect(() => {
     const storageKey = props.bookId ?? props.fileUrl;
 
-    if (storageKey === filterPreferenceStorageKey) {
+    if (storageKey === appearancePreferenceStorageKey) {
       return;
     }
 
-    filterPreferenceStorageKey = storageKey;
+    appearancePreferenceStorageKey = storageKey;
     const nextChain = getPdfReaderFilterChainPreference(storageKey) ?? defaultPdfFilterChain();
+    const nextPageExpansion = getPdfReaderPageExpansionPreference(storageKey) ?? 0;
 
     destroyFilterRenderers();
     setFilterChainState(nextChain);
+    setPageExpansion(nextPageExpansion);
     scheduleVisiblePageFilterRender();
   });
 
@@ -1117,6 +1152,7 @@ function PdfReader(props: {
 
     void documentWidth();
     void pageWidth();
+    void renderPageWidth();
     void isFitWidth();
 
     for (const descriptor of currentPages) {
@@ -1187,7 +1223,7 @@ function PdfReader(props: {
       return;
     }
 
-    void scrollToPdfDestination(pdfDocument, node.dest, pageRefs, documentRef, pageWidth());
+    void scrollToPdfDestination(pdfDocument, node.dest, pageRefs, documentRef, renderPageWidth());
   };
 
   type SearchDirection = 'next' | 'previous';
@@ -1336,7 +1372,8 @@ function PdfReader(props: {
     });
   };
 
-  const resetFilters = () => {
+  const resetAppearance = () => {
+    updatePageExpansion(0);
     updateFilterChain(() => defaultPdfFilterChain());
   };
 
@@ -1423,6 +1460,7 @@ function PdfReader(props: {
     cancelRenderTasks();
     cancelTextLayerTasks();
     destroyFilterRenderers();
+    pageContentRefs.clear();
     filteredCanvasRefs.clear();
     textLayerRefs.clear();
     textLayerTasks.clear();
@@ -1485,8 +1523,8 @@ function PdfReader(props: {
               type="button"
               iconOnly
               iconStart={<SlidersHorizontal />}
-              title={t('pdfFilters')}
-              aria-label={t('pdfFilters')}
+              title={t('pdfAppearance')}
+              aria-label={t('pdfAppearance')}
               aria-pressed={filterPanelOpen()}
               onClick={toggleFilterPanel}
             />
@@ -1563,7 +1601,10 @@ function PdfReader(props: {
         onToggleGrayscale={(enabled) => toggleStrengthFilter('grayscale', enabled)}
         onGrayscaleStrengthChange={(strength) => updateStrengthFilter('grayscale', strength)}
         onMoveFilter={moveFilter}
-        onReset={resetFilters}
+        pageExpansion={pageExpansion()}
+        onPageExpansionChange={updatePageExpansion}
+        onReset={resetAppearance}
+        onAutoWidth={resetToFitWidth}
       />
 
       <Show when={loading()}>
@@ -1599,49 +1640,60 @@ function PdfReader(props: {
                 style={{
                   width: `${Math.round(pageWidth())}px`,
                   'max-width': '100%',
-                  'aspect-ratio': `${page.width} / ${page.height}`,
+                  height: `${Math.round(pageHeightAtWidth(page, renderPageWidth()))}px`,
                 }}
                 aria-label={`Страница ${page.pageNumber}`}
               >
-                <canvas
-                  class={styles.sourceCanvas}
-                  classList={{
-                    [styles.sourceCanvasHidden]:
-                      filtersEnabled() && filteredPages().has(page.pageNumber),
-                  }}
-                  ref={(element) => {
-                    canvasRefs.set(page.pageNumber, element);
-                  }}
-                />
-                <Show when={filtersEnabled()}>
-                  <canvas
-                    class={styles.filteredCanvas}
-                    classList={{
-                      [styles.filteredCanvasVisible]: filteredPages().has(page.pageNumber),
-                    }}
-                    ref={(element) => {
-                      if (!element) {
-                        filteredCanvasRefs.delete(page.pageNumber);
-                        return;
-                      }
-
-                      filteredCanvasRefs.set(page.pageNumber, element);
-
-                      onCleanup(() => {
-                        filteredCanvasRefs.delete(page.pageNumber);
-                      });
-                    }}
-                    aria-hidden="true"
-                  />
-                </Show>
                 <div
                   ref={(element) => {
-                    textLayerRefs.set(page.pageNumber, element);
+                    pageContentRefs.set(page.pageNumber, element);
                   }}
-                  class={styles.textLayer}
-                  data-testid="pdf-text-layer"
-                  aria-hidden="true"
-                />
+                  class={styles.pageContent}
+                  style={{
+                    width: `${Math.round(renderPageWidth())}px`,
+                    transform: `translateX(-${Math.round(pageCropOffset())}px)`,
+                  }}
+                >
+                  <canvas
+                    class={styles.sourceCanvas}
+                    classList={{
+                      [styles.sourceCanvasHidden]:
+                        filtersEnabled() && filteredPages().has(page.pageNumber),
+                    }}
+                    ref={(element) => {
+                      canvasRefs.set(page.pageNumber, element);
+                    }}
+                  />
+                  <Show when={filtersEnabled()}>
+                    <canvas
+                      class={styles.filteredCanvas}
+                      classList={{
+                        [styles.filteredCanvasVisible]: filteredPages().has(page.pageNumber),
+                      }}
+                      ref={(element) => {
+                        if (!element) {
+                          filteredCanvasRefs.delete(page.pageNumber);
+                          return;
+                        }
+
+                        filteredCanvasRefs.set(page.pageNumber, element);
+
+                        onCleanup(() => {
+                          filteredCanvasRefs.delete(page.pageNumber);
+                        });
+                      }}
+                      aria-hidden="true"
+                    />
+                  </Show>
+                  <div
+                    ref={(element) => {
+                      textLayerRefs.set(page.pageNumber, element);
+                    }}
+                    class={styles.textLayer}
+                    data-testid="pdf-text-layer"
+                    aria-hidden="true"
+                  />
+                </div>
               </section>
             )}
           </For>

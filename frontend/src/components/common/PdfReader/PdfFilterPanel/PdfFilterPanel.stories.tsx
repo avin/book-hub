@@ -128,7 +128,10 @@ export const Default = () => {
             return nextChain;
           })
         }
+        pageExpansion={0}
+        onPageExpansionChange={() => undefined}
         onReset={() => setFilterChain(defaultPdfFilterChain())}
+        onAutoWidth={() => undefined}
       />
     </I18nProvider>
   );

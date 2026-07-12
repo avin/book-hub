@@ -125,9 +125,25 @@ export const messages = {
     ru: 'Номер страницы',
     en: 'Page number',
   },
-  pdfFilters: {
-    ru: 'Фильтры PDF',
-    en: 'PDF filters',
+  pdfAppearance: {
+    ru: 'Внешний вид',
+    en: 'Appearance',
+  },
+  filters: {
+    ru: 'Фильтры',
+    en: 'Filters',
+  },
+  pdfPageExpansion: {
+    ru: 'Расширение страницы',
+    en: 'Page expansion',
+  },
+  reset: {
+    ru: 'Сбросить',
+    en: 'Reset',
+  },
+  autoWidth: {
+    ru: 'Автоширина',
+    en: 'Auto width',
   },
   textEnhancement: {
     ru: 'Усиление текста',
@@ -188,10 +204,6 @@ export const messages = {
   moveFilter: {
     ru: 'Переместить фильтр',
     en: 'Move filter',
-  },
-  resetAll: {
-    ru: 'Сбросить все',
-    en: 'Reset all',
   },
   pdfFiltersUnavailable: {
     ru: 'Фильтры недоступны: браузер не поддерживает WebGL или обработка страницы завершилась ошибкой. PDF продолжает отображаться без фильтров.',
