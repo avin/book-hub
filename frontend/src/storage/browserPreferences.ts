@@ -31,6 +31,7 @@ type BrowserPreferences = {
     pdf?: {
       contentWidth?: number;
       pageWidthOverflows?: Record<string, unknown>;
+      horizontalScrollPositions?: Record<string, unknown>;
       filterChains?: Record<string, unknown>;
     };
   };
@@ -54,6 +55,12 @@ function isStringArray(value: unknown): value is string[] {
 
 function finiteNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function unitIntervalNumber(value: unknown) {
+  const number = finiteNumber(value);
+
+  return number !== undefined && number >= 0 && number <= 1 ? number : undefined;
 }
 
 function stringValue(value: unknown) {
@@ -306,6 +313,40 @@ export function setPdfReaderPageWidthOverflowPreference(bookId: string, pageWidt
             ...pageWidthOverflows,
             [bookId]: clampPdfPageWidthOverflow(pageWidthOverflow),
           },
+        },
+      },
+    };
+  });
+}
+
+export function getPdfReaderHorizontalScrollPositionPreference(bookId: string) {
+  const horizontalScrollPositions = readReaderPreferences()?.pdf?.horizontalScrollPositions;
+
+  return isRecord(horizontalScrollPositions)
+    ? unitIntervalNumber(horizontalScrollPositions[bookId])
+    : undefined;
+}
+
+export function setPdfReaderHorizontalScrollPositionPreference(
+  bookId: string,
+  position: number | undefined,
+) {
+  updatePreferences((preferences) => {
+    const currentPositions = pdfReaderPreferencesForWrite(preferences)?.horizontalScrollPositions;
+    const horizontalScrollPositions = isRecord(currentPositions) ? currentPositions : {};
+    const { [bookId]: _, ...otherPositions } = horizontalScrollPositions;
+    const nextPositions =
+      position === undefined
+        ? otherPositions
+        : { ...horizontalScrollPositions, [bookId]: Math.min(1, Math.max(0, position)) };
+
+    return {
+      ...preferences,
+      readers: {
+        ...readerPreferencesForWrite(preferences),
+        pdf: {
+          ...pdfReaderPreferencesForWrite(preferences),
+          horizontalScrollPositions: nextPositions,
         },
       },
     };

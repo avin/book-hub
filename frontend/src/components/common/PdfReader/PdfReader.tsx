@@ -36,9 +36,11 @@ import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import {
   getPdfReaderContentWidthPreference,
   getPdfReaderFilterChainPreference,
+  getPdfReaderHorizontalScrollPositionPreference,
   getPdfReaderPageWidthOverflowPreference,
   setPdfReaderContentWidthPreference,
   setPdfReaderFilterChainPreference,
+  setPdfReaderHorizontalScrollPositionPreference,
   setPdfReaderPageWidthOverflowPreference,
 } from '@/storage/browserPreferences';
 import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './pdfOutline';
@@ -83,6 +85,8 @@ const minPageWidth = 240;
 const minPageHalfWidth = 120;
 const guideOutsideMargin = 12;
 const resizeAnchorHoldMs = 180;
+const horizontalScrollCenter = 0.5;
+const horizontalScrollPositionTolerance = 0.01;
 
 function renderPixelRatio() {
   return Math.min(maxRenderPixelRatio, Math.max(1, window.devicePixelRatio || 1));
@@ -163,7 +167,11 @@ function PdfReader(props: {
   let lockedScrollAnchor: ScrollAnchor | undefined;
   let resizeScrollAnchor: ScrollAnchor | undefined;
   let resizeAnchorTimeout: number | undefined;
-  let horizontalScrollCenterFrame: number | undefined;
+  let horizontalScrollRestoreFrame: number | undefined;
+  let horizontalScrollRestoreGeneration = 0;
+  let horizontalScrollRestorePending = false;
+  let lastHorizontalScrollLeft = 0;
+  let lastHorizontalScrollMaxLeft = 0;
   let searchScrollFrame: number | undefined;
   let filterRenderFrame: number | undefined;
   let executedSearchQuery: string | undefined;
@@ -213,11 +221,15 @@ function PdfReader(props: {
   const [pageWidthOverflow, setPageWidthOverflow] = createSignal(
     untrack(() => getPdfReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl)),
   );
+  const [horizontalScrollPosition, setHorizontalScrollPosition] = createSignal<number | undefined>(
+    untrack(() => getPdfReaderHorizontalScrollPositionPreference(props.bookId ?? props.fileUrl)),
+  );
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
   let filterPreferenceStorageKey: string | undefined;
   let pageWidthOverflowPreferenceStorageKey: string | undefined;
+  let horizontalScrollPositionPreferenceStorageKey: string | undefined;
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
@@ -352,25 +364,89 @@ function PdfReader(props: {
   const currentScrollAnchor = () =>
     lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
 
-  const centerHorizontalScrollIfNeeded = () => {
-    if (horizontalScrollCenterFrame !== undefined) {
-      cancelAnimationFrame(horizontalScrollCenterFrame);
+  const restoreHorizontalScrollPositionIfNeeded = () => {
+    if (horizontalScrollRestoreFrame !== undefined) {
+      cancelAnimationFrame(horizontalScrollRestoreFrame);
     }
 
-    horizontalScrollCenterFrame = requestAnimationFrame(() => {
-      horizontalScrollCenterFrame = undefined;
-      const scrollingElement = document.scrollingElement;
+    const generation = ++horizontalScrollRestoreGeneration;
+    horizontalScrollRestorePending = true;
+    horizontalScrollRestoreFrame = requestAnimationFrame(() => {
+      horizontalScrollRestoreFrame = undefined;
 
-      if (!scrollingElement) {
+      if (generation !== horizontalScrollRestoreGeneration) {
         return;
       }
 
-      const maxScrollLeft = scrollingElement.scrollWidth - scrollingElement.clientWidth;
+      const scrollingElement = document.scrollingElement;
 
-      if (maxScrollLeft > 0) {
-        scrollingElement.scrollLeft = maxScrollLeft / 2;
+      if (scrollingElement) {
+        const maxScrollLeft = scrollingElement.scrollWidth - scrollingElement.clientWidth;
+        const position = horizontalScrollPosition() ?? horizontalScrollCenter;
+        const nextScrollLeft = maxScrollLeft > 0 ? maxScrollLeft * position : 0;
+
+        scrollingElement.scrollLeft = nextScrollLeft;
+        lastHorizontalScrollLeft = nextScrollLeft;
+        lastHorizontalScrollMaxLeft = maxScrollLeft;
       }
+
+      requestAnimationFrame(() => {
+        if (generation === horizontalScrollRestoreGeneration) {
+          horizontalScrollRestorePending = false;
+        }
+      });
     });
+  };
+
+  const rememberHorizontalScrollPosition = () => {
+    if (horizontalScrollRestorePending) {
+      return;
+    }
+
+    const scrollingElement = document.scrollingElement;
+
+    if (!scrollingElement) {
+      return;
+    }
+
+    const maxScrollLeft = scrollingElement.scrollWidth - scrollingElement.clientWidth;
+    const scrollLeft = scrollingElement.scrollLeft;
+
+    if (
+      maxScrollLeft === lastHorizontalScrollMaxLeft &&
+      Math.abs(scrollLeft - lastHorizontalScrollLeft) < 0.5
+    ) {
+      return;
+    }
+
+    lastHorizontalScrollLeft = scrollLeft;
+    lastHorizontalScrollMaxLeft = maxScrollLeft;
+
+    if (maxScrollLeft <= 0) {
+      return;
+    }
+
+    const position = scrollLeft / maxScrollLeft;
+    const isLeftmost = scrollLeft <= 1;
+    const isCentered =
+      Math.abs(position - horizontalScrollCenter) <= horizontalScrollPositionTolerance;
+    const nextPosition = isLeftmost || isCentered ? undefined : position;
+    const savedPosition = horizontalScrollPosition();
+
+    if (nextPosition === undefined && savedPosition === undefined) {
+      return;
+    }
+
+    if (
+      nextPosition !== undefined &&
+      savedPosition !== undefined &&
+      Math.abs(nextPosition - savedPosition) < horizontalScrollPositionTolerance
+    ) {
+      return;
+    }
+
+    setHorizontalScrollPosition(nextPosition);
+    setPdfReaderHorizontalScrollPositionPreference(props.bookId ?? props.fileUrl, nextPosition);
   };
 
   const syncCurrentPage = () => {
@@ -555,7 +631,7 @@ function PdfReader(props: {
     renderedKeys.clear();
     invalidateFilteredPages();
     textLayerKeys.clear();
-    centerHorizontalScrollIfNeeded();
+    restoreHorizontalScrollPositionIfNeeded();
   };
 
   const cancelRenderTask = (pageNumber: number) => {
@@ -708,7 +784,7 @@ function PdfReader(props: {
     }
 
     setDocumentWidth(nextWidth);
-    centerHorizontalScrollIfNeeded();
+    restoreHorizontalScrollPositionIfNeeded();
   };
 
   const handleViewportResize = () => {
@@ -744,7 +820,7 @@ function PdfReader(props: {
     }
 
     setDocumentWidth(nextWidth);
-    centerHorizontalScrollIfNeeded();
+    restoreHorizontalScrollPositionIfNeeded();
   };
 
   const resetToFitWidth = () => {
@@ -765,7 +841,7 @@ function PdfReader(props: {
     renderedKeys.clear();
     invalidateFilteredPages();
     textLayerKeys.clear();
-    centerHorizontalScrollIfNeeded();
+    restoreHorizontalScrollPositionIfNeeded();
   };
 
   const syncObservedPages = () => {
@@ -1136,7 +1212,7 @@ function PdfReader(props: {
         }
 
         measureDocument();
-        centerHorizontalScrollIfNeeded();
+        restoreHorizontalScrollPositionIfNeeded();
         props.onReady?.();
       });
     } catch (error) {
@@ -1171,7 +1247,19 @@ function PdfReader(props: {
 
     pageWidthOverflowPreferenceStorageKey = storageKey;
     setPageWidthOverflow(getPdfReaderPageWidthOverflowPreference(storageKey));
-    centerHorizontalScrollIfNeeded();
+    restoreHorizontalScrollPositionIfNeeded();
+  });
+
+  createEffect(() => {
+    const storageKey = props.bookId ?? props.fileUrl;
+
+    if (storageKey === horizontalScrollPositionPreferenceStorageKey) {
+      return;
+    }
+
+    horizontalScrollPositionPreferenceStorageKey = storageKey;
+    setHorizontalScrollPosition(getPdfReaderHorizontalScrollPositionPreference(storageKey));
+    restoreHorizontalScrollPositionIfNeeded();
   });
 
   createEffect(() => {
@@ -1423,7 +1511,10 @@ function PdfReader(props: {
   });
 
   onMount(() => {
-    const onScroll = () => syncCurrentPage();
+    const onScroll = () => {
+      syncCurrentPage();
+      rememberHorizontalScrollPosition();
+    };
 
     resizeObserver = new ResizeObserver(() => handleViewportResize());
     observer = new IntersectionObserver(
@@ -1493,8 +1584,8 @@ function PdfReader(props: {
       window.clearTimeout(resizeAnchorTimeout);
     }
 
-    if (horizontalScrollCenterFrame !== undefined) {
-      cancelAnimationFrame(horizontalScrollCenterFrame);
+    if (horizontalScrollRestoreFrame !== undefined) {
+      cancelAnimationFrame(horizontalScrollRestoreFrame);
     }
 
     cancelRenderTasks();
