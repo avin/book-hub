@@ -1,0 +1,23 @@
+services:
+  backend:
+    image: ghcr.io/avin/book-hub-backend:${BOOK_HUB_IMAGE_TAG:?BOOK_HUB_IMAGE_TAG is required}
+    build: !reset null
+    pull_policy: always
+
+  frontend:
+    image: ghcr.io/avin/book-hub-frontend:${BOOK_HUB_IMAGE_TAG:?BOOK_HUB_IMAGE_TAG is required}
+    build: !reset null
+    pull_policy: always
+    ports: !reset []
+    expose:
+      - "80"
+
+  migrate:
+    image: ghcr.io/avin/book-hub-backend:${BOOK_HUB_IMAGE_TAG:?BOOK_HUB_IMAGE_TAG is required}
+    build: !reset null
+    pull_policy: always
+
+  admin:
+    image: ghcr.io/avin/book-hub-backend:${BOOK_HUB_IMAGE_TAG:?BOOK_HUB_IMAGE_TAG is required}
+    build: !reset null
+    pull_policy: always
