@@ -17,6 +17,7 @@ export default {
 
 export const Default = () => {
   const [filterChain, setFilterChain] = createSignal(defaultPdfFilterChain());
+  const [pageWidthOverflow, setPageWidthOverflow] = createSignal(0);
   const textEnhancementFilter = createMemo(() => textEnhancementFilterFromChain(filterChain())!);
   const softTextEnhancementFilter = createMemo(() =>
     softTextEnhancementFilterFromChain(filterChain())!,
@@ -37,6 +38,7 @@ export const Default = () => {
         visualAdjustmentFilter={visualAdjustmentFilter()}
         warmthFilter={warmthFilter()}
         grayscaleFilter={grayscaleFilter()}
+        pageWidthOverflow={pageWidthOverflow()}
         available
         onClose={() => undefined}
         onToggleTextEnhancement={(enabled) =>
@@ -128,6 +130,7 @@ export const Default = () => {
             return nextChain;
           })
         }
+        onPageWidthOverflowChange={setPageWidthOverflow}
         onReset={() => setFilterChain(defaultPdfFilterChain())}
         onAutoWidth={() => undefined}
       />

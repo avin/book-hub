@@ -125,6 +125,10 @@ export const messages = {
     ru: 'Номер страницы',
     en: 'Page number',
   },
+  pageWidthIncrease: {
+    ru: 'Увеличение ширины',
+    en: 'Width increase',
+  },
   pdfFilters: {
     ru: 'Фильтры PDF',
     en: 'PDF filters',

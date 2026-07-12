@@ -3,6 +3,10 @@ import {
   sanitizePdfFilterChain,
   type PdfFilterChain,
 } from '@/components/common/PdfReader/pdfFilters';
+import {
+  clampPdfPageWidthOverflow,
+  defaultPdfPageWidthOverflow,
+} from '@/components/common/PdfReader/pdfPageSettings';
 import { type Language, languages } from '@/i18n/messages';
 import { type ThemeId, isThemeId } from '@/styles/themes';
 
@@ -26,6 +30,7 @@ type BrowserPreferences = {
     };
     pdf?: {
       contentWidth?: number;
+      pageWidthOverflow?: number;
       filterChains?: Record<string, unknown>;
     };
   };
@@ -267,6 +272,27 @@ export function setPdfReaderContentWidthPreference(contentWidth: number | undefi
       pdf: {
         ...pdfReaderPreferencesForWrite(preferences),
         ...(contentWidth === undefined ? { contentWidth: undefined } : { contentWidth }),
+      },
+    },
+  }));
+}
+
+export function getPdfReaderPageWidthOverflowPreference() {
+  const pageWidthOverflow = finiteNumber(readReaderPreferences()?.pdf?.pageWidthOverflow);
+
+  return pageWidthOverflow === undefined
+    ? defaultPdfPageWidthOverflow
+    : clampPdfPageWidthOverflow(pageWidthOverflow);
+}
+
+export function setPdfReaderPageWidthOverflowPreference(pageWidthOverflow: number) {
+  updatePreferences((preferences) => ({
+    ...preferences,
+    readers: {
+      ...readerPreferencesForWrite(preferences),
+      pdf: {
+        ...pdfReaderPreferencesForWrite(preferences),
+        pageWidthOverflow: clampPdfPageWidthOverflow(pageWidthOverflow),
       },
     },
   }));

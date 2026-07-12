@@ -1,4 +1,4 @@
-import { GripVertical, RotateCcw, SlidersHorizontal } from 'lucide-solid';
+import { FileText, GripVertical, RotateCcw, SlidersHorizontal } from 'lucide-solid';
 import Sortable from 'sortablejs';
 import { createEffect, createSignal, For, onCleanup, onMount, Show, untrack } from 'solid-js';
 import Button from '@/components/common/Button/Button';
@@ -18,6 +18,7 @@ import {
   type PdfVisualAdjustmentFilter,
   type PdfWarmthFilter,
 } from '../pdfFilters';
+import { pdfPageWidthOverflowRange } from '../pdfPageSettings';
 import styles from './PdfFilterPanel.module.scss';
 
 function isPdfFilterId(value: string | null): value is PdfFilter['id'] {
@@ -40,6 +41,7 @@ function PdfFilterPanel(props: {
   visualAdjustmentFilter: PdfVisualAdjustmentFilter;
   warmthFilter: PdfWarmthFilter;
   grayscaleFilter: PdfGrayscaleFilter;
+  pageWidthOverflow: number;
   available: boolean;
   unavailableMessage?: string;
   onClose: () => void;
@@ -65,6 +67,7 @@ function PdfFilterPanel(props: {
   onToggleGrayscale: (enabled: boolean) => void;
   onGrayscaleStrengthChange: (strength: number) => void;
   onMoveFilter: (filterId: PdfFilter['id'], targetIndex: number) => void;
+  onPageWidthOverflowChange: (value: number) => void;
   onReset: () => void;
   onAutoWidth: () => void;
 }) {
@@ -246,6 +249,24 @@ function PdfFilterPanel(props: {
         </div>
       }
     >
+      <section class={styles.settingGroup}>
+        <h3>
+          <FileText size={17} />
+          {t('page')}
+        </h3>
+        <InputContainer label={t('pageWidthIncrease')} labelEnd={`${props.pageWidthOverflow}%`}>
+          <input
+            type="range"
+            min={pdfPageWidthOverflowRange.min}
+            max={pdfPageWidthOverflowRange.max}
+            step={pdfPageWidthOverflowRange.step}
+            value={props.pageWidthOverflow}
+            aria-label={t('pageWidthIncrease')}
+            onInput={(event) => props.onPageWidthOverflowChange(Number(event.currentTarget.value))}
+          />
+        </InputContainer>
+      </section>
+
       <section class={styles.settingGroup}>
         <h3>
           <SlidersHorizontal size={17} />

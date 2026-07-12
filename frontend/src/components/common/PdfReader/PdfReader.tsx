@@ -36,8 +36,10 @@ import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import {
   getPdfReaderContentWidthPreference,
   getPdfReaderFilterChainPreference,
+  getPdfReaderPageWidthOverflowPreference,
   setPdfReaderContentWidthPreference,
   setPdfReaderFilterChainPreference,
+  setPdfReaderPageWidthOverflowPreference,
 } from '@/storage/browserPreferences';
 import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import PdfTextHighlighter from './PdfTextHighlighter';
@@ -53,6 +55,7 @@ import {
   warmthFilterFromChain,
   type PdfFilterChain,
 } from './pdfFilters';
+import { clampPdfPageWidthOverflow } from './pdfPageSettings';
 import {
   destroySharedPdfWebglFilterRenderer,
   isPdfWebglAvailable,
@@ -103,6 +106,10 @@ function pageWidthForAvailableWidth(customWidth: number | undefined, availableWi
   }
 
   return Math.min(availableWidth, Math.max(minPageWidth, customWidth));
+}
+
+function pageWidthWithOverflow(width: number, overflow: number) {
+  return width * (1 + overflow / 100);
 }
 
 function scrollYForAnchor(
@@ -202,6 +209,9 @@ function PdfReader(props: {
   const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(
     getPdfReaderContentWidthPreference(),
   );
+  const [pageWidthOverflow, setPageWidthOverflow] = createSignal(
+    getPdfReaderPageWidthOverflowPreference(),
+  );
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
@@ -209,9 +219,10 @@ function PdfReader(props: {
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
-  const pageWidth = createMemo(() =>
+  const basePageWidth = createMemo(() =>
     pageWidthForAvailableWidth(maxPageWidth(), availablePageWidth()),
   );
+  const pageWidth = createMemo(() => pageWidthWithOverflow(basePageWidth(), pageWidthOverflow()));
   const markerStyles = createMemo(() =>
     computeWidthRulerMarkers(
       rulerElement(),
@@ -327,9 +338,12 @@ function PdfReader(props: {
   const resolvePageWidthPx = (width: number | undefined) => {
     const availableWidth = resolveAvailablePageWidthPx();
 
-    return pageWidthForAvailableWidth(
-      width === undefined ? undefined : Math.round(width),
-      availableWidth,
+    return pageWidthWithOverflow(
+      pageWidthForAvailableWidth(
+        width === undefined ? undefined : Math.round(width),
+        availableWidth,
+      ),
+      pageWidthOverflow(),
     );
   };
 
@@ -510,7 +524,7 @@ function PdfReader(props: {
     }
 
     if (width === undefined) {
-      setDocumentWidth(targetWidthPx);
+      setDocumentWidth(resolveAvailablePageWidthPx());
     }
 
     setMaxPageWidth(width);
@@ -684,7 +698,10 @@ function PdfReader(props: {
     }
 
     const nextAvailableWidth = Math.max(minPageWidth, nextWidth);
-    const nextPageWidth = pageWidthForAvailableWidth(maxPageWidth(), nextAvailableWidth);
+    const nextPageWidth = pageWidthWithOverflow(
+      pageWidthForAvailableWidth(maxPageWidth(), nextAvailableWidth),
+      pageWidthOverflow(),
+    );
 
     if (Math.abs(nextPageWidth - pageWidth()) >= 0.5) {
       lockResizeScrollAnchor();
@@ -706,6 +723,22 @@ function PdfReader(props: {
 
   const resetToFitWidth = () => {
     updatePageWidth(undefined);
+  };
+
+  const updatePageWidthOverflow = (value: number) => {
+    const nextOverflow = clampPdfPageWidthOverflow(value);
+    const anchor = currentScrollAnchor();
+    const nextPageWidth = pageWidthWithOverflow(basePageWidth(), nextOverflow);
+
+    if (anchor) {
+      applySynchronizedScrollAnchor(anchor, nextPageWidth);
+    }
+
+    setPageWidthOverflow(nextOverflow);
+    setPdfReaderPageWidthOverflowPreference(nextOverflow);
+    renderedKeys.clear();
+    invalidateFilteredPages();
+    textLayerKeys.clear();
   };
 
   const syncObservedPages = () => {
@@ -1506,7 +1539,7 @@ function PdfReader(props: {
         secondaryBar={
           <WidthRuler
             availableWidth={availablePageWidth()}
-            currentWidth={pageWidth()}
+            currentWidth={basePageWidth()}
             markerStyles={markerStyles()}
             ariaLabel="Ширина страницы"
             minWidth={minPageWidth}
@@ -1547,6 +1580,7 @@ function PdfReader(props: {
         }
         warmthFilter={warmthFilter() ?? warmthFilterFromChain(defaultPdfFilterChain())!}
         grayscaleFilter={grayscaleFilter() ?? grayscaleFilterFromChain(defaultPdfFilterChain())!}
+        pageWidthOverflow={pageWidthOverflow()}
         available={!filterError()}
         unavailableMessage={filterError() ? t('pdfFiltersUnavailable') : undefined}
         onClose={() => setFilterPanelOpen(false)}
@@ -1563,6 +1597,7 @@ function PdfReader(props: {
         onToggleGrayscale={(enabled) => toggleStrengthFilter('grayscale', enabled)}
         onGrayscaleStrengthChange={(strength) => updateStrengthFilter('grayscale', strength)}
         onMoveFilter={moveFilter}
+        onPageWidthOverflowChange={updatePageWidthOverflow}
         onReset={resetFilters}
         onAutoWidth={resetToFitWidth}
       />
@@ -1599,7 +1634,7 @@ function PdfReader(props: {
                 data-applied-filter-key={appliedFilterKeys().get(page.pageNumber) ?? ''}
                 style={{
                   width: `${Math.round(pageWidth())}px`,
-                  'max-width': '100%',
+                  'max-width': pageWidthOverflow() > 0 ? 'none' : '100%',
                   'aspect-ratio': `${page.width} / ${page.height}`,
                 }}
                 aria-label={`Страница ${page.pageNumber}`}
