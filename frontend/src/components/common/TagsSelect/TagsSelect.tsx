@@ -1,5 +1,5 @@
 import { X } from 'lucide-solid';
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from 'solid-js';
 import Dropdown from '@/components/common/Dropdown/Dropdown';
 import { useI18n } from '@/i18n/I18nProvider';
 import { getRecentTagsPreference, setRecentTagsPreference } from '@/storage/browserPreferences';
@@ -120,7 +120,7 @@ function TagsSelect(props: {
   const [inputWidth, setInputWidth] = createSignal(100);
   const [containerWidth, setContainerWidth] = createSignal(0);
   const [dropdownWidth, setDropdownWidth] = createSignal<number | undefined>(undefined);
-  const [visibleTagCount, setVisibleTagCount] = createSignal(props.value.length);
+  const [visibleTagCount, setVisibleTagCount] = createSignal(untrack(() => props.value.length));
 
   let inputEl: HTMLInputElement | undefined;
   let inputContainerEl: HTMLDivElement | undefined;

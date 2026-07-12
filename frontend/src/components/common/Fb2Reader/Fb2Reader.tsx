@@ -7,6 +7,7 @@ import {
   onCleanup,
   onMount,
   Show,
+  untrack,
 } from 'solid-js';
 import { X } from 'lucide-solid';
 import BlockView from './BlockView/BlockView';
@@ -244,8 +245,10 @@ function Fb2Reader(props: {
     }
 
     layoutWidthDebounceTimeout = window.setTimeout(() => {
-      applyLayoutTextWidth(anchor);
-      layoutWidthDebounceTimeout = undefined;
+      untrack(() => {
+        applyLayoutTextWidth(anchor);
+        layoutWidthDebounceTimeout = undefined;
+      });
     }, layoutWidthDebounceMs);
   };
 
@@ -698,9 +701,11 @@ function Fb2Reader(props: {
     }
 
     viewportResizeEndTimeout = window.setTimeout(() => {
-      setViewportResizeActive(false);
-      viewportResizeEndTimeout = undefined;
-      flushLayoutTextWidth();
+      untrack(() => {
+        setViewportResizeActive(false);
+        viewportResizeEndTimeout = undefined;
+        flushLayoutTextWidth();
+      });
     }, viewportResizeEndMs);
   };
 
@@ -842,23 +847,25 @@ function Fb2Reader(props: {
     }
 
     void loadReaderLayoutFonts(currentSettings).then(() => {
-      if (disposed) {
-        return;
-      }
+      untrack(() => {
+        if (disposed) {
+          return;
+        }
 
-      // Якорь снимаем здесь, а не при запуске эффекта: к этому моменту позиция
-      // уже могла быть восстановлена из прогресса (ReaderPage.restoreScrollProgress).
-      // Снятый заранее якорь фиксирует scrollY=0 и после пересчёта layout
-      // отбрасывает читалку в начало книги.
-      const anchor = layoutSettingsAnchor ?? fontLayoutAnchor ?? captureScrollAnchor();
+        // Якорь снимаем здесь, а не при запуске эффекта: к этому моменту позиция
+        // уже могла быть восстановлена из прогресса (ReaderPage.restoreScrollProgress).
+        // Снятый заранее якорь фиксирует scrollY=0 и после пересчёта layout
+        // отбрасывает читалку в начало книги.
+        const anchor = layoutSettingsAnchor ?? fontLayoutAnchor ?? captureScrollAnchor();
 
-      if (anchor) {
-        setPendingScrollAnchor(anchor);
-      }
+        if (anchor) {
+          setPendingScrollAnchor(anchor);
+        }
 
-      fontLayoutAnchor = undefined;
+        fontLayoutAnchor = undefined;
 
-      setLayoutGeneration((value) => value + 1);
+        setLayoutGeneration((value) => value + 1);
+      });
     });
   });
 

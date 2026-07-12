@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/solid-query';
-import { createMemo, createSignal, onCleanup, Show } from 'solid-js';
+import { createMemo, createSignal, onCleanup, Show, untrack } from 'solid-js';
 import { ImagePlus, RefreshCw, X } from 'lucide-solid';
 import {
   booksQueryKey,
@@ -60,8 +60,8 @@ function revokePending(state: PendingCover | undefined) {
 function EditBookDialog(props: { book: Book; tagOptions: string[]; onClose: () => void }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const [title, setTitle] = createSignal(props.book.title);
-  const [tags, setTags] = createSignal<string[]>(props.book.tags);
+  const [title, setTitle] = createSignal(untrack(() => props.book.title));
+  const [tags, setTags] = createSignal<string[]>(untrack(() => props.book.tags));
   const [error, setError] = createSignal('');
   const [pendingCover, setPendingCover] = createSignal<PendingCover | undefined>(undefined);
   const [extracting, setExtracting] = createSignal(false);

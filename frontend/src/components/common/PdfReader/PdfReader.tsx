@@ -999,17 +999,18 @@ function PdfReader(props: {
     }
 
     const filterGenerationAtStart = filterRenderGeneration;
+    const filterChainAtStart = filterChain();
 
     await runExclusiveFilterRender(async () => {
       if (
         filterGenerationAtStart !== filterRenderGeneration ||
-        filteredKeys.get(descriptor.pageNumber) === filterKey()
+        filteredKeys.get(descriptor.pageNumber) === currentFilterKey
       ) {
         return;
       }
 
       try {
-        renderPdfPageFilter(canvas, filteredCanvas, filterChain());
+        renderPdfPageFilter(canvas, filteredCanvas, filterChainAtStart);
 
         if (filterGenerationAtStart !== filterRenderGeneration) {
           return;

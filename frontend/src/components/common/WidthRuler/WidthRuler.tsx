@@ -29,10 +29,10 @@ function WidthRuler(props: {
       aria-valuemax={String(Math.round(props.maxWidth ?? props.availableWidth))}
       aria-valuenow={String(Math.round(props.currentWidth))}
       tabIndex={0}
-      onPointerDown={props.onPointerDown}
-      onPointerMove={props.onPointerMove}
-      onPointerUp={props.onPointerUp}
-      onPointerCancel={props.onPointerUp}
+      onPointerDown={(event) => props.onPointerDown(event)}
+      onPointerMove={(event) => props.onPointerMove(event)}
+      onPointerUp={(event) => props.onPointerUp(event)}
+      onPointerCancel={(event) => props.onPointerUp(event)}
     >
       <For each={widthRulerTicks}>
         {(tick) => (

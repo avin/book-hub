@@ -78,8 +78,8 @@ function SettingsPanel(props: {
             max="30"
             value={props.settings.fontSize}
             onPointerDown={captureLayoutAdjust}
-            onPointerUp={props.onEndAdjustLayout}
-            onPointerCancel={props.onEndAdjustLayout}
+            onPointerUp={() => props.onEndAdjustLayout()}
+            onPointerCancel={() => props.onEndAdjustLayout()}
             onInput={(event) =>
               props.onUpdateSetting('fontSize', Number(event.currentTarget.value))
             }
@@ -93,8 +93,8 @@ function SettingsPanel(props: {
             step="0.02"
             value={props.settings.lineHeight}
             onPointerDown={captureLayoutAdjust}
-            onPointerUp={props.onEndAdjustLayout}
-            onPointerCancel={props.onEndAdjustLayout}
+            onPointerUp={() => props.onEndAdjustLayout()}
+            onPointerCancel={() => props.onEndAdjustLayout()}
             onInput={(event) =>
               props.onUpdateSetting('lineHeight', Number(event.currentTarget.value))
             }
@@ -117,8 +117,8 @@ function SettingsPanel(props: {
             max="64"
             value={props.settings.paragraphIndent}
             onPointerDown={captureLayoutAdjust}
-            onPointerUp={props.onEndAdjustLayout}
-            onPointerCancel={props.onEndAdjustLayout}
+            onPointerUp={() => props.onEndAdjustLayout()}
+            onPointerCancel={() => props.onEndAdjustLayout()}
             onInput={(event) =>
               props.onUpdateSetting('paragraphIndent', Number(event.currentTarget.value))
             }
@@ -134,8 +134,8 @@ function SettingsPanel(props: {
             max="36"
             value={props.settings.paragraphSpacing}
             onPointerDown={captureLayoutAdjust}
-            onPointerUp={props.onEndAdjustLayout}
-            onPointerCancel={props.onEndAdjustLayout}
+            onPointerUp={() => props.onEndAdjustLayout()}
+            onPointerCancel={() => props.onEndAdjustLayout()}
             onInput={(event) =>
               props.onUpdateSetting('paragraphSpacing', Number(event.currentTarget.value))
             }

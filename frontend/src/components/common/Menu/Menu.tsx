@@ -65,8 +65,6 @@ function Menu<TId = string>(props: {
   const renderItems = (items: MenuItem<TId>[], depth: number): JSX.Element => (
     <For each={items}>
       {(item, index) => {
-        const key = getItemKey(item, index());
-
         if (item.type === 'category') {
           return (
             <>
@@ -109,7 +107,7 @@ function Menu<TId = string>(props: {
         );
 
         return (
-          <div class={styles.itemWrapper} data-key={key}>
+          <div class={styles.itemWrapper} data-key={getItemKey(item, index())}>
             <Show
               when={item.type === 'link'}
               fallback={

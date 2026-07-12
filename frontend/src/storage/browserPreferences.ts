@@ -334,11 +334,13 @@ export function setPdfReaderHorizontalScrollPositionPreference(
   updatePreferences((preferences) => {
     const currentPositions = pdfReaderPreferencesForWrite(preferences)?.horizontalScrollPositions;
     const horizontalScrollPositions = isRecord(currentPositions) ? currentPositions : {};
-    const { [bookId]: _, ...otherPositions } = horizontalScrollPositions;
-    const nextPositions =
-      position === undefined
-        ? otherPositions
-        : { ...horizontalScrollPositions, [bookId]: Math.min(1, Math.max(0, position)) };
+    const nextPositions = { ...horizontalScrollPositions };
+
+    if (position === undefined) {
+      delete nextPositions[bookId];
+    } else {
+      nextPositions[bookId] = Math.min(1, Math.max(0, position));
+    }
 
     return {
       ...preferences,
