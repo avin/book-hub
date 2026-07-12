@@ -5,7 +5,8 @@
 COMPOSE ?= docker compose
 BACKEND_DIR ?= backend
 FRONTEND_DIR ?= frontend
-BACKUP_DIR ?= backups
+BACKUP_DIR ?= ./backups
+BACKUP ?=
 SERVICE ?=
 MIGRATE_ARGS ?= up
 COMPOSE_PROJECT_NAME ?= book-hub
@@ -31,12 +32,12 @@ HEALTH_PATH ?= $(if $(HEALTH_BASE_PATH),$(HEALTH_BASE_PATH)/api/readyz,/api/read
 
 .PHONY: help env \
 	dev-db dev-backend dev-frontend dev-storybook \
-	backend-test frontend-generate frontend-build test \
+	backend-test frontend-test frontend-generate frontend-build test \
 	docker-build docker-up docker-down docker-stop docker-restart \
 	prod-deploy prod-update \
 	migrate migrate-up migrate-down migrate-version admin \
 	ps logs backend-shell db-shell health-http \
-	backup-db backup-storage
+	backup restore
 
 # Печатает краткую справку по основным командам.
 help:
@@ -53,9 +54,10 @@ help:
 	@echo ""
 	@echo "Checks and generation:"
 	@echo "  backend-test           Run Go tests"
+	@echo "  frontend-test          Run frontend end-to-end tests"
 	@echo "  frontend-generate      Regenerate frontend API types"
 	@echo "  frontend-build         Type-check and build frontend"
-	@echo "  test                   Run Go tests and frontend build"
+	@echo "  test                   Run backend and frontend tests, then build frontend"
 	@echo ""
 	@echo "Docker and production:"
 	@echo "  docker-up              Build and start the full stack"
@@ -71,8 +73,8 @@ help:
 	@echo "  ps                     Show compose service status"
 	@echo "  db-shell               Open psql in the PostgreSQL container"
 	@echo "  backend-shell          Open shell in the backend container"
-	@echo "  backup-db              Save PostgreSQL dump to $(BACKUP_DIR)"
-	@echo "  backup-storage         Save book storage archive to $(BACKUP_DIR)"
+	@echo "  backup                 Save a complete database and storage backup"
+	@echo "  restore BACKUP=path    Restore database and storage from a backup"
 
 # Создает .env из примера, но не перезаписывает существующий файл.
 env:
@@ -100,6 +102,10 @@ dev-storybook:
 backend-test:
 	go -C $(BACKEND_DIR) test ./...
 
+# Запускает end-to-end тесты frontend через Playwright.
+frontend-test:
+	npm --prefix $(FRONTEND_DIR) run test:e2e
+
 # Генерирует TypeScript-типы API из api/openapi.yaml.
 frontend-generate:
 	npm --prefix $(FRONTEND_DIR) run generate:api
@@ -108,8 +114,8 @@ frontend-generate:
 frontend-build:
 	npm --prefix $(FRONTEND_DIR) run build
 
-# Выполняет основные проверки проекта: backend-тесты и frontend-сборку.
-test: backend-test frontend-build
+# Выполняет основные проверки проекта: backend-тесты, frontend E2E-тесты и сборку.
+test: backend-test frontend-test frontend-build
 
 # Собирает Docker-образы без запуска сервисов.
 docker-build:
@@ -184,12 +190,27 @@ db-shell:
 health-http:
 	curl -fsS "http://localhost:$(PUBLIC_PORT)$(HEALTH_PATH)"
 
-# Создает SQL dump PostgreSQL в директории backups.
-backup-db:
-	mkdir -p "$(BACKUP_DIR)"
-	$(COMPOSE) exec -T postgres sh -c 'pg_dump -U "$$POSTGRES_USER" "$$POSTGRES_DB"' > "$(BACKUP_DIR)/bookhub-$$(date +%Y%m%d-%H%M%S).sql"
+# Создает согласованный backup PostgreSQL и файлового хранилища в одной директории.
+backup:
+	@set -eu; \
+	backup_path="$(BACKUP_DIR)/$$(date +%Y%m%d-%H%M%S)"; \
+	mkdir -p "$(BACKUP_DIR)"; \
+	mkdir "$$backup_path"; \
+	backup_path="$$(cd "$$backup_path" && pwd)"; \
+	$(COMPOSE) stop backend frontend; \
+	$(COMPOSE) exec -T postgres sh -c 'pg_dump --clean --if-exists --no-owner -U "$$POSTGRES_USER" "$$POSTGRES_DB"' > "$$backup_path/database.sql"; \
+	docker run --rm -v $(STORAGE_VOLUME):/data/books:ro alpine tar -czf - -C /data/books . > "$$backup_path/storage.tar.gz"; \
+	$(COMPOSE) up -d backend frontend; \
+	echo "Backup saved to $$backup_path"
 
-# Архивирует Docker volume с файлами книг и обложек в директорию backups.
-backup-storage:
-	mkdir -p "$(BACKUP_DIR)"
-	docker run --rm -v $(STORAGE_VOLUME):/data/books:ro -v "$$(pwd)/$(BACKUP_DIR):/backup" alpine tar -czf /backup/book-storage-$$(date +%Y%m%d-%H%M%S).tar.gz -C /data/books .
+# Восстанавливает PostgreSQL и файловое хранилище из BACKUP=путь-к-директории-снимка.
+restore:
+	@set -eu; \
+	test -n "$(BACKUP)" || { echo "Specify BACKUP, for example: make restore BACKUP=./backup/20260712-120000" >&2; exit 1; }; \
+	test -f "$(BACKUP)/database.sql" || { echo "Database dump not found: $(BACKUP)/database.sql" >&2; exit 1; }; \
+	test -f "$(BACKUP)/storage.tar.gz" || { echo "Storage archive not found: $(BACKUP)/storage.tar.gz" >&2; exit 1; }; \
+	backup_path="$$(cd "$(BACKUP)" && pwd)"; \
+	$(COMPOSE) stop backend frontend; \
+	$(COMPOSE) exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" "$$POSTGRES_DB"' < "$$backup_path/database.sql"; \
+	docker run --rm -i -v $(STORAGE_VOLUME):/data/books alpine sh -c 'rm -rf /data/books/* /data/books/.[!.]* /data/books/..?* && tar -xzf - -C /data/books' < "$$backup_path/storage.tar.gz"; \
+	$(COMPOSE) up -d backend frontend

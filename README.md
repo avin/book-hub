@@ -1,8 +1,6 @@
 # Book Hub
 
-Book Hub - приватное веб-приложение для хранения и чтения книг пользователя.
-Первая итерация включает Go backend API, PostgreSQL, локальное файловое
-хранилище, admin CLI и номинальный SolidJS frontend со страницей `в разработке`.
+Book Hub — персональный self-hosted-архив книг с удобной возможностью чтения в браузере.
 
 ## Требования
 
@@ -81,19 +79,10 @@ Admin CLI запускается только через серверную ко
 docker compose run --rm admin
 ```
 
-Доступные команды внутри CLI:
+Получить полный перечень команд внутри CLI:
 
 ```text
-list users
-show user
-create user
-activate user
-disable user
-delete user
-set quota
-set password
-show storage stats
-quit
+help
 ```
 
 Создание и активация первого пользователя:
@@ -175,19 +164,19 @@ docker compose up -d
 
 ## Backup
 
-Для маленькой self-hosted установки достаточно остановить сервисы, сделать dump
-PostgreSQL и архив storage directory, затем запустить сервисы обратно:
+Одна команда создает согласованный снимок PostgreSQL и файлового хранилища в
+отдельной timestamp-директории внутри `./backup/`:
 
 ```bash
-docker compose stop backend frontend
-docker compose exec postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > bookhub.sql
-docker run --rm -v book-hub_book_storage:/data/books -v "$PWD:/backup" alpine \
-  tar -czf /backup/book-storage.tar.gz -C /data/books .
-docker compose up -d
+make backup
 ```
 
-Бэкап БД и файлов должен быть согласован по времени. Иначе возможны записи в БД
-без файла или файлы без записей.
+Для восстановления укажите путь к созданной директории. Команда заменяет текущие
+данные PostgreSQL и файлового хранилища:
+
+```bash
+make restore BACKUP=./backup/20260712-120000
+```
 
 ## Production Reverse Proxy
 
