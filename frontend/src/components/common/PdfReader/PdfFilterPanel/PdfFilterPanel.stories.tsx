@@ -129,6 +129,7 @@ export const Default = () => {
           })
         }
         onReset={() => setFilterChain(defaultPdfFilterChain())}
+        onAutoWidth={() => undefined}
       />
     </I18nProvider>
   );

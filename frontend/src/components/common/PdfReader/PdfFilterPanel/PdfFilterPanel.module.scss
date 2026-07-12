@@ -6,6 +6,30 @@
   gap: $space-3;
 }
 
+.settingGroup {
+  display: grid;
+  gap: $space-4;
+
+  h3 {
+    display: flex;
+    gap: $space-2;
+    align-items: center;
+    margin: 0;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 20px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+}
+
+.panelActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $space-3;
+}
+
 .filterGroup {
   display: grid;
   gap: $space-4;

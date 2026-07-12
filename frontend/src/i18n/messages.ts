@@ -129,6 +129,22 @@ export const messages = {
     ru: 'Фильтры PDF',
     en: 'PDF filters',
   },
+  readerAppearance: {
+    ru: 'Внешний вид',
+    en: 'Appearance',
+  },
+  filters: {
+    ru: 'Фильтры',
+    en: 'Filters',
+  },
+  reset: {
+    ru: 'Сбросить',
+    en: 'Reset',
+  },
+  autoWidth: {
+    ru: 'Автоширина',
+    en: 'Auto width',
+  },
   textEnhancement: {
     ru: 'Усиление текста',
     en: 'Text enhancement',

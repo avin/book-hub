@@ -1485,8 +1485,8 @@ function PdfReader(props: {
               type="button"
               iconOnly
               iconStart={<SlidersHorizontal />}
-              title={t('pdfFilters')}
-              aria-label={t('pdfFilters')}
+              title={t('readerAppearance')}
+              aria-label={t('readerAppearance')}
               aria-pressed={filterPanelOpen()}
               onClick={toggleFilterPanel}
             />
@@ -1564,6 +1564,7 @@ function PdfReader(props: {
         onGrayscaleStrengthChange={(strength) => updateStrengthFilter('grayscale', strength)}
         onMoveFilter={moveFilter}
         onReset={resetFilters}
+        onAutoWidth={resetToFitWidth}
       />
 
       <Show when={loading()}>
