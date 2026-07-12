@@ -2,7 +2,7 @@ export const defaultPdfPageWidthOverflow = 0;
 
 export const pdfPageWidthOverflowRange = {
   min: 0,
-  max: 20,
+  max: 50,
   step: 1,
 } as const;
 

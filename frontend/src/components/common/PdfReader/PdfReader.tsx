@@ -163,6 +163,7 @@ function PdfReader(props: {
   let lockedScrollAnchor: ScrollAnchor | undefined;
   let resizeScrollAnchor: ScrollAnchor | undefined;
   let resizeAnchorTimeout: number | undefined;
+  let horizontalScrollCenterFrame: number | undefined;
   let searchScrollFrame: number | undefined;
   let filterRenderFrame: number | undefined;
   let executedSearchQuery: string | undefined;
@@ -350,6 +351,27 @@ function PdfReader(props: {
   const currentScrollAnchor = () =>
     lockedScrollAnchor ?? resizeScrollAnchor ?? captureScrollAnchor();
 
+  const centerHorizontalScrollIfNeeded = () => {
+    if (horizontalScrollCenterFrame !== undefined) {
+      cancelAnimationFrame(horizontalScrollCenterFrame);
+    }
+
+    horizontalScrollCenterFrame = requestAnimationFrame(() => {
+      horizontalScrollCenterFrame = undefined;
+      const scrollingElement = document.scrollingElement;
+
+      if (!scrollingElement) {
+        return;
+      }
+
+      const maxScrollLeft = scrollingElement.scrollWidth - scrollingElement.clientWidth;
+
+      if (maxScrollLeft > 0) {
+        scrollingElement.scrollLeft = maxScrollLeft / 2;
+      }
+    });
+  };
+
   const syncCurrentPage = () => {
     const pageList = pages();
 
@@ -532,6 +554,7 @@ function PdfReader(props: {
     renderedKeys.clear();
     invalidateFilteredPages();
     textLayerKeys.clear();
+    centerHorizontalScrollIfNeeded();
   };
 
   const cancelRenderTask = (pageNumber: number) => {
@@ -684,6 +707,7 @@ function PdfReader(props: {
     }
 
     setDocumentWidth(nextWidth);
+    centerHorizontalScrollIfNeeded();
   };
 
   const handleViewportResize = () => {
@@ -719,6 +743,7 @@ function PdfReader(props: {
     }
 
     setDocumentWidth(nextWidth);
+    centerHorizontalScrollIfNeeded();
   };
 
   const resetToFitWidth = () => {
@@ -739,6 +764,7 @@ function PdfReader(props: {
     renderedKeys.clear();
     invalidateFilteredPages();
     textLayerKeys.clear();
+    centerHorizontalScrollIfNeeded();
   };
 
   const syncObservedPages = () => {
@@ -1109,6 +1135,7 @@ function PdfReader(props: {
         }
 
         measureDocument();
+        centerHorizontalScrollIfNeeded();
         props.onReady?.();
       });
     } catch (error) {
@@ -1451,6 +1478,10 @@ function PdfReader(props: {
 
     if (resizeAnchorTimeout !== undefined) {
       window.clearTimeout(resizeAnchorTimeout);
+    }
+
+    if (horizontalScrollCenterFrame !== undefined) {
+      cancelAnimationFrame(horizontalScrollCenterFrame);
     }
 
     cancelRenderTasks();
