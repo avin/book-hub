@@ -3,12 +3,15 @@
 
 # Базовые настройки путей и инструментов. Значения можно переопределять при запуске make.
 COMPOSE ?= docker compose
+COMPOSE_GHCR = $(COMPOSE) -f docker-compose.yml -f docker-compose.ghcr.yml
+COMPOSE_GHCR_TAGGED = BOOK_HUB_IMAGE_TAG="$(BOOK_HUB_IMAGE_TAG)" $(COMPOSE_GHCR)
 BACKEND_DIR ?= backend
 FRONTEND_DIR ?= frontend
 BACKUP_DIR ?= ./backups
 BACKUP ?=
 SERVICE ?=
 MIGRATE_ARGS ?= up
+BOOK_HUB_IMAGE_TAG ?=
 COMPOSE_PROJECT_NAME ?= book-hub
 STORAGE_VOLUME ?= $(COMPOSE_PROJECT_NAME)_book_storage
 
@@ -34,7 +37,7 @@ HEALTH_PATH ?= $(if $(HEALTH_BASE_PATH),$(HEALTH_BASE_PATH)/api/readyz,/api/read
 	dev-db dev-backend dev-frontend dev-storybook \
 	backend-test frontend-test frontend-generate frontend-build test \
 	docker-build docker-up docker-down docker-stop docker-restart \
-	prod-deploy prod-update \
+	local-deploy ghcr-require-image-tag ghcr-deploy ghcr-migrate ghcr-admin \
 	migrate migrate-up migrate-down migrate-version admin \
 	ps logs backend-shell db-shell health-http \
 	backup restore
@@ -59,11 +62,13 @@ help:
 	@echo "  frontend-build         Type-check and build frontend"
 	@echo "  test                   Run backend and frontend tests, then build frontend"
 	@echo ""
-	@echo "Docker and production:"
+	@echo "Docker:"
 	@echo "  docker-up              Build and start the full stack"
 	@echo "  docker-down            Stop and remove containers"
-	@echo "  prod-deploy            Build images, apply migrations, and start services"
-	@echo "  prod-update            Pull images, build, apply migrations, and start services"
+	@echo "  local-deploy           Build local images, apply migrations, and start services"
+	@echo "  ghcr-deploy            Pull a GHCR image tag, apply migrations, and start services"
+	@echo "  ghcr-migrate           Run migration command with a GHCR image tag"
+	@echo "  ghcr-admin             Open admin CLI with a GHCR image tag"
 	@echo ""
 	@echo "Operations and debug:"
 	@echo "  migrate-up             Apply migrations"
@@ -137,18 +142,29 @@ docker-stop:
 docker-restart:
 	$(COMPOSE) restart
 
-# Production-запуск из локального исходного кода: сборка, миграции, старт сервисов.
-prod-deploy:
+# Запуск из локального исходного кода: сборка, миграции, старт сервисов.
+local-deploy:
 	$(COMPOSE) build
 	$(COMPOSE) run --rm migrate up
 	$(COMPOSE) up -d
 
-# Production-обновление: подтянуть доступные образы, пересобрать локальные, применить миграции и запустить сервисы.
-prod-update:
-	$(COMPOSE) pull --ignore-buildable
-	$(COMPOSE) build
-	$(COMPOSE) run --rm migrate up
-	$(COMPOSE) up -d
+# Проверяет, что перед запуском готовых образов указан их тег.
+ghcr-require-image-tag:
+	@test -n "$(BOOK_HUB_IMAGE_TAG)" || { echo "Specify BOOK_HUB_IMAGE_TAG, for example: make ghcr-deploy BOOK_HUB_IMAGE_TAG=sha-abc1234" >&2; exit 1; }
+
+# Запускает готовые GHCR-образы с указанным неизменяемым тегом, без локальной сборки.
+ghcr-deploy: ghcr-require-image-tag
+	$(COMPOSE_GHCR_TAGGED) pull
+	$(COMPOSE_GHCR_TAGGED) run --rm migrate up
+	$(COMPOSE_GHCR_TAGGED) up -d --remove-orphans
+
+# Запускает мигратор из готового GHCR-образа; MIGRATE_ARGS по умолчанию равен up.
+ghcr-migrate: ghcr-require-image-tag
+	$(COMPOSE_GHCR_TAGGED) run --rm migrate $(MIGRATE_ARGS)
+
+# Открывает admin CLI из готового GHCR-образа.
+ghcr-admin: ghcr-require-image-tag
+	$(COMPOSE_GHCR_TAGGED) run --rm admin
 
 # Универсальный запуск мигратора; аргументы передаются через MIGRATE_ARGS, например make migrate MIGRATE_ARGS=version.
 migrate:

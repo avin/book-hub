@@ -76,7 +76,7 @@ make db-shell
 
 `make help` выводит полный список целей. Для диагностики сервисов используйте `make ps` и `make logs`, при необходимости ограничив журнал: `make logs SERVICE=backend`.
 
-Миграции не запускаются при старте backend автоматически: для Docker-стека используйте `make migrate-up` или `make prod-deploy`.
+Миграции не запускаются при старте backend автоматически: для Docker-стека используйте `make migrate-up` или `make local-deploy`.
 
 ## Файловое хранилище
 
