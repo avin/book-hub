@@ -29,7 +29,11 @@ func TestAuthFlowRequiresActivationAndSupportsPasswordChange(t *testing.T) {
 	csrf := app.csrf(t, client)
 
 	app.register(t, client, csrf, "reader", "old-password", http.StatusCreated)
-	app.login(t, client, csrf, "reader", "old-password", http.StatusForbidden)
+	app.login(t, client, csrf, "reader", "wrong-password", http.StatusUnauthorized)
+	inactive := app.requestJSON(t, client, http.MethodPost, "/v1/auth/login", csrf, map[string]string{"login": "reader", "password": "old-password"}, http.StatusForbidden)
+	if inactive["code"] != "account_inactive" {
+		t.Fatalf("expected account_inactive error, got %#v", inactive)
+	}
 
 	activeApp := newTestApp(t, true)
 	firstClient := activeApp.client(t)

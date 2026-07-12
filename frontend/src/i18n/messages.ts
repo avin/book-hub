@@ -45,9 +45,9 @@ export const messages = {
     ru: 'После регистрации аккаунт должен активировать администратор.',
     en: 'After registration, an administrator must activate the account.',
   },
-  checkWhetherAccountActive: {
-    ru: 'Если вход не работает, проверьте, активирован ли аккаунт.',
-    en: 'If sign-in fails, check whether the account is active.',
+  accountNotActivated: {
+    ru: 'Данная учётная запись ещё не активирована.',
+    en: 'This account has not been activated yet.',
   },
   showPassword: {
     ru: 'Показать пароль',

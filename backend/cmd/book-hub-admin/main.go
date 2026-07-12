@@ -140,7 +140,7 @@ func createUser(ctx context.Context, scanner *bufio.Scanner, store adminStore, c
 	if err != nil {
 		return err
 	}
-	user, err := store.CreateUser(ctx, login, hash, false, cfg.DefaultQuotaBytes)
+	user, err := store.CreateUser(ctx, login, hash, true, cfg.DefaultQuotaBytes)
 	if err != nil {
 		return err
 	}

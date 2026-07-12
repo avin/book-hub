@@ -11,6 +11,10 @@ import styles from './AuthPage.module.scss';
 
 type AuthMode = 'login' | 'register';
 
+function isAccountInactiveError(error: unknown) {
+  return error && typeof error === 'object' && 'code' in error && error.code === 'account_inactive';
+}
+
 function AuthPage(props: { mode: AuthMode }) {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -84,8 +88,12 @@ function AuthPage(props: { mode: AuthMode }) {
         await loginMutation.mutateAsync(credentials);
         navigate('/library', { replace: true });
       }
-    } catch {
-      setFormError(t('requestFailedTryAgain'));
+    } catch (error) {
+      setFormError(
+        !isRegister() && isAccountInactiveError(error)
+          ? t('accountNotActivated')
+          : t('requestFailedTryAgain'),
+      );
     }
   };
 
@@ -175,11 +183,9 @@ function AuthPage(props: { mode: AuthMode }) {
           </Button>
         </form>
 
-        <p class={styles.hint}>
-          {isRegister()
-            ? t('afterRegistrationAdminActivatesAccount')
-            : t('checkWhetherAccountActive')}
-        </p>
+        <Show when={isRegister()}>
+          <p class={styles.hint}>{t('afterRegistrationAdminActivatesAccount')}</p>
+        </Show>
       </div>
     </AuthLayout>
   );
