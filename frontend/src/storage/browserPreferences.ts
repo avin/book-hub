@@ -30,7 +30,7 @@ type BrowserPreferences = {
     };
     pdf?: {
       contentWidth?: number;
-      pageWidthOverflow?: number;
+      pageWidthOverflows?: Record<string, unknown>;
       filterChains?: Record<string, unknown>;
     };
   };
@@ -277,25 +277,39 @@ export function setPdfReaderContentWidthPreference(contentWidth: number | undefi
   }));
 }
 
-export function getPdfReaderPageWidthOverflowPreference() {
-  const pageWidthOverflow = finiteNumber(readReaderPreferences()?.pdf?.pageWidthOverflow);
+export function getPdfReaderPageWidthOverflowPreference(bookId: string) {
+  const pageWidthOverflows = readReaderPreferences()?.pdf?.pageWidthOverflows;
+
+  if (!isRecord(pageWidthOverflows)) {
+    return defaultPdfPageWidthOverflow;
+  }
+
+  const pageWidthOverflow = finiteNumber(pageWidthOverflows[bookId]);
 
   return pageWidthOverflow === undefined
     ? defaultPdfPageWidthOverflow
     : clampPdfPageWidthOverflow(pageWidthOverflow);
 }
 
-export function setPdfReaderPageWidthOverflowPreference(pageWidthOverflow: number) {
-  updatePreferences((preferences) => ({
-    ...preferences,
-    readers: {
-      ...readerPreferencesForWrite(preferences),
-      pdf: {
-        ...pdfReaderPreferencesForWrite(preferences),
-        pageWidthOverflow: clampPdfPageWidthOverflow(pageWidthOverflow),
+export function setPdfReaderPageWidthOverflowPreference(bookId: string, pageWidthOverflow: number) {
+  updatePreferences((preferences) => {
+    const currentPageWidthOverflows = pdfReaderPreferencesForWrite(preferences)?.pageWidthOverflows;
+    const pageWidthOverflows = isRecord(currentPageWidthOverflows) ? currentPageWidthOverflows : {};
+
+    return {
+      ...preferences,
+      readers: {
+        ...readerPreferencesForWrite(preferences),
+        pdf: {
+          ...pdfReaderPreferencesForWrite(preferences),
+          pageWidthOverflows: {
+            ...pageWidthOverflows,
+            [bookId]: clampPdfPageWidthOverflow(pageWidthOverflow),
+          },
+        },
       },
-    },
-  }));
+    };
+  });
 }
 
 export function getPdfReaderFilterChainPreference(bookId: string) {

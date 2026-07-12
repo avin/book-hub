@@ -211,12 +211,13 @@ function PdfReader(props: {
     getPdfReaderContentWidthPreference(),
   );
   const [pageWidthOverflow, setPageWidthOverflow] = createSignal(
-    getPdfReaderPageWidthOverflowPreference(),
+    untrack(() => getPdfReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl)),
   );
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
   let filterPreferenceStorageKey: string | undefined;
+  let pageWidthOverflowPreferenceStorageKey: string | undefined;
 
   const isFitWidth = createMemo(() => maxPageWidth() === undefined);
   const availablePageWidth = createMemo(() => Math.max(minPageWidth, documentWidth()));
@@ -760,7 +761,7 @@ function PdfReader(props: {
     }
 
     setPageWidthOverflow(nextOverflow);
-    setPdfReaderPageWidthOverflowPreference(nextOverflow);
+    setPdfReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl, nextOverflow);
     renderedKeys.clear();
     invalidateFilteredPages();
     textLayerKeys.clear();
@@ -1159,6 +1160,18 @@ function PdfReader(props: {
     destroyFilterRenderers();
     setFilterChainState(nextChain);
     scheduleVisiblePageFilterRender();
+  });
+
+  createEffect(() => {
+    const storageKey = props.bookId ?? props.fileUrl;
+
+    if (storageKey === pageWidthOverflowPreferenceStorageKey) {
+      return;
+    }
+
+    pageWidthOverflowPreferenceStorageKey = storageKey;
+    setPageWidthOverflow(getPdfReaderPageWidthOverflowPreference(storageKey));
+    centerHorizontalScrollIfNeeded();
   });
 
   createEffect(() => {
