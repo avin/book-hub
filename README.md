@@ -45,6 +45,34 @@ make health-http
 make help
 ```
 
+## Нехватка памяти при сборке
+
+На VPS с небольшим объёмом RAM сборка Go backend и frontend может завершиться ошибкой `out of memory`, `Killed` или с кодом `137`. Проверьте память и свободное место на диске:
+
+```bash
+free -h
+df -h /
+```
+
+Если на диске достаточно свободного места, один раз создайте постоянный swap-файл размером 4 GB:
+
+```bash
+sudo fallocate -l 4G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Убедитесь, что swap подключён, затем повторите `make prod-deploy`:
+
+```bash
+free -h
+make prod-deploy
+```
+
+Swap снижает риск нехватки памяти, но делает сборку медленнее. Не создавайте его, если на системном диске недостаточно свободного места.
+
 ## Первый пользователь
 
 Откройте административную консоль:
