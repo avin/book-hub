@@ -57,7 +57,7 @@ import {
   warmthFilterFromChain,
   type PdfFilterChain,
 } from './pdfFilters';
-import { clampPdfPageWidthOverflow } from './pdfPageSettings';
+import { clampPdfPageWidthOverflow, defaultPdfPageWidthOverflow } from './pdfPageSettings';
 import {
   destroySharedPdfWebglFilterRenderer,
   isPdfWebglAvailable,
@@ -1499,6 +1499,7 @@ function PdfReader(props: {
 
   const resetFilters = () => {
     updateFilterChain(() => defaultPdfFilterChain());
+    updatePageWidthOverflow(defaultPdfPageWidthOverflow);
   };
 
   const readerChrome = useReaderChrome({
