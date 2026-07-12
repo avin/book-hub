@@ -6,7 +6,7 @@ server {
     client_max_body_size __MAX_BODY_SIZE__;
 
     location ^~ __API_PREFIX__/ {
-        proxy_pass http://backend:8080;
+        proxy_pass __BACKEND_URL__;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

@@ -19,7 +19,8 @@ make env
 
 Откройте `.env` и обязательно замените `POSTGRES_PASSWORD`, пароль в `BOOK_HUB_DATABASE_URL` и
 `BOOK_HUB_SESSION_SECRET`. Пароль базы в первых двух настройках должен совпадать. При необходимости до запуска измените
-`BOOK_HUB_PUBLIC_PORT`.
+`BOOK_HUB_PUBLIC_PORT`. `BOOK_HUB_HTTP_ADDR` — внутренний адрес backend; в Docker он должен быть в формате
+`:порт` (например, `:38080`).
 
 ## Запуск
 

@@ -24,15 +24,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    expose:
-      - "8080"
     volumes:
       - book_storage:/data/books
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "base=\"$${BOOK_HUB_BASE_PATH:-/}\"; base=\"/$${base#/}\"; base=\"$${base%/}\"; wget -qO- \"http://127.0.0.1:8080$${base}/api/readyz\" >/dev/null"
+          "base=\"$${BOOK_HUB_BASE_PATH:-/}\"; base=\"/$${base#/}\"; base=\"$${base%/}\"; wget -qO- \"http://127.0.0.1$${BOOK_HUB_HTTP_ADDR:-:8080}$${base}/api/readyz\" >/dev/null"
         ]
       interval: 10s
       timeout: 5s
