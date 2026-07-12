@@ -2,8 +2,8 @@ import type { Page } from '@playwright/test';
 
 export async function openPdfFiltersPanel(page: Page) {
   await page.mouse.move(10, 10);
-  await page.getByRole('button', { name: 'Внешний вид' }).click();
-  return page.locator('aside').filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
+  return page.locator('aside').filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
 }
 
 export async function pdfAppliedFilterKey(page: Page, pageNumber = '1') {

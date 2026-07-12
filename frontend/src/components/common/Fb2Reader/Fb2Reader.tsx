@@ -1056,7 +1056,7 @@ function Fb2Reader(props: {
             });
           }
 
-          setSettings({ ...defaultSettings, maxTextWidth: settings().maxTextWidth });
+          setSettings(defaultSettings);
         }}
         onUpdateSetting={updateSetting}
         onAutoWidth={applyAutoWidth}

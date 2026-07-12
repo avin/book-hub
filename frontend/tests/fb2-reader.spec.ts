@@ -142,45 +142,6 @@ test('reader сохраняет видимый блок при изменени�
   expect(after?.top).toBeLessThan(after?.viewportHeight ?? 0);
 });
 
-test('FB2: сброс внешнего вида сохраняет ширину текста, а автоширина снимает ограничение', async ({
-  page,
-}) => {
-  await openReader(page);
-  await page.mouse.move(10, 10);
-
-  const ruler = page.getByRole('slider', { name: 'Максимальная ширина текста' });
-  await expect(ruler).toBeVisible();
-  const rulerBox = await ruler.boundingBox();
-  expect(rulerBox).not.toBeNull();
-
-  if (!rulerBox) return;
-
-  const centerY = rulerBox.y + rulerBox.height / 2;
-  await page.mouse.move(rulerBox.x + rulerBox.width * 0.7, centerY);
-  await page.mouse.down();
-  await page.mouse.move(rulerBox.x + rulerBox.width * 0.78, centerY, { steps: 5 });
-  await page.mouse.up();
-
-  const automaticWidth = await ruler.getAttribute('aria-valuemax');
-  const constrainedWidth = await ruler.getAttribute('aria-valuenow');
-  expect(constrainedWidth).not.toBe(automaticWidth);
-
-  await openReaderSettings(page);
-  const panel = page
-    .locator('aside')
-    .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
-  const fontSize = panel.locator('input[type="range"]').first();
-  await fontSize.fill('30');
-  await expect(fontSize).toHaveValue('30');
-
-  await panel.getByRole('button', { name: 'Сбросить' }).click();
-  await expect(fontSize).toHaveValue('19');
-  await expect(ruler).toHaveAttribute('aria-valuenow', constrainedWidth ?? '');
-
-  await panel.getByRole('button', { name: 'Автоширина' }).click();
-  await expect(ruler).toHaveAttribute('aria-valuenow', automaticWidth ?? '');
-});
-
 test('reader сохраняет позицию при изменении шрифта, размера и параметров абзаца', async ({
   page,
 }) => {

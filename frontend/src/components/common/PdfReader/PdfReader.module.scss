@@ -55,12 +55,6 @@
   box-shadow: $shadow-lg;
   overflow-anchor: none;
 
-  .pageContent {
-    position: absolute;
-    top: 0;
-    height: 100%;
-  }
-
   canvas {
     display: block;
     background: var(--surface-raised);

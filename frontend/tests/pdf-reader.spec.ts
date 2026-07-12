@@ -47,9 +47,7 @@ test('PDF reader отключает оглавление без document outline
   await expect(tocButton).toBeDisabled();
 });
 
-test('PDF reader открывает панель внешнего вида и показывает параметры инверсии', async ({
-  page,
-}) => {
+test('PDF reader открывает панель фильтров и показывает параметры инверсии', async ({ page }) => {
   await login(page);
   await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
@@ -57,24 +55,16 @@ test('PDF reader открывает панель внешнего вида и п
 
   await page.getByRole('button', { name: 'Оглавление', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeVisible();
-  await page.getByRole('button', { name: 'Внешний вид' }).click();
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
 
   const panel = page
     .locator('aside')
-    .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
   const invert = panel.getByRole('checkbox', { name: 'Инверсия' });
   const strength = panel.getByRole('slider', { name: 'Сила' });
 
   await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeHidden();
   await expect(panel).toBeVisible();
-  await expect(panel.getByRole('heading', { level: 3 }).allTextContents()).resolves.toEqual([
-    'Страница',
-    'Фильтры',
-  ]);
-  await expect(panel.getByRole('slider', { name: 'Расширение страницы' })).toHaveValue('0');
-  await expect(panel.getByRole('heading', { name: 'Фильтры' })).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Сбросить' })).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Автоширина' })).toBeVisible();
   await expect(invert).not.toBeChecked();
   await expect(strength).toBeHidden();
 
@@ -103,146 +93,6 @@ test('PDF reader открывает панель внешнего вида и п
     await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
     await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
   }
-});
-
-test('PDF reader расширяет страницу после отпускания ползунка и сохраняет настройку', async ({
-  page,
-}) => {
-  await login(page);
-  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
-  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
-
-  const panel = await openPdfFiltersPanel(page);
-  const expansion = panel.getByRole('slider', { name: 'Расширение страницы' });
-  const pdfPage = page.getByRole('region', { name: 'Страница 1' });
-  const sourceCanvas = pdfPage.locator('canvas').first();
-
-  await expect(expansion).toHaveAttribute('min', '0');
-  await expect(expansion).toHaveAttribute('max', '25');
-  await expect(expansion).toHaveAttribute('step', '1');
-  const before = await pdfPage.boundingBox();
-  const sliderBox = await expansion.boundingBox();
-  expect(before).not.toBeNull();
-  expect(sliderBox).not.toBeNull();
-
-  if (!before || !sliderBox) return;
-
-  const sliderY = sliderBox.y + sliderBox.height / 2;
-  await page.mouse.move(sliderBox.x + sliderBox.width * 0.35, sliderY);
-  await page.mouse.down();
-  await page.mouse.move(sliderBox.x + sliderBox.width - 2, sliderY, { steps: 8 });
-  await expect(pdfPage).toHaveJSProperty('offsetHeight', Math.round(before.height));
-  await page.mouse.up();
-
-  await expect(expansion).toHaveValue('25');
-  await expect
-    .poll(async () => {
-      const box = await pdfPage.boundingBox();
-      return box?.height ?? 0;
-    })
-    .toBeGreaterThan(before.height * 1.9);
-  const after = await pdfPage.boundingBox();
-  const canvas = await sourceCanvas.boundingBox();
-  expect(after).not.toBeNull();
-  expect(canvas).not.toBeNull();
-  if (!after || !canvas) return;
-
-  expect(Math.abs(after.width - before.width)).toBeLessThan(2);
-  expect(Math.abs(canvas.width - after.width * 2)).toBeLessThan(3);
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
-        return preferences.readers?.pdf?.pageExpansions?.['00000000-0000-0000-0000-000000000102'];
-      }),
-    )
-    .toBe(25);
-
-  await page.goto('/library');
-  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
-  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
-  const reopenedPanel = await openPdfFiltersPanel(page);
-  await expect(reopenedPanel.getByRole('slider', { name: 'Расширение страницы' })).toHaveValue(
-    '25',
-  );
-});
-
-test('PDF reader сбрасывает фильтры отдельно от общей ширины страницы', async ({ page }) => {
-  await login(page);
-  await page.evaluate(() => {
-    localStorage.setItem(
-      'book-hub-preferences',
-      JSON.stringify({
-        version: 1,
-        readers: {
-          pdf: {
-            contentWidth: 480,
-            pageExpansions: {
-              '00000000-0000-0000-0000-000000000103': 15,
-              '00000000-0000-0000-0000-000000000102': 7,
-            },
-            filterChains: {
-              '00000000-0000-0000-0000-000000000103': [
-                { id: 'invert', enabled: true, strength: 0.65 },
-              ],
-            },
-          },
-        },
-      }),
-    );
-  });
-  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
-  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
-
-  const panel = await openPdfFiltersPanel(page);
-  const invert = panel.getByRole('checkbox', { name: 'Инверсия' });
-
-  await expect(invert).toBeChecked();
-  await expect(panel.getByRole('slider', { name: 'Расширение страницы' })).toHaveValue('15');
-  await panel.getByRole('button', { name: 'Автоширина' }).click();
-  await expect(invert).toBeChecked();
-  await expect(panel.getByRole('slider', { name: 'Расширение страницы' })).toHaveValue('15');
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
-        return preferences.readers?.pdf?.contentWidth;
-      }),
-    )
-    .toBeUndefined();
-
-  await page.goto('/library');
-  await page.evaluate(() => {
-    const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
-    preferences.readers.pdf.contentWidth = 480;
-    localStorage.setItem('book-hub-preferences', JSON.stringify(preferences));
-  });
-  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
-  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
-  const reopenedPanel = await openPdfFiltersPanel(page);
-  await expect(reopenedPanel.getByRole('checkbox', { name: 'Инверсия' })).toBeChecked();
-  await expect(reopenedPanel.getByRole('slider', { name: 'Расширение страницы' })).toHaveValue(
-    '15',
-  );
-  await reopenedPanel.getByRole('button', { name: 'Сбросить' }).click();
-  await expect(reopenedPanel.getByRole('checkbox', { name: 'Инверсия' })).not.toBeChecked();
-  await expect(reopenedPanel.getByRole('slider', { name: 'Расширение страницы' })).toHaveValue('0');
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
-        return preferences.readers?.pdf?.contentWidth;
-      }),
-    )
-    .toBe(480);
-
-  await page.goto('/library');
-  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
-  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
-  const otherBookPanel = await openPdfFiltersPanel(page);
-  await expect(otherBookPanel.getByRole('slider', { name: 'Расширение страницы' })).toHaveValue(
-    '7',
-  );
 });
 
 test('PDF reader настраивает мягкое утолщение текста отдельно от исходного фильтра', async ({
@@ -301,20 +151,20 @@ test('PDF reader сохраняет фильтры отдельно для ка�
   await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
   await page.mouse.move(10, 10);
-  await page.getByRole('button', { name: 'Внешний вид' }).click();
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
   const firstPanel = page
     .locator('aside')
-    .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
   await expect(firstPanel.getByRole('checkbox', { name: 'Инверсия' })).toBeChecked();
 
   await page.goto('/library');
   await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
   await page.mouse.move(10, 10);
-  await page.getByRole('button', { name: 'Внешний вид' }).click();
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
   const secondPanel = page
     .locator('aside')
-    .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
   await expect(secondPanel.getByRole('checkbox', { name: 'Инверсия' })).not.toBeChecked();
 });
 
@@ -337,13 +187,12 @@ test('PDF reader сохраняет исходное отображение бе
     await page.evaluate(() => document.createElement('canvas').getContext('webgl')),
   ).toBeNull();
   await page.mouse.move(10, 10);
-  await page.getByRole('button', { name: 'Внешний вид' }).click();
+  await page.getByRole('button', { name: 'Фильтры PDF' }).click();
   const panel = page
     .locator('aside')
-    .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
+    .filter({ has: page.getByRole('heading', { name: 'Фильтры PDF' }) });
   await panel.getByRole('checkbox', { name: 'Инверсия' }).check();
   await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
-  await expect(panel.getByRole('slider', { name: 'Расширение страницы' })).toBeEnabled();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
 });
 
@@ -501,21 +350,6 @@ test('PDF без текстового слоя не запускает OCR и н
 
 test('PDF поисковое выделение совпадает с геометрией найденного текста', async ({ page }) => {
   await login(page);
-  await page.evaluate(() => {
-    localStorage.setItem(
-      'book-hub-preferences',
-      JSON.stringify({
-        version: 1,
-        readers: {
-          pdf: {
-            pageExpansions: {
-              '00000000-0000-0000-0000-000000000102': 25,
-            },
-          },
-        },
-      }),
-    );
-  });
   await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
   await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
 

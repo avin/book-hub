@@ -27,7 +27,6 @@ type BrowserPreferences = {
     pdf?: {
       contentWidth?: number;
       filterChains?: Record<string, unknown>;
-      pageExpansions?: Record<string, unknown>;
     };
   };
 };
@@ -297,41 +296,6 @@ export function setPdfReaderFilterChainPreference(bookId: string, chain: PdfFilt
           filterChains: {
             ...filterChains,
             [bookId]: chain,
-          },
-        },
-      },
-    };
-  });
-}
-
-export function getPdfReaderPageExpansionPreference(bookId: string) {
-  const pageExpansions = readReaderPreferences()?.pdf?.pageExpansions;
-
-  if (!isRecord(pageExpansions)) {
-    return undefined;
-  }
-
-  const expansion = finiteNumber(pageExpansions[bookId]);
-
-  return expansion !== undefined && Number.isInteger(expansion) && expansion >= 0 && expansion <= 25
-    ? expansion
-    : undefined;
-}
-
-export function setPdfReaderPageExpansionPreference(bookId: string, expansion: number) {
-  updatePreferences((preferences) => {
-    const currentPageExpansions = pdfReaderPreferencesForWrite(preferences)?.pageExpansions;
-    const pageExpansions = isRecord(currentPageExpansions) ? currentPageExpansions : {};
-
-    return {
-      ...preferences,
-      readers: {
-        ...readerPreferencesForWrite(preferences),
-        pdf: {
-          ...pdfReaderPreferencesForWrite(preferences),
-          pageExpansions: {
-            ...pageExpansions,
-            [bookId]: expansion,
           },
         },
       },
