@@ -1,18 +1,24 @@
-# Локальная разработка
+# Разработка Book Hub
 
-Для ежедневной работы удобнее не пересобирать Docker на каждое изменение, а держать в контейнере только PostgreSQL, а бэкенд и фронт запускать локально. Production-запуск целиком через Docker — в [README.md](README.md).
+Этот файл предназначен для разработки. Эксплуатация и установка на сервер — в [README.md](README.md).
 
-```text
-PostgreSQL  → Docker
-Backend     → go run (локально, :8080)
-Frontend    → Vite dev server (локально, :5173)
+## Стек и структура
+
+- `backend/` — Go API, миграции и admin CLI;
+- `frontend/` — SolidJS, Vite и TypeScript;
+- `api/openapi.yaml` — контракт API;
+- `docker-compose.yml` — production-стек: PostgreSQL, backend, frontend, мигратор и admin CLI.
+
+Для локальной работы нужны Docker Engine с Docker Compose v2, GNU Make, Go 1.26.4, Node.js 24 и npm 11.
+
+## Первичная настройка
+
+```bash
+make env
+npm --prefix frontend install
 ```
 
-## Настройка (один раз)
-
-Скопируйте `.env` из `.env.example`.
-
-**Проброс порта PostgreSQL.** В `.env` хост `postgres` — это имя Docker-сервиса, с хост-машины он недоступен. Создайте `docker-compose.override.yml`:
+Установка npm-пакетов нужна один раз и после изменения зависимостей. Заполните `.env`. Для доступа к PostgreSQL с хоста создайте `docker-compose.override.yml`:
 
 ```yaml
 services:
@@ -21,75 +27,68 @@ services:
       - "5432:5432"
 ```
 
-**Прокси API во фронте.** Vite отдаёт UI на `:5173`, бэкенд слушает `:8080`. Без прокси запросы идут с другого origin — CORS в бэкенде нет, cookies сессии не работают. Добавьте в `frontend/vite.config.ts`:
+`BOOK_HUB_DATABASE_URL` в `.env` рассчитан на Docker и использует хост `postgres`. Цели `make dev-backend` автоматически заменяют его на `localhost`. Локальное файловое хранилище: `./data/books`.
 
-```ts
-server: {
-  proxy: {
-    "/api": {
-      target: "http://localhost:8080",
-      changeOrigin: true,
-    },
-  },
-},
+## Локальный запуск
+
+Запустите базу и миграции:
+
+```bash
+make dev-db
 ```
 
-## Запуск
+В отдельных терминалах запустите backend и frontend:
 
-Три терминала.
-
-**1. База и миграции** (из корня репозитория):
-
-```powershell
-docker compose up -d postgres
-docker compose run --rm migrate up
-docker compose stop frontend   # иначе займёт :8080
+```bash
+make dev-backend
+make dev-frontend
 ```
 
-**2. Бэкенд:**
+Backend слушает `http://localhost:8080`, Vite — `http://localhost:5173`.
 
-```powershell
-cd backend
-$env:BOOK_HUB_DATABASE_URL = "postgres://bookhub:ПАРОЛЬ@localhost:5432/bookhub?sslmode=disable"
-$env:BOOK_HUB_STORAGE_DIR = "..\data\books"
-$env:BOOK_HUB_SESSION_SECRET = "..."   # значение из .env
-go run ./cmd/book-hub-server
+В `frontend/vite.config.ts` для локального backend укажите proxy target `http://localhost:8080`. Текущий proxy target следует согласовать со средой, в которой запущен API. При `BOOK_HUB_BASE_PATH=/hub` задайте `VITE_BASE_PATH=/hub` и добавьте proxy для `/hub/api`.
+
+## Команды разработки
+
+```bash
+make dev-storybook
+make backend-test
+make frontend-test
+make frontend-generate
+make frontend-build
+make test
 ```
 
-Go не читает `.env` сам — переменные задаются вручную или через run configuration в IDE. Пароль и секрет берите из своего `.env`.
+`make frontend-generate` запускайте после изменений в `api/openapi.yaml`.
 
-**3. Фронтенд:**
+## Docker и диагностика
 
-```powershell
-cd frontend
-npm install   # первый раз
-npm run dev
+```bash
+make docker-build
+make docker-up
+make docker-down
+make migrate-up
+make migrate-down
+make migrate-version
+make backend-shell
+make db-shell
 ```
 
-Сайт: `http://localhost:5173`. Запросы на `/api` Vite проксирует на бэкенд.
+`make help` выводит полный список целей. Для диагностики сервисов используйте `make ps` и `make logs`, при необходимости ограничив журнал: `make logs SERVICE=backend`.
 
-## Переменные: Docker vs локальный go run
+Миграции не запускаются при старте backend автоматически: для Docker-стека используйте `make migrate-up` или `make prod-deploy`.
 
-| Переменная | В Docker (.env) | Локально |
-|------------|-----------------|----------|
-| `BOOK_HUB_DATABASE_URL` | `...@postgres:5432/...` | `...@localhost:5432/...` |
-| `BOOK_HUB_STORAGE_DIR` | `/data/books` | `..\data\books` |
+## Файловое хранилище
 
-Остальные переменные — те же, что в `.env`.
+По умолчанию книги и обложки хранятся в Docker volume `book_storage`, подключённом к `/data/books` сервисов `backend`, `migrate` и `admin`. Чтобы использовать серверный каталог, замените volume у всех трёх сервисов, например:
 
-## Прочее
-
-```powershell
-cd backend && go test ./...              # unit-тесты, БД не нужна
-docker compose run --rm admin            # admin CLI через Docker
-go run ./cmd/book-hub-admin              # admin CLI локально (те же env)
-docker compose up -d --build             # полная сборка как на сервере → :8080
+```yaml
+volumes:
+  - /srv/book-hub/books:/data/books
 ```
 
-## Base path `/hub`
+## Документация
 
-Если `BOOK_HUB_BASE_PATH=/hub`, API живёт по `/hub/api`. Для Vite: `VITE_BASE_PATH=/hub` и прокси:
-
-```ts
-"/hub/api": { target: "http://localhost:8080", changeOrigin: true },
-```
+- [docs/APP.md](docs/APP.md) — поведение приложения;
+- [api/openapi.yaml](api/openapi.yaml) — API-контракт;
+- [CONTEXT.md](CONTEXT.md) и `docs/adr/` — предметная область и архитектурные решения.

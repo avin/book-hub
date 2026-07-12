@@ -206,7 +206,7 @@ backup:
 # Восстанавливает PostgreSQL и файловое хранилище из BACKUP=путь-к-директории-снимка.
 restore:
 	@set -eu; \
-	test -n "$(BACKUP)" || { echo "Specify BACKUP, for example: make restore BACKUP=./backup/20260712-120000" >&2; exit 1; }; \
+	test -n "$(BACKUP)" || { echo "Specify BACKUP, for example: make restore BACKUP=./backups/20260712-120000" >&2; exit 1; }; \
 	test -f "$(BACKUP)/database.sql" || { echo "Database dump not found: $(BACKUP)/database.sql" >&2; exit 1; }; \
 	test -f "$(BACKUP)/storage.tar.gz" || { echo "Storage archive not found: $(BACKUP)/storage.tar.gz" >&2; exit 1; }; \
 	backup_path="$$(cd "$(BACKUP)" && pwd)"; \

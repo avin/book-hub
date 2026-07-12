@@ -2,190 +2,97 @@
 
 Book Hub — персональный self-hosted-архив книг с удобной возможностью чтения в браузере.
 
-## Требования
+## Что потребуется
 
-- Docker Engine с Docker Compose v2.
-- Linux-сервер или локальная машина с доступом к Docker.
-- Для production-размещения рекомендуется внешний reverse proxy с TLS: Caddy,
-  nginx или Traefik.
+- Linux-сервер с Docker Engine и Docker Compose v2;
+- GNU Make и Git;
+- домен и reverse proxy с TLS — по желанию.
 
-## Настройка
+## Установка
 
-Создайте рабочий `.env` из примера:
-
-```bash
-cp .env.example .env
-```
-
-Минимально замените:
-
-- `POSTGRES_PASSWORD`
-- пароль внутри `BOOK_HUB_DATABASE_URL`
-- `BOOK_HUB_SESSION_SECRET` на случайную строку длиной не меньше 32 символов
-
-`BOOK_HUB_PUBLIC_PORT` задает внешний порт frontend/nginx. Backend наружу не
-публикуется и доступен только внутри Docker network.
-
-## Запуск
-
-Соберите и поднимите PostgreSQL, backend и frontend:
+Скачайте проект и перейдите в его каталог:
 
 ```bash
-docker compose up -d --build
+git clone git@github.com:avin/book-hub.git
+cd book-hub
 ```
 
-Примените миграции отдельной командой:
+Создайте файл настроек:
 
 ```bash
-docker compose run --rm migrate up
+make env
 ```
 
-После этого frontend доступен по адресу:
+Откройте `.env` и обязательно замените `POSTGRES_PASSWORD`, пароль в `BOOK_HUB_DATABASE_URL` и `BOOK_HUB_SESSION_SECRET`. Пароль базы в первых двух настройках должен совпадать. При необходимости до запуска измените `BOOK_HUB_PUBLIC_PORT`.
 
-```text
-http://localhost:8080/
-```
-
-Если вы изменили `BOOK_HUB_PUBLIC_PORT`, используйте выбранный порт.
-
-## Base Path
-
-По умолчанию приложение работает с корня домена:
-
-```env
-BOOK_HUB_BASE_PATH=/
-```
-
-В этом режиме frontend доступен по `/`, API - по `/api`.
-
-Для размещения в подпапке задайте, например:
-
-```env
-BOOK_HUB_BASE_PATH=/hub
-```
-
-В этом режиме frontend доступен по `/hub/`, API - по `/hub/api`. После изменения
-base path пересоберите frontend:
+Соберите и запустите приложение:
 
 ```bash
-docker compose up -d --build frontend
+make prod-deploy
 ```
 
-## Admin CLI
-
-Admin CLI запускается только через серверную консоль:
+Проверьте готовность:
 
 ```bash
-docker compose run --rm admin
+make health-http
 ```
 
-Получить полный перечень команд внутри CLI:
+Откройте `http://адрес-сервера:8080/` или используйте выбранный в `.env` порт.
 
-```text
-help
+Все доступные команды перечисляет:
+
+```bash
+make help
 ```
 
-Создание и активация первого пользователя:
+## Первый пользователь
+
+Откройте административную консоль:
+
+```bash
+make admin
+```
+
+В ней создайте пользователя. Созданный через консоль пользователь активен сразу:
 
 ```text
 admin> create user
-login: user
-password: password
-admin> activate user
-user login or id: user
+login: alice
+password: надёжный-пароль
 ```
 
-Если пользователь зарегистрировался через сайт при
-`BOOK_HUB_REGISTRATION_AUTO_ACTIVATE=false`, активируйте его той же командой
-`activate user`.
+Команда `help` в этой консоли покажет остальные действия. Например, там можно изменить квоту пользователя, пароль или статус аккаунта.
 
-## Квоты
+## Обычные действия
 
-Квота по умолчанию задается `BOOK_HUB_DEFAULT_QUOTA_BYTES` и составляет
-`2147483648` байт (2 GB). Для изменения квоты пользователя используйте CLI:
+| Задача | Команда |
+| --- | --- |
+| Статус сервисов | `make ps` |
+| Журнал всех сервисов | `make logs` |
+| Журнал одного сервиса | `make logs SERVICE=backend` |
+| Перезапуск | `make docker-restart` |
+| Обновление приложения | `make prod-update` |
 
-```text
-admin> set quota
-user login or id: user
-quota bytes: 1073741824
-```
+После изменения настроек в `.env` перезапустите сервисы командой `make prod-deploy`.
 
-Квоту нельзя уменьшить ниже уже занятого пользователем объема.
+Если приложение открыто через HTTPS, установите `BOOK_HUB_COOKIE_SECURE=true`. Для размещения в подпапке сайта задайте `BOOK_HUB_BASE_PATH`, затем выполните `make prod-deploy`.
 
-## Файлы книг
+## Резервная копия и восстановление
 
-Файлы книг, оригиналы обложек и миниатюры обложек хранятся в контейнере backend по пути
-`BOOK_HUB_STORAGE_DIR`, по умолчанию `/data/books`. В Docker Compose этот путь
-сохранен в volume `book_storage`, поэтому файлы переживают рестарты контейнеров.
-
-Для серверного bind mount замените volume у сервисов `backend`, `migrate` и
-`admin`, например:
-
-```yaml
-volumes:
-  - /srv/book-hub/books:/data/books
-```
-
-## Миграции
-
-Проверить текущую версию:
-
-```bash
-docker compose run --rm migrate version
-```
-
-Применить все новые миграции:
-
-```bash
-docker compose run --rm migrate up
-```
-
-Откатить одну миграцию:
-
-```bash
-docker compose run --rm migrate down
-```
-
-Миграции не запускаются автоматически при старте backend.
-
-## Обновление
-
-Обычный порядок обновления:
-
-```bash
-docker compose pull
-docker compose build
-docker compose run --rm migrate up
-docker compose up -d
-```
-
-Если приложение собирается из локального исходного кода, `docker compose pull`
-можно пропустить.
-
-## Backup
-
-Одна команда создает согласованный снимок PostgreSQL и файлового хранилища в
-отдельной timestamp-директории внутри `./backup/`:
+Создайте полную резервную копию базы и файлов книг:
 
 ```bash
 make backup
 ```
 
-Для восстановления укажите путь к созданной директории. Команда заменяет текущие
-данные PostgreSQL и файлового хранилища:
+Команда выведет каталог созданной копии, например `./backups/20260712-120000`. Скопируйте этот каталог с сервера в надёжное место.
+
+Восстановление заменяет текущие данные. Укажите каталог копии:
 
 ```bash
-make restore BACKUP=./backup/20260712-120000
+make restore BACKUP=./backups/20260712-120000
 ```
 
-## Production Reverse Proxy
+## Дополнительно
 
-В production обычно ставят внешний reverse proxy с TLS перед frontend/nginx.
-Backend напрямую наружу открывать не нужно. При HTTPS-размещении выставьте:
-
-```env
-BOOK_HUB_COOKIE_SECURE=true
-```
-
-Reverse proxy должен передавать запросы на опубликованный порт frontend/nginx.
-API-запросы проксируются frontend/nginx дальше на backend внутри Docker network.
+Для HTTPS и домена поставьте reverse proxy перед приложением. Backend отдельно публиковать не нужно. Информация о локальной разработке — в [DEV.md](DEV.md).
