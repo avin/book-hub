@@ -12,6 +12,7 @@ import {
 } from '@/api/books';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
+import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import TextInput from '@/components/common/TextInput/TextInput';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -221,11 +222,13 @@ function EditBookDialog(props: { book: Book; tagOptions: string[]; onClose: () =
   };
 
   return (
-    <div
-      class={styles.dialogOverlay}
-      onClick={(event) => event.target === event.currentTarget && handleClose()}
+    <ModalDialog
+      overlayClass={styles.dialogOverlay}
+      contentClass={styles.dialog}
+      ariaLabel={t('editBook')}
+      onClose={handleClose}
     >
-      <section class={styles.dialog} role="dialog" aria-modal="true" aria-label={t('editBook')}>
+      <>
         <header class={styles.dialogHeader}>
           <h2>{t('editBook')}</h2>
           <Button
@@ -343,8 +346,8 @@ function EditBookDialog(props: { book: Book; tagOptions: string[]; onClose: () =
             </Button>
           </div>
         </footer>
-      </section>
-    </div>
+      </>
+    </ModalDialog>
   );
 }
 

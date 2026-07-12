@@ -3,6 +3,7 @@ import { Heart, MoreVertical } from 'lucide-solid';
 import { type Accessor, createMemo, createSignal, Show } from 'solid-js';
 import { type Book, getBookCoverUrl } from '@/api/books';
 import Dropdown from '@/components/common/Dropdown/Dropdown';
+import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
 import BookCover from '../BookCover/BookCover';
@@ -136,11 +137,14 @@ function BookCardGrid(props: {
       </div>
 
       <Show when={coverPreviewOpen()}>
-        <div class={styles.coverPreviewBackdrop} onClick={() => setCoverPreviewOpen(false)}>
-          <div class={styles.coverPreviewDialog}>
-            <img src={getBookCoverUrl(bookId())} alt="" />
-          </div>
-        </div>
+        <ModalDialog
+          overlayClass={styles.coverPreviewBackdrop}
+          contentClass={styles.coverPreviewDialog}
+          ariaLabel={t('showFullCover')}
+          onClose={() => setCoverPreviewOpen(false)}
+        >
+          <img src={getBookCoverUrl(bookId())} alt="" />
+        </ModalDialog>
       </Show>
     </article>
   );

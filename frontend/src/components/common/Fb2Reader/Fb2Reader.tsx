@@ -11,6 +11,7 @@ import {
 import { X } from 'lucide-solid';
 import BlockView from './BlockView/BlockView';
 import Button from '@/components/common/Button/Button';
+import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import { findBlockIndex, buildVirtualLayout } from './fb2Layout';
 import { isReaderLayoutFontReady, loadReaderLayoutFonts } from './fb2FontMetrics';
 import { binaryToDataUrl, parseFb2 } from './fb2Parser';
@@ -1108,20 +1109,13 @@ function Fb2Reader(props: {
 
       <Show when={activeFootnoteDialog()}>
         {(note) => (
-          <div
-            class={styles.footnoteOverlay}
-            onClick={(event) => {
-              if (event.target === event.currentTarget) {
-                closeFootnote();
-              }
-            }}
+          <ModalDialog
+            overlayClass={styles.footnoteOverlay}
+            contentClass={styles.footnoteDialog}
+            ariaLabel={note().title}
+            onClose={closeFootnote}
           >
-            <section
-              class={styles.footnoteDialog}
-              role="dialog"
-              aria-modal="true"
-              aria-label={note().title}
-            >
+            <>
               <header class={styles.footnoteHeader}>
                 <h2>{note().title}</h2>
                 <Button
@@ -1150,8 +1144,8 @@ function Fb2Reader(props: {
                   )}
                 </For>
               </div>
-            </section>
-          </div>
+            </>
+          </ModalDialog>
         )}
       </Show>
     </div>

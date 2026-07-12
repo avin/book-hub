@@ -4,6 +4,7 @@ import { type Accessor, createMemo, createSignal, For, Show } from 'solid-js';
 import { type Book, getBookCoverUrl } from '@/api/books';
 import Button from '@/components/common/Button/Button';
 import Dropdown from '@/components/common/Dropdown/Dropdown';
+import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookCover from '../BookCover/BookCover';
@@ -116,11 +117,14 @@ function BookCard(props: {
       </div>
 
       <Show when={coverPreviewOpen()}>
-        <div class={styles.coverPreviewBackdrop} onClick={() => setCoverPreviewOpen(false)}>
-          <div class={styles.coverPreviewDialog}>
-            <img src={getBookCoverUrl(bookId())} alt="" />
-          </div>
-        </div>
+        <ModalDialog
+          overlayClass={styles.coverPreviewBackdrop}
+          contentClass={styles.coverPreviewDialog}
+          ariaLabel={t('showFullCover')}
+          onClose={() => setCoverPreviewOpen(false)}
+        >
+          <img src={getBookCoverUrl(bookId())} alt="" />
+        </ModalDialog>
       </Show>
     </article>
   );
