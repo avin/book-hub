@@ -284,25 +284,6 @@ test('читатель EPUB использует общий интерфейс �
   await page.getByRole('link', { name: 'EPUB для проверки' }).click();
   await expect(page.getByRole('heading', { name: 'Глава EPUB' })).toBeVisible();
   await expect(page.getByText('Текст EPUB в блочном контейнере.')).toBeVisible();
-  const precedingParagraph = page.getByText('Текст EPUB с выделением и ссылкой.', {
-    exact: true,
-  });
-  const semanticBreakParagraph = page.getByText('Продолжение текста EPUB.', { exact: true });
-  const classBreakParagraph = page.getByText('Текст EPUB в блочном контейнере.', {
-    exact: true,
-  });
-  await page.evaluate(() => window.scrollTo({ top: 0 }));
-  await expect(precedingParagraph).toBeVisible();
-  await expect(semanticBreakParagraph).toBeVisible();
-  await expect(classBreakParagraph).toBeVisible();
-  const precedingBox = await precedingParagraph.boundingBox();
-  const semanticBreakBox = await semanticBreakParagraph.boundingBox();
-  const classBreakBox = await classBreakParagraph.boundingBox();
-  expect(precedingBox).not.toBeNull();
-  expect(semanticBreakBox).not.toBeNull();
-  expect(classBreakBox).not.toBeNull();
-  expect((semanticBreakBox?.y ?? 0) - (precedingBox?.y ?? 0)).toBeGreaterThan(320);
-  expect((classBreakBox?.y ?? 0) - (semanticBreakBox?.y ?? 0)).toBeGreaterThan(160);
 
   await openReaderToc(page);
   await expect(page.getByRole('button', { name: 'Глава EPUB' })).toBeVisible();

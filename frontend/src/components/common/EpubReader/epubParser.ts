@@ -14,12 +14,7 @@ const maxUncompressedBytes = 512 * 1024 * 1024;
 const textDecoder = new TextDecoder();
 
 type ManifestItem = { id: string; path: string; mediaType: string; properties: string };
-type PageBreakRules = { before: string[]; after: string[] };
-type SpineDocument = {
-  path: string;
-  document: XMLDocument;
-  pageBreakRules: PageBreakRules;
-};
+type SpineDocument = { path: string; document: XMLDocument };
 
 function fail(message: string): never {
   throw new Error(message);
@@ -100,64 +95,6 @@ function elementType(element: Element, name: string) {
 
 function hasToken(element: Element, name: string, value: string) {
   return (element.getAttribute(name) ?? '').split(/\s+/).includes(value);
-}
-
-function hasPageBreakDeclaration(style: string, side: 'before' | 'after') {
-  return new RegExp(
-    `(?:^|;)\\s*(?:page-)?break-${side}\\s*:\\s*(?:always|page|left|right|recto|verso)(?:\\s*!important)?\\s*(?=;|$)`,
-    'i',
-  ).test(style);
-}
-
-function pageBreakRulesFromCss(css: string): PageBreakRules {
-  const rules: PageBreakRules = { before: [], after: [] };
-  const rulePattern = /([^{}]+)\{([^{}]*)\}/g;
-  const sanitizedCss = css.replace(/\/\*[\s\S]*?\*\//g, '');
-
-  for (const match of sanitizedCss.matchAll(rulePattern)) {
-    const selectors = match[1]?.trim() ?? '';
-    const declarations = match[2] ?? '';
-    if (!selectors || selectors.startsWith('@')) continue;
-
-    for (const side of ['before', 'after'] as const) {
-      if (!hasPageBreakDeclaration(declarations, side)) continue;
-      rules[side].push(
-        ...selectors
-          .split(',')
-          .map((selector) => selector.trim())
-          .filter(Boolean),
-      );
-    }
-  }
-
-  return rules;
-}
-
-function pageBreakRulesForDocument(
-  document: XMLDocument,
-  path: string,
-  files: Record<string, Uint8Array>,
-): PageBreakRules {
-  const css = [
-    ...localElements(document, 'style').map((style) => style.textContent ?? ''),
-    ...localElements(document, 'link')
-      .filter((link) => hasToken(link, 'rel', 'stylesheet'))
-      .map((link) => link.getAttribute('href'))
-      .filter((href): href is string => Boolean(href))
-      .map((href) => files[normalizePath(href, directory(path))])
-      .filter((content): content is Uint8Array => Boolean(content))
-      .map((content) => textDecoder.decode(content)),
-  ];
-
-  return css.reduce<PageBreakRules>(
-    (rules, stylesheet) => {
-      const parsed = pageBreakRulesFromCss(stylesheet);
-      rules.before.push(...parsed.before);
-      rules.after.push(...parsed.after);
-      return rules;
-    },
-    { before: [], after: [] },
-  );
 }
 
 function binaryId(path: string) {
@@ -322,7 +259,6 @@ const structuralBlockNames = new Set([
   'table',
   'ul',
 ]);
-const pageBreakLineCount = 5;
 
 function hasBlockChildren(element: Element) {
   return Array.from(element.children).some(
@@ -341,92 +277,22 @@ function hasReadableInline(inlines: Fb2Inline[]): boolean {
   );
 }
 
-function hasPageBreakStyle(
-  element: Element,
-  side: 'before' | 'after',
-  pageBreakRules: PageBreakRules,
-) {
-  return (
-    hasPageBreakDeclaration(element.getAttribute('style') ?? '', side) ||
-    pageBreakRules[side].some((selector) => {
-      try {
-        return element.matches(selector);
-      } catch {
-        return false;
-      }
-    })
-  );
-}
-
-function hasPageBreakBefore(element: Element, pageBreakRules: PageBreakRules) {
-  return (
-    hasToken(element, 'epub:type', 'pagebreak') ||
-    hasToken(element, 'role', 'doc-pagebreak') ||
-    hasPageBreakStyle(element, 'before', pageBreakRules)
-  );
-}
-
 function blocksFrom(
   root: Element,
   path: string,
   ids: Set<string>,
   noteTargets: Set<string>,
   resources: Map<string, ManifestItem>,
-  pageBreakRules: PageBreakRules,
   excluded = new Set<string>(),
   inheritedTarget?: string,
 ): Fb2Block[] {
   const blocks: Fb2Block[] = [];
-  const appendPageBreak = () => {
-    for (let line = 0; line < pageBreakLineCount; line += 1)
-      blocks.push({
-        id: `epub-page-break:${path}:${blocks.length}`,
-        kind: 'emptyLine',
-        level: 1,
-        role: 'body',
-      });
-  };
-  const appendInlineBlock = (
-    nodes: ChildNode[],
-    base: Omit<Fb2Block, 'kind' | 'inlines'>,
-    kind: Extract<Fb2Block['kind'], 'paragraph' | 'listItem' | 'codeBlock'>,
-  ) => {
-    const inlines = inlineNodes(nodes, path, ids, noteTargets, resources);
-    if (hasReadableInline(inlines))
-      blocks.push({ ...base, id: `epub-block:${path}:${blocks.length}`, kind, inlines });
-  };
-  const appendInlineBlocks = (
-    element: Element,
-    base: Omit<Fb2Block, 'kind' | 'inlines'>,
-    kind: Extract<Fb2Block['kind'], 'paragraph' | 'listItem' | 'codeBlock'>,
-  ) => {
-    const nodes: ChildNode[] = [];
-    for (const node of Array.from(element.childNodes)) {
-      if (node instanceof Element) {
-        const breaksBefore = hasPageBreakBefore(node, pageBreakRules);
-        const breaksAfter = hasPageBreakStyle(node, 'after', pageBreakRules);
-        if (breaksBefore) {
-          appendInlineBlock(nodes, base, kind);
-          nodes.length = 0;
-          appendPageBreak();
-        }
-        nodes.push(node);
-        if (breaksAfter) {
-          appendInlineBlock(nodes, base, kind);
-          appendPageBreak();
-          nodes.length = 0;
-        }
-      } else nodes.push(node);
-    }
-    appendInlineBlock(nodes, base, kind);
-  };
   const visit = (element: Element, parentTarget?: string) => {
     const id = element.getAttribute('id');
     const target = id ? globalId(path, id) : parentTarget;
     if (target && excluded.has(target)) return;
     const name = element.localName.toLowerCase();
     if (['script', 'style', 'iframe', 'object', 'audio', 'video', 'nav'].includes(name)) return;
-    if (hasPageBreakBefore(element, pageBreakRules)) appendPageBreak();
     const base = {
       id: `epub-block:${path}:${blocks.length}`,
       sourceId: target,
@@ -440,9 +306,24 @@ function blocksFrom(
         level: Number(name.slice(1)),
         inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources),
       });
-    else if (name === 'p') appendInlineBlocks(element, base, 'paragraph');
-    else if (name === 'li') appendInlineBlocks(element, base, 'listItem');
-    else if (name === 'pre') appendInlineBlocks(element, base, 'codeBlock');
+    else if (name === 'p')
+      blocks.push({
+        ...base,
+        kind: 'paragraph',
+        inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources),
+      });
+    else if (name === 'li')
+      blocks.push({
+        ...base,
+        kind: 'listItem',
+        inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources),
+      });
+    else if (name === 'pre')
+      blocks.push({
+        ...base,
+        kind: 'codeBlock',
+        inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources),
+      });
     else if (name === 'hr') blocks.push({ ...base, kind: 'divider', inlines: [] });
     else if (name === 'img') {
       const src = element.getAttribute('src');
@@ -457,9 +338,12 @@ function blocksFrom(
         kind: 'table',
         rows: tableRows(element, path, ids, noteTargets, resources),
       });
-    else if (!hasBlockChildren(element)) appendInlineBlocks(element, base, 'paragraph');
-    else Array.from(element.children).forEach((child) => visit(child, target));
-    if (hasPageBreakStyle(element, 'after', pageBreakRules)) appendPageBreak();
+    else {
+      const inlines = inlineNodes(element.childNodes, path, ids, noteTargets, resources);
+      if (!hasBlockChildren(element) && hasReadableInline(inlines))
+        blocks.push({ ...base, kind: 'paragraph', inlines });
+      else Array.from(element.children).forEach((child) => visit(child, target));
+    }
   };
   Array.from(root.children).forEach((child) => visit(child, inheritedTarget));
   return blocks;
@@ -577,11 +461,9 @@ export async function parseEpub(
   if (!spine.length) fail('EPUB spine is missing');
   const spineDocuments: SpineDocument[] = spine.map((item) => {
     if (!files[item.path] || !/xhtml|html/.test(item.mediaType)) fail('EPUB spine is invalid');
-    const document = parseXml(textDecoder.decode(files[item.path]!), item.path);
     return {
       path: item.path,
-      document,
-      pageBreakRules: pageBreakRulesForDocument(document, item.path, files),
+      document: parseXml(textDecoder.decode(files[item.path]!), item.path),
     };
   });
   const ids = new Set<string>();
@@ -603,16 +485,7 @@ export async function parseEpub(
       if (element)
         notes.set(target, {
           id: target,
-          blocks: blocksFrom(
-            element,
-            entry.path,
-            ids,
-            noteTargets,
-            resources,
-            entry.pageBreakRules,
-            new Set(),
-            target,
-          ),
+          blocks: blocksFrom(element, entry.path, ids, noteTargets, resources, new Set(), target),
         });
     }
   const blocks = [
@@ -623,7 +496,6 @@ export async function parseEpub(
         ids,
         noteTargets,
         resources,
-        entry.pageBreakRules,
         noteTargets,
         documentTarget(entry.path),
       ),
