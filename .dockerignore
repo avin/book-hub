@@ -21,3 +21,4 @@ frontend/.playwright-cli
 frontend/output
 frontend/storybook-static
 frontend/test-results
+tmp
