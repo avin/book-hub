@@ -111,6 +111,9 @@ function PdfFilterPanel(props: {
   const [draftGrayscaleStrength, setDraftGrayscaleStrength] = createSignal(
     untrack(() => props.grayscaleFilter.strength),
   );
+  const [draftPageWidthOverflow, setDraftPageWidthOverflow] = createSignal(
+    untrack(() => props.pageWidthOverflow),
+  );
   let filterListElement: HTMLDivElement | undefined;
   createEffect(() => {
     const filter = props.textEnhancementFilter;
@@ -143,6 +146,10 @@ function PdfFilterPanel(props: {
     setDraftGrayscaleStrength(props.grayscaleFilter.strength);
   });
 
+  createEffect(() => {
+    setDraftPageWidthOverflow(props.pageWidthOverflow);
+  });
+
   const commitTextEnhancementParameter = (
     parameter: keyof Omit<PdfTextEnhancementFilter, 'id' | 'enabled'>,
     value: number,
@@ -159,6 +166,10 @@ function PdfFilterPanel(props: {
 
   const commitStrength = () => {
     props.onStrengthChange(draftStrength());
+  };
+
+  const commitPageWidthOverflow = () => {
+    props.onPageWidthOverflowChange(draftPageWidthOverflow());
   };
 
   const commitVisualAdjustmentParameter = (
@@ -254,15 +265,19 @@ function PdfFilterPanel(props: {
           <FileText size={17} />
           {t('page')}
         </h3>
-        <InputContainer label={t('pageWidthIncrease')} labelEnd={`${props.pageWidthOverflow}%`}>
+        <InputContainer label={t('pageWidthIncrease')} labelEnd={`${draftPageWidthOverflow()}%`}>
           <input
             type="range"
             min={pdfPageWidthOverflowRange.min}
             max={pdfPageWidthOverflowRange.max}
             step={pdfPageWidthOverflowRange.step}
-            value={props.pageWidthOverflow}
+            value={draftPageWidthOverflow()}
             aria-label={t('pageWidthIncrease')}
-            onInput={(event) => props.onPageWidthOverflowChange(Number(event.currentTarget.value))}
+            onPointerDown={capturePointer}
+            onPointerUp={commitPageWidthOverflow}
+            onPointerCancel={commitPageWidthOverflow}
+            onChange={commitPageWidthOverflow}
+            onInput={(event) => setDraftPageWidthOverflow(Number(event.currentTarget.value))}
           />
         </InputContainer>
       </section>

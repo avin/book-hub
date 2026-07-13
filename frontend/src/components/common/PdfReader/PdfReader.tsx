@@ -896,6 +896,8 @@ function PdfReader(props: {
 
   const updatePageWidthOverflow = (value: number) => {
     const nextOverflow = clampPdfPageWidthOverflow(value);
+    if (nextOverflow === pageWidthOverflow()) return;
+
     const anchor = currentScrollAnchor();
     const nextPageWidth = pageWidthWithOverflow(
       basePageWidth(),

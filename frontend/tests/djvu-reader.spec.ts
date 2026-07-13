@@ -201,3 +201,162 @@ test('DJVU не отрисовывает пропущенные страницы
     })
     .toBe(true);
 });
+
+test('DJVU перерисовывает страницы после завершения перетаскивания ширины', async ({ page }) => {
+  await openDjvuReader(page);
+
+  const firstCanvas = page.locator('[data-page-number="1"] canvas').first();
+  const secondCanvas = page.locator('[data-page-number="2"] canvas').first();
+  await expect(firstCanvas).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => firstCanvas.evaluate((canvas) => canvas.width > 300)).toBe(true);
+  await expect.poll(() => secondCanvas.evaluate((canvas) => canvas.width > 300)).toBe(true);
+
+  await page.mouse.move(10, 10);
+  await page.waitForTimeout(400);
+  const ruler = page.getByRole('slider', { name: 'Ширина страницы' });
+  const rulerBox = await ruler.boundingBox();
+  expect(rulerBox).not.toBeNull();
+  if (!rulerBox) return;
+
+  await page.evaluate(() => {
+    const canvasStyleWrites: number[] = [];
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if ((mutation.target as HTMLElement).matches('canvas')) {
+          canvasStyleWrites.push(performance.now());
+        }
+      }
+    });
+    observer.observe(document, { subtree: true, attributes: true, attributeFilter: ['style'] });
+    (window as Window & { djvuCanvasStyleWrites?: number[] }).djvuCanvasStyleWrites =
+      canvasStyleWrites;
+  });
+
+  const rulerY = rulerBox.y + rulerBox.height / 2;
+  const rulerCenterX = rulerBox.x + rulerBox.width / 2;
+  await page.mouse.move(rulerCenterX + 400, rulerY);
+  await page.mouse.down();
+  for (let step = 1; step <= 5; step += 1) {
+    await page.mouse.move(rulerCenterX + 400 - step * 10, rulerY);
+  }
+  await page.waitForTimeout(200);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { djvuCanvasStyleWrites?: number[] }).djvuCanvasStyleWrites?.length,
+      ),
+    )
+    .toBe(0);
+
+  await page.mouse.up();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (window as Window & { djvuCanvasStyleWrites?: number[] }).djvuCanvasStyleWrites
+              ?.length ?? 0,
+        ),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0);
+  await page.waitForTimeout(500);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & { djvuCanvasStyleWrites?: number[] }).djvuCanvasStyleWrites?.length ??
+        0,
+    ),
+  ).toBeLessThanOrEqual(4);
+  await expect(ruler).toHaveAttribute('aria-valuenow', '700');
+});
+
+test('DJVU сохраняет положение и масштабирует готовый canvas при изменении viewport', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 640, height: 720 });
+  await openDjvuReader(page);
+
+  const targetPage = page.locator('[data-page-number="20"]');
+  await expect(targetPage).toHaveCount(1, { timeout: 30_000 });
+  await targetPage.evaluate((element) => {
+    window.scrollTo({ top: element.offsetTop + element.clientHeight * 0.8 });
+  });
+  await expect
+    .poll(() =>
+      targetPage.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return -rect.top / rect.height;
+      }),
+    )
+    .toBeCloseTo(0.8, 2);
+
+  const canvas = targetPage.locator('canvas').first();
+  await expect.poll(() => canvas.evaluate((element) => element.width > 300)).toBe(true);
+  const canvasWidth = await canvas.evaluate((element) => element.width);
+  const widthRatioBeforeResize = await targetPage.evaluate((element) => {
+    const reader = element.parentElement?.parentElement;
+    return reader ? element.getBoundingClientRect().width / reader.clientWidth : 0;
+  });
+
+  await page.setViewportSize({ width: 1_000, height: 720 });
+  await expect
+    .poll(() =>
+      targetPage.evaluate((element) => {
+        const reader = element.parentElement?.parentElement;
+        return reader ? element.getBoundingClientRect().width / reader.clientWidth : 0;
+      }),
+    )
+    .toBeGreaterThan(widthRatioBeforeResize);
+  await expect
+    .poll(() =>
+      targetPage.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return -rect.top / rect.height;
+      }),
+    )
+    .toBeCloseTo(0.8, 2);
+  await expect(canvas).toHaveJSProperty('width', canvasWidth);
+});
+
+test('DJVU сохраняет положение внутри страницы при изменении увеличения ширины', async ({
+  page,
+}) => {
+  await openDjvuReader(page);
+
+  const targetPage = page.locator('[data-page-number="20"]');
+  await expect(targetPage).toHaveCount(1, { timeout: 30_000 });
+  await targetPage.evaluate((element) => {
+    window.scrollTo({ top: element.offsetTop + element.clientHeight * 0.8 });
+  });
+  await expect
+    .poll(() =>
+      targetPage.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return -rect.top / rect.height;
+      }),
+    )
+    .toBeCloseTo(0.8, 2);
+
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Внешний вид' }).click();
+  const panel = page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
+  const widthIncrease = panel.getByRole('slider', { name: 'Увеличение ширины' });
+
+  await widthIncrease.focus();
+  await page.keyboard.press('ArrowRight', { delay: 5 });
+  await page.keyboard.press('PageUp');
+  await expect(widthIncrease).toHaveValue('9');
+  await page.evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 200)));
+  await expect
+    .poll(() =>
+      targetPage.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return -rect.top / rect.height;
+      }),
+    )
+    .toBeCloseTo(0.8, 2);
+});

@@ -103,6 +103,14 @@ function DjvuReader(props: {
   let horizontalScrollRestorePending = false;
   let lastHorizontalScrollLeft = 0;
   let lastHorizontalScrollMaxLeft = 0;
+  let lastScrollAnchor: ScrollAnchor | undefined;
+  let widthScrollAnchor: ScrollAnchor | undefined;
+  let widthScrollAnchorFrame: number | undefined;
+  let widthUpdatePending = false;
+  let overflowScrollAnchor: ScrollAnchor | undefined;
+  let overflowScrollAnchorFrame: number | undefined;
+  let resizeScrollAnchor: ScrollAnchor | undefined;
+  let resizeScrollAnchorFrame: number | undefined;
   let searchScrollFrame: number | undefined;
   let searchGeneration = 0;
   let executedSearchQuery: string | undefined;
@@ -176,7 +184,10 @@ function DjvuReader(props: {
 
   const pageHeight = (page: Page) => Math.round(pageWidth() * (page.height / page.width));
 
-  const resetToFitWidth = () => updateWidth(undefined);
+  const resetToFitWidth = () => {
+    updateWidth(undefined);
+    commitWidthUpdate();
+  };
 
   const handleRulerPointer = (event: PointerEvent) => {
     const ruler = rulerElement();
@@ -197,7 +208,7 @@ function DjvuReader(props: {
       event.clientX > pageCenter + width / 2 + guideOutsideMargin;
 
     if (outsideGuides) {
-      resetToFitWidth();
+      updateWidth(undefined);
       setGuideX(event.clientX);
       return;
     }
@@ -212,9 +223,16 @@ function DjvuReader(props: {
 
     if (nextWidth === documentWidth()) return;
 
-    const anchor = captureScrollAnchor();
+    resizeScrollAnchor ??= lastScrollAnchor ?? captureScrollAnchor();
     setDocumentWidth(nextWidth);
-    requestAnimationFrame(() => {
+
+    if (resizeScrollAnchorFrame !== undefined) {
+      cancelAnimationFrame(resizeScrollAnchorFrame);
+    }
+    resizeScrollAnchorFrame = requestAnimationFrame(() => {
+      resizeScrollAnchorFrame = undefined;
+      const anchor = resizeScrollAnchor;
+      resizeScrollAnchor = undefined;
       if (anchor) scrollToAnchor(anchor);
       restoreHorizontalScrollPositionIfNeeded();
     });
@@ -223,15 +241,38 @@ function DjvuReader(props: {
   const preferenceKey = () => props.bookId ?? props.fileUrl;
 
   const captureScrollAnchor = (): ScrollAnchor | undefined => {
-    const page = pages().find((item) => item.pageNumber === currentPage());
-    const element = page && pageRefs.get(page.pageNumber);
+    const pageList = pages();
+    let lowerBound = 0;
+    let upperBound = pageList.length - 1;
+    let anchorPage: Page | undefined;
+    let anchorElement: HTMLElement | undefined;
 
-    if (!page || !element || element.offsetHeight <= 0) return undefined;
+    while (lowerBound <= upperBound) {
+      const index = Math.floor((lowerBound + upperBound) / 2);
+      const page = pageList[index];
+      const element = pageRefs.get(page.pageNumber);
+      if (!element || element.offsetHeight <= 0) return undefined;
 
-    const top = element.getBoundingClientRect().top + window.scrollY;
+      const top = element.getBoundingClientRect().top + window.scrollY;
+      if (top > window.scrollY + 0.5) {
+        upperBound = index - 1;
+        continue;
+      }
+
+      anchorPage = page;
+      anchorElement = element;
+      lowerBound = index + 1;
+    }
+
+    if (!anchorPage || !anchorElement) {
+      const firstPage = pageList[0];
+      return firstPage ? { pageNumber: firstPage.pageNumber, offsetRatio: 0 } : undefined;
+    }
+
+    const top = anchorElement.getBoundingClientRect().top + window.scrollY;
     return {
-      pageNumber: page.pageNumber,
-      offsetRatio: Math.min(1, Math.max(0, (window.scrollY - top) / element.offsetHeight)),
+      pageNumber: anchorPage.pageNumber,
+      offsetRatio: Math.min(1, Math.max(0, (window.scrollY - top) / anchorElement.offsetHeight)),
     };
   };
 
@@ -246,6 +287,7 @@ function DjvuReader(props: {
     });
     setCurrentPage(anchor.pageNumber);
     setPageInput(String(anchor.pageNumber));
+    lastScrollAnchor = anchor;
   };
 
   const restoreHorizontalScrollPositionIfNeeded = () => {
@@ -392,8 +434,8 @@ function DjvuReader(props: {
         const ratio = renderPixelRatio();
         canvas.width = Math.max(1, Math.round(width * ratio));
         canvas.height = Math.max(1, Math.round(canvas.width * (page.height / page.width)));
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${Math.round(width * (page.height / page.width))}px`;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
         const context = canvas.getContext('2d');
         context?.drawImage(image, 0, 0, canvas.width, canvas.height);
         renderedKeys.set(page.pageNumber, key);
@@ -504,6 +546,7 @@ function DjvuReader(props: {
     textByPage.clear();
     renderedKeys.clear();
     tocTargets.clear();
+    lastScrollAnchor = undefined;
     try {
       nextWorker = await createDjVuWorker();
       const response = await fetch(props.fileUrl);
@@ -702,22 +745,55 @@ function DjvuReader(props: {
   };
 
   const updateWidth = (width: number | undefined) => {
-    const anchor = captureScrollAnchor();
+    if (width === maxWidth()) return;
+
+    widthScrollAnchor ??= captureScrollAnchor();
+    widthUpdatePending = true;
     setMaxWidth(width);
-    setFixedLayoutReaderContentWidthPreference(width);
+
+    if (widthScrollAnchorFrame !== undefined) {
+      cancelAnimationFrame(widthScrollAnchorFrame);
+    }
+    widthScrollAnchorFrame = requestAnimationFrame(() => {
+      widthScrollAnchorFrame = undefined;
+      if (widthScrollAnchor) scrollToAnchor(widthScrollAnchor);
+      restoreHorizontalScrollPositionIfNeeded();
+    });
+  };
+  const commitWidthUpdate = () => {
+    if (!widthUpdatePending) return;
+
+    widthUpdatePending = false;
+    setFixedLayoutReaderContentWidthPreference(maxWidth());
     refreshVisiblePages();
-    requestAnimationFrame(() => {
+
+    if (widthScrollAnchorFrame !== undefined) {
+      cancelAnimationFrame(widthScrollAnchorFrame);
+    }
+    widthScrollAnchorFrame = requestAnimationFrame(() => {
+      widthScrollAnchorFrame = undefined;
+      const anchor = widthScrollAnchor;
+      widthScrollAnchor = undefined;
       if (anchor) scrollToAnchor(anchor);
       restoreHorizontalScrollPositionIfNeeded();
     });
   };
   const updateOverflow = (value: number) => {
-    const anchor = captureScrollAnchor();
     const next = clampPdfPageWidthOverflow(value);
+    if (next === overflow()) return;
+
+    overflowScrollAnchor ??= captureScrollAnchor();
     setOverflow(next);
     setFixedLayoutReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl, next);
     refreshVisiblePages();
-    requestAnimationFrame(() => {
+
+    if (overflowScrollAnchorFrame !== undefined) {
+      cancelAnimationFrame(overflowScrollAnchorFrame);
+    }
+    overflowScrollAnchorFrame = requestAnimationFrame(() => {
+      overflowScrollAnchorFrame = undefined;
+      const anchor = overflowScrollAnchor;
+      overflowScrollAnchor = undefined;
       if (anchor) scrollToAnchor(anchor);
       restoreHorizontalScrollPositionIfNeeded();
     });
@@ -831,6 +907,7 @@ function DjvuReader(props: {
     measure();
     const syncScroll = () => {
       syncCurrentPage();
+      lastScrollAnchor = captureScrollAnchor();
       rememberHorizontalScrollPosition();
       deferRenderingUntilScrollSettles();
     };
@@ -851,6 +928,9 @@ function DjvuReader(props: {
     worker?.worker.terminate();
     if (horizontalScrollRestoreFrame !== undefined)
       cancelAnimationFrame(horizontalScrollRestoreFrame);
+    if (widthScrollAnchorFrame !== undefined) cancelAnimationFrame(widthScrollAnchorFrame);
+    if (overflowScrollAnchorFrame !== undefined) cancelAnimationFrame(overflowScrollAnchorFrame);
+    if (resizeScrollAnchorFrame !== undefined) cancelAnimationFrame(resizeScrollAnchorFrame);
     if (searchScrollFrame !== undefined) cancelAnimationFrame(searchScrollFrame);
     if (renderAfterScrollTimeout !== undefined) clearTimeout(renderAfterScrollTimeout);
   });
@@ -920,6 +1000,7 @@ function DjvuReader(props: {
             onPointerUp={(event) => {
               (event.currentTarget as HTMLDivElement).releasePointerCapture(event.pointerId);
               handleRulerPointer(event);
+              commitWidthUpdate();
               setDraggingWidth(false);
               setGuideX(undefined);
             }}
