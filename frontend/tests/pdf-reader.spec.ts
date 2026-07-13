@@ -258,6 +258,7 @@ test('PDF reader открывает оглавление и переходит �
 test('PDF reader восстанавливает переходы по оглавлению через историю браузера', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1_000, height: 400 });
   await login(page);
   await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
   await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
@@ -265,12 +266,23 @@ test('PDF reader восстанавливает переходы по оглав
   await page.getByRole('button', { name: 'Оглавление', exact: true }).click();
   await page.getByRole('button', { name: 'Second page' }).click();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('2');
+  const destinationScrollY = await page.evaluate(() => window.scrollY);
+  await page.mouse.wheel(0, 150);
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(destinationScrollY + 50);
+  const lastReadScrollY = await page.evaluate(() => window.scrollY);
 
   await page.goBack();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
 
   await page.goForward();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('2');
+  await expect
+    .poll(() =>
+      page.evaluate((targetScrollY) => Math.abs(window.scrollY - targetScrollY), lastReadScrollY),
+    )
+    .toBeLessThan(2);
 });
 
 test('PDF позволяет выделить и скопировать встроенный текст', async ({ page }) => {

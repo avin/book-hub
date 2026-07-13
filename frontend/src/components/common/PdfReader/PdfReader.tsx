@@ -1596,6 +1596,7 @@ function PdfReader(props: {
     const onScroll = () => {
       syncCurrentPage();
       rememberHorizontalScrollPosition();
+      readerNavigationHistory.updateCurrentLocation();
     };
 
     resizeObserver = new ResizeObserver(() => handleViewportResize());

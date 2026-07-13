@@ -252,12 +252,20 @@ test('FB2 reader восстанавливает переходы по оглав
   await openReaderToc(page);
   await page.getByRole('button', { name: 'Глава 50' }).click();
   await expect.poll(() => anchorTop(page, 'Глава 50')).toBeLessThan(120);
+  const chapterScrollY = await page.evaluate(() => window.scrollY);
+  await page.evaluate((top) => window.scrollTo({ top: top - 600 }), chapterScrollY);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(chapterScrollY - 100);
+  const lastReadScrollY = await page.evaluate(() => window.scrollY);
 
   await page.goBack();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
 
   await page.goForward();
-  await expect.poll(() => anchorTop(page, 'Глава 50')).toBeLessThan(120);
+  await expect
+    .poll(() =>
+      page.evaluate((targetScrollY) => Math.abs(window.scrollY - targetScrollY), lastReadScrollY),
+    )
+    .toBeLessThan(2);
 });
 
 test('FB2 reader взаимно исключает панели настроек и оглавления', async ({ page }) => {
@@ -352,8 +360,12 @@ test('читатель EPUB восстанавливает переходы по
 
   await page.getByRole('button', { name: 'ссылкой' }).click();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
-  await page.waitForTimeout(500);
   const destinationScrollY = await page.evaluate(() => window.scrollY);
+  await page.mouse.wheel(0, -200);
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeLessThan(destinationScrollY - 50);
+  const lastReadScrollY = await page.evaluate(() => window.scrollY);
 
   await page.goBack();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
@@ -361,10 +373,7 @@ test('читатель EPUB восстанавливает переходы по
   await page.goForward();
   await expect
     .poll(() =>
-      page.evaluate(
-        (targetScrollY) => Math.abs(window.scrollY - targetScrollY),
-        destinationScrollY,
-      ),
+      page.evaluate((targetScrollY) => Math.abs(window.scrollY - targetScrollY), lastReadScrollY),
     )
     .toBeLessThan(2);
 });

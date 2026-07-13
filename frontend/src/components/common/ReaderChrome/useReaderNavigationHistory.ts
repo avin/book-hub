@@ -26,6 +26,9 @@ function useReaderNavigationHistory<Location>(props: {
   restoreLocation: (location: Location) => void;
   isLocation: (value: unknown) => value is Location;
 }) {
+  let updateFrame: number | undefined;
+  let restoringLocation = false;
+
   const recordNavigation = (location: Location, previousLocation = props.captureLocation()) => {
     if (!previousLocation) {
       return;
@@ -37,6 +40,34 @@ function useReaderNavigationHistory<Location>(props: {
       window.location.href,
     );
     window.history.pushState(stateWithLocation(props.readerId, location), '', window.location.href);
+  };
+
+  const updateCurrentLocation = () => {
+    if (updateFrame !== undefined || restoringLocation) {
+      return;
+    }
+
+    updateFrame = requestAnimationFrame(() => {
+      updateFrame = undefined;
+
+      if (restoringLocation) {
+        return;
+      }
+
+      const location = props.captureLocation();
+      const state = window.history.state as Record<string, unknown> | null;
+      const readerState = state?.[readerHistoryStateKey] as ReaderHistoryState<unknown> | undefined;
+
+      if (!location || readerState?.readerId !== props.readerId) {
+        return;
+      }
+
+      window.history.replaceState(
+        stateWithLocation(props.readerId, location),
+        '',
+        window.location.href,
+      );
+    });
   };
 
   onMount(() => {
@@ -54,17 +85,27 @@ function useReaderNavigationHistory<Location>(props: {
         return;
       }
 
-      requestAnimationFrame(() => props.restoreLocation(location));
+      restoringLocation = true;
+      requestAnimationFrame(() => {
+        props.restoreLocation(location);
+        requestAnimationFrame(() => {
+          restoringLocation = false;
+        });
+      });
     };
 
     window.addEventListener('popstate', onPopState);
 
     onCleanup(() => {
       window.removeEventListener('popstate', onPopState);
+
+      if (updateFrame !== undefined) {
+        cancelAnimationFrame(updateFrame);
+      }
     });
   });
 
-  return { recordNavigation };
+  return { recordNavigation, updateCurrentLocation };
 }
 
 export default useReaderNavigationHistory;

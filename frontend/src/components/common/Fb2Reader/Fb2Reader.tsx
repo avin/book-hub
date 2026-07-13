@@ -771,6 +771,7 @@ function Fb2Reader(props: {
 
   const updateScrollPosition = () => {
     setScrollTop(documentScrollTop());
+    readerNavigationHistory.updateCurrentLocation();
   };
 
   const applyRulerPointer = (event: PointerEvent | MouseEvent) => {
