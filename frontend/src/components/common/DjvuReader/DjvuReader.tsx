@@ -60,7 +60,10 @@ import { isPdfWebglAvailable, renderPdfPageFilter } from '../PdfReader/pdfWebglF
 import styles from '../PdfReader/PdfReader.module.scss';
 
 type Page = { pageNumber: number; width: number; height: number };
-type SearchMatch = { pageNumber: number; zoneIndex: number; start: number; length: number };
+type SearchMatch = {
+  pageNumber: number;
+  segments: { zoneIndex: number; start: number; length: number }[];
+};
 type ScrollAnchor = { pageNumber: number; offsetRatio: number };
 
 const documentPaddingX = 20;
@@ -96,6 +99,7 @@ function DjvuReader(props: {
   let horizontalScrollRestorePending = false;
   let lastHorizontalScrollLeft = 0;
   let lastHorizontalScrollMaxLeft = 0;
+  let searchScrollFrame: number | undefined;
   let searchGeneration = 0;
   let executedSearchQuery: string | undefined;
   const pageRefs = new Map<number, HTMLElement>();
@@ -115,8 +119,6 @@ function DjvuReader(props: {
   const [currentPage, setCurrentPage] = createSignal(1);
   const [pageInput, setPageInput] = createSignal('1');
   const [searchValue, setSearchValue] = createSignal('');
-  const [searchAvailable, setSearchAvailable] = createSignal(false);
-  const [searchDetectionComplete, setSearchDetectionComplete] = createSignal(false);
   const [searchMatches, setSearchMatches] = createSignal<SearchMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = createSignal(-1);
   const [outline, setOutline] = createSignal<TocEntry[]>([]);
@@ -327,15 +329,19 @@ function DjvuReader(props: {
       span.style.fontSize = `${Math.max(1, (zone.height / page.height) * pageHeight(page))}px`;
       span.dataset.textZoneWidth = String(zone.width / page.width);
 
-      const zoneMatches = searchMatches().filter(
-        (match) => match.pageNumber === pageNumber && match.zoneIndex === zoneIndex,
-      );
+      const zoneMatches = searchMatches()
+        .flatMap((match) =>
+          (match.pageNumber === pageNumber ? match.segments : [])
+            .filter((segment) => segment.zoneIndex === zoneIndex)
+            .map((segment) => ({ ...segment, selected: selected === match })),
+        )
+        .sort((first, second) => first.start - second.start);
       let textOffset = 0;
       for (const match of zoneMatches) {
         span.append(document.createTextNode(zone.text.slice(textOffset, match.start)));
 
         const highlight = document.createElement('mark');
-        highlight.className = `highlight${selected === match ? ' selected' : ''}`;
+        highlight.className = `highlight${match.selected ? ' selected' : ''}`;
         highlight.textContent = zone.text.slice(match.start, match.start + match.length);
         span.append(highlight);
         textOffset = match.start + match.length;
@@ -426,8 +432,6 @@ function DjvuReader(props: {
     setPages([]);
     setOutline([]);
     setOutlineLoaded(false);
-    setSearchAvailable(false);
-    setSearchDetectionComplete(false);
     textByPage.clear();
     renderedKeys.clear();
     tocTargets.clear();
@@ -465,22 +469,6 @@ function DjvuReader(props: {
       setOutlineLoaded(true);
       setLoading(false);
       requestAnimationFrame(restoreHorizontalScrollPositionIfNeeded);
-      void (async () => {
-        try {
-          for (let pageNumber = 1; pageNumber <= sizes.length; pageNumber += 1) {
-            const text = await nextWorker.doc.getPage(pageNumber).getText().run();
-            if (loadGeneration !== generation || destroyed) return;
-            if (text?.trim()) {
-              setSearchAvailable(true);
-              return;
-            }
-          }
-        } catch (error) {
-          console.warn('Could not inspect the DJVU text layer', error);
-        } finally {
-          if (loadGeneration === generation && !destroyed) setSearchDetectionComplete(true);
-        }
-      })();
       requestAnimationFrame(() => props.onReady?.());
     } catch (error) {
       console.error('Could not open DJVU', error);
@@ -493,6 +481,11 @@ function DjvuReader(props: {
   };
 
   const clearSearchHighlights = () => {
+    if (searchScrollFrame !== undefined) {
+      cancelAnimationFrame(searchScrollFrame);
+      searchScrollFrame = undefined;
+    }
+
     searchGeneration += 1;
     executedSearchQuery = undefined;
     setSearchMatches([]);
@@ -510,7 +503,6 @@ function DjvuReader(props: {
     const currentSearchGeneration = ++searchGeneration;
     const normalizedQuery = query.toLocaleLowerCase();
     const isContinuation = executedSearchQuery === query;
-    const currentMatchIndex = isContinuation ? selectedMatch() : direction === 1 ? -1 : 0;
     const matches: SearchMatch[] = [];
     for (const page of pages()) {
       let zones = textByPage.get(page.pageNumber);
@@ -519,27 +511,69 @@ function DjvuReader(props: {
         if (currentSearchGeneration !== searchGeneration) return;
         textByPage.set(page.pageNumber, zones);
       }
-      zones.forEach((zone, zoneIndex) => {
-        const normalizedText = zone.text.toLocaleLowerCase();
-        let start = normalizedText.indexOf(normalizedQuery);
-        while (start >= 0) {
-          matches.push({ pageNumber: page.pageNumber, zoneIndex, start, length: query.length });
-          start = normalizedText.indexOf(normalizedQuery, start + normalizedQuery.length);
-        }
-      });
+      const zoneStarts: number[] = [];
+      const pageText = zones.reduce((text, zone) => {
+        zoneStarts.push(text.length + (text ? 1 : 0));
+        return `${text}${text ? ' ' : ''}${zone.text}`;
+      }, '');
+      const normalizedPageText = pageText.toLocaleLowerCase();
+      let start = normalizedPageText.indexOf(normalizedQuery);
+      while (start >= 0) {
+        const end = start + query.length;
+        const segments = zones.flatMap((zone, zoneIndex) => {
+          const zoneStart = zoneStarts[zoneIndex];
+          const zoneEnd = zoneStart + zone.text.length;
+          const segmentStart = Math.max(start, zoneStart);
+          const segmentEnd = Math.min(end, zoneEnd);
+
+          return segmentStart < segmentEnd
+            ? [{ zoneIndex, start: segmentStart - zoneStart, length: segmentEnd - segmentStart }]
+            : [];
+        });
+
+        if (segments.length) matches.push({ pageNumber: page.pageNumber, segments });
+        start = normalizedPageText.indexOf(normalizedQuery, start + normalizedQuery.length);
+      }
     }
 
     if (currentSearchGeneration !== searchGeneration) return;
 
     executedSearchQuery = query;
     setSearchMatches(matches);
+    let firstMatchIndex = -1;
+    if (!isContinuation) {
+      if (direction === 1) {
+        firstMatchIndex = matches.findIndex((match) => match.pageNumber >= currentPage());
+      } else {
+        for (let index = matches.length - 1; index >= 0; index -= 1) {
+          if (matches[index].pageNumber <= currentPage()) {
+            firstMatchIndex = index;
+            break;
+          }
+        }
+      }
+    }
     const nextIndex = matches.length
-      ? (currentMatchIndex + direction + matches.length) % matches.length
+      ? isContinuation
+        ? (selectedMatch() + direction + matches.length) % matches.length
+        : firstMatchIndex >= 0
+          ? firstMatchIndex
+          : direction === 1
+            ? 0
+            : matches.length - 1
       : -1;
     setSelectedMatch(nextIndex);
     const selected = matches[nextIndex];
-    if (selected) pageRefs.get(selected.pageNumber)?.scrollIntoView({ block: 'center' });
     for (const page of pages()) renderTextLayer(page.pageNumber);
+    if (selected) {
+      searchScrollFrame = requestAnimationFrame(() => {
+        searchScrollFrame = undefined;
+        textLayerRefs
+          .get(selected.pageNumber)
+          ?.querySelector<HTMLElement>('.highlight.selected')
+          ?.scrollIntoView({ behavior: 'instant', block: 'center' });
+      });
+    }
   };
 
   const selectToc = async (entry: TocEntry) => {
@@ -714,6 +748,7 @@ function DjvuReader(props: {
     worker?.worker.terminate();
     if (horizontalScrollRestoreFrame !== undefined)
       cancelAnimationFrame(horizontalScrollRestoreFrame);
+    if (searchScrollFrame !== undefined) cancelAnimationFrame(searchScrollFrame);
   });
 
   return (
@@ -722,11 +757,8 @@ function DjvuReader(props: {
         visible={readerChrome.visible()}
         title={props.title}
         headerContent={props.headerContent}
-        searchValue={searchAvailable() ? searchValue() : undefined}
-        searchCount={searchAvailable() ? searchCount() : undefined}
-        searchUnavailableMessage={
-          searchDetectionComplete() && !searchAvailable() ? t('bookSearchUnavailable') : undefined
-        }
+        searchValue={searchValue()}
+        searchCount={searchCount()}
         onSearchValueChange={setSearchValue}
         onSearchNext={() => void search(1)}
         onSearchPrevious={() => void search(-1)}

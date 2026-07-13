@@ -103,6 +103,18 @@ test('DJVU reader отрисовывает страницу, обнаружив�
   await expect(search.getByText('1/1')).toBeVisible();
   await expect(selectedHighlight).toHaveText('Principal');
 
+  const crossZoneQuery = await firstPage.getByTestId('djvu-text-layer').evaluate((layer) => {
+    const zones = [...layer.children]
+      .map((element) => element.textContent ?? '')
+      .filter((text) => text.trim().length > 0);
+
+    return zones.length >= 2 ? `${zones[0]} ${zones[1]}`.trim() : undefined;
+  });
+  expect(crossZoneQuery).toBeDefined();
+  await searchInput.fill(crossZoneQuery!);
+  await searchInput.press('Enter');
+  await expect(selectedHighlight).toHaveCount(2);
+
   const pageInput = page.getByRole('spinbutton', { name: 'Номер страницы' });
   await expect(pageInput).toHaveValue('1');
   await pageInput.fill('2');
