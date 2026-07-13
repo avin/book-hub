@@ -1,13 +1,12 @@
 import { readFile } from 'node:fs/promises';
+import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import * as bookMocks from './mocks/books';
 import { login } from './support/api';
 
 const djvuBookId = '00000000-0000-0000-0000-000000000105';
 
-test('DJVU reader отрисовывает страницу, обнаруживает OCR и переходит между страницами', async ({
-  page,
-}) => {
+async function openDjvuReader(page: Page) {
   const file = await readFile(new URL('./fixtures/djvu/sample2.djvu', import.meta.url));
   const book = {
     ...bookMocks.items[0],
@@ -40,6 +39,12 @@ test('DJVU reader отрисовывает страницу, обнаружив�
   });
 
   await page.goto(`/reader/${djvuBookId}`);
+}
+
+test('DJVU reader отрисовывает страницу, обнаруживает OCR и переходит между страницами', async ({
+  page,
+}) => {
+  await openDjvuReader(page);
 
   const firstPage = page.locator('[data-page-number="1"]');
   const firstCanvas = firstPage.locator('canvas').first();
@@ -161,4 +166,38 @@ test('DJVU reader отрисовывает страницу, обнаружив�
   } else {
     await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
   }
+});
+
+test('DJVU не отрисовывает пропущенные страницы при быстром переходе', async ({ page }) => {
+  await openDjvuReader(page);
+  await expect(page.locator('[data-page-number="84"]')).toHaveCount(1, { timeout: 30_000 });
+
+  await page.evaluate(async () => {
+    for (const pageNumber of [10, 20, 30, 40, 50, 60, 70]) {
+      const pageElement = document.querySelector<HTMLElement>(`[data-page-number="${pageNumber}"]`);
+      window.scrollTo({ top: pageElement?.offsetTop ?? 0 });
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  });
+
+  const targetCanvas = page.locator('[data-page-number="70"] canvas').first();
+  await expect
+    .poll(() => targetCanvas.evaluate((canvas) => canvas.width !== 300 || canvas.height !== 150), {
+      timeout: 30_000,
+    })
+    .toBe(true);
+
+  const skippedCanvas = page.locator('[data-page-number="40"] canvas').first();
+  await expect
+    .poll(() => skippedCanvas.evaluate((canvas) => canvas.width === 300 && canvas.height === 150))
+    .toBe(true);
+
+  await page.locator('[data-page-number="40"]').evaluate((pageElement) => {
+    pageElement.scrollIntoView({ block: 'center' });
+  });
+  await expect
+    .poll(() => skippedCanvas.evaluate((canvas) => canvas.width !== 300 || canvas.height !== 150), {
+      timeout: 30_000,
+    })
+    .toBe(true);
 });

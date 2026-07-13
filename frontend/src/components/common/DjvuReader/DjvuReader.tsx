@@ -73,6 +73,7 @@ const maxPixelRatio = 2;
 const guideOutsideMargin = 12;
 const horizontalScrollCenter = 0.5;
 const horizontalScrollPositionTolerance = 0.01;
+const renderAfterScrollDelayMs = 80;
 
 function renderPixelRatio() {
   return Math.min(maxPixelRatio, Math.max(1, window.devicePixelRatio || 1));
@@ -94,6 +95,9 @@ function DjvuReader(props: {
   let resizeObserver: ResizeObserver | undefined;
   let destroyed = false;
   let generation = 0;
+  let renderQueue: Page[] = [];
+  let renderInProgress = false;
+  let renderAfterScrollTimeout: number | undefined;
   let horizontalScrollRestoreFrame: number | undefined;
   let horizontalScrollRestoreGeneration = 0;
   let horizontalScrollRestorePending = false;
@@ -361,25 +365,30 @@ function DjvuReader(props: {
     });
   };
 
+  const isPageRenderRelevant = (page: Page, activeWorker: DjVuWorker) =>
+    !destroyed && activeWorker === worker && visiblePages().has(page.pageNumber);
+
   const renderPage = async (page: Page) => {
     const activeWorker = worker;
     const canvas = canvasRefs.get(page.pageNumber);
     const pageElement = pageRefs.get(page.pageNumber);
 
-    if (!activeWorker || !canvas || !pageElement) return;
+    if (!activeWorker || !canvas || !pageElement || !isPageRenderRelevant(page, activeWorker))
+      return;
     const width = Math.round(pageElement.clientWidth);
     const key = `${width}:${renderPixelRatio()}`;
 
     if (renderedKeys.get(page.pageNumber) !== key) {
       const pageImage = await activeWorker.doc.getPage(page.pageNumber).createPngObjectUrl().run();
       try {
+        if (!isPageRenderRelevant(page, activeWorker)) return;
         const image = await new Promise<HTMLImageElement>((resolve, reject) => {
           const nextImage = new Image();
           nextImage.onload = () => resolve(nextImage);
           nextImage.onerror = () => reject(new Error('DJVU page image could not be decoded'));
           nextImage.src = pageImage.url;
         });
-        if (destroyed || activeWorker !== worker) return;
+        if (!isPageRenderRelevant(page, activeWorker)) return;
         const ratio = renderPixelRatio();
         canvas.width = Math.max(1, Math.round(width * ratio));
         canvas.height = Math.max(1, Math.round(canvas.width * (page.height / page.width)));
@@ -393,6 +402,8 @@ function DjvuReader(props: {
         activeWorker.revokeObjectURL(pageImage.url);
       }
     }
+
+    if (!isPageRenderRelevant(page, activeWorker)) return;
 
     const filteredCanvas = filteredCanvasRefs.get(page.pageNumber);
     if (filtersEnabled() && filteredCanvas) {
@@ -408,24 +419,81 @@ function DjvuReader(props: {
       filteredCanvas.classList.remove(styles.filteredCanvasVisible);
     }
 
+    if (!isPageRenderRelevant(page, activeWorker)) return;
+
     if (!textByPage.has(page.pageNumber)) {
       const zones =
         (await activeWorker.doc.getPage(page.pageNumber).getNormalizedTextZones().run()) ?? [];
-      if (!destroyed && activeWorker === worker) textByPage.set(page.pageNumber, zones);
+      if (isPageRenderRelevant(page, activeWorker)) textByPage.set(page.pageNumber, zones);
     }
-    renderTextLayer(page.pageNumber);
+    if (isPageRenderRelevant(page, activeWorker)) renderTextLayer(page.pageNumber);
+  };
+
+  const renderPageDistanceFromViewportCenter = (page: Page) => {
+    const rect = pageRefs.get(page.pageNumber)?.getBoundingClientRect();
+    if (!rect) return Number.POSITIVE_INFINITY;
+
+    return Math.abs((rect.top + rect.bottom) / 2 - window.innerHeight / 2);
+  };
+
+  const runNextRenderTask = () => {
+    if (renderInProgress) return;
+
+    const page = renderQueue.shift();
+    if (!page) return;
+
+    const taskGeneration = generation;
+    renderInProgress = true;
+    void renderPage(page)
+      .catch((error) => {
+        if (!destroyed && taskGeneration === generation) {
+          console.error('Could not render DJVU page', error);
+        }
+      })
+      .finally(() => {
+        if (taskGeneration !== generation) return;
+        renderInProgress = false;
+        scheduleNextRenderTask();
+      });
+  };
+
+  const scheduleNextRenderTask = () => {
+    if (renderAfterScrollTimeout === undefined) runNextRenderTask();
+  };
+
+  const deferRenderingUntilScrollSettles = () => {
+    if (renderAfterScrollTimeout !== undefined) clearTimeout(renderAfterScrollTimeout);
+
+    renderAfterScrollTimeout = window.setTimeout(() => {
+      renderAfterScrollTimeout = undefined;
+      untrack(runNextRenderTask);
+    }, renderAfterScrollDelayMs);
+  };
+
+  const scheduleVisiblePageRendering = () => {
+    const currentVisiblePages = visiblePages();
+    renderQueue = pages()
+      .filter((page) => currentVisiblePages.has(page.pageNumber))
+      .sort(
+        (left, right) =>
+          renderPageDistanceFromViewportCenter(left) -
+            renderPageDistanceFromViewportCenter(right) || left.pageNumber - right.pageNumber,
+      );
+    scheduleNextRenderTask();
   };
 
   const refreshVisiblePages = () => {
     renderedKeys.clear();
-    for (const page of pages()) {
-      if (visiblePages().has(page.pageNumber)) void renderPage(page);
-    }
+    scheduleVisiblePageRendering();
   };
 
   const loadDocument = async () => {
     const loadGeneration = ++generation;
     let nextWorker: DjVuWorker | undefined;
+    renderQueue = [];
+    renderInProgress = false;
+    if (renderAfterScrollTimeout !== undefined) clearTimeout(renderAfterScrollTimeout);
+    renderAfterScrollTimeout = undefined;
     worker?.worker.terminate();
     worker = undefined;
     setLoading(true);
@@ -696,8 +764,9 @@ function DjvuReader(props: {
   });
 
   createEffect(() => {
-    const current = visiblePages();
-    for (const page of pages()) if (current.has(page.pageNumber)) void renderPage(page);
+    visiblePages();
+    pages();
+    scheduleVisiblePageRendering();
   });
   createEffect(() => {
     void props.fileUrl;
@@ -763,6 +832,7 @@ function DjvuReader(props: {
     const syncScroll = () => {
       syncCurrentPage();
       rememberHorizontalScrollPosition();
+      deferRenderingUntilScrollSettles();
     };
     window.addEventListener('scroll', syncScroll, { passive: true });
     onCleanup(() => window.removeEventListener('scroll', syncScroll));
@@ -782,6 +852,7 @@ function DjvuReader(props: {
     if (horizontalScrollRestoreFrame !== undefined)
       cancelAnimationFrame(horizontalScrollRestoreFrame);
     if (searchScrollFrame !== undefined) cancelAnimationFrame(searchScrollFrame);
+    if (renderAfterScrollTimeout !== undefined) clearTimeout(renderAfterScrollTimeout);
   });
 
   return (
