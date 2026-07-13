@@ -239,6 +239,44 @@ function tableRows(
   }));
 }
 
+const structuralBlockNames = new Set([
+  'address',
+  'article',
+  'aside',
+  'blockquote',
+  'div',
+  'dl',
+  'figure',
+  'footer',
+  'header',
+  'li',
+  'main',
+  'nav',
+  'ol',
+  'p',
+  'pre',
+  'section',
+  'table',
+  'ul',
+]);
+
+function hasBlockChildren(element: Element) {
+  return Array.from(element.children).some(
+    (child) =>
+      structuralBlockNames.has(child.localName.toLowerCase()) ||
+      /^h[1-6]$/.test(child.localName.toLowerCase()),
+  );
+}
+
+function hasReadableInline(inlines: Fb2Inline[]): boolean {
+  return inlines.some(
+    (inline) =>
+      (inline.kind === 'text' && Boolean(inline.text?.trim())) ||
+      inline.kind === 'image' ||
+      Boolean(inline.children && hasReadableInline(inline.children)),
+  );
+}
+
 function blocksFrom(
   root: Element,
   path: string,
@@ -300,7 +338,12 @@ function blocksFrom(
         kind: 'table',
         rows: tableRows(element, path, ids, noteTargets, resources),
       });
-    else Array.from(element.children).forEach((child) => visit(child, target));
+    else {
+      const inlines = inlineNodes(element.childNodes, path, ids, noteTargets, resources);
+      if (!hasBlockChildren(element) && hasReadableInline(inlines))
+        blocks.push({ ...base, kind: 'paragraph', inlines });
+      else Array.from(element.children).forEach((child) => visit(child, target));
+    }
   };
   Array.from(root.children).forEach((child) => visit(child, inheritedTarget));
   return blocks;

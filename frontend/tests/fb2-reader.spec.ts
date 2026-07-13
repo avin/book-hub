@@ -283,6 +283,7 @@ test('читатель EPUB использует общий интерфейс �
   await login(page);
   await page.getByRole('link', { name: 'EPUB для проверки' }).click();
   await expect(page.getByRole('heading', { name: 'Глава EPUB' })).toBeVisible();
+  await expect(page.getByText('Текст EPUB в блочном контейнере.')).toBeVisible();
 
   await openReaderToc(page);
   await expect(page.getByRole('button', { name: 'Глава EPUB' })).toBeVisible();
