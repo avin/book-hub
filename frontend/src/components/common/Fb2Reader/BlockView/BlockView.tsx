@@ -1,6 +1,7 @@
 import { For, Match, Show, Switch } from 'solid-js';
 import { inlinesText, type Fb2SearchRange } from '../fb2Search';
 import type { Fb2Block } from '../fb2Types';
+import { readerTextStyle } from '../readerTextStyle';
 import RenderInlines from '../RenderInlines/RenderInlines';
 import TableCell from './TableCell/TableCell';
 import styles from './BlockView.module.scss';
@@ -36,7 +37,11 @@ function BlockView(props: {
   return (
     <Switch>
       <Match when={props.block.kind === 'title'}>
-        <h2 class={styles.title} data-level={props.block.level}>
+        <h2
+          class={styles.title}
+          data-level={props.block.level}
+          style={readerTextStyle(props.block.textStyle)}
+        >
           <RenderInlines
             inlines={props.block.inlines}
             imageSrc={props.imageSrc}
@@ -48,7 +53,7 @@ function BlockView(props: {
         </h2>
       </Match>
       <Match when={props.block.kind === 'subtitle'}>
-        <h3 class={styles.subtitle}>
+        <h3 class={styles.subtitle} style={readerTextStyle(props.block.textStyle)}>
           <RenderInlines
             inlines={props.block.inlines}
             imageSrc={props.imageSrc}
@@ -67,6 +72,7 @@ function BlockView(props: {
               props.block.role === 'annotation' || props.block.role === 'metadata',
             [styles.quote]: props.block.role === 'cite' || props.block.role === 'epigraph',
           }}
+          style={readerTextStyle(props.block.textStyle)}
         >
           <RenderInlines
             inlines={props.block.inlines}
@@ -86,6 +92,7 @@ function BlockView(props: {
               props.block.role === 'annotation' || props.block.role === 'metadata',
             [styles.quote]: props.block.role === 'cite' || props.block.role === 'epigraph',
           }}
+          style={readerTextStyle(props.block.textStyle)}
         >
           <RenderInlines
             inlines={props.block.inlines}
@@ -98,7 +105,7 @@ function BlockView(props: {
         </p>
       </Match>
       <Match when={props.block.kind === 'codeBlock'}>
-        <pre class={styles.codeBlock}>
+        <pre class={styles.codeBlock} style={readerTextStyle(props.block.textStyle)}>
           <code class={styles.codeBlockContent}>
             <RenderInlines
               inlines={props.block.inlines}
@@ -126,7 +133,7 @@ function BlockView(props: {
         </div>
       </Match>
       <Match when={props.block.kind === 'poemLine'}>
-        <p class={styles.poemLine}>
+        <p class={styles.poemLine} style={readerTextStyle(props.block.textStyle)}>
           <RenderInlines
             inlines={props.block.inlines}
             imageSrc={props.imageSrc}
@@ -138,7 +145,7 @@ function BlockView(props: {
         </p>
       </Match>
       <Match when={props.block.kind === 'textAuthor'}>
-        <p class={styles.textAuthor}>
+        <p class={styles.textAuthor} style={readerTextStyle(props.block.textStyle)}>
           <RenderInlines
             inlines={props.block.inlines}
             imageSrc={props.imageSrc}
@@ -150,7 +157,7 @@ function BlockView(props: {
         </p>
       </Match>
       <Match when={props.block.kind === 'date'}>
-        <p class={styles.date}>
+        <p class={styles.date} style={readerTextStyle(props.block.textStyle)}>
           <RenderInlines
             inlines={props.block.inlines}
             imageSrc={props.imageSrc}

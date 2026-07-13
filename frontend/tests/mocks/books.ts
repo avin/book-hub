@@ -76,13 +76,16 @@ export const epubFile = zipSync({
     `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
   ),
   'OEBPS/content.opf': strToU8(
-    `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>EPUB для проверки</dc:title><dc:creator>Автор EPUB</dc:creator></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>`,
+    `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>EPUB для проверки</dc:title><dc:creator>Автор EPUB</dc:creator></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="styles" href="styles.css" media-type="text/css"/></manifest><spine><itemref idref="chapter"/></spine></package>`,
   ),
   'OEBPS/nav.xhtml': strToU8(
     `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml#chapter">Глава EPUB</a></li></ol></nav></body></html>`,
   ),
   'OEBPS/chapter.xhtml': strToU8(
-    `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><section id="chapter"><h1>Глава EPUB</h1><p>Текст EPUB с <strong>выделением</strong> и <a href="#target">ссылкой</a>.</p><div class="tx">Текст EPUB в блочном контейнере.</div><p id="target">Цель ссылки.</p><p>Сноска <a epub:type="noteref" href="#note">[1]</a>.</p><table><tr><td>Текст таблицы</td></tr></table><aside id="note"><p>Текст EPUB-сноски.</p></aside></section></body></html>`,
+    `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><link rel="stylesheet" href="styles.css"/></head><body><section id="chapter"><h1>Глава EPUB</h1><p>Текст EPUB с <strong>выделением</strong> и <a href="#target">ссылкой</a>.</p><div class="tx">Текст EPUB в блочном контейнере.</div><div class="center"><span epub:type="pagebreak" title="171" id="Page_171">171</span></div><p class="italic">Курсивная строка<br/>со вторым рядом.</p><p class="pre-line">Первая строка&#10;Вторая строка.</p><p class="nowrap">Оченьдлинноесловодляпроверкипереносовстроквчиталке.</p><p class="blocked" style="font-weight: bold">Оформление без шрифта издателя.</p><p id="target">Цель ссылки.</p><p>Сноска <a epub:type="noteref" href="#note">[1]</a>.</p><table><tr><td>Текст таблицы</td></tr></table><aside id="note"><p>Текст EPUB-сноски.</p></aside></section></body></html>`,
+  ),
+  'OEBPS/styles.css': strToU8(
+    `.center { text-align: center; } .italic { font-style: italic; } .pre-line { white-space: pre-line; } .nowrap { white-space: nowrap; } .blocked { font-family: "Недопустимый шрифт"; font-size: 200px; color: red; background: black; position: fixed; }`,
   ),
 });
 

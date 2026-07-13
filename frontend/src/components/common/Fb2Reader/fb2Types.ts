@@ -2,6 +2,7 @@ import type { JSX } from 'solid-js';
 
 export type Fb2InlineKind =
   | 'text'
+  | 'lineBreak'
   | 'strong'
   | 'emphasis'
   | 'strikethrough'
@@ -10,7 +11,16 @@ export type Fb2InlineKind =
   | 'code'
   | 'link'
   | 'style'
+  | 'epubStyle'
   | 'image';
+
+export type ReaderTextStyle = {
+  textAlign?: 'left' | 'right' | 'center' | 'justify' | 'start' | 'end';
+  fontStyle?: 'normal' | 'italic';
+  fontWeight?: 'normal' | 'bold';
+  textDecorationLine?: 'none' | 'underline' | 'line-through' | 'underline line-through';
+  whiteSpace?: 'normal' | 'pre-line' | 'pre-wrap';
+};
 
 export type Fb2Inline = {
   kind: Fb2InlineKind;
@@ -20,6 +30,7 @@ export type Fb2Inline = {
   linkType?: string;
   imageId?: string;
   styleName?: string;
+  textStyle?: ReaderTextStyle;
 };
 
 export type Fb2BlockKind =
@@ -44,6 +55,7 @@ export type Fb2TableCell = {
   colspan: number;
   rowspan: number;
   align?: 'left' | 'center' | 'right';
+  textStyle?: ReaderTextStyle;
   inlines: Fb2Inline[];
 };
 
@@ -58,6 +70,7 @@ export type Fb2Block = {
   inlines?: Fb2Inline[];
   imageId?: string;
   rows?: Fb2TableRow[];
+  textStyle?: ReaderTextStyle;
   level: number;
   role: Fb2BlockRole;
 };

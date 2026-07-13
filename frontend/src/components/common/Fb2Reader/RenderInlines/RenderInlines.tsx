@@ -3,6 +3,7 @@ import Button from '@/components/common/Button/Button';
 import { inlineTextLength, type Fb2SearchRange } from '../fb2Search';
 import type { Fb2Inline } from '../fb2Types';
 import { isExternalHref, normalizeInternalHref } from '../linkUtils';
+import { readerTextStyle } from '../readerTextStyle';
 import styles from './RenderInlines.module.scss';
 
 function RenderInlines(props: {
@@ -87,6 +88,9 @@ function RenderInlines(props: {
         >
           <Match when={inline.kind === 'text'}>
             {renderText(inline.text ?? '', offsetForIndex(index()))}
+          </Match>
+          <Match when={inline.kind === 'lineBreak'}>
+            <br />
           </Match>
           <Match when={inline.kind === 'strong'}>
             <strong>
@@ -214,6 +218,19 @@ function RenderInlines(props: {
           </Match>
           <Match when={inline.kind === 'style'}>
             <span data-fb2-style={inline.styleName}>
+              <RenderInlines
+                inlines={inline.children}
+                imageSrc={props.imageSrc}
+                onInternalLink={props.onInternalLink}
+                onFootnoteLink={props.onFootnoteLink}
+                isFootnoteTarget={props.isFootnoteTarget}
+                searchRanges={props.searchRanges}
+                textOffset={offsetForIndex(index())}
+              />
+            </span>
+          </Match>
+          <Match when={inline.kind === 'epubStyle'}>
+            <span style={readerTextStyle(inline.textStyle)}>
               <RenderInlines
                 inlines={inline.children}
                 imageSrc={props.imageSrc}

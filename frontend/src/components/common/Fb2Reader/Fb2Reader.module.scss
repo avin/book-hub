@@ -33,6 +33,8 @@
 .document {
   max-width: 100%;
   color: var(--fb2-text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
   overflow-anchor: none;
 
   a {

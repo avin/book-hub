@@ -285,6 +285,26 @@ test('читатель EPUB использует общий интерфейс �
   await expect(page.getByRole('heading', { name: 'Глава EPUB' })).toBeVisible();
   await expect(page.getByText('Текст EPUB в блочном контейнере.')).toBeVisible();
 
+  await expect(page.getByText('171', { exact: true })).toHaveCSS('text-align', 'center');
+  const italicLine = page.locator('p').filter({ hasText: 'Курсивная строка' });
+  await expect(italicLine).toHaveCSS('font-style', 'italic');
+  await expect(italicLine.locator('br')).toHaveCount(1);
+  const preLine = page.locator('p').filter({ hasText: 'Первая строка' });
+  await expect(preLine).toHaveCSS('white-space', 'pre-line');
+  await expect(preLine).toContainText('Первая строка\nВторая строка.');
+  await expect(page.getByText('Оченьдлинноесловодляпроверкипереносовстроквчиталке.')).not.toHaveCSS(
+    'white-space',
+    'nowrap',
+  );
+  await expect(page.getByText('Оформление без шрифта издателя.')).not.toHaveCSS(
+    'font-size',
+    '200px',
+  );
+  await expect(page.getByText('Оформление без шрифта издателя.')).not.toHaveCSS(
+    'font-family',
+    /Недопустимый шрифт/,
+  );
+
   await openReaderToc(page);
   await expect(page.getByRole('button', { name: 'Глава EPUB' })).toBeVisible();
   await page.getByRole('button', { name: 'Глава EPUB' }).click();

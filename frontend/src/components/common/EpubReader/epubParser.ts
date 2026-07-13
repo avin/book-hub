@@ -6,6 +6,7 @@ import type {
   Fb2Note,
   Fb2OutlineEntry,
   Fb2TableCell,
+  ReaderTextStyle,
 } from '@/components/common/Fb2Reader/fb2Types';
 import type { EpubDocument, EpubMetadata, EpubParseOptions, EpubValidation } from './epubTypes';
 
@@ -14,7 +15,16 @@ const maxUncompressedBytes = 512 * 1024 * 1024;
 const textDecoder = new TextDecoder();
 
 type ManifestItem = { id: string; path: string; mediaType: string; properties: string };
-type SpineDocument = { path: string; document: XMLDocument };
+type SpineDocument = { path: string; document: XMLDocument; styles: EpubStyleResolver };
+type EpubStyleResolver = (element: Element) => ReaderTextStyle | undefined;
+
+const epubStyleVariables = {
+  textAlign: '--book-hub-epub-text-align',
+  fontStyle: '--book-hub-epub-font-style',
+  fontWeight: '--book-hub-epub-font-weight',
+  textDecorationLine: '--book-hub-epub-text-decoration-line',
+  whiteSpace: '--book-hub-epub-white-space',
+} as const;
 
 function fail(message: string): never {
   throw new Error(message);
@@ -148,6 +158,204 @@ function safeImageData(path: string, item: ManifestItem, data: Uint8Array) {
   return data;
 }
 
+function safeTextStyleValue(property: string, value: string) {
+  const normalized = value.trim().toLowerCase();
+
+  if (property === 'text-align') {
+    return ['left', 'right', 'center', 'justify', 'start', 'end'].includes(normalized)
+      ? normalized
+      : undefined;
+  }
+
+  if (property === 'font-style') {
+    if (normalized === 'normal') return normalized;
+    return /^(italic|oblique)\b/.test(normalized) ? 'italic' : undefined;
+  }
+
+  if (property === 'font-weight') {
+    if (['normal', 'lighter'].includes(normalized)) return 'normal';
+    if (['bold', 'bolder'].includes(normalized)) return 'bold';
+    const numericWeight = Number(normalized);
+    return Number.isInteger(numericWeight) && numericWeight >= 100 && numericWeight <= 900
+      ? numericWeight >= 600
+        ? 'bold'
+        : 'normal'
+      : undefined;
+  }
+
+  if (property === 'text-decoration' || property === 'text-decoration-line') {
+    if (normalized === 'none') return normalized;
+    const lines = [
+      ...(normalized.includes('underline') ? ['underline'] : []),
+      ...(normalized.includes('line-through') ? ['line-through'] : []),
+    ];
+    return lines.length ? lines.join(' ') : undefined;
+  }
+
+  if (property === 'white-space') {
+    return ['normal', 'pre-line', 'pre-wrap'].includes(normalized) ? normalized : undefined;
+  }
+
+  return undefined;
+}
+
+function customStyleDeclaration(property: string, value: string, priority: string) {
+  const styleKey =
+    property === 'text-decoration'
+      ? 'textDecorationLine'
+      : property === 'text-decoration-line'
+        ? 'textDecorationLine'
+        : property === 'text-align'
+          ? 'textAlign'
+          : property === 'font-style'
+            ? 'fontStyle'
+            : property === 'font-weight'
+              ? 'fontWeight'
+              : property === 'white-space'
+                ? 'whiteSpace'
+                : undefined;
+  const safeValue = safeTextStyleValue(property, value);
+
+  if (!styleKey || !safeValue) return undefined;
+
+  return `${epubStyleVariables[styleKey]}: ${safeValue}${priority ? ' !important' : ''};`;
+}
+
+function safeStyleDeclarations(style: CSSStyleDeclaration) {
+  const declarations: string[] = [];
+
+  for (const property of [
+    'text-align',
+    'font-style',
+    'font-weight',
+    'text-decoration',
+    'text-decoration-line',
+    'white-space',
+  ]) {
+    const value = style.getPropertyValue(property);
+    if (!value) continue;
+    const declaration = customStyleDeclaration(
+      property,
+      value,
+      style.getPropertyPriority(property),
+    );
+    if (declaration) declarations.push(declaration);
+  }
+
+  return declarations;
+}
+
+function stylesheetSources(document: XMLDocument, path: string, files: Record<string, Uint8Array>) {
+  return Array.from(document.querySelectorAll('style, link')).flatMap((element) => {
+    if (element.localName.toLowerCase() === 'style') return [element.textContent ?? ''];
+    if (!hasToken(element, 'rel', 'stylesheet')) return [];
+    const href = element.getAttribute('href');
+    if (!href || /^[a-z][a-z\d+.-]*:/i.test(href)) return [];
+    const stylesheet = files[normalizePath(href, directory(path))];
+    return stylesheet ? [textDecoder.decode(stylesheet)] : [];
+  });
+}
+
+function safeStylesheetText(sources: string[]) {
+  const rules: string[] = [];
+
+  for (const source of sources) {
+    try {
+      const stylesheet = new CSSStyleSheet();
+      stylesheet.replaceSync(source);
+
+      for (const rule of Array.from(stylesheet.cssRules)) {
+        if (
+          !(rule instanceof CSSStyleRule) ||
+          /::|:(?:before|after|first-letter|first-line|marker|selection)\b/i.test(rule.selectorText)
+        ) {
+          continue;
+        }
+
+        const declarations = safeStyleDeclarations(rule.style);
+        if (declarations.length) rules.push(`${rule.selectorText} { ${declarations.join(' ')} }`);
+      }
+    } catch {
+      // Некорректный CSS не должен препятствовать чтению EPUB.
+    }
+  }
+
+  return rules.join('\n');
+}
+
+function textStyleFromComputedStyle(style: CSSStyleDeclaration): ReaderTextStyle | undefined {
+  const textStyle: ReaderTextStyle = {};
+
+  for (const [key, variable] of Object.entries(epubStyleVariables) as Array<
+    [keyof typeof epubStyleVariables, string]
+  >) {
+    const value = style.getPropertyValue(variable).trim();
+    if (value) textStyle[key] = value as never;
+  }
+
+  return Object.keys(textStyle).length ? textStyle : undefined;
+}
+
+function applyInlineTextStyle(source: Element, target: Element) {
+  const inlineStyle = source.getAttribute('style');
+  if (!inlineStyle) return;
+
+  const parser = document.createElement('span');
+  parser.setAttribute('style', inlineStyle);
+  const declarations = safeStyleDeclarations(parser.style);
+  if (declarations.length) target.setAttribute('style', declarations.join(' '));
+}
+
+function createEpubStyleResolver(
+  sourceDocument: XMLDocument,
+  path: string,
+  files: Record<string, Uint8Array>,
+): EpubStyleResolver {
+  const stylesheet = safeStylesheetText(stylesheetSources(sourceDocument, path, files));
+  if (!stylesheet && !sourceDocument.querySelector('[style]')) return () => undefined;
+
+  const sourceRoot = sourceDocument.documentElement;
+  const cloneRoot = sourceRoot.cloneNode(true) as Element;
+  const sourceElements = [sourceRoot, ...Array.from(sourceRoot.querySelectorAll('*'))];
+  const cloneElements = [cloneRoot, ...Array.from(cloneRoot.querySelectorAll('*'))];
+  const host = document.createElement('div');
+  const shadow = host.attachShadow({ mode: 'closed' });
+  const style = document.createElement('style');
+  const resolved = new Map<Element, ReaderTextStyle>();
+
+  host.hidden = true;
+  style.textContent = stylesheet;
+
+  cloneElements.forEach((element, index) => {
+    const source = sourceElements[index];
+    if (!source) return;
+
+    element.removeAttribute('style');
+    if (element.localName.toLowerCase() === 'style') element.textContent = '';
+    if (element.localName.toLowerCase() === 'link') {
+      element.removeAttribute('href');
+      element.removeAttribute('rel');
+    }
+    applyInlineTextStyle(source, element);
+  });
+
+  shadow.append(style, cloneRoot);
+  document.body.append(host);
+
+  try {
+    cloneElements.forEach((element, index) => {
+      const source = sourceElements[index];
+      if (!source) return;
+      const textStyle = textStyleFromComputedStyle(getComputedStyle(element));
+      if (textStyle) resolved.set(source, textStyle);
+    });
+  } finally {
+    host.remove();
+  }
+
+  return (element) => resolved.get(element);
+}
+
 function globalId(path: string, id: string) {
   return `epub-target:${path}#${id}`;
 }
@@ -167,17 +375,25 @@ function hrefTarget(href: string | null, basePath: string, ids: Set<string>) {
   return ids.has(key) ? `#${key}` : '';
 }
 
+function preservesLineBreaks(textStyle: ReaderTextStyle | undefined) {
+  return textStyle?.whiteSpace === 'pre-line' || textStyle?.whiteSpace === 'pre-wrap';
+}
+
 function inlineNodes(
   nodes: NodeListOf<ChildNode> | ChildNode[],
   path: string,
   ids: Set<string>,
   noteTargets: Set<string>,
   resources: Map<string, ManifestItem>,
+  styles: EpubStyleResolver,
+  preserveWhitespace = false,
 ): Fb2Inline[] {
   const result: Fb2Inline[] = [];
   for (const node of Array.from(nodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.replace(/\s+/g, ' ') ?? '';
+      const text = preserveWhitespace
+        ? (node.textContent?.replace(/\r\n?/g, '\n') ?? '')
+        : (node.textContent?.replace(/\s+/g, ' ') ?? '');
       if (text) result.push({ kind: 'text', text });
       continue;
     }
@@ -194,7 +410,20 @@ function inlineNodes(
       }
       continue;
     }
-    const children = inlineNodes(node.childNodes, path, ids, noteTargets, resources);
+    if (name === 'br') {
+      result.push({ kind: 'lineBreak' });
+      continue;
+    }
+    const textStyle = styles(node);
+    const children = inlineNodes(
+      node.childNodes,
+      path,
+      ids,
+      noteTargets,
+      resources,
+      styles,
+      preserveWhitespace || preservesLineBreaks(textStyle),
+    );
     const map: Record<string, Fb2Inline['kind']> = {
       strong: 'strong',
       b: 'strong',
@@ -206,15 +435,23 @@ function inlineNodes(
       sup: 'sup',
       code: 'code',
     };
+    let inline: Fb2Inline | undefined;
     if (name === 'a') {
       const href = hrefTarget(node.getAttribute('href'), path, ids);
       const isNote =
         hasToken(node, 'epub:type', 'noteref') || hasToken(node, 'role', 'doc-noteref');
       const target = href.replace(/^#/, '');
       if (isNote && target) noteTargets.add(target);
-      result.push({ kind: 'link', href, linkType: isNote ? 'note' : undefined, children });
-    } else if (map[name]) result.push({ kind: map[name], children });
-    else result.push(...children);
+      inline = { kind: 'link', href, linkType: isNote ? 'note' : undefined, children };
+    } else if (map[name]) inline = { kind: map[name], children };
+
+    if (inline) {
+      result.push(textStyle ? { kind: 'epubStyle', textStyle, children: [inline] } : inline);
+    } else if (textStyle) {
+      result.push({ kind: 'epubStyle', textStyle, children });
+    } else {
+      result.push(...children);
+    }
   }
   return result;
 }
@@ -225,6 +462,7 @@ function tableRows(
   ids: Set<string>,
   notes: Set<string>,
   resources: Map<string, ManifestItem>,
+  styles: EpubStyleResolver,
 ) {
   return localElements(table, 'tr').map((row: Element) => ({
     cells: (Array.from(row.children) as Element[])
@@ -234,7 +472,16 @@ function tableRows(
         colspan: Number(cell.getAttribute('colspan') ?? 1) || 1,
         rowspan: Number(cell.getAttribute('rowspan') ?? 1) || 1,
         align: (cell.getAttribute('align') as Fb2TableCell['align']) || undefined,
-        inlines: inlineNodes(cell.childNodes, path, ids, notes, resources),
+        textStyle: styles(cell),
+        inlines: inlineNodes(
+          cell.childNodes,
+          path,
+          ids,
+          notes,
+          resources,
+          styles,
+          preservesLineBreaks(styles(cell)),
+        ),
       })),
   }));
 }
@@ -283,6 +530,7 @@ function blocksFrom(
   ids: Set<string>,
   noteTargets: Set<string>,
   resources: Map<string, ManifestItem>,
+  styles: EpubStyleResolver,
   excluded = new Set<string>(),
   inheritedTarget?: string,
 ): Fb2Block[] {
@@ -298,31 +546,56 @@ function blocksFrom(
       sourceId: target,
       level: 1,
       role: 'body' as const,
+      textStyle: styles(element),
     };
     if (/^h[1-6]$/.test(name))
       blocks.push({
         ...base,
         kind: 'title',
         level: Number(name.slice(1)),
-        inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources),
+        inlines: inlineNodes(
+          element.childNodes,
+          path,
+          ids,
+          noteTargets,
+          resources,
+          styles,
+          preservesLineBreaks(base.textStyle),
+        ),
       });
     else if (name === 'p')
       blocks.push({
         ...base,
         kind: 'paragraph',
-        inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources),
+        inlines: inlineNodes(
+          element.childNodes,
+          path,
+          ids,
+          noteTargets,
+          resources,
+          styles,
+          preservesLineBreaks(base.textStyle),
+        ),
       });
     else if (name === 'li')
       blocks.push({
         ...base,
         kind: 'listItem',
-        inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources),
+        inlines: inlineNodes(
+          element.childNodes,
+          path,
+          ids,
+          noteTargets,
+          resources,
+          styles,
+          preservesLineBreaks(base.textStyle),
+        ),
       });
     else if (name === 'pre')
       blocks.push({
         ...base,
         kind: 'codeBlock',
-        inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources),
+        inlines: inlineNodes(element.childNodes, path, ids, noteTargets, resources, styles, true),
       });
     else if (name === 'hr') blocks.push({ ...base, kind: 'divider', inlines: [] });
     else if (name === 'img') {
@@ -336,10 +609,18 @@ function blocksFrom(
       blocks.push({
         ...base,
         kind: 'table',
-        rows: tableRows(element, path, ids, noteTargets, resources),
+        rows: tableRows(element, path, ids, noteTargets, resources, styles),
       });
     else {
-      const inlines = inlineNodes(element.childNodes, path, ids, noteTargets, resources);
+      const inlines = inlineNodes(
+        element.childNodes,
+        path,
+        ids,
+        noteTargets,
+        resources,
+        styles,
+        preservesLineBreaks(base.textStyle),
+      );
       if (!hasBlockChildren(element) && hasReadableInline(inlines))
         blocks.push({ ...base, kind: 'paragraph', inlines });
       else Array.from(element.children).forEach((child) => visit(child, target));
@@ -464,7 +745,11 @@ export async function parseEpub(
     return {
       path: item.path,
       document: parseXml(textDecoder.decode(files[item.path]!), item.path),
+      styles: () => undefined,
     };
+  });
+  spineDocuments.forEach((entry) => {
+    entry.styles = createEpubStyleResolver(entry.document, entry.path, files);
   });
   const ids = new Set<string>();
   for (const entry of spineDocuments) {
@@ -474,7 +759,14 @@ export async function parseEpub(
   }
   const noteTargets = new Set<string>();
   for (const entry of spineDocuments)
-    inlineNodes(entry.document.querySelectorAll('a'), entry.path, ids, noteTargets, resources);
+    inlineNodes(
+      entry.document.querySelectorAll('a'),
+      entry.path,
+      ids,
+      noteTargets,
+      resources,
+      entry.styles,
+    );
   const notes = new Map<string, Fb2Note>();
   for (const entry of spineDocuments)
     for (const target of noteTargets) {
@@ -485,7 +777,16 @@ export async function parseEpub(
       if (element)
         notes.set(target, {
           id: target,
-          blocks: blocksFrom(element, entry.path, ids, noteTargets, resources, new Set(), target),
+          blocks: blocksFrom(
+            element,
+            entry.path,
+            ids,
+            noteTargets,
+            resources,
+            entry.styles,
+            new Set(),
+            target,
+          ),
         });
     }
   const blocks = [
@@ -496,6 +797,7 @@ export async function parseEpub(
         ids,
         noteTargets,
         resources,
+        entry.styles,
         noteTargets,
         documentTarget(entry.path),
       ),

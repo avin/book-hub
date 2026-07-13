@@ -20,6 +20,10 @@ export function inlineTextLength(inline: Fb2Inline): number {
     return inline.text?.length ?? 0;
   }
 
+  if (inline.kind === 'lineBreak') {
+    return 1;
+  }
+
   return inline.children?.reduce((length, child) => length + inlineTextLength(child), 0) ?? 0;
 }
 
@@ -30,6 +34,10 @@ export function inlinesText(inlines: Fb2Inline[] | undefined): string {
 function inlineText(inline: Fb2Inline): string {
   if (inline.kind === 'text') {
     return inline.text ?? '';
+  }
+
+  if (inline.kind === 'lineBreak') {
+    return '\n';
   }
 
   return inlinesText(inline.children);

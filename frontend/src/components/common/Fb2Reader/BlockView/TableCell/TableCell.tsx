@@ -1,6 +1,7 @@
 import { Show } from 'solid-js';
 import type { Fb2SearchRange } from '../../fb2Search';
 import type { Fb2TableCell } from '../../fb2Types';
+import { readerTextStyle } from '../../readerTextStyle';
 import RenderInlines from '../../RenderInlines/RenderInlines';
 
 function TableCell(props: {
@@ -12,7 +13,10 @@ function TableCell(props: {
   searchRanges?: Fb2SearchRange[];
   textOffset?: number;
 }) {
-  const alignmentStyle = () => (props.cell.align ? { 'text-align': props.cell.align } : undefined);
+  const alignmentStyle = () => ({
+    ...(readerTextStyle(props.cell.textStyle) ?? {}),
+    ...(props.cell.align ? { 'text-align': props.cell.align } : {}),
+  });
   const content = () => (
     <RenderInlines
       inlines={props.cell.inlines}

@@ -32,6 +32,23 @@ function fontString(settings: Fb2ReaderSettings, fontSize: number, weight = 400,
   return `${style} ${weight} ${fontSize}px ${fontFamily(settings)}`;
 }
 
+function blockFont(
+  block: Fb2Block,
+  settings: Fb2ReaderSettings,
+  fontSize: number,
+  defaultWeight = 400,
+  defaultStyle = 'normal',
+) {
+  const weight =
+    block.textStyle?.fontWeight === 'bold'
+      ? 700
+      : block.textStyle?.fontWeight === 'normal'
+        ? 400
+        : defaultWeight;
+  const style = block.textStyle?.fontStyle ?? defaultStyle;
+  return fontString(settings, fontSize, weight, style);
+}
+
 function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics {
   switch (block.kind) {
     case 'title': {
@@ -39,7 +56,7 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
       return {
         fontSize,
         lineHeightPx: fontSize * 1.22,
-        font: fontString(settings, fontSize, 700),
+        font: blockFont(block, settings, fontSize, 700),
         marginBlock: settings.paragraphSpacing + 24,
       };
     }
@@ -48,7 +65,7 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
       return {
         fontSize,
         lineHeightPx: fontSize * 1.28,
-        font: fontString(settings, fontSize, 650),
+        font: blockFont(block, settings, fontSize, 650),
         marginBlock: settings.paragraphSpacing + 12,
       };
     }
@@ -56,7 +73,7 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
       return {
         fontSize: settings.fontSize,
         lineHeightPx: settings.fontSize * settings.lineHeight,
-        font: fontString(settings, settings.fontSize, 400, 'italic'),
+        font: blockFont(block, settings, settings.fontSize, 400, 'italic'),
         marginBlock: 4,
       };
     case 'textAuthor':
@@ -65,7 +82,7 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
       return {
         fontSize,
         lineHeightPx: fontSize * settings.lineHeight,
-        font: fontString(settings, fontSize, 500, 'italic'),
+        font: blockFont(block, settings, fontSize, 500, 'italic'),
         marginBlock: settings.paragraphSpacing,
       };
     }
@@ -73,46 +90,69 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
       return {
         fontSize: settings.fontSize,
         lineHeightPx: settings.fontSize * settings.lineHeight,
-        font: fontString(settings, settings.fontSize),
+        font: blockFont(block, settings, settings.fontSize),
         marginBlock: settings.paragraphSpacing,
       };
   }
 }
 
-function inlineToRichItems(
-  inline: Fb2Inline,
+function inlineFont(inline: Fb2Inline, inheritedFont: string, settings: Fb2ReaderSettings) {
+  const fontStyle =
+    inline.textStyle?.fontStyle ?? (inline.kind === 'emphasis' ? 'italic' : undefined);
+  const fontWeight =
+    inline.textStyle?.fontWeight ?? (inline.kind === 'strong' ? 'bold' : undefined);
+
+  if (inline.kind === 'code') return `${settings.fontSize}px "Cousine", monospace`;
+  if (!fontStyle && !fontWeight) return inheritedFont;
+
+  const match = inheritedFont.match(/^(\S+)\s+(\d+)\s+(.+)$/);
+  if (!match) return inheritedFont;
+
+  return `${fontStyle ?? match[1]} ${fontWeight === 'bold' ? 700 : fontWeight === 'normal' ? 400 : match[2]} ${match[3]}`;
+}
+
+function richInlineLines(
+  inlines: Fb2Inline[] | undefined,
   inheritedFont: string,
   settings: Fb2ReaderSettings,
-): RichInlineItem[] {
-  if (inline.kind === 'text') {
-    return inline.text ? [{ text: inline.text, font: inheritedFont }] : [];
-  }
-
-  if (inline.kind === 'image') {
-    return [
-      { text: '\uFFFC', font: inheritedFont, break: 'never', extraWidth: settings.fontSize * 2.2 },
-    ];
-  }
-
-  const childFont = (() => {
-    switch (inline.kind) {
-      case 'strong':
-        return inheritedFont.replace(/^\S+\s+\d+\s+/, `normal 700 `);
-      case 'emphasis':
-        return inheritedFont.replace(/^\S+\s+/, 'italic ');
-      case 'code':
-        return `${settings.fontSize}px "Cousine", monospace`;
-      default:
-        return inheritedFont;
+) {
+  const lines: RichInlineItem[][] = [[]];
+  const append = (inline: Fb2Inline, font: string) => {
+    if (inline.kind === 'lineBreak') {
+      lines.push([]);
+      return;
     }
-  })();
 
-  return (inline.children ?? []).flatMap((child) => inlineToRichItems(child, childFont, settings));
+    if (inline.kind === 'text') {
+      if (inline.text) lines.at(-1)?.push({ text: inline.text, font });
+      return;
+    }
+
+    if (inline.kind === 'image') {
+      lines.at(-1)?.push({
+        text: '\uFFFC',
+        font,
+        break: 'never',
+        extraWidth: settings.fontSize * 2.2,
+      });
+      return;
+    }
+
+    const childFont = inlineFont(inline, font, settings);
+    (inline.children ?? []).forEach((child) => append(child, childFont));
+  };
+
+  (inlines ?? []).forEach((inline) => append(inline, inheritedFont));
+  return lines;
 }
 
 function inlinePlainText(inline: Fb2Inline): string {
   if (inline.kind === 'text') {
     return inline.text ?? '';
+  }
+
+  if (inline.kind === 'lineBreak') {
+    return '\n';
   }
 
   if (inline.kind === 'image') {
@@ -192,18 +232,13 @@ function measureInlinesHeight(
   metrics: TextMetrics,
   settings: Fb2ReaderSettings,
 ) {
-  const items = (inlines ?? []).flatMap((inline) =>
-    inlineToRichItems(inline, metrics.font, settings),
+  const lineCount = richInlineLines(inlines, metrics.font, settings).reduce(
+    (total, items) =>
+      total + (items.length ? measureRichLineCount(prepareRichInline(items), widths) : 1),
+    0,
   );
 
-  if (items.length === 0) {
-    return metrics.lineHeightPx + metrics.marginBlock;
-  }
-
-  const prepared = prepareRichInline(items);
-  const lineCount = measureRichLineCount(prepared, widths);
-
-  return lineCount * metrics.lineHeightPx + metrics.marginBlock;
+  return Math.max(1, lineCount) * metrics.lineHeightPx + metrics.marginBlock;
 }
 
 function measureCodeBlock(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
