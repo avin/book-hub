@@ -82,7 +82,7 @@ export const epubFile = zipSync({
     `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml#chapter">Глава EPUB</a></li></ol></nav></body></html>`,
   ),
   'OEBPS/chapter.xhtml': strToU8(
-    `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><section id="chapter"><h1>Глава EPUB</h1><p>Текст EPUB с <strong>выделением</strong> и <a href="#target">ссылкой</a>.</p><div class="tx">Текст EPUB в блочном контейнере.</div><p id="target">Цель ссылки.</p><p>Сноска <a epub:type="noteref" href="#note">[1]</a>.</p><table><tr><td>Текст таблицы</td></tr></table><aside id="note"><p>Текст EPUB-сноски.</p></aside></section></body></html>`,
+    `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><style>.new-page { break-before: page; }</style></head><body><section id="chapter"><h1>Глава EPUB</h1><p>Текст EPUB с <strong>выделением</strong> и <a href="#target">ссылкой</a>.<span epub:type="pagebreak" style="break-after: page" />Продолжение текста EPUB.</p><div class="tx new-page">Текст EPUB в блочном контейнере.</div><p id="target">Цель ссылки.</p><p>Сноска <a epub:type="noteref" href="#note">[1]</a>.</p><table><tr><td>Текст таблицы</td></tr></table><aside id="note"><p>Текст EPUB-сноски.</p></aside></section></body></html>`,
   ),
 });
 
