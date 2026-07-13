@@ -79,6 +79,30 @@ test('DJVU reader отрисовывает страницу, обнаружив�
   expect(principalTextWidth).toBeDefined();
   expect(Math.abs(principalTextWidth!.actual - principalTextWidth!.expected)).toBeLessThan(2);
 
+  const search = page.getByRole('search');
+  const searchInput = search.getByRole('searchbox');
+  const nextMatch = search.getByRole('button', { name: 'Найти следующее' });
+  const previousMatch = search.getByRole('button', { name: 'Найти предыдущее' });
+  const highlights = page.getByTestId('djvu-text-layer').locator('.highlight');
+  const selectedHighlight = page.getByTestId('djvu-text-layer').locator('.highlight.selected');
+
+  await searchInput.fill('Reliable');
+  await expect(highlights).toHaveCount(0);
+  await nextMatch.click();
+  await expect(search.getByText('1/1')).toBeVisible();
+  await expect(highlights).toHaveCount(1);
+  await expect(selectedHighlight).toHaveText('Reliable');
+
+  await previousMatch.click();
+  await expect(search.getByText('1/1')).toBeVisible();
+  await expect(selectedHighlight).toHaveText('Reliable');
+
+  await searchInput.fill('Principal');
+  await expect(selectedHighlight).toHaveText('Reliable');
+  await searchInput.press('Enter');
+  await expect(search.getByText('1/1')).toBeVisible();
+  await expect(selectedHighlight).toHaveText('Principal');
+
   const pageInput = page.getByRole('spinbutton', { name: 'Номер страницы' });
   await expect(pageInput).toHaveValue('1');
   await pageInput.fill('2');

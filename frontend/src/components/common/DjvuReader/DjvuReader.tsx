@@ -60,7 +60,7 @@ import { isPdfWebglAvailable, renderPdfPageFilter } from '../PdfReader/pdfWebglF
 import styles from '../PdfReader/PdfReader.module.scss';
 
 type Page = { pageNumber: number; width: number; height: number };
-type SearchMatch = { pageNumber: number; zoneIndex: number };
+type SearchMatch = { pageNumber: number; zoneIndex: number; start: number; length: number };
 type ScrollAnchor = { pageNumber: number; offsetRatio: number };
 
 const documentPaddingX = 20;
@@ -96,6 +96,8 @@ function DjvuReader(props: {
   let horizontalScrollRestorePending = false;
   let lastHorizontalScrollLeft = 0;
   let lastHorizontalScrollMaxLeft = 0;
+  let searchGeneration = 0;
+  let executedSearchQuery: string | undefined;
   const pageRefs = new Map<number, HTMLElement>();
   const canvasRefs = new Map<number, HTMLCanvasElement>();
   const filteredCanvasRefs = new Map<number, HTMLCanvasElement>();
@@ -314,22 +316,31 @@ function DjvuReader(props: {
 
     if (!layer || !page || !pageElement || !zones) return;
 
-    const query = searchValue().trim().toLocaleLowerCase();
     const selected = searchMatches()[selectedMatch()];
     layer.textContent = '';
 
     zones.forEach((zone, zoneIndex) => {
       if (!zone.text) return;
       const span = document.createElement('span');
-      const matches = query.length > 0 && zone.text.toLocaleLowerCase().includes(query);
-      span.textContent = zone.text;
       span.style.left = `${(zone.x / page.width) * 100}%`;
       span.style.top = `${((page.height - zone.y - zone.height) / page.height) * 100}%`;
       span.style.fontSize = `${Math.max(1, (zone.height / page.height) * pageHeight(page))}px`;
       span.dataset.textZoneWidth = String(zone.width / page.width);
-      if (matches) {
-        span.className = `highlight${selected?.pageNumber === pageNumber && selected.zoneIndex === zoneIndex ? ' selected' : ''}`;
+
+      const zoneMatches = searchMatches().filter(
+        (match) => match.pageNumber === pageNumber && match.zoneIndex === zoneIndex,
+      );
+      let textOffset = 0;
+      for (const match of zoneMatches) {
+        span.append(document.createTextNode(zone.text.slice(textOffset, match.start)));
+
+        const highlight = document.createElement('mark');
+        highlight.className = `highlight${selected === match ? ' selected' : ''}`;
+        highlight.textContent = zone.text.slice(match.start, match.start + match.length);
+        span.append(highlight);
+        textOffset = match.start + match.length;
       }
+      span.append(document.createTextNode(zone.text.slice(textOffset)));
       layer.append(span);
 
       const range = document.createRange();
@@ -481,28 +492,49 @@ function DjvuReader(props: {
     }
   };
 
+  const clearSearchHighlights = () => {
+    searchGeneration += 1;
+    executedSearchQuery = undefined;
+    setSearchMatches([]);
+    setSelectedMatch(-1);
+    for (const page of pages()) renderTextLayer(page.pageNumber);
+  };
+
   const search = async (direction: 1 | -1) => {
-    const query = searchValue().trim().toLocaleLowerCase();
+    const query = searchValue().trim();
     if (!query || !worker) {
-      setSearchMatches([]);
-      setSelectedMatch(-1);
+      clearSearchHighlights();
       return;
     }
+
+    const currentSearchGeneration = ++searchGeneration;
+    const normalizedQuery = query.toLocaleLowerCase();
+    const isContinuation = executedSearchQuery === query;
+    const currentMatchIndex = isContinuation ? selectedMatch() : direction === 1 ? -1 : 0;
     const matches: SearchMatch[] = [];
     for (const page of pages()) {
       let zones = textByPage.get(page.pageNumber);
       if (!zones) {
         zones = (await worker.doc.getPage(page.pageNumber).getNormalizedTextZones().run()) ?? [];
+        if (currentSearchGeneration !== searchGeneration) return;
         textByPage.set(page.pageNumber, zones);
       }
       zones.forEach((zone, zoneIndex) => {
-        if (zone.text.toLocaleLowerCase().includes(query))
-          matches.push({ pageNumber: page.pageNumber, zoneIndex });
+        const normalizedText = zone.text.toLocaleLowerCase();
+        let start = normalizedText.indexOf(normalizedQuery);
+        while (start >= 0) {
+          matches.push({ pageNumber: page.pageNumber, zoneIndex, start, length: query.length });
+          start = normalizedText.indexOf(normalizedQuery, start + normalizedQuery.length);
+        }
       });
     }
+
+    if (currentSearchGeneration !== searchGeneration) return;
+
+    executedSearchQuery = query;
     setSearchMatches(matches);
     const nextIndex = matches.length
-      ? (selectedMatch() + direction + matches.length) % matches.length
+      ? (currentMatchIndex + direction + matches.length) % matches.length
       : -1;
     setSelectedMatch(nextIndex);
     const selected = matches[nextIndex];
@@ -695,18 +727,17 @@ function DjvuReader(props: {
         searchUnavailableMessage={
           searchDetectionComplete() && !searchAvailable() ? t('bookSearchUnavailable') : undefined
         }
-        onSearchValueChange={(value) => {
-          setSearchValue(value);
-          setSelectedMatch(-1);
-          void search(1);
-        }}
+        onSearchValueChange={setSearchValue}
         onSearchNext={() => void search(1)}
         onSearchPrevious={() => void search(-1)}
         onSearchOpen={() => {
           setTocOpen(false);
           setFilterPanelOpen(false);
         }}
-        onClose={readerChrome.close}
+        onClose={() => {
+          clearSearchHighlights();
+          readerChrome.close();
+        }}
         onShow={readerChrome.show}
         actions={
           <>
