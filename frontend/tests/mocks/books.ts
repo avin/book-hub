@@ -1,3 +1,5 @@
+import { strToU8, zipSync } from 'fflate';
+
 export const items = [
   {
     id: '00000000-0000-0000-0000-000000000101',
@@ -35,6 +37,18 @@ export const items = [
     last_opened_at: '2025-01-04T00:00:00Z',
     updated_at: '2025-01-04T00:00:00Z',
   },
+  {
+    id: '00000000-0000-0000-0000-000000000104',
+    title: 'EPUB для проверки',
+    tags: ['тест'],
+    favorite: false,
+    format: 'epub',
+    size_bytes: 2048,
+    progress_percent: 0,
+    created_at: '2025-01-05T00:00:00Z',
+    last_opened_at: '2025-01-05T00:00:00Z',
+    updated_at: '2025-01-05T00:00:00Z',
+  },
 ];
 
 export const tags = {
@@ -55,6 +69,22 @@ const chapters = Array.from({ length: 80 }, (_, index) => {
 }).join('');
 
 export const fb2File = `<?xml version="1.0" encoding="UTF-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink" xmlns:xlink="http://www.w3.org/1999/xlink"><description><title-info><book-title>Война и мир</book-title><author><first-name>Лев</first-name><last-name>Толстой</last-name></author></title-info></description><body>${chapters}</body><body name="notes"><section id="note-1"><title><p>Сноска</p></title><p>Текст тестовой сноски.</p></section></body></FictionBook>`;
+
+export const epubFile = zipSync({
+  mimetype: strToU8('application/epub+zip'),
+  'META-INF/container.xml': strToU8(
+    `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`,
+  ),
+  'OEBPS/content.opf': strToU8(
+    `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>EPUB для проверки</dc:title><dc:creator>Автор EPUB</dc:creator></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>`,
+  ),
+  'OEBPS/nav.xhtml': strToU8(
+    `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><nav epub:type="toc"><ol><li><a href="chapter.xhtml#chapter">Глава EPUB</a></li></ol></nav></body></html>`,
+  ),
+  'OEBPS/chapter.xhtml': strToU8(
+    `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body><section id="chapter"><h1>Глава EPUB</h1><p>Текст EPUB с <strong>выделением</strong> и <a href="#target">ссылкой</a>.</p><p id="target">Цель ссылки.</p><p>Сноска <a epub:type="noteref" href="#note">[1]</a>.</p><table><tr><td>Текст таблицы</td></tr></table><aside id="note"><p>Текст EPUB-сноски.</p></aside></section></body></html>`,
+  ),
+});
 
 export const pdfFile = `%PDF-1.4
 1 0 obj

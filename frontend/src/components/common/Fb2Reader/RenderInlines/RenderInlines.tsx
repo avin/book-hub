@@ -177,7 +177,7 @@ function RenderInlines(props: {
                     const targetId = normalizeInternalHref(inline.href);
 
                     if (targetId) {
-                      if (inline.linkType === 'note' || props.isFootnoteTarget(targetId)) {
+                      if (inline.linkType === 'note') {
                         props.onFootnoteLink(targetId);
                         return;
                       }

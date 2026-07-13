@@ -3,6 +3,7 @@ import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import { parseFb2 } from '@/components/common/Fb2Reader/fb2Parser';
 import { readFb2BlobText } from '@/components/common/Fb2Reader/fb2TextDecoder';
 import type { Fb2Binary } from '@/components/common/Fb2Reader/fb2Types';
+import { extractEpubMetadata } from '@/components/common/EpubReader/epubParser';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
 
@@ -74,6 +75,10 @@ function isPdf(file: File) {
 
 function isFb2(file: File) {
   return file.name.toLowerCase().endsWith('.fb2');
+}
+
+function isEpub(file: File) {
+  return file.name.toLowerCase().endsWith('.epub');
 }
 
 function normalizeImageType(contentType: string) {
@@ -241,6 +246,24 @@ async function extractFb2Cover(
   };
 }
 
+async function extractEpubCover(
+  file: File,
+  options?: BookPreparationOptions,
+): Promise<PreparedBookFile> {
+  const metadata = await extractEpubMetadata(file, options);
+  throwIfAborted(options?.signal);
+
+  if (!metadata.coverBinary) {
+    return {};
+  }
+
+  return {
+    coverFile: await compressCover(binaryToBlob(metadata.coverBinary), file.name).catch(
+      () => undefined,
+    ),
+  };
+}
+
 export async function prepareBookFile(
   file: File,
   options?: BookPreparationOptions,
@@ -251,6 +274,10 @@ export async function prepareBookFile(
 
   if (isPdf(file)) {
     return extractPdfCover(file, options);
+  }
+
+  if (isEpub(file)) {
+    return extractEpubCover(file, options);
   }
 
   return {};
@@ -272,6 +299,11 @@ export async function extractBookTitle(file: File, options?: BookPreparationOpti
     throwIfAborted(signal);
     const fb2Document = parseFb2(await abortable(readFb2BlobText(file), signal));
     return bookTitle(fb2Document.authors, fb2Document.title);
+  }
+
+  if (isEpub(file)) {
+    const metadata = await extractEpubMetadata(file, { signal });
+    return bookTitle(metadata.authors, metadata.title);
   }
 
   if (!isPdf(file)) {

@@ -276,3 +276,25 @@ test('FB2 reader не показывает сноски в оглавлении'
   await openReaderToc(page);
   await expect(page.getByRole('button', { name: 'Сноска' })).toHaveCount(0);
 });
+
+test('читатель EPUB использует общий интерфейс с оглавлением, поиском и сносками', async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole('link', { name: 'EPUB для проверки' }).click();
+  await expect(page.getByRole('heading', { name: 'Глава EPUB' })).toBeVisible();
+
+  await openReaderToc(page);
+  await expect(page.getByRole('button', { name: 'Глава EPUB' })).toBeVisible();
+  await page.getByRole('button', { name: 'Глава EPUB' }).click();
+
+  await page.mouse.move(10, 10);
+  const search = page.getByRole('search');
+  await search.getByRole('searchbox').fill('Текст таблицы');
+  await search.getByRole('searchbox').press('Enter');
+  await expect(search.getByText('1/1')).toBeVisible();
+
+  const noteLink = page.locator('main button').filter({ hasText: '[1]' });
+  await noteLink.click();
+  await expect(page.getByRole('dialog', { name: 'Сноска' })).toContainText('Текст EPUB-сноски.');
+});

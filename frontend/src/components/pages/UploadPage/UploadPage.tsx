@@ -20,6 +20,7 @@ import styles from './UploadPage.module.scss';
 
 type CoverStatus = 'pending' | 'ready' | 'missing' | 'failed';
 type UploadStatus = 'idle' | 'uploading' | 'failed';
+type EpubValidationStatus = 'pending' | 'ready' | 'failed';
 
 type BookDraft = {
   id: string;
@@ -30,6 +31,7 @@ type BookDraft = {
   coverPreviewUrl?: string;
   coverSource?: 'auto' | 'manual';
   coverStatus: CoverStatus;
+  epubValidationStatus: EpubValidationStatus;
   coverError?: string;
   titleExtracting: boolean;
   titleError?: string;
@@ -66,7 +68,16 @@ function titleFromFile(file: File) {
 
 function isSupportedBookFile(file: File) {
   const fileName = file.name.toLowerCase();
-  return file.type === 'application/pdf' || fileName.endsWith('.pdf') || fileName.endsWith('.fb2');
+  return (
+    file.type === 'application/pdf' ||
+    fileName.endsWith('.pdf') ||
+    fileName.endsWith('.fb2') ||
+    fileName.endsWith('.epub')
+  );
+}
+
+function isEpubBookFile(file: File) {
+  return file.name.toLowerCase().endsWith('.epub');
 }
 
 function createDraftId() {
@@ -220,6 +231,9 @@ function UploadPage() {
           coverSource: prepared.coverFile ? 'auto' : undefined,
           coverStatus: prepared.coverFile ? 'ready' : 'missing',
           coverError: undefined,
+          epubValidationStatus: isEpubBookFile(currentDraft.file)
+            ? 'ready'
+            : currentDraft.epubValidationStatus,
         };
       });
     } catch (nextError) {
@@ -230,10 +244,15 @@ function UploadPage() {
       updatePreparedDraft(draft.id, generation, (currentDraft) => ({
         ...currentDraft,
         coverStatus: currentDraft.coverSource === 'manual' ? currentDraft.coverStatus : 'failed',
+        epubValidationStatus: isEpubBookFile(currentDraft.file)
+          ? 'failed'
+          : currentDraft.epubValidationStatus,
         coverError:
           currentDraft.coverSource === 'manual'
             ? currentDraft.coverError
-            : errorMessage(nextError, t('coverCouldNotBeExtracted')),
+            : isEpubBookFile(currentDraft.file)
+              ? t('invalidEpub')
+              : errorMessage(nextError, t('coverCouldNotBeExtracted')),
       }));
     } finally {
       finishDraftPreparation(draft.id, preparation);
@@ -254,6 +273,7 @@ function UploadPage() {
       title: titleFromFile(file),
       tags: [],
       coverStatus: 'pending' as const,
+      epubValidationStatus: isEpubBookFile(file) ? ('pending' as const) : ('ready' as const),
       titleExtracting: false,
       uploadStatus: 'idle' as const,
     }));
@@ -297,6 +317,9 @@ function UploadPage() {
         titleExtracting: false,
         titleError: extractedTitle ? undefined : t('titleCouldNotBeExtracted'),
         uploadError: undefined,
+        epubValidationStatus: isEpubBookFile(currentDraft.file)
+          ? 'ready'
+          : currentDraft.epubValidationStatus,
       }));
     } catch (nextError) {
       if (isAbortError(nextError)) {
@@ -307,6 +330,9 @@ function UploadPage() {
         ...currentDraft,
         titleExtracting: false,
         titleError: errorMessage(nextError, t('titleCouldNotBeExtracted')),
+        epubValidationStatus: isEpubBookFile(currentDraft.file)
+          ? 'failed'
+          : currentDraft.epubValidationStatus,
       }));
     } finally {
       finishDraftPreparation(id, preparation);
@@ -452,6 +478,17 @@ function UploadPage() {
       return;
     }
 
+    const epubDrafts = drafts().filter((draft) => isEpubBookFile(draft.file));
+    if (epubDrafts.some((draft) => draft.epubValidationStatus === 'pending')) {
+      setError(t('validatingEpub'));
+      return;
+    }
+
+    if (epubDrafts.some((draft) => draft.epubValidationStatus === 'failed')) {
+      setError(t('invalidEpub'));
+      return;
+    }
+
     setUploading(true);
     setError('');
     lockPage();
@@ -537,7 +574,7 @@ function UploadPage() {
             ref={fileInputEl}
             class={styles.fileInput}
             type="file"
-            accept=".pdf,.fb2"
+            accept=".epub,.pdf,.fb2"
             multiple
             onChange={(event) => {
               addFiles(event.currentTarget.files ?? []);

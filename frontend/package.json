@@ -33,6 +33,7 @@
     "@floating-ui/dom": "^1.7.6",
     "@solidjs/router": "^0.16.1",
     "@tanstack/solid-query": "^5.101.2",
+    "fflate": "^0.8.3",
     "lucide-solid": "^1.23.0",
     "openapi-fetch": "^0.17.0",
     "pdfjs-dist": "^6.1.200",

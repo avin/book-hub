@@ -57,3 +57,28 @@ func TestNormalizeBookQueryDefaultsAndRejectsInvalidValues(t *testing.T) {
 		t.Fatalf("expected validation error, got %v", err)
 	}
 }
+
+func TestNormalizeBookFormat(t *testing.T) {
+	for _, test := range []struct {
+		filename string
+		want     string
+	}{
+		{filename: "book.pdf", want: "pdf"},
+		{filename: "book.FB2", want: "fb2"},
+		{filename: "book.EPUB", want: "epub"},
+	} {
+		t.Run(test.filename, func(t *testing.T) {
+			got, err := domain.NormalizeBookFormat(test.filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != test.want {
+				t.Fatalf("expected %q, got %q", test.want, got)
+			}
+		})
+	}
+
+	if _, err := domain.NormalizeBookFormat("book.txt"); !errors.Is(err, domain.ErrUnsupportedFormat) {
+		t.Fatalf("expected unsupported format error, got %v", err)
+	}
+}

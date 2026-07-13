@@ -3,8 +3,8 @@ import { login } from './support/api';
 
 test('библиотека поддерживает поиск, фильтры, вид и действия книги', async ({ page }) => {
   await login(page);
-  await expect(page.getByRole('heading', { name: /Ваши книги/ })).toContainText('3');
-  await expect(page.getByRole('article')).toHaveCount(3);
+  await expect(page.getByRole('heading', { name: /Ваши книги/ })).toContainText('4');
+  await expect(page.getByRole('article')).toHaveCount(4);
 
   await page.getByPlaceholder('Найти по названию').fill('Мастер');
   await expect(page.getByRole('article')).toHaveCount(1);
@@ -28,5 +28,5 @@ test('библиотека поддерживает поиск, фильтры, 
   await page.getByRole('button', { name: 'Действия с книгой' }).first().click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('menuitem', { name: 'Удалить' }).click();
-  await expect(page.getByRole('article')).toHaveCount(2);
+  await expect(page.getByRole('article')).toHaveCount(3);
 });

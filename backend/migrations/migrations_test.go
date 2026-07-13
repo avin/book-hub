@@ -46,3 +46,21 @@ func TestInitialDownMigrationDropsTables(t *testing.T) {
 		}
 	}
 }
+
+func TestEPUBMigrationExtendsBookFileFormatConstraint(t *testing.T) {
+	up, err := os.ReadFile("000002_add_epub_format.up.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(up), "format in ('pdf', 'fb2', 'epub')") {
+		t.Fatal("up migration does not allow EPUB")
+	}
+
+	down, err := os.ReadFile("000002_add_epub_format.down.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(down), "format in ('pdf', 'fb2')") {
+		t.Fatal("down migration does not restore the original format constraint")
+	}
+}

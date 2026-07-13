@@ -32,3 +32,18 @@ func TestDownloadBookUsesUTF8ContentDispositionForCyrillicTitle(t *testing.T) {
 		t.Fatalf("expected UTF-8 encoded Cyrillic in Content-Disposition, got %q", disposition)
 	}
 }
+
+func TestDownloadEPUBBookUsesEPUBContentType(t *testing.T) {
+	app := newTestApp(t, true)
+	client := app.client(t)
+	csrf := app.csrf(t, client)
+	app.register(t, client, csrf, "reader", "password", http.StatusCreated)
+	app.login(t, client, csrf, "reader", "password", http.StatusOK)
+
+	bookID := app.uploadBook(t, client, csrf, "book.epub", []byte("PK\x03\x04"))
+	response := app.requestRaw(t, client, http.MethodGet, "/v1/books/"+bookID+"/file", "", nil, http.StatusOK)
+
+	if got := response.header.Get("Content-Type"); got != "application/epub+zip" {
+		t.Fatalf("expected EPUB content type, got %q", got)
+	}
+}

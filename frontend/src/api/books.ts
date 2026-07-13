@@ -440,6 +440,10 @@ export function createDeleteBookCoverMutation() {
 }
 
 export async function fetchBookFileText(bookId: string) {
+  return readFb2BlobText(await fetchBookFileBlob(bookId));
+}
+
+export async function fetchBookFileBlob(bookId: string) {
   const response = await fetch(getBookFileUrl(bookId), {
     credentials: 'include',
   });
@@ -448,13 +452,21 @@ export async function fetchBookFileText(bookId: string) {
     throw await responseError(response);
   }
 
-  return readFb2BlobText(await response.blob());
+  return response.blob();
 }
 
 export function createBookFileTextQuery(bookId: () => string, enabled: () => boolean) {
   return createQuery(() => ({
     queryKey: ['book-file-text', bookId()],
     queryFn: () => fetchBookFileText(bookId()),
+    enabled: enabled() && Boolean(bookId()),
+  }));
+}
+
+export function createBookFileBlobQuery(bookId: () => string, enabled: () => boolean) {
+  return createQuery(() => ({
+    queryKey: ['book-file-blob', bookId()],
+    queryFn: () => fetchBookFileBlob(bookId()),
     enabled: enabled() && Boolean(bookId()),
   }));
 }

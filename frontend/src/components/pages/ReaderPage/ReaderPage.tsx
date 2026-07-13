@@ -3,6 +3,7 @@ import { createEffect, createMemo, createSignal, lazy, onCleanup, Show, Suspense
 import { ArrowLeft, Heart } from 'lucide-solid';
 import {
   createBookFileTextQuery,
+  createBookFileBlobQuery,
   createBookQuery,
   createReadingProgressQuery,
   createUpdateBookMutation,
@@ -15,6 +16,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import styles from './ReaderPage.module.scss';
 
 const Fb2Reader = lazy(() => import('@/components/common/Fb2Reader/Fb2Reader'));
+const EpubReader = lazy(() => import('@/components/common/EpubReader/EpubReader'));
 const PdfReader = lazy(() => import('@/components/common/PdfReader/PdfReader'));
 
 const progressSaveDelayMs = 1000;
@@ -44,9 +46,11 @@ function ReaderPage() {
   const bookQuery = createBookQuery(bookId);
   const progressQuery = createReadingProgressQuery(bookId);
   const fb2FileQuery = createBookFileTextQuery(bookId, () => bookQuery.data?.format === 'fb2');
+  const epubFileQuery = createBookFileBlobQuery(bookId, () => bookQuery.data?.format === 'epub');
   const updateBookMutation = createUpdateBookMutation();
   const updateProgressMutation = createUpdateReadingProgressMutation();
   const [pdfReady, setPdfReady] = createSignal(false);
+  const [epubReady, setEpubReady] = createSignal(false);
   let saveTimeout: number | undefined;
   let restoreTimeoutIds: number[] = [];
   let activeBookId = bookId();
@@ -55,9 +59,12 @@ function ReaderPage() {
   const book = createMemo(() => bookQuery.data);
   const isFb2 = createMemo(() => book()?.format === 'fb2');
   const isPdf = createMemo(() => book()?.format === 'pdf');
-  const canTrackProgress = createMemo(() => isFb2() || (isPdf() && pdfReady()));
+  const isEpub = createMemo(() => book()?.format === 'epub');
+  const canTrackProgress = createMemo(
+    () => isFb2() || (isEpub() && epubReady()) || (isPdf() && pdfReady()),
+  );
   const canRestoreProgress = createMemo(
-    () => (isFb2() && fb2FileQuery.data) || (isPdf() && pdfReady()),
+    () => (isFb2() && fb2FileQuery.data) || (isEpub() && epubReady()) || (isPdf() && pdfReady()),
   );
 
   const clearScheduledProgressSave = () => {
@@ -89,6 +96,7 @@ function ReaderPage() {
     activeBookId = currentBookId;
     restoredBookId = undefined;
     setPdfReady(false);
+    setEpubReady(false);
   });
 
   const toggleFavorite = () => {
@@ -238,6 +246,21 @@ function ReaderPage() {
             onReady={() => setPdfReady(true)}
           />
         </Suspense>
+      </Show>
+
+      <Show when={isEpub()}>
+        <Show when={epubFileQuery.data} fallback={<LoadingScreen label={t('loading')} />}>
+          {(epub) => (
+            <Suspense fallback={<LoadingScreen label={t('loading')} />}>
+              <EpubReader
+                epub={epub()}
+                class={styles.fb2Reader}
+                headerContent={chromeContent()}
+                onReady={() => setEpubReady(true)}
+              />
+            </Suspense>
+          )}
+        </Show>
       </Show>
     </div>
   );

@@ -426,8 +426,8 @@ export const messages = {
     en: 'Books selected: {count}',
   },
   supportedBookFormats: {
-    ru: 'FB2 или PDF, можно несколько файлов сразу',
-    en: 'FB2 or PDF, multiple files are supported',
+    ru: 'EPUB, FB2 или PDF, можно несколько файлов сразу',
+    en: 'EPUB, FB2 or PDF, multiple files are supported',
   },
   selectBookFile: {
     ru: 'Выберите файл книги',
@@ -460,6 +460,18 @@ export const messages = {
   titleCouldNotBeExtracted: {
     ru: 'Не удалось извлечь название',
     en: 'Title could not be extracted',
+  },
+  epubCouldNotBeOpened: {
+    ru: 'Не удалось открыть EPUB',
+    en: 'Could not open EPUB',
+  },
+  validatingEpub: {
+    ru: 'Проверяем EPUB',
+    en: 'Validating EPUB',
+  },
+  invalidEpub: {
+    ru: 'Некорректный EPUB нельзя загрузить',
+    en: 'An invalid EPUB cannot be uploaded',
   },
   uploadBooks: {
     ru: 'Загрузить книги',

@@ -185,7 +185,7 @@ export interface paths {
         put?: never;
         /**
          * Upload one book
-         * @description Uploads one PDF or FB2 file. Format is determined only from the original
+         * @description Uploads one PDF, FB2, or EPUB file. Format is determined only from the original
          *     filename extension.
          */
         post: operations["uploadBook"];
@@ -468,7 +468,7 @@ export interface components {
             updated_at: string;
         };
         /** @enum {string} */
-        BookFormat: "pdf" | "fb2";
+        BookFormat: "pdf" | "fb2" | "epub";
         BookUploadRequest: {
             /** Format: binary */
             file: string;
@@ -1007,7 +1007,7 @@ export interface operations {
                     "X-Request-Id": components["headers"]["RequestId"];
                     /**
                      * @description `inline` by default for the reader; `attachment` when `download=1` is set.
-                     *     Filename is built from sanitized title and format.
+                     *     Filename is built from the book title and format; non-ASCII titles use RFC 5987 `filename*`.
                      */
                     "Content-Disposition"?: string;
                     [name: string]: unknown;
@@ -1015,6 +1015,7 @@ export interface operations {
                 content: {
                     "application/pdf": string;
                     "application/xml": string;
+                    "application/epub+zip": string;
                 };
             };
             401: components["responses"]["Unauthorized"];

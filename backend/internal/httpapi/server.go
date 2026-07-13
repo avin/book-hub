@@ -508,8 +508,11 @@ func (s *Server) handleDownloadBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	contentType := "application/xml"
-	if book.Format == "pdf" {
+	switch book.Format {
+	case "pdf":
 		contentType = "application/pdf"
+	case "epub":
+		contentType = "application/epub+zip"
 	}
 	disposition := "inline"
 	if r.URL.Query().Get("download") == "1" {

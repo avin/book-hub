@@ -316,7 +316,7 @@ paths:
       operationId: uploadBook
       summary: Upload one book
       description: |
-        Uploads one PDF or FB2 file. Format is determined only from the original
+        Uploads one PDF, FB2, or EPUB file. Format is determined only from the original
         filename extension.
       security:
         - cookieAuth: []
@@ -460,6 +460,10 @@ paths:
                 type: string
                 format: binary
             application/xml:
+              schema:
+                type: string
+                format: binary
+            application/epub+zip:
               schema:
                 type: string
                 format: binary
@@ -1080,6 +1084,7 @@ components:
       enum:
         - pdf
         - fb2
+        - epub
 
     BookUploadRequest:
       type: object

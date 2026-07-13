@@ -17,6 +17,32 @@ test('загрузка книги отправляет замокированн�
   await expect(page).toHaveURL(/\/library$/);
 });
 
+test('загрузка принимает проверенный EPUB и блокирует повреждённый архив', async ({ page }) => {
+  await login(page);
+  await page.getByRole('link', { name: 'Загрузить книгу' }).click();
+  const input = page.locator('input[type="file"]');
+
+  await input.setInputFiles({
+    name: 'Проверенная книга.epub',
+    mimeType: 'application/epub+zip',
+    buffer: Buffer.from(bookMocks.epubFile),
+  });
+  await expect(page.getByText('Обложка не найдена')).toBeVisible();
+  await page.getByRole('button', { name: 'Загрузить книги' }).click();
+  await expect(page).toHaveURL(/\/library$/);
+
+  await page.getByRole('link', { name: 'Загрузить книгу' }).click();
+  await input.setInputFiles({
+    name: 'Повреждённая книга.epub',
+    mimeType: 'application/epub+zip',
+    buffer: Buffer.from('not an epub archive'),
+  });
+  await expect(page.getByText('Некорректный EPUB нельзя загрузить').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Загрузить книги' }).click();
+  await expect(page.getByText('Некорректный EPUB нельзя загрузить').last()).toBeVisible();
+  await expect(page).toHaveURL(/\/upload$/);
+});
+
 test('частичная ошибка загрузки оставляет только неудачный черновик', async ({ page }) => {
   await login(page);
   await page.getByRole('link', { name: 'Загрузить книгу' }).click();

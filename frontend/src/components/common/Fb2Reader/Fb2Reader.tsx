@@ -21,6 +21,7 @@ import { findFb2SearchMatches, normalizeSearchQuery, type Fb2SearchMatch } from 
 import type {
   CssVars,
   Fb2Block,
+  Fb2Document,
   Fb2Inline,
   Fb2Note,
   Fb2ReaderSettings,
@@ -139,7 +140,8 @@ function splitFootnote(
 }
 
 function Fb2Reader(props: {
-  fb2: string;
+  fb2?: string;
+  document?: Fb2Document;
   class?: string;
   initialSettings?: Partial<Fb2ReaderSettings>;
   headerContent?: JSX.Element;
@@ -183,7 +185,7 @@ function Fb2Reader(props: {
   const [layoutGeneration, setLayoutGeneration] = createSignal(0);
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
   let lastMeasuredLayout: VirtualLayout = { offsets: [], heights: [], totalHeight: 0 };
-  const parsed = createMemo(() => parseFb2(props.fb2));
+  const parsed = createMemo(() => props.document ?? parseFb2(props.fb2 ?? ''));
   const availableTextWidth = createMemo(() => readerWidth());
   const effectiveMaxTextWidth = createMemo(() =>
     draggingWidth() ? pendingMaxTextWidth() : settings().maxTextWidth,

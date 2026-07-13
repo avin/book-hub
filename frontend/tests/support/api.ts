@@ -109,8 +109,15 @@ export function createApiMocks(page: Page) {
           ? book.id === '00000000-0000-0000-0000-000000000103'
             ? books.pdfFileWithOutline
             : books.pdfFile
-          : books.fb2File;
-      const contentType = book.format === 'pdf' ? 'application/pdf' : 'application/xml';
+          : book.format === 'epub'
+            ? Buffer.from(books.epubFile)
+            : books.fb2File;
+      const contentType =
+        book.format === 'pdf'
+          ? 'application/pdf'
+          : book.format === 'epub'
+            ? 'application/epub+zip'
+            : 'application/xml';
       const download = new URL(route.request().url()).searchParams.get('download') === '1';
       const headers: Record<string, string> = {};
       if (download) {
