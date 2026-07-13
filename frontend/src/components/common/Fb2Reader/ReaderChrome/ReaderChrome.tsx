@@ -3,6 +3,7 @@ import { type JSX } from 'solid-js';
 import Button from '@/components/common/Button/Button';
 import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
 import WidthRuler from '@/components/common/WidthRuler/WidthRuler';
+import { useI18n } from '@/i18n/I18nProvider';
 
 function ReaderChrome(props: {
   visible: boolean;
@@ -33,7 +34,9 @@ function ReaderChrome(props: {
   onRulerPointerMove: (event: PointerEvent) => void;
   onRulerPointerUp: (event: PointerEvent) => void;
 }) {
-  const tocLabel = () => (props.tocAvailable ? 'Оглавление' : 'Оглавление недоступно');
+  const { t } = useI18n();
+  const tocLabel = () =>
+    props.tocAvailable ? t('tableOfContents') : t('tableOfContentsUnavailable');
 
   return (
     <ReaderFloatingChrome
@@ -56,8 +59,8 @@ function ReaderChrome(props: {
             type="button"
             iconOnly
             iconStart={<Settings />}
-            title="Настройки внешнего вида"
-            aria-label="Настройки внешнего вида"
+            title={t('readerAppearance')}
+            aria-label={t('readerAppearance')}
             aria-pressed={props.settingsOpen}
             onClick={props.onToggleSettings}
           />
@@ -79,7 +82,7 @@ function ReaderChrome(props: {
           availableWidth={props.availableTextWidth}
           currentWidth={props.currentTextWidth}
           markerStyles={props.markerStyles}
-          ariaLabel="Максимальная ширина текста"
+          ariaLabel={t('maxTextWidth')}
           onRulerRef={props.onRulerRef}
           onPointerDown={props.onRulerPointerDown}
           onPointerMove={props.onRulerPointerMove}

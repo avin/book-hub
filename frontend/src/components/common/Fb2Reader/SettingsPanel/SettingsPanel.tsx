@@ -3,6 +3,7 @@ import { For } from 'solid-js';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import ReaderSidePanel from '@/components/common/ReaderSidePanel/ReaderSidePanel';
+import { useI18n } from '@/i18n/I18nProvider';
 import { fontOptions } from '../fb2ReaderSettings';
 import type { Fb2ReaderSettings } from '../fb2Types';
 import styles from './SettingsPanel.module.scss';
@@ -23,6 +24,8 @@ function SettingsPanel(props: {
   onBeginAdjustLayout: () => void;
   onEndAdjustLayout: () => void;
 }) {
+  const { t } = useI18n();
+
   const captureLayoutAdjust = (event: PointerEvent) => {
     (event.currentTarget as HTMLInputElement).setPointerCapture(event.pointerId);
     props.onBeginAdjustLayout();
@@ -31,7 +34,7 @@ function SettingsPanel(props: {
   return (
     <ReaderSidePanel
       open={props.open}
-      title="Внешний вид"
+      title={t('readerAppearance')}
       onClose={props.onClose}
       footer={
         <div class={styles.panelActions}>
@@ -42,7 +45,7 @@ function SettingsPanel(props: {
             iconStart={<RotateCcw />}
             onClick={props.onReset}
           >
-            Сбросить
+            {t('reset')}
           </Button>
           <Button
             fullWidth
@@ -51,7 +54,7 @@ function SettingsPanel(props: {
             iconStart={<SlidersHorizontal />}
             onClick={props.onAutoWidth}
           >
-            Автоширина
+            {t('autoWidth')}
           </Button>
         </div>
       }
@@ -59,9 +62,9 @@ function SettingsPanel(props: {
       <section class={styles.settingGroup}>
         <h3>
           <Type size={17} />
-          Текст
+          {t('text')}
         </h3>
-        <InputContainer label="Шрифт">
+        <InputContainer label={t('font')}>
           <select
             value={props.settings.fontFamily}
             onInput={(event) => props.onUpdateSetting('fontFamily', event.currentTarget.value)}
@@ -71,7 +74,7 @@ function SettingsPanel(props: {
             </For>
           </select>
         </InputContainer>
-        <InputContainer label="Размер" labelEnd={`${props.settings.fontSize}px`}>
+        <InputContainer label={t('size')} labelEnd={`${props.settings.fontSize}px`}>
           <input
             type="range"
             min="14"
@@ -85,7 +88,7 @@ function SettingsPanel(props: {
             }
           />
         </InputContainer>
-        <InputContainer label="Интерлиньяж" labelEnd={props.settings.lineHeight.toFixed(2)}>
+        <InputContainer label={t('lineHeight')} labelEnd={props.settings.lineHeight.toFixed(2)}>
           <input
             type="range"
             min="1.2"
@@ -105,10 +108,10 @@ function SettingsPanel(props: {
       <section class={styles.settingGroup}>
         <h3>
           <AlignLeft size={17} />
-          Абзацы
+          {t('paragraphs')}
         </h3>
         <InputContainer
-          label="Отступ первой строки"
+          label={t('firstLineIndent')}
           labelEnd={`${props.settings.paragraphIndent}px`}
         >
           <input
@@ -125,7 +128,7 @@ function SettingsPanel(props: {
           />
         </InputContainer>
         <InputContainer
-          label="Отступ после абзаца"
+          label={t('paragraphSpacing')}
           labelEnd={`${props.settings.paragraphSpacing}px`}
         >
           <input
@@ -146,23 +149,23 @@ function SettingsPanel(props: {
       <section class={styles.settingGroup}>
         <h3>
           <Palette size={17} />
-          Цвета
+          {t('colors')}
         </h3>
-        <InputContainer label="Фон">
+        <InputContainer label={t('background')}>
           <input
             type="color"
             value={props.settings.backgroundColor}
             onInput={(event) => props.onUpdateSetting('backgroundColor', event.currentTarget.value)}
           />
         </InputContainer>
-        <InputContainer label="Текст">
+        <InputContainer label={t('text')}>
           <input
             type="color"
             value={props.settings.textColor}
             onInput={(event) => props.onUpdateSetting('textColor', event.currentTarget.value)}
           />
         </InputContainer>
-        <InputContainer label="Ссылки">
+        <InputContainer label={t('links')}>
           <input
             type="color"
             value={props.settings.linkColor}

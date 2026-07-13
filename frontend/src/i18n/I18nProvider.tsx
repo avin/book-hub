@@ -1,4 +1,4 @@
-import { createContext, createSignal, type JSX, useContext } from 'solid-js';
+import { createContext, createEffect, createSignal, type JSX, useContext } from 'solid-js';
 import { getLanguagePreference, setLanguagePreference } from '@/storage/browserPreferences';
 import { type Language, languages, type MessageKey, messages } from './messages';
 
@@ -38,6 +38,10 @@ export function I18nProvider(props: { children: JSX.Element }) {
   const [language, setLanguageSignal] = createSignal<Language>(detectLanguage());
   const [languageSaveRequest, setLanguageSaveRequest] = createSignal<LanguageSaveRequest>();
   let nextLanguageSaveRequestVersion = 0;
+
+  createEffect(() => {
+    document.documentElement.lang = language();
+  });
 
   const setLanguage = (nextLanguage: Language, options?: SetLanguageOptions) => {
     setLanguagePreference(nextLanguage);

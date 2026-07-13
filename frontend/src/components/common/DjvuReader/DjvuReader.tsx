@@ -972,8 +972,8 @@ function DjvuReader(props: {
               type="button"
               iconOnly
               iconStart={<ListTree />}
-              title={outline().length ? 'Оглавление' : 'Оглавление недоступно'}
-              aria-label={outline().length ? 'Оглавление' : 'Оглавление недоступно'}
+              title={outline().length ? t('tableOfContents') : t('tableOfContentsUnavailable')}
+              aria-label={outline().length ? t('tableOfContents') : t('tableOfContentsUnavailable')}
               aria-pressed={tocOpen()}
               disabled={!outlineLoaded() || !outline().length}
               onClick={() => setTocOpen(!tocOpen())}
@@ -985,7 +985,7 @@ function DjvuReader(props: {
             availableWidth={availableWidth()}
             currentWidth={baseWidth()}
             markerStyles={markerStyles()}
-            ariaLabel="Ширина страницы"
+            ariaLabel={t('pageWidth')}
             minWidth={minPageWidth}
             onRulerRef={setRulerElement}
             onPointerDown={(event) => {

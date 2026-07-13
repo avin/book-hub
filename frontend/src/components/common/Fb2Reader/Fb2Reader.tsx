@@ -43,6 +43,7 @@ import {
   setFb2ReaderSettingsPreference,
 } from '@/storage/browserPreferences';
 import styles from './Fb2Reader.module.scss';
+import { useI18n } from '@/i18n/I18nProvider';
 
 type ScrollAnchor = {
   blockIndex: number;
@@ -110,6 +111,7 @@ function inlineText(inlines: Fb2Inline[] | undefined): string {
 
 function splitFootnote(
   note: Fb2Note | undefined,
+  fallbackTitle: string,
 ): { title: string; blocks: Fb2Block[] } | undefined {
   if (!note) {
     return undefined;
@@ -135,7 +137,7 @@ function splitFootnote(
   const title = titleParts.join(' ');
 
   return {
-    title: title || 'Сноска',
+    title: title || fallbackTitle,
     blocks: note.blocks.slice(contentStartIndex),
   };
 }
@@ -148,6 +150,7 @@ function Fb2Reader(props: {
   initialSettings?: Partial<Fb2ReaderSettings>;
   headerContent?: JSX.Element;
 }) {
+  const { t } = useI18n();
   let rootRef: HTMLDivElement | undefined;
   let documentShellRef: HTMLElement | undefined;
   let documentRef: HTMLElement | undefined;
@@ -348,7 +351,7 @@ function Fb2Reader(props: {
 
     return id ? parsed().notes.get(id) : undefined;
   });
-  const activeFootnoteDialog = createMemo(() => splitFootnote(activeFootnote()));
+  const activeFootnoteDialog = createMemo(() => splitFootnote(activeFootnote(), t('footnote')));
   const anchorIndex = createMemo(() => {
     const index = new Map<string, number>();
 
@@ -1160,7 +1163,7 @@ function Fb2Reader(props: {
                   class={styles.footnoteCloseButton}
                   iconOnly
                   type="button"
-                  aria-label="Закрыть сноску"
+                  aria-label={t('closeFootnote')}
                   iconStart={<X />}
                   onClick={closeFootnote}
                 />

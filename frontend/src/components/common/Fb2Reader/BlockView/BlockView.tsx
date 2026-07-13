@@ -1,4 +1,5 @@
 import { For, Match, Show, Switch } from 'solid-js';
+import { useI18n } from '@/i18n/I18nProvider';
 import { inlinesText, type Fb2SearchRange } from '../fb2Search';
 import type { Fb2Block } from '../fb2Types';
 import { readerTextStyle } from '../readerTextStyle';
@@ -14,6 +15,7 @@ function BlockView(props: {
   isFootnoteTarget: (targetId: string) => boolean;
   searchRanges?: Fb2SearchRange[];
 }) {
+  const { t } = useI18n();
   const tableCellTextOffset = (rowIndex: number, cellIndex: number) => {
     const rows = props.block.rows ?? [];
     let offset = 0;
@@ -175,7 +177,7 @@ function BlockView(props: {
         <figure class={styles.figure}>
           <Show
             when={props.imageSrc(props.block.imageId)}
-            fallback={<div class={styles.missingImage}>Нет изображения</div>}
+            fallback={<div class={styles.missingImage}>{t('noImage')}</div>}
           >
             {(src) => <img src={src()} alt="" loading="lazy" />}
           </Show>

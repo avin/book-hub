@@ -54,7 +54,7 @@ export async function moveToAnchor(page: Page, title: string) {
 
 export async function openReaderSettings(page: Page) {
   await page.mouse.move(10, 10);
-  await page.getByRole('button', { name: 'Настройки внешнего вида' }).click();
+  await page.getByRole('button', { name: 'Внешний вид' }).click();
   await expect(page.getByRole('heading', { name: 'Внешний вид' })).toBeVisible();
 }
 

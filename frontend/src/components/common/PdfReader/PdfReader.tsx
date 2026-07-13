@@ -266,7 +266,9 @@ function PdfReader(props: {
   );
   const tocEntries = createMemo<TocEntry[]>(() => outlineEntries());
   const tocAvailable = createMemo(() => outlineLoaded() && tocEntries().length > 0);
-  const tocLabel = createMemo(() => (tocAvailable() ? 'Оглавление' : 'Оглавление недоступно'));
+  const tocLabel = createMemo(() =>
+    tocAvailable() ? t('tableOfContents') : t('tableOfContentsUnavailable'),
+  );
   const filterKey = createMemo(() => pdfFilterChainKey(filterChain()));
   const filtersEnabled = createMemo(() => hasEnabledPdfFilters(filterChain()));
   const textEnhancementFilter = createMemo(() => textEnhancementFilterFromChain(filterChain()));
@@ -1761,7 +1763,7 @@ function PdfReader(props: {
             availableWidth={availablePageWidth()}
             currentWidth={basePageWidth()}
             markerStyles={markerStyles()}
-            ariaLabel="Ширина страницы"
+            ariaLabel={t('pageWidth')}
             minWidth={minPageWidth}
             onRulerRef={(element) => {
               setRulerElement(element);
@@ -1857,7 +1859,7 @@ function PdfReader(props: {
                   'max-width': pageWidthOverflow() > 0 ? 'none' : '100%',
                   'aspect-ratio': `${page.width} / ${page.height}`,
                 }}
-                aria-label={`Страница ${page.pageNumber}`}
+                aria-label={`${t('page')} ${page.pageNumber}`}
               >
                 <canvas
                   class={styles.sourceCanvas}

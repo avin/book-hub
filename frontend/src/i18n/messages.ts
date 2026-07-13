@@ -129,6 +129,22 @@ export const messages = {
     ru: 'Номер страницы',
     en: 'Page number',
   },
+  pageWidth: {
+    ru: 'Ширина страницы',
+    en: 'Page width',
+  },
+  tableOfContents: {
+    ru: 'Оглавление',
+    en: 'Table of contents',
+  },
+  tableOfContentsUnavailable: {
+    ru: 'Оглавление недоступно',
+    en: 'Table of contents unavailable',
+  },
+  maxTextWidth: {
+    ru: 'Максимальная ширина текста',
+    en: 'Maximum text width',
+  },
   pageWidthIncrease: {
     ru: 'Увеличение ширины',
     en: 'Width increase',
@@ -152,6 +168,46 @@ export const messages = {
   autoWidth: {
     ru: 'Автоширина',
     en: 'Auto width',
+  },
+  text: {
+    ru: 'Текст',
+    en: 'Text',
+  },
+  font: {
+    ru: 'Шрифт',
+    en: 'Font',
+  },
+  size: {
+    ru: 'Размер',
+    en: 'Size',
+  },
+  lineHeight: {
+    ru: 'Интерлиньяж',
+    en: 'Line height',
+  },
+  paragraphs: {
+    ru: 'Абзацы',
+    en: 'Paragraphs',
+  },
+  firstLineIndent: {
+    ru: 'Отступ первой строки',
+    en: 'First-line indent',
+  },
+  paragraphSpacing: {
+    ru: 'Отступ после абзаца',
+    en: 'Paragraph spacing',
+  },
+  colors: {
+    ru: 'Цвета',
+    en: 'Colors',
+  },
+  background: {
+    ru: 'Фон',
+    en: 'Background',
+  },
+  links: {
+    ru: 'Ссылки',
+    en: 'Links',
   },
   textEnhancement: {
     ru: 'Усиление текста',
@@ -384,6 +440,18 @@ export const messages = {
   close: {
     ru: 'Закрыть',
     en: 'Close',
+  },
+  closeFootnote: {
+    ru: 'Закрыть сноску',
+    en: 'Close footnote',
+  },
+  footnote: {
+    ru: 'Сноска',
+    en: 'Footnote',
+  },
+  noImage: {
+    ru: 'Нет изображения',
+    en: 'No image',
   },
   title: {
     ru: 'Название',

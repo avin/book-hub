@@ -1,6 +1,7 @@
 import { X } from 'lucide-solid';
 import { type JSX, Show } from 'solid-js';
 import Button from '@/components/common/Button/Button';
+import { useI18n } from '@/i18n/I18nProvider';
 import styles from './ReaderSidePanel.module.scss';
 
 function ReaderSidePanel(props: {
@@ -10,6 +11,8 @@ function ReaderSidePanel(props: {
   children: JSX.Element;
   footer?: JSX.Element;
 }) {
+  const { t } = useI18n();
+
   return (
     <aside
       class={styles.readerSidePanel}
@@ -23,8 +26,8 @@ function ReaderSidePanel(props: {
           type="button"
           iconOnly
           iconStart={<X />}
-          title="Закрыть"
-          aria-label="Закрыть"
+          title={t('close')}
+          aria-label={t('close')}
           onClick={props.onClose}
         />
       </div>
