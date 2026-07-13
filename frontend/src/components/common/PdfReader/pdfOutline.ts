@@ -6,6 +6,11 @@ export type PdfOutlineEntry = {
   children?: PdfOutlineEntry[];
 };
 
+export type PdfDestination = {
+  pageNumber: number;
+  offsetRatio: number;
+};
+
 type PdfJsOutlineItem = {
   title: string;
   dest: string | Array<unknown> | null;
@@ -24,14 +29,12 @@ export function mapPdfOutline(items: PdfJsOutlineItem[] | null | undefined): Pdf
   }));
 }
 
-export async function scrollToPdfDestination(
+export async function resolvePdfDestination(
   document: PDFDocumentProxy,
   dest: string | Array<unknown> | null,
-  pageRefs: Map<number, HTMLElement>,
-  documentRef: HTMLElement | undefined,
   pageWidthPx: number,
-) {
-  if (!documentRef || !dest) {
+): Promise<PdfDestination | undefined> {
+  if (!dest) {
     return;
   }
 
@@ -49,12 +52,6 @@ export async function scrollToPdfDestination(
 
   const pageIndex = await document.getPageIndex(pageRef as { num: number; gen: number });
   const pageNumber = pageIndex + 1;
-  const pageElement = pageRefs.get(pageNumber);
-
-  if (!pageElement) {
-    return;
-  }
-
   const page = await document.getPage(pageNumber);
   const viewport = page.getViewport({ scale: 1 });
   const displayScale = pageWidthPx / viewport.width;
@@ -72,7 +69,5 @@ export async function scrollToPdfDestination(
 
   offsetTop = Math.max(0, Math.min(offsetTop, Math.max(0, displayHeight - 1)));
 
-  const pageTop = pageElement.getBoundingClientRect().top + window.scrollY;
-
-  window.scrollTo({ top: pageTop + offsetTop, behavior: 'instant' });
+  return { pageNumber, offsetRatio: offsetTop / displayHeight };
 }

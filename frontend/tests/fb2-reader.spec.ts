@@ -244,6 +244,22 @@ test('FB2 reader открывает оглавление, переходит к 
   await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeVisible();
 });
 
+test('FB2 reader восстанавливает переходы по оглавлению через историю браузера', async ({
+  page,
+}) => {
+  await openReader(page);
+  await page.evaluate(() => window.scrollTo({ top: 0 }));
+  await openReaderToc(page);
+  await page.getByRole('button', { name: 'Глава 50' }).click();
+  await expect.poll(() => anchorTop(page, 'Глава 50')).toBeLessThan(120);
+
+  await page.goBack();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
+
+  await page.goForward();
+  await expect.poll(() => anchorTop(page, 'Глава 50')).toBeLessThan(120);
+});
+
 test('FB2 reader взаимно исключает панели настроек и оглавления', async ({ page }) => {
   await openReader(page);
   await openReaderSettings(page);
@@ -324,4 +340,31 @@ test('читатель EPUB использует общий интерфейс �
   const noteLink = page.locator('main button').filter({ hasText: '[1]' });
   await noteLink.click();
   await expect(page.getByRole('dialog', { name: 'Сноска' })).toContainText('Текст EPUB-сноски.');
+});
+
+test('читатель EPUB восстанавливает переходы по внутренним ссылкам через историю браузера', async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole('link', { name: 'EPUB для проверки' }).click();
+  await expect(page.getByRole('heading', { name: 'Глава EPUB' })).toBeVisible();
+  await page.evaluate(() => window.scrollTo({ top: 0 }));
+
+  await page.getByRole('button', { name: 'ссылкой' }).click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+  await page.waitForTimeout(500);
+  const destinationScrollY = await page.evaluate(() => window.scrollY);
+
+  await page.goBack();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
+
+  await page.goForward();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (targetScrollY) => Math.abs(window.scrollY - targetScrollY),
+        destinationScrollY,
+      ),
+    )
+    .toBeLessThan(2);
 });

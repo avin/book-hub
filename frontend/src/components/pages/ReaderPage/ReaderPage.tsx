@@ -230,7 +230,12 @@ function ReaderPage() {
         <Show when={fb2FileQuery.data} fallback={<LoadingScreen label={t('loading')} />}>
           {(fb2) => (
             <Suspense fallback={<LoadingScreen label={t('loading')} />}>
-              <Fb2Reader fb2={fb2()} class={styles.fb2Reader} headerContent={chromeContent()} />
+              <Fb2Reader
+                fb2={fb2()}
+                historyId={bookId()}
+                class={styles.fb2Reader}
+                headerContent={chromeContent()}
+              />
             </Suspense>
           )}
         </Show>
@@ -254,6 +259,7 @@ function ReaderPage() {
             <Suspense fallback={<LoadingScreen label={t('loading')} />}>
               <EpubReader
                 epub={epub()}
+                historyId={bookId()}
                 class={styles.fb2Reader}
                 headerContent={chromeContent()}
                 onReady={() => setEpubReady(true)}

@@ -7,6 +7,7 @@ import type { EpubDocument } from './epubTypes';
 
 function EpubReader(props: {
   epub: Blob;
+  historyId?: string;
   class?: string;
   headerContent?: JSX.Element;
   onReady?: () => void;
@@ -53,7 +54,12 @@ function EpubReader(props: {
       }
     >
       {(parsed) => (
-        <Fb2Reader document={parsed()} class={props.class} headerContent={props.headerContent} />
+        <Fb2Reader
+          document={parsed()}
+          historyId={props.historyId}
+          class={props.class}
+          headerContent={props.headerContent}
+        />
       )}
     </Show>
   );

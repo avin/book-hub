@@ -22,6 +22,7 @@ import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import PdfFilterPanel from './PdfFilterPanel/PdfFilterPanel';
 import useReaderChrome from '@/components/common/ReaderChrome/useReaderChrome';
+import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
 import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
 import TextInput from '@/components/common/TextInput/TextInput';
 import TocPanel from '@/components/common/TocPanel/TocPanel';
@@ -43,7 +44,7 @@ import {
   setPdfReaderHorizontalScrollPositionPreference,
   setPdfReaderPageWidthOverflowPreference,
 } from '@/storage/browserPreferences';
-import { mapPdfOutline, scrollToPdfDestination, type PdfOutlineEntry } from './pdfOutline';
+import { mapPdfOutline, resolvePdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import PdfTextHighlighter from './PdfTextHighlighter';
 import {
   defaultPdfFilterChain,
@@ -510,6 +511,23 @@ function PdfReader(props: {
     }
   };
 
+  const scrollToPdfAnchor = (anchor: ScrollAnchor) => {
+    const pageElement = pageRefs.get(anchor.pageNumber);
+
+    if (!pageElement) {
+      return;
+    }
+
+    const pageTop = pageElement.getBoundingClientRect().top + window.scrollY;
+
+    window.scrollTo({
+      top: Math.max(0, pageTop + pageElement.offsetHeight * clamp(anchor.offsetRatio, 0, 1)),
+      behavior: 'instant',
+    });
+    setCurrentPage(anchor.pageNumber);
+    setPageInputValue(String(anchor.pageNumber));
+  };
+
   const goToPage = (value: string) => {
     const pageList = pages();
 
@@ -536,6 +554,29 @@ function PdfReader(props: {
     setCurrentPage(nextPage);
     setPageInputValue(String(nextPage));
   };
+
+  const readerNavigationHistory = useReaderNavigationHistory({
+    readerId: untrack(() => props.bookId ?? props.fileUrl),
+    captureLocation: captureScrollAnchor,
+    restoreLocation: scrollToPdfAnchor,
+    isLocation: (value): value is ScrollAnchor => {
+      if (typeof value !== 'object' || value === null) {
+        return false;
+      }
+
+      const location = value as Partial<ScrollAnchor>;
+
+      return (
+        typeof location.pageNumber === 'number' &&
+        Number.isInteger(location.pageNumber) &&
+        location.pageNumber > 0 &&
+        typeof location.offsetRatio === 'number' &&
+        Number.isFinite(location.offsetRatio) &&
+        location.offsetRatio >= 0 &&
+        location.offsetRatio <= 1
+      );
+    },
+  });
 
   const searchEventBus = new EventBus();
   const searchLinkService = {
@@ -1379,7 +1420,16 @@ function PdfReader(props: {
       return;
     }
 
-    void scrollToPdfDestination(pdfDocument, node.dest, pageRefs, documentRef, pageWidth());
+    const previousLocation = captureScrollAnchor();
+
+    void resolvePdfDestination(pdfDocument, node.dest, pageWidth()).then((location) => {
+      if (!location) {
+        return;
+      }
+
+      readerNavigationHistory.recordNavigation(location, previousLocation);
+      scrollToPdfAnchor(location);
+    });
   };
 
   type SearchDirection = 'next' | 'previous';

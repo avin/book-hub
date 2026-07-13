@@ -255,6 +255,24 @@ test('PDF reader открывает оглавление и переходит �
   await expect(page.getByRole('heading', { name: 'Оглавление' })).toBeVisible();
 });
 
+test('PDF reader восстанавливает переходы по оглавлению через историю браузера', async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await expect(page.getByRole('region', { name: /^Страница 1$/ }).locator('canvas')).toBeVisible();
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Оглавление', exact: true }).click();
+  await page.getByRole('button', { name: 'Second page' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('2');
+
+  await page.goBack();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');
+
+  await page.goForward();
+  await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('2');
+});
+
 test('PDF позволяет выделить и скопировать встроенный текст', async ({ page }) => {
   await login(page);
   await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();

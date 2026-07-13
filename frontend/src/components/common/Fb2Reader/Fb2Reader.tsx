@@ -31,6 +31,7 @@ import type {
 import ReaderChrome from './ReaderChrome/ReaderChrome';
 import SettingsPanel from './SettingsPanel/SettingsPanel';
 import useReaderChrome from '@/components/common/ReaderChrome/useReaderChrome';
+import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
 import TocPanel from '@/components/common/TocPanel/TocPanel';
 import type { TocEntry } from '@/components/common/TocPanel/TocList/TocList';
 import {
@@ -142,6 +143,7 @@ function splitFootnote(
 function Fb2Reader(props: {
   fb2?: string;
   document?: Fb2Document;
+  historyId?: string;
   class?: string;
   initialSettings?: Partial<Fb2ReaderSettings>;
   headerContent?: JSX.Element;
@@ -481,6 +483,28 @@ function Fb2Reader(props: {
     setScrollTop(blockTop);
   };
 
+  const readerNavigationHistory = useReaderNavigationHistory({
+    readerId: untrack(() => props.historyId ?? 'fb2-reader'),
+    captureLocation: captureScrollAnchor,
+    restoreLocation: restoreScrollAnchorAfterLayout,
+    isLocation: (value): value is ScrollAnchor => {
+      if (typeof value !== 'object' || value === null) {
+        return false;
+      }
+
+      const location = value as Partial<ScrollAnchor>;
+
+      return (
+        typeof location.blockIndex === 'number' &&
+        Number.isInteger(location.blockIndex) &&
+        location.blockIndex >= 0 &&
+        typeof location.offsetPx === 'number' &&
+        Number.isFinite(location.offsetPx) &&
+        location.offsetPx >= 0
+      );
+    },
+  });
+
   type SearchDirection = 'next' | 'previous';
 
   const currentSearchPosition = () => {
@@ -632,6 +656,7 @@ function Fb2Reader(props: {
     const blockIndex = anchorIndex().get(node.targetId);
 
     if (blockIndex !== undefined) {
+      readerNavigationHistory.recordNavigation({ blockIndex, offsetPx: 0 });
       scrollToBlockIndex(blockIndex, 'instant');
     }
   };
@@ -643,6 +668,7 @@ function Fb2Reader(props: {
       return;
     }
 
+    readerNavigationHistory.recordNavigation({ blockIndex, offsetPx: 0 });
     scrollToBlockIndex(blockIndex);
   };
 
