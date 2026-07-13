@@ -95,6 +95,45 @@ test('PDF reader открывает панель фильтров и показ�
   }
 });
 
+test('PDF reader сохраняет увеличение ширины относительно viewport при его изменении', async ({
+  page,
+}) => {
+  const bookId = '00000000-0000-0000-0000-000000000102';
+
+  await page.setViewportSize({ width: 640, height: 720 });
+  await login(page);
+  await page.evaluate((id) => {
+    localStorage.setItem(
+      'book-hub-preferences',
+      JSON.stringify({
+        version: 1,
+        readers: {
+          pdf: {
+            pageWidthOverflows: {
+              [id]: 40,
+            },
+          },
+        },
+      }),
+    );
+  }, bookId);
+
+  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  const document = page.locator('[data-page-number="1"]');
+  await expect(document.locator('canvas')).toBeVisible();
+
+  const widthRatio = () =>
+    document.evaluate((element) => {
+      const reader = element.parentElement?.parentElement;
+
+      return reader ? element.getBoundingClientRect().width / reader.clientWidth : 0;
+    });
+
+  await expect.poll(widthRatio).toBeCloseTo(1.4, 2);
+  await page.setViewportSize({ width: 1000, height: 720 });
+  await expect.poll(widthRatio).toBeCloseTo(1.4, 2);
+});
+
 test('PDF reader настраивает мягкое утолщение текста отдельно от исходного фильтра', async ({
   page,
 }) => {

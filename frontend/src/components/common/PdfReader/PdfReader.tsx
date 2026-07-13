@@ -112,8 +112,20 @@ function pageWidthForAvailableWidth(customWidth: number | undefined, availableWi
   return Math.min(availableWidth, Math.max(minPageWidth, customWidth));
 }
 
-function pageWidthWithOverflow(width: number, overflow: number) {
-  return width * (1 + overflow / 100);
+function pageWidthWithOverflow(width: number, overflow: number, overflowReferenceWidth = width) {
+  return overflow === 0 ? width : overflowReferenceWidth * (1 + overflow / 100);
+}
+
+function pageWidthOverflowReference(
+  customWidth: number | undefined,
+  availableWidth: number,
+  viewportWidth: number,
+) {
+  if (customWidth === undefined || customWidth > availableWidth) {
+    return viewportWidth;
+  }
+
+  return pageWidthForAvailableWidth(customWidth, availableWidth);
 }
 
 function scrollYForAnchor(
@@ -236,7 +248,13 @@ function PdfReader(props: {
   const basePageWidth = createMemo(() =>
     pageWidthForAvailableWidth(maxPageWidth(), availablePageWidth()),
   );
-  const pageWidth = createMemo(() => pageWidthWithOverflow(basePageWidth(), pageWidthOverflow()));
+  const viewportPageWidth = createMemo(() => availablePageWidth() + documentPaddingX * 2);
+  const pageWidthOverflowReferenceWidth = createMemo(() =>
+    pageWidthOverflowReference(maxPageWidth(), availablePageWidth(), viewportPageWidth()),
+  );
+  const pageWidth = createMemo(() =>
+    pageWidthWithOverflow(basePageWidth(), pageWidthOverflow(), pageWidthOverflowReferenceWidth()),
+  );
   const markerStyles = createMemo(() =>
     computeWidthRulerMarkers(
       rulerElement(),
@@ -351,13 +369,15 @@ function PdfReader(props: {
 
   const resolvePageWidthPx = (width: number | undefined) => {
     const availableWidth = resolveAvailablePageWidthPx();
+    const baseWidth = pageWidthForAvailableWidth(
+      width === undefined ? undefined : Math.round(width),
+      availableWidth,
+    );
 
     return pageWidthWithOverflow(
-      pageWidthForAvailableWidth(
-        width === undefined ? undefined : Math.round(width),
-        availableWidth,
-      ),
+      baseWidth,
       pageWidthOverflow(),
+      pageWidthOverflowReference(width, availableWidth, availableWidth + documentPaddingX * 2),
     );
   };
 
@@ -799,9 +819,15 @@ function PdfReader(props: {
     }
 
     const nextAvailableWidth = Math.max(minPageWidth, nextWidth);
+    const nextBasePageWidth = pageWidthForAvailableWidth(maxPageWidth(), nextAvailableWidth);
     const nextPageWidth = pageWidthWithOverflow(
-      pageWidthForAvailableWidth(maxPageWidth(), nextAvailableWidth),
+      nextBasePageWidth,
       pageWidthOverflow(),
+      pageWidthOverflowReference(
+        maxPageWidth(),
+        nextAvailableWidth,
+        nextAvailableWidth + documentPaddingX * 2,
+      ),
     );
 
     if (Math.abs(nextPageWidth - pageWidth()) >= 0.5) {
@@ -830,7 +856,11 @@ function PdfReader(props: {
   const updatePageWidthOverflow = (value: number) => {
     const nextOverflow = clampPdfPageWidthOverflow(value);
     const anchor = currentScrollAnchor();
-    const nextPageWidth = pageWidthWithOverflow(basePageWidth(), nextOverflow);
+    const nextPageWidth = pageWidthWithOverflow(
+      basePageWidth(),
+      nextOverflow,
+      pageWidthOverflowReferenceWidth(),
+    );
 
     if (anchor) {
       applySynchronizedScrollAnchor(anchor, nextPageWidth);
