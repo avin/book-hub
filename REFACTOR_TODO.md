@@ -68,7 +68,7 @@
   Файл: `frontend/src/components/common/EpubReader/epubParser.ts`.  
   `unzipSync`, XML-парсинг, обработка CSS, base64-конвертация ресурсов и построение модели выполняются на главном потоке. Лимит распакованного EPUB — 512 МиБ, поэтому допустимый файл может надолго заморозить вкладку и потребить кратно больше памяти. Перенести разбор в Web Worker, ввести отдельные лимиты на текст/изображения и отказ до полной распаковки.
 
-- [ ] **Завершить локализацию читалок и HTML-документа.**  
+- [x] **Завершить локализацию читалок и HTML-документа.**  
   Файлы: `frontend/src/components/common/DjvuReader/DjvuReader.tsx`, `frontend/src/components/common/PdfReader/PdfReader.tsx`, `frontend/src/components/common/TocPanel/TocPanel.tsx`, `frontend/src/components/common/Fb2Reader/Fb2Reader.tsx`, `frontend/src/components/common/Fb2Reader/ReaderChrome/ReaderChrome.tsx`, `frontend/src/components/common/TagsSelect/TagsSelect.tsx`, `frontend/index.html`.  
   При переключении на английский остаются русские `Оглавление`, `Оглавление недоступно`, `Ширина страницы`, `Сноска`; у удаления тега захардкожен английский `Remove`. Атрибут `<html lang>` всегда `ru`. Перенести строки в `messages.ts` и синхронизировать `document.documentElement.lang` с `I18nProvider`.
 
