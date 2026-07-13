@@ -284,6 +284,12 @@ test('читатель EPUB использует общий интерфейс �
   await page.getByRole('link', { name: 'EPUB для проверки' }).click();
   await expect(page.getByRole('heading', { name: 'Глава EPUB' })).toBeVisible();
   await expect(page.getByText('Текст EPUB в блочном контейнере.')).toBeVisible();
+  const images = page.locator('main img');
+  await expect(images).toHaveCount(2);
+  const cover = images.nth(0);
+  const illustration = images.nth(1);
+  expect((await cover.boundingBox())?.width).toBeGreaterThan(300);
+  expect((await illustration.boundingBox())?.width).toBeGreaterThan(300);
 
   await expect(page.getByText('171', { exact: true })).toHaveCSS('text-align', 'center');
   const italicLine = page.locator('p').filter({ hasText: 'Курсивная строка' });

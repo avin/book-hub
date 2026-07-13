@@ -379,6 +379,14 @@ function preservesLineBreaks(textStyle: ReaderTextStyle | undefined) {
   return textStyle?.whiteSpace === 'pre-line' || textStyle?.whiteSpace === 'pre-wrap';
 }
 
+function isFootnoteReference(element: Element) {
+  return (
+    hasToken(element, 'epub:type', 'noteref') ||
+    hasToken(element, 'role', 'doc-noteref') ||
+    hasToken(element, 'type', 'note')
+  );
+}
+
 function inlineNodes(
   nodes: NodeListOf<ChildNode> | ChildNode[],
   path: string,
@@ -438,9 +446,8 @@ function inlineNodes(
     let inline: Fb2Inline | undefined;
     if (name === 'a') {
       const href = hrefTarget(node.getAttribute('href'), path, ids);
-      const isNote =
-        hasToken(node, 'epub:type', 'noteref') || hasToken(node, 'role', 'doc-noteref');
       const target = href.replace(/^#/, '');
+      const isNote = Boolean(target) && isFootnoteReference(node);
       if (isNote && target) noteTargets.add(target);
       inline = { kind: 'link', href, linkType: isNote ? 'note' : undefined, children };
     } else if (map[name]) inline = { kind: map[name], children };
@@ -524,6 +531,20 @@ function hasReadableInline(inlines: Fb2Inline[]): boolean {
   );
 }
 
+function standaloneImageId(inlines: Fb2Inline[]): string | undefined {
+  const meaningfulInlines = inlines.filter(
+    (inline) => inline.kind !== 'text' || Boolean(inline.text?.trim()),
+  );
+  if (meaningfulInlines.length !== 1) return undefined;
+
+  const [inline] = meaningfulInlines;
+  if (!inline) return undefined;
+  if (inline.kind === 'image') return inline.imageId;
+  return inline.kind === 'epubStyle' && inline.children
+    ? standaloneImageId(inline.children)
+    : undefined;
+}
+
 function blocksFrom(
   root: Element,
   path: string,
@@ -563,21 +584,21 @@ function blocksFrom(
           preservesLineBreaks(base.textStyle),
         ),
       });
-    else if (name === 'p')
-      blocks.push({
-        ...base,
-        kind: 'paragraph',
-        inlines: inlineNodes(
-          element.childNodes,
-          path,
-          ids,
-          noteTargets,
-          resources,
-          styles,
-          preservesLineBreaks(base.textStyle),
-        ),
-      });
-    else if (name === 'li')
+    else if (name === 'p') {
+      const inlines = inlineNodes(
+        element.childNodes,
+        path,
+        ids,
+        noteTargets,
+        resources,
+        styles,
+        preservesLineBreaks(base.textStyle),
+      );
+      const imageId = standaloneImageId(inlines);
+      blocks.push(
+        imageId ? { ...base, kind: 'image', imageId } : { ...base, kind: 'paragraph', inlines },
+      );
+    } else if (name === 'li')
       blocks.push({
         ...base,
         kind: 'listItem',
@@ -621,7 +642,9 @@ function blocksFrom(
         styles,
         preservesLineBreaks(base.textStyle),
       );
-      if (!hasBlockChildren(element) && hasReadableInline(inlines))
+      const imageId = standaloneImageId(inlines);
+      if (imageId) blocks.push({ ...base, kind: 'image', imageId });
+      else if (!hasBlockChildren(element) && hasReadableInline(inlines))
         blocks.push({ ...base, kind: 'paragraph', inlines });
       else Array.from(element.children).forEach((child) => visit(child, target));
     }

@@ -27,7 +27,7 @@ test('загрузка принимает проверенный EPUB и бло�
     mimeType: 'application/epub+zip',
     buffer: Buffer.from(bookMocks.epubFile),
   });
-  await expect(page.getByText('Обложка не найдена')).toBeVisible();
+  await expect(page.locator('img').first()).toBeVisible();
   await page.getByRole('button', { name: 'Загрузить книги' }).click();
   await expect(page).toHaveURL(/\/library$/);
 
