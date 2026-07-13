@@ -64,6 +64,12 @@ function uniqueTags(existingTags: string[], drafts: BookDraft[]) {
   return [...tags.values()].sort((left, right) => left.localeCompare(right));
 }
 
+function appendTags(existingTags: string[], tags: string[]) {
+  const existingTagsSet = new Set(existingTags);
+
+  return [...existingTags, ...tags.filter((tag) => !existingTagsSet.has(tag))];
+}
+
 function titleFromFile(file: File) {
   return file.name.replace(/\.[^.]+$/, '');
 }
@@ -131,6 +137,8 @@ function UploadPage() {
   const [drafts, setDrafts] = createSignal<BookDraft[]>([]);
   const [dragActive, setDragActive] = createSignal(false);
   const [uploading, setUploading] = createSignal(false);
+  const [bulkTags, setBulkTags] = createSignal<string[]>([]);
+  const [uploadProgress, setUploadProgress] = createSignal<{ completed: number; total: number }>();
   const [error, setError] = createSignal('');
   let fileInputEl: HTMLInputElement | undefined;
   const coverInputByDraftId = new Map<string, HTMLInputElement>();
@@ -147,6 +155,7 @@ function UploadPage() {
   });
   const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], drafts()));
   const canSubmit = createMemo(() => drafts().length > 0 && !uploading());
+  const hasMultipleDrafts = createMemo(() => drafts().length > 1);
 
   const beginDraftPreparation = (draftId: string) => {
     preparationAbortByDraftId.get(draftId)?.abort();
@@ -462,6 +471,21 @@ function UploadPage() {
     );
   };
 
+  const applyBulkTags = () => {
+    const tags = bulkTags();
+    if (!tags.length) {
+      return;
+    }
+
+    setDrafts((currentDrafts) =>
+      currentDrafts.map((draft) => ({
+        ...draft,
+        tags: appendTags(draft.tags, tags),
+        uploadError: undefined,
+      })),
+    );
+  };
+
   const uploadDraft = async (draft: BookDraft) => {
     updateDraft(draft.id, (currentDraft) => ({
       ...currentDraft,
@@ -523,7 +547,9 @@ function UploadPage() {
       return;
     }
 
+    const totalDrafts = drafts().length;
     setUploading(true);
+    setUploadProgress(totalDrafts > 1 ? { completed: 0, total: totalDrafts } : undefined);
     setError('');
     lockPage();
     batchInProgress = true;
@@ -535,7 +561,13 @@ function UploadPage() {
       const uploadableDrafts = drafts();
       const results: boolean[] = [];
       for (const draft of uploadableDrafts) {
-        results.push(await uploadDraft(draft));
+        const isUploaded = await uploadDraft(draft);
+        results.push(isUploaded);
+        if (isUploaded && isPageActive) {
+          setUploadProgress((progress) =>
+            progress ? { ...progress, completed: progress.completed + 1 } : progress,
+          );
+        }
       }
 
       if (!isPageActive) {
@@ -552,6 +584,7 @@ function UploadPage() {
       batchInProgress = false;
       if (isPageActive) {
         setUploading(false);
+        setUploadProgress(undefined);
       }
       unlockPage();
     }
@@ -617,6 +650,27 @@ function UploadPage() {
           />
 
           <Show when={drafts().length > 0}>
+            <Show when={hasMultipleDrafts()}>
+              <section class={styles.bulkTags}>
+                <InputContainer label={t('tagsForAll')}>
+                  <TagsSelect
+                    value={bulkTags()}
+                    options={tagOptions()}
+                    onChange={setBulkTags}
+                    disabled={uploading()}
+                  />
+                </InputContainer>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={uploading() || bulkTags().length === 0}
+                  onClick={applyBulkTags}
+                >
+                  {t('applyTagsToAll')}
+                </Button>
+              </section>
+            </Show>
+
             <div class={styles.bookDrafts}>
               <Index each={drafts()}>
                 {(draft) => (
@@ -745,6 +799,25 @@ function UploadPage() {
           </Show>
 
           <footer class={styles.actions}>
+            <Show when={uploadProgress()}>
+              {(progress) => (
+                <div
+                  class={styles.uploadProgress}
+                  role="progressbar"
+                  aria-label={t('uploadProgress')
+                    .replace('{count}', String(progress().completed))
+                    .replace('{total}', String(progress().total))}
+                  aria-valuemin="0"
+                  aria-valuemax={progress().total}
+                  aria-valuenow={progress().completed}
+                >
+                  <div
+                    class={styles.uploadProgressBar}
+                    style={{ width: `${(progress().completed / progress().total) * 100}%` }}
+                  />
+                </div>
+              )}
+            </Show>
             <Button
               type="submit"
               loading={uploading()}

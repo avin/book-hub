@@ -557,6 +557,18 @@ export const messages = {
     ru: 'Загрузить книги',
     en: 'Upload books',
   },
+  tagsForAll: {
+    ru: 'Теги для всех книг',
+    en: 'Tags for all books',
+  },
+  applyTagsToAll: {
+    ru: 'Применить теги для всех',
+    en: 'Apply tags to all',
+  },
+  uploadProgress: {
+    ru: 'Загружено {count} из {total}',
+    en: 'Uploaded {count} of {total}',
+  },
   remove: {
     ru: 'Убрать',
     en: 'Remove',

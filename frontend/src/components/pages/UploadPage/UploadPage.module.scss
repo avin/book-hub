@@ -95,6 +95,18 @@
   gap: 14px;
 }
 
+.bulkTags {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: $radius-md;
+  background: var(--surface-raised);
+  box-shadow: $shadow-xs;
+}
+
 .bookDraft {
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr);
@@ -216,8 +228,25 @@
 
 .actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.uploadProgress {
+  overflow: hidden;
+  width: min(240px, 100%);
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+}
+
+.uploadProgressBar {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width $duration-fast $ease-standard;
 }
 
 @media (max-width: 720px) {
@@ -237,8 +266,16 @@
     width: 96px;
   }
 
+  .bulkTags {
+    grid-template-columns: 1fr;
+  }
+
   .actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .uploadProgress {
+    width: 100%;
   }
 }
