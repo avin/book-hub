@@ -93,6 +93,12 @@ test('DJVU reader отрисовывает страницу, обнаружив�
   await expect(highlights).toHaveCount(1);
   await expect(selectedHighlight).toHaveText('Reliable');
 
+  await selectedHighlight.evaluate((element) => {
+    element.dataset.searchMarker = 'persistent';
+  });
+  await nextMatch.click();
+  await expect(selectedHighlight).toHaveAttribute('data-search-marker', 'persistent');
+
   await previousMatch.click();
   await expect(search.getByText('1/1')).toBeVisible();
   await expect(selectedHighlight).toHaveText('Reliable');

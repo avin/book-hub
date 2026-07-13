@@ -330,10 +330,10 @@ function DjvuReader(props: {
       span.dataset.textZoneWidth = String(zone.width / page.width);
 
       const zoneMatches = searchMatches()
-        .flatMap((match) =>
+        .flatMap((match, matchIndex) =>
           (match.pageNumber === pageNumber ? match.segments : [])
             .filter((segment) => segment.zoneIndex === zoneIndex)
-            .map((segment) => ({ ...segment, selected: selected === match })),
+            .map((segment) => ({ ...segment, matchIndex, selected: selected === match })),
         )
         .sort((first, second) => first.start - second.start);
       let textOffset = 0;
@@ -342,6 +342,7 @@ function DjvuReader(props: {
 
         const highlight = document.createElement('mark');
         highlight.className = `highlight${match.selected ? ' selected' : ''}`;
+        highlight.dataset.searchMatchIndex = String(match.matchIndex);
         highlight.textContent = zone.text.slice(match.start, match.start + match.length);
         span.append(highlight);
         textOffset = match.start + match.length;
@@ -493,6 +494,43 @@ function DjvuReader(props: {
     for (const page of pages()) renderTextLayer(page.pageNumber);
   };
 
+  const scrollToSearchMatch = (match: SearchMatch | undefined) => {
+    if (!match) return;
+
+    if (searchScrollFrame !== undefined) cancelAnimationFrame(searchScrollFrame);
+    searchScrollFrame = requestAnimationFrame(() => {
+      searchScrollFrame = undefined;
+      textLayerRefs
+        .get(match.pageNumber)
+        ?.querySelector<HTMLElement>('.highlight.selected')
+        ?.scrollIntoView({ behavior: 'instant', block: 'center' });
+    });
+  };
+
+  const selectSearchMatch = (matches: SearchMatch[], nextIndex: number) => {
+    const previousIndex = selectedMatch();
+    const previous = matches[previousIndex];
+    const next = matches[nextIndex];
+
+    for (const pageNumber of new Set([previous?.pageNumber, next?.pageNumber])) {
+      if (!pageNumber) continue;
+      textLayerRefs
+        .get(pageNumber)
+        ?.querySelectorAll<HTMLElement>('.highlight.selected')
+        .forEach((element) => element.classList.remove('selected'));
+    }
+
+    if (next) {
+      textLayerRefs
+        .get(next.pageNumber)
+        ?.querySelectorAll<HTMLElement>(`[data-search-match-index="${nextIndex}"]`)
+        .forEach((element) => element.classList.add('selected'));
+    }
+
+    setSelectedMatch(nextIndex);
+    scrollToSearchMatch(next);
+  };
+
   const search = async (direction: 1 | -1) => {
     const query = searchValue().trim();
     if (!query || !worker) {
@@ -503,6 +541,15 @@ function DjvuReader(props: {
     const currentSearchGeneration = ++searchGeneration;
     const normalizedQuery = query.toLocaleLowerCase();
     const isContinuation = executedSearchQuery === query;
+    if (isContinuation) {
+      const matches = searchMatches();
+      const nextIndex = matches.length
+        ? (selectedMatch() + direction + matches.length) % matches.length
+        : -1;
+      selectSearchMatch(matches, nextIndex);
+      return;
+    }
+
     const matches: SearchMatch[] = [];
     for (const page of pages()) {
       let zones = textByPage.get(page.pageNumber);
@@ -541,39 +588,25 @@ function DjvuReader(props: {
     executedSearchQuery = query;
     setSearchMatches(matches);
     let firstMatchIndex = -1;
-    if (!isContinuation) {
-      if (direction === 1) {
-        firstMatchIndex = matches.findIndex((match) => match.pageNumber >= currentPage());
-      } else {
-        for (let index = matches.length - 1; index >= 0; index -= 1) {
-          if (matches[index].pageNumber <= currentPage()) {
-            firstMatchIndex = index;
-            break;
-          }
+    if (direction === 1) {
+      firstMatchIndex = matches.findIndex((match) => match.pageNumber >= currentPage());
+    } else {
+      for (let index = matches.length - 1; index >= 0; index -= 1) {
+        if (matches[index].pageNumber <= currentPage()) {
+          firstMatchIndex = index;
+          break;
         }
       }
     }
     const nextIndex = matches.length
-      ? isContinuation
-        ? (selectedMatch() + direction + matches.length) % matches.length
-        : firstMatchIndex >= 0
-          ? firstMatchIndex
-          : direction === 1
-            ? 0
-            : matches.length - 1
+      ? firstMatchIndex >= 0
+        ? firstMatchIndex
+        : direction === 1
+          ? 0
+          : matches.length - 1
       : -1;
-    setSelectedMatch(nextIndex);
-    const selected = matches[nextIndex];
     for (const page of pages()) renderTextLayer(page.pageNumber);
-    if (selected) {
-      searchScrollFrame = requestAnimationFrame(() => {
-        searchScrollFrame = undefined;
-        textLayerRefs
-          .get(selected.pageNumber)
-          ?.querySelector<HTMLElement>('.highlight.selected')
-          ?.scrollIntoView({ behavior: 'instant', block: 'center' });
-      });
-    }
+    selectSearchMatch(matches, nextIndex);
   };
 
   const selectToc = async (entry: TocEntry) => {
