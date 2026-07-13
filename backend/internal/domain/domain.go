@@ -202,6 +202,8 @@ func NormalizeBookFormat(filename string) (string, error) {
 		return "fb2", nil
 	case "epub":
 		return "epub", nil
+	case "djvu", "djv":
+		return "djvu", nil
 	default:
 		return "", ErrUnsupportedFormat
 	}

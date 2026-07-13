@@ -130,8 +130,8 @@ export const messages = {
     en: 'Width increase',
   },
   pdfFilters: {
-    ru: 'Фильтры PDF',
-    en: 'PDF filters',
+    ru: 'Фильтры страницы',
+    en: 'Page filters',
   },
   readerAppearance: {
     ru: 'Внешний вид',
@@ -214,8 +214,8 @@ export const messages = {
     en: 'Reset all',
   },
   pdfFiltersUnavailable: {
-    ru: 'Фильтры недоступны: браузер не поддерживает WebGL или обработка страницы завершилась ошибкой. PDF продолжает отображаться без фильтров.',
-    en: 'Filters are unavailable: the browser does not support WebGL or page processing failed. The PDF remains available without filters.',
+    ru: 'Фильтры недоступны: браузер не поддерживает WebGL или обработка страницы завершилась ошибкой. Книга продолжает отображаться без фильтров.',
+    en: 'Filters are unavailable: the browser does not support WebGL or page processing failed. The book remains available without filters.',
   },
   tags: {
     ru: 'Теги',
@@ -426,8 +426,8 @@ export const messages = {
     en: 'Books selected: {count}',
   },
   supportedBookFormats: {
-    ru: 'EPUB, FB2 или PDF, можно несколько файлов сразу',
-    en: 'EPUB, FB2 or PDF, multiple files are supported',
+    ru: 'DJVU, EPUB, FB2 или PDF, можно несколько файлов сразу',
+    en: 'DJVU, EPUB, FB2 or PDF, multiple files are supported',
   },
   selectBookFile: {
     ru: 'Выберите файл книги',
@@ -472,6 +472,14 @@ export const messages = {
   invalidEpub: {
     ru: 'Некорректный EPUB нельзя загрузить',
     en: 'An invalid EPUB cannot be uploaded',
+  },
+  validatingDjvu: {
+    ru: 'Проверяем DJVU',
+    en: 'Validating DJVU',
+  },
+  invalidDjvu: {
+    ru: 'Некорректный DJVU нельзя загрузить',
+    en: 'An invalid DJVU cannot be uploaded',
   },
   uploadBooks: {
     ru: 'Загрузить книги',

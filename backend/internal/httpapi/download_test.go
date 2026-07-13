@@ -47,3 +47,21 @@ func TestDownloadEPUBBookUsesEPUBContentType(t *testing.T) {
 		t.Fatalf("expected EPUB content type, got %q", got)
 	}
 }
+
+func TestDownloadDJVUBookNormalizesExtensionAndUsesDJVUContentType(t *testing.T) {
+	app := newTestApp(t, true)
+	client := app.client(t)
+	csrf := app.csrf(t, client)
+	app.register(t, client, csrf, "reader", "password", http.StatusCreated)
+	app.login(t, client, csrf, "reader", "password", http.StatusOK)
+
+	bookID := app.uploadBook(t, client, csrf, "book.DJV", []byte("AT&TFORM"))
+	response := app.requestRaw(t, client, http.MethodGet, "/v1/books/"+bookID+"/file", "", nil, http.StatusOK)
+
+	if got := response.header.Get("Content-Type"); got != "image/vnd.djvu" {
+		t.Fatalf("expected DJVU content type, got %q", got)
+	}
+	if got := response.header.Get("Content-Disposition"); !strings.Contains(got, "filename=\"Uploaded.djvu\"") {
+		t.Fatalf("expected normalized DJVU filename, got %q", got)
+	}
+}

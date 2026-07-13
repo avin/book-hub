@@ -18,6 +18,7 @@ import styles from './ReaderPage.module.scss';
 const Fb2Reader = lazy(() => import('@/components/common/Fb2Reader/Fb2Reader'));
 const EpubReader = lazy(() => import('@/components/common/EpubReader/EpubReader'));
 const PdfReader = lazy(() => import('@/components/common/PdfReader/PdfReader'));
+const DjvuReader = lazy(() => import('@/components/common/DjvuReader/DjvuReader'));
 
 const progressSaveDelayMs = 1000;
 
@@ -50,6 +51,7 @@ function ReaderPage() {
   const updateBookMutation = createUpdateBookMutation();
   const updateProgressMutation = createUpdateReadingProgressMutation();
   const [pdfReady, setPdfReady] = createSignal(false);
+  const [djvuReady, setDjvuReady] = createSignal(false);
   const [epubReady, setEpubReady] = createSignal(false);
   let saveTimeout: number | undefined;
   let restoreTimeoutIds: number[] = [];
@@ -59,12 +61,18 @@ function ReaderPage() {
   const book = createMemo(() => bookQuery.data);
   const isFb2 = createMemo(() => book()?.format === 'fb2');
   const isPdf = createMemo(() => book()?.format === 'pdf');
+  const isDjvu = createMemo(() => book()?.format === 'djvu');
   const isEpub = createMemo(() => book()?.format === 'epub');
   const canTrackProgress = createMemo(
-    () => isFb2() || (isEpub() && epubReady()) || (isPdf() && pdfReady()),
+    () =>
+      isFb2() || (isEpub() && epubReady()) || (isPdf() && pdfReady()) || (isDjvu() && djvuReady()),
   );
   const canRestoreProgress = createMemo(
-    () => (isFb2() && fb2FileQuery.data) || (isEpub() && epubReady()) || (isPdf() && pdfReady()),
+    () =>
+      (isFb2() && fb2FileQuery.data) ||
+      (isEpub() && epubReady()) ||
+      (isPdf() && pdfReady()) ||
+      (isDjvu() && djvuReady()),
   );
 
   const clearScheduledProgressSave = () => {
@@ -96,6 +104,7 @@ function ReaderPage() {
     activeBookId = currentBookId;
     restoredBookId = undefined;
     setPdfReady(false);
+    setDjvuReady(false);
     setEpubReady(false);
   });
 
@@ -197,8 +206,8 @@ function ReaderPage() {
 
     clearScheduledProgressRestore();
     restoredBookId = currentBookId;
-    const restoreDelayMs = isPdf() ? 80 : 350;
-    const confirmRestoreDelayMs = isPdf() ? 260 : 900;
+    const restoreDelayMs = isPdf() || isDjvu() ? 80 : 350;
+    const confirmRestoreDelayMs = isPdf() || isDjvu() ? 260 : 900;
     const progressPercent = progress.progress_percent;
 
     restoreTimeoutIds = [
@@ -249,6 +258,18 @@ function ReaderPage() {
             class={styles.pdfReader}
             headerContent={chromeContent()}
             onReady={() => setPdfReady(true)}
+          />
+        </Suspense>
+      </Show>
+
+      <Show when={isDjvu()}>
+        <Suspense fallback={<LoadingScreen label={t('loading')} />}>
+          <DjvuReader
+            bookId={bookId()}
+            fileUrl={getBookFileUrl(bookId())}
+            class={styles.pdfReader}
+            headerContent={chromeContent()}
+            onReady={() => setDjvuReady(true)}
           />
         </Suspense>
       </Show>

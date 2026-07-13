@@ -68,6 +68,16 @@ func TestMoveBookDeduplicatesExistingPhysicalFile(t *testing.T) {
 	}
 }
 
+func TestBookPathUsesCanonicalDJVUFormat(t *testing.T) {
+	store := files.New(t.TempDir())
+	sha256Hex := strings.Repeat("a", 64)
+
+	path := store.BookPath(sha256Hex, "djvu")
+	if filepath.Base(path) != sha256Hex+".djvu" {
+		t.Fatalf("unexpected DJVU storage path: %s", path)
+	}
+}
+
 func TestSaveCoverCreatesOriginalAndThumbnail(t *testing.T) {
 	store := files.New(t.TempDir())
 	cover, err := store.SaveCover("book-id", "png", testPNG(t, 300, 400), 1024*1024)

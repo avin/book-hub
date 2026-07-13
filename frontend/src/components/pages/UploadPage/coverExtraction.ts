@@ -4,6 +4,7 @@ import { parseFb2 } from '@/components/common/Fb2Reader/fb2Parser';
 import { readFb2BlobText } from '@/components/common/Fb2Reader/fb2TextDecoder';
 import type { Fb2Binary } from '@/components/common/Fb2Reader/fb2Types';
 import { extractEpubMetadata } from '@/components/common/EpubReader/epubParser';
+import { createDjVuWorker, type DjVuWorker } from '@/api/djvujs';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
 
@@ -81,6 +82,12 @@ function isEpub(file: File) {
   return file.name.toLowerCase().endsWith('.epub');
 }
 
+function isDjvu(file: File) {
+  const fileName = file.name.toLowerCase();
+
+  return fileName.endsWith('.djvu') || fileName.endsWith('.djv');
+}
+
 function normalizeImageType(contentType: string) {
   return contentType.split(';')[0].trim().toLowerCase() || 'application/octet-stream';
 }
@@ -107,6 +114,16 @@ function loadImage(blob: Blob) {
       URL.revokeObjectURL(url);
       reject(new Error('Cover image could not be decoded'));
     };
+    image.src = url;
+  });
+}
+
+function loadImageUrl(url: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Cover image could not be decoded'));
     image.src = url;
   });
 }
@@ -264,6 +281,74 @@ async function extractEpubCover(
   };
 }
 
+async function withDjvuWorker<T>(
+  file: File,
+  signal: AbortSignal | undefined,
+  run: (worker: DjVuWorker) => Promise<T>,
+): Promise<T> {
+  throwIfAborted(signal);
+  const worker = await abortable(createDjVuWorker(), signal);
+
+  try {
+    const buffer = await abortable(file.arrayBuffer(), signal);
+    await abortable(worker.createDocument(buffer), signal);
+    throwIfAborted(signal);
+
+    if (!(await abortable(worker.doc.isBundled().run(), signal))) {
+      throw new Error('Indirect DJVU is not supported');
+    }
+
+    const pageCount = await abortable(worker.doc.getPagesQuantity().run(), signal);
+
+    if (pageCount < 1) {
+      throw new Error('DJVU does not contain pages');
+    }
+
+    return await run(worker);
+  } finally {
+    worker.reset();
+    worker.worker.terminate();
+  }
+}
+
+async function extractDjvuCover(
+  file: File,
+  options?: BookPreparationOptions,
+): Promise<PreparedBookFile> {
+  return withDjvuWorker(file, options?.signal, async (worker) => {
+    const pageImage = await abortable(
+      worker.doc.getPage(1).createPngObjectUrl().run(),
+      options?.signal,
+    );
+
+    try {
+      const image = await abortable(loadImageUrl(pageImage.url), options?.signal);
+      const scale = Math.min(
+        1,
+        MAX_COVER_WIDTH / image.naturalWidth,
+        MAX_COVER_HEIGHT / image.naturalHeight,
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        return {};
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const coverBlob = await canvasToBlob(canvas, 'image/jpeg', COVER_QUALITY);
+
+      return {
+        coverFile: new File([coverBlob], coverFileName(file.name, 'jpg'), { type: 'image/jpeg' }),
+      };
+    } finally {
+      worker.revokeObjectURL(pageImage.url);
+    }
+  });
+}
+
 export async function prepareBookFile(
   file: File,
   options?: BookPreparationOptions,
@@ -278,6 +363,10 @@ export async function prepareBookFile(
 
   if (isEpub(file)) {
     return extractEpubCover(file, options);
+  }
+
+  if (isDjvu(file)) {
+    return extractDjvuCover(file, options);
   }
 
   return {};
@@ -304,6 +393,10 @@ export async function extractBookTitle(file: File, options?: BookPreparationOpti
   if (isEpub(file)) {
     const metadata = await extractEpubMetadata(file, { signal });
     return bookTitle(metadata.authors, metadata.title);
+  }
+
+  if (isDjvu(file)) {
+    return '';
   }
 
   if (!isPdf(file)) {

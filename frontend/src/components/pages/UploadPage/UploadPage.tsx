@@ -21,6 +21,7 @@ import styles from './UploadPage.module.scss';
 type CoverStatus = 'pending' | 'ready' | 'missing' | 'failed';
 type UploadStatus = 'idle' | 'uploading' | 'failed';
 type EpubValidationStatus = 'pending' | 'ready' | 'failed';
+type DjvuValidationStatus = 'pending' | 'ready' | 'failed';
 
 type BookDraft = {
   id: string;
@@ -32,6 +33,7 @@ type BookDraft = {
   coverSource?: 'auto' | 'manual';
   coverStatus: CoverStatus;
   epubValidationStatus: EpubValidationStatus;
+  djvuValidationStatus: DjvuValidationStatus;
   coverError?: string;
   titleExtracting: boolean;
   titleError?: string;
@@ -72,12 +74,20 @@ function isSupportedBookFile(file: File) {
     file.type === 'application/pdf' ||
     fileName.endsWith('.pdf') ||
     fileName.endsWith('.fb2') ||
-    fileName.endsWith('.epub')
+    fileName.endsWith('.epub') ||
+    fileName.endsWith('.djvu') ||
+    fileName.endsWith('.djv')
   );
 }
 
 function isEpubBookFile(file: File) {
   return file.name.toLowerCase().endsWith('.epub');
+}
+
+function isDjvuBookFile(file: File) {
+  const fileName = file.name.toLowerCase();
+
+  return fileName.endsWith('.djvu') || fileName.endsWith('.djv');
 }
 
 function createDraftId() {
@@ -234,6 +244,9 @@ function UploadPage() {
           epubValidationStatus: isEpubBookFile(currentDraft.file)
             ? 'ready'
             : currentDraft.epubValidationStatus,
+          djvuValidationStatus: isDjvuBookFile(currentDraft.file)
+            ? 'ready'
+            : currentDraft.djvuValidationStatus,
         };
       });
     } catch (nextError) {
@@ -247,6 +260,9 @@ function UploadPage() {
         epubValidationStatus: isEpubBookFile(currentDraft.file)
           ? 'failed'
           : currentDraft.epubValidationStatus,
+        djvuValidationStatus: isDjvuBookFile(currentDraft.file)
+          ? 'failed'
+          : currentDraft.djvuValidationStatus,
         coverError:
           currentDraft.coverSource === 'manual'
             ? currentDraft.coverError
@@ -274,6 +290,7 @@ function UploadPage() {
       tags: [],
       coverStatus: 'pending' as const,
       epubValidationStatus: isEpubBookFile(file) ? ('pending' as const) : ('ready' as const),
+      djvuValidationStatus: isDjvuBookFile(file) ? ('pending' as const) : ('ready' as const),
       titleExtracting: false,
       uploadStatus: 'idle' as const,
     }));
@@ -320,6 +337,9 @@ function UploadPage() {
         epubValidationStatus: isEpubBookFile(currentDraft.file)
           ? 'ready'
           : currentDraft.epubValidationStatus,
+        djvuValidationStatus: isDjvuBookFile(currentDraft.file)
+          ? 'ready'
+          : currentDraft.djvuValidationStatus,
       }));
     } catch (nextError) {
       if (isAbortError(nextError)) {
@@ -333,6 +353,9 @@ function UploadPage() {
         epubValidationStatus: isEpubBookFile(currentDraft.file)
           ? 'failed'
           : currentDraft.epubValidationStatus,
+        djvuValidationStatus: isDjvuBookFile(currentDraft.file)
+          ? 'failed'
+          : currentDraft.djvuValidationStatus,
       }));
     } finally {
       finishDraftPreparation(id, preparation);
@@ -479,6 +502,7 @@ function UploadPage() {
     }
 
     const epubDrafts = drafts().filter((draft) => isEpubBookFile(draft.file));
+    const djvuDrafts = drafts().filter((draft) => isDjvuBookFile(draft.file));
     if (epubDrafts.some((draft) => draft.epubValidationStatus === 'pending')) {
       setError(t('validatingEpub'));
       return;
@@ -486,6 +510,16 @@ function UploadPage() {
 
     if (epubDrafts.some((draft) => draft.epubValidationStatus === 'failed')) {
       setError(t('invalidEpub'));
+      return;
+    }
+
+    if (djvuDrafts.some((draft) => draft.djvuValidationStatus === 'pending')) {
+      setError(t('validatingDjvu'));
+      return;
+    }
+
+    if (djvuDrafts.some((draft) => draft.djvuValidationStatus === 'failed')) {
+      setError(t('invalidDjvu'));
       return;
     }
 
@@ -574,7 +608,7 @@ function UploadPage() {
             ref={fileInputEl}
             class={styles.fileInput}
             type="file"
-            accept=".epub,.pdf,.fb2"
+            accept=".djvu,.djv,.epub,.pdf,.fb2"
             multiple
             onChange={(event) => {
               addFiles(event.currentTarget.files ?? []);

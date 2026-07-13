@@ -34,6 +34,12 @@ type BrowserPreferences = {
       horizontalScrollPositions?: Record<string, unknown>;
       filterChains?: Record<string, unknown>;
     };
+    fixedLayout?: {
+      contentWidth?: number;
+      pageWidthOverflows?: Record<string, unknown>;
+      horizontalScrollPositions?: Record<string, unknown>;
+      filterChains?: Record<string, unknown>;
+    };
   };
 };
 
@@ -173,6 +179,40 @@ function pdfReaderPreferencesForWrite(preferences: BrowserPreferences) {
   return isRecord(pdf) ? pdf : undefined;
 }
 
+function fixedLayoutReaderPreferencesForWrite(preferences: BrowserPreferences) {
+  const readers = preferences.readers;
+  const fixedLayout = isRecord(readers) ? readers.fixedLayout : undefined;
+
+  return isRecord(fixedLayout) ? fixedLayout : pdfReaderPreferencesForWrite(preferences);
+}
+
+function fixedLayoutReaderPreferences() {
+  const preferences = readPreferences();
+  const readers = readerPreferencesForWrite(preferences);
+  const fixedLayout = readers?.fixedLayout;
+
+  if (isRecord(fixedLayout)) {
+    return fixedLayout;
+  }
+
+  const legacyPdf = readers?.pdf;
+
+  if (!isRecord(legacyPdf)) {
+    return undefined;
+  }
+
+  const migrated: BrowserPreferences = {
+    ...preferences,
+    readers: {
+      ...readers,
+      fixedLayout: legacyPdf,
+    },
+  };
+
+  writeRawPreferences(migrated);
+  return legacyPdf;
+}
+
 function sanitizeFb2ReaderSettings(settings: unknown): Partial<Fb2ReaderSettings> | undefined {
   if (!isRecord(settings)) {
     return undefined;
@@ -266,18 +306,26 @@ export function setFb2ReaderSettingsPreference(settings: Fb2ReaderSettings) {
 }
 
 export function getPdfReaderContentWidthPreference() {
-  const contentWidth = readReaderPreferences()?.pdf?.contentWidth;
+  return getFixedLayoutReaderContentWidthPreference();
+}
+
+export function getFixedLayoutReaderContentWidthPreference() {
+  const contentWidth = fixedLayoutReaderPreferences()?.contentWidth;
 
   return finiteNumber(contentWidth);
 }
 
 export function setPdfReaderContentWidthPreference(contentWidth: number | undefined) {
+  setFixedLayoutReaderContentWidthPreference(contentWidth);
+}
+
+export function setFixedLayoutReaderContentWidthPreference(contentWidth: number | undefined) {
   updatePreferences((preferences) => ({
     ...preferences,
     readers: {
       ...readerPreferencesForWrite(preferences),
-      pdf: {
-        ...pdfReaderPreferencesForWrite(preferences),
+      fixedLayout: {
+        ...fixedLayoutReaderPreferencesForWrite(preferences),
         ...(contentWidth === undefined ? { contentWidth: undefined } : { contentWidth }),
       },
     },
@@ -285,7 +333,11 @@ export function setPdfReaderContentWidthPreference(contentWidth: number | undefi
 }
 
 export function getPdfReaderPageWidthOverflowPreference(bookId: string) {
-  const pageWidthOverflows = readReaderPreferences()?.pdf?.pageWidthOverflows;
+  return getFixedLayoutReaderPageWidthOverflowPreference(bookId);
+}
+
+export function getFixedLayoutReaderPageWidthOverflowPreference(bookId: string) {
+  const pageWidthOverflows = fixedLayoutReaderPreferences()?.pageWidthOverflows;
 
   if (!isRecord(pageWidthOverflows)) {
     return defaultPdfPageWidthOverflow;
@@ -299,16 +351,24 @@ export function getPdfReaderPageWidthOverflowPreference(bookId: string) {
 }
 
 export function setPdfReaderPageWidthOverflowPreference(bookId: string, pageWidthOverflow: number) {
+  setFixedLayoutReaderPageWidthOverflowPreference(bookId, pageWidthOverflow);
+}
+
+export function setFixedLayoutReaderPageWidthOverflowPreference(
+  bookId: string,
+  pageWidthOverflow: number,
+) {
   updatePreferences((preferences) => {
-    const currentPageWidthOverflows = pdfReaderPreferencesForWrite(preferences)?.pageWidthOverflows;
+    const currentPageWidthOverflows =
+      fixedLayoutReaderPreferencesForWrite(preferences)?.pageWidthOverflows;
     const pageWidthOverflows = isRecord(currentPageWidthOverflows) ? currentPageWidthOverflows : {};
 
     return {
       ...preferences,
       readers: {
         ...readerPreferencesForWrite(preferences),
-        pdf: {
-          ...pdfReaderPreferencesForWrite(preferences),
+        fixedLayout: {
+          ...fixedLayoutReaderPreferencesForWrite(preferences),
           pageWidthOverflows: {
             ...pageWidthOverflows,
             [bookId]: clampPdfPageWidthOverflow(pageWidthOverflow),
@@ -320,7 +380,11 @@ export function setPdfReaderPageWidthOverflowPreference(bookId: string, pageWidt
 }
 
 export function getPdfReaderHorizontalScrollPositionPreference(bookId: string) {
-  const horizontalScrollPositions = readReaderPreferences()?.pdf?.horizontalScrollPositions;
+  return getFixedLayoutReaderHorizontalScrollPositionPreference(bookId);
+}
+
+export function getFixedLayoutReaderHorizontalScrollPositionPreference(bookId: string) {
+  const horizontalScrollPositions = fixedLayoutReaderPreferences()?.horizontalScrollPositions;
 
   return isRecord(horizontalScrollPositions)
     ? unitIntervalNumber(horizontalScrollPositions[bookId])
@@ -331,8 +395,16 @@ export function setPdfReaderHorizontalScrollPositionPreference(
   bookId: string,
   position: number | undefined,
 ) {
+  setFixedLayoutReaderHorizontalScrollPositionPreference(bookId, position);
+}
+
+export function setFixedLayoutReaderHorizontalScrollPositionPreference(
+  bookId: string,
+  position: number | undefined,
+) {
   updatePreferences((preferences) => {
-    const currentPositions = pdfReaderPreferencesForWrite(preferences)?.horizontalScrollPositions;
+    const currentPositions =
+      fixedLayoutReaderPreferencesForWrite(preferences)?.horizontalScrollPositions;
     const horizontalScrollPositions = isRecord(currentPositions) ? currentPositions : {};
     const nextPositions = { ...horizontalScrollPositions };
 
@@ -346,8 +418,8 @@ export function setPdfReaderHorizontalScrollPositionPreference(
       ...preferences,
       readers: {
         ...readerPreferencesForWrite(preferences),
-        pdf: {
-          ...pdfReaderPreferencesForWrite(preferences),
+        fixedLayout: {
+          ...fixedLayoutReaderPreferencesForWrite(preferences),
           horizontalScrollPositions: nextPositions,
         },
       },
@@ -356,7 +428,11 @@ export function setPdfReaderHorizontalScrollPositionPreference(
 }
 
 export function getPdfReaderFilterChainPreference(bookId: string) {
-  const filterChains = readReaderPreferences()?.pdf?.filterChains;
+  return getFixedLayoutReaderFilterChainPreference(bookId);
+}
+
+export function getFixedLayoutReaderFilterChainPreference(bookId: string) {
+  const filterChains = fixedLayoutReaderPreferences()?.filterChains;
 
   if (!isRecord(filterChains)) {
     return undefined;
@@ -366,16 +442,20 @@ export function getPdfReaderFilterChainPreference(bookId: string) {
 }
 
 export function setPdfReaderFilterChainPreference(bookId: string, chain: PdfFilterChain) {
+  setFixedLayoutReaderFilterChainPreference(bookId, chain);
+}
+
+export function setFixedLayoutReaderFilterChainPreference(bookId: string, chain: PdfFilterChain) {
   updatePreferences((preferences) => {
-    const currentFilterChains = pdfReaderPreferencesForWrite(preferences)?.filterChains;
+    const currentFilterChains = fixedLayoutReaderPreferencesForWrite(preferences)?.filterChains;
     const filterChains = isRecord(currentFilterChains) ? currentFilterChains : {};
 
     return {
       ...preferences,
       readers: {
         ...readerPreferencesForWrite(preferences),
-        pdf: {
-          ...pdfReaderPreferencesForWrite(preferences),
+        fixedLayout: {
+          ...fixedLayoutReaderPreferencesForWrite(preferences),
           filterChains: {
             ...filterChains,
             [bookId]: chain,

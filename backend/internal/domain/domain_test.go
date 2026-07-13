@@ -66,6 +66,8 @@ func TestNormalizeBookFormat(t *testing.T) {
 		{filename: "book.pdf", want: "pdf"},
 		{filename: "book.FB2", want: "fb2"},
 		{filename: "book.EPUB", want: "epub"},
+		{filename: "book.djvu", want: "djvu"},
+		{filename: "book.DJV", want: "djvu"},
 	} {
 		t.Run(test.filename, func(t *testing.T) {
 			got, err := domain.NormalizeBookFormat(test.filename)

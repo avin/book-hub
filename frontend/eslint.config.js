@@ -6,7 +6,12 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'storybook-static/**', 'public/pdfjs-assets/**'],
+    ignores: [
+      'dist/**',
+      'storybook-static/**',
+      'public/pdfjs-assets/**',
+      'public/djvujs-assets/**',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

@@ -64,3 +64,21 @@ func TestEPUBMigrationExtendsBookFileFormatConstraint(t *testing.T) {
 		t.Fatal("down migration does not restore the original format constraint")
 	}
 }
+
+func TestDJVUMigrationExtendsBookFileFormatConstraint(t *testing.T) {
+	up, err := os.ReadFile("000003_add_djvu_format.up.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(up), "format in ('pdf', 'fb2', 'epub', 'djvu')") {
+		t.Fatal("up migration does not allow DJVU")
+	}
+
+	down, err := os.ReadFile("000003_add_djvu_format.down.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(down), "format in ('pdf', 'fb2', 'epub')") {
+		t.Fatal("down migration does not restore the previous format constraint")
+	}
+}

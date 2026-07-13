@@ -185,8 +185,8 @@ export interface paths {
         put?: never;
         /**
          * Upload one book
-         * @description Uploads one PDF, FB2, or EPUB file. Format is determined only from the original
-         *     filename extension.
+         * @description Uploads one PDF, FB2, EPUB, or DJVU file. Format is determined only from the original
+         *     filename extension. DJVU files must use the `.djvu` or `.djv` extension.
          */
         post: operations["uploadBook"];
         delete?: never;
@@ -468,7 +468,7 @@ export interface components {
             updated_at: string;
         };
         /** @enum {string} */
-        BookFormat: "pdf" | "fb2" | "epub";
+        BookFormat: "pdf" | "fb2" | "epub" | "djvu";
         BookUploadRequest: {
             /** Format: binary */
             file: string;
@@ -1016,6 +1016,7 @@ export interface operations {
                     "application/pdf": string;
                     "application/xml": string;
                     "application/epub+zip": string;
+                    "image/vnd.djvu": string;
                 };
             };
             401: components["responses"]["Unauthorized"];

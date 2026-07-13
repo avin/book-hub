@@ -513,6 +513,8 @@ func (s *Server) handleDownloadBook(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/pdf"
 	case "epub":
 		contentType = "application/epub+zip"
+	case "djvu":
+		contentType = "image/vnd.djvu"
 	}
 	disposition := "inline"
 	if r.URL.Query().Get("download") == "1" {
