@@ -14,6 +14,7 @@ function ReaderFloatingChrome(props: {
   bottomContent?: JSX.Element;
   searchValue?: string;
   searchCount?: { current: number; total: number };
+  searchUnavailableMessage?: string;
   onSearchValueChange?: (value: string) => void;
   onSearchNext?: () => void;
   onSearchPrevious?: () => void;
@@ -168,6 +169,11 @@ function ReaderFloatingChrome(props: {
                 {searchCount()}
               </span>
             </div>
+          </Show>
+          <Show when={props.searchValue === undefined && props.searchUnavailableMessage}>
+            <span class={styles.searchCount} role="status">
+              {props.searchUnavailableMessage}
+            </span>
           </Show>
 
           <div class={styles.positionContent}>{props.bottomContent}</div>

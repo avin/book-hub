@@ -1,0 +1,122 @@
+import { readFile } from 'node:fs/promises';
+import { expect, test } from './fixtures';
+import * as bookMocks from './mocks/books';
+import { login } from './support/api';
+
+const djvuBookId = '00000000-0000-0000-0000-000000000105';
+
+test('DJVU reader отрисовывает страницу, обнаруживает OCR и переходит между страницами', async ({
+  page,
+}) => {
+  const file = await readFile(new URL('./fixtures/djvu/sample2.djvu', import.meta.url));
+  const book = {
+    ...bookMocks.items[0],
+    id: djvuBookId,
+    title: 'DJVU с OCR',
+    format: 'djvu',
+    size_bytes: file.byteLength,
+  };
+
+  await login(page);
+  await page.route(`**/api/v1/books/${djvuBookId}`, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(book),
+    });
+  });
+  await page.route(`**/api/v1/books/${djvuBookId}/file`, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({ status: 200, contentType: 'image/vnd.djvu', body: file });
+  });
+
+  await page.goto(`/reader/${djvuBookId}`);
+
+  const firstPage = page.locator('[data-page-number="1"]');
+  const firstCanvas = firstPage.locator('canvas').first();
+  await expect(firstCanvas).toBeVisible({ timeout: 30_000 });
+  await expect
+    .poll(() => firstCanvas.evaluate((canvas) => canvas.width > 0 && canvas.height > 0))
+    .toBe(true);
+
+  await page.mouse.move(10, 10);
+  await expect(page.getByRole('search').getByRole('searchbox')).toBeVisible({ timeout: 30_000 });
+  await expect
+    .poll(() => firstPage.locator('[data-testid="djvu-text-layer"] span').count())
+    .toBeGreaterThan(0);
+  const titleTopRatio = await firstPage.evaluate((pageElement) => {
+    const title = [
+      ...pageElement.querySelectorAll<HTMLElement>('[data-testid="djvu-text-layer"] span'),
+    ].find((span) => span.textContent?.includes('Reliable'));
+    const pageRect = pageElement.getBoundingClientRect();
+
+    return title ? (title.getBoundingClientRect().top - pageRect.top) / pageRect.height : undefined;
+  });
+  expect(titleTopRatio).toBeLessThan(0.15);
+  const principalTextWidth = await firstPage.evaluate((pageElement) => {
+    const span = [
+      ...pageElement.querySelectorAll<HTMLElement>('[data-testid="djvu-text-layer"] span'),
+    ].find((element) => element.textContent?.includes('Principal'));
+    if (!span) return undefined;
+
+    const range = document.createRange();
+    range.selectNodeContents(span);
+
+    return {
+      actual: range.getBoundingClientRect().width,
+      expected: Number(span.dataset.textZoneWidth) * pageElement.clientWidth,
+    };
+  });
+  expect(principalTextWidth).toBeDefined();
+  expect(Math.abs(principalTextWidth!.actual - principalTextWidth!.expected)).toBeLessThan(2);
+
+  const pageInput = page.getByRole('spinbutton', { name: 'Номер страницы' });
+  await expect(pageInput).toHaveValue('1');
+  await pageInput.fill('2');
+  await pageInput.press('Enter');
+  await expect(pageInput).toHaveValue('2');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const secondPage = document.querySelector<HTMLElement>('[data-page-number="2"]');
+        return secondPage?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY;
+      }),
+    )
+    .toBeLessThan(120);
+
+  await page.mouse.move(10, 10);
+  await page.getByRole('button', { name: 'Внешний вид' }).click();
+  const panel = page
+    .locator('aside')
+    .filter({ has: page.getByRole('heading', { name: 'Внешний вид' }) });
+  const widthIncrease = panel.getByRole('slider', { name: 'Увеличение ширины' });
+  const widthBeforeIncrease = await firstPage.evaluate(
+    (element) => element.getBoundingClientRect().width,
+  );
+  await widthIncrease.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(widthIncrease).toHaveValue('1');
+  await expect
+    .poll(() => firstPage.evaluate((element) => element.getBoundingClientRect().width))
+    .toBeGreaterThan(widthBeforeIncrease);
+
+  const invert = panel.getByRole('checkbox', { name: 'Инверсия' });
+  await invert.check();
+  const webglAvailable = await page.evaluate(
+    () => document.createElement('canvas').getContext('webgl') !== null,
+  );
+  if (webglAvailable) {
+    await expect(panel.getByRole('slider', { name: 'Сила' })).toBeVisible();
+  } else {
+    await expect(panel.getByRole('alert')).toContainText('Фильтры недоступны');
+  }
+});
