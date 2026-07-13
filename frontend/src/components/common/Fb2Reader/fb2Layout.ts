@@ -11,6 +11,7 @@ import { Fb2Block, Fb2Inline, Fb2ReaderSettings, Fb2TableCell, VirtualLayout } f
 const minMeasureWidth = 240;
 const quoteInset = 32;
 const titlePaddingTop = 8;
+const inlineCodeHorizontalPaddingEm = 0.36;
 
 type MeasureWidths = {
   lineWidth: number;
@@ -47,6 +48,10 @@ function blockFont(
         : defaultWeight;
   const style = block.textStyle?.fontStyle ?? defaultStyle;
   return fontString(settings, fontSize, weight, style);
+}
+
+function fontSizeFrom(font: string, fallback: number) {
+  return Number(font.match(/\s(\d+(?:\.\d+)?)px\s/)?.[1]) || fallback;
 }
 
 function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics {
@@ -102,7 +107,8 @@ function inlineFont(inline: Fb2Inline, inheritedFont: string, settings: Fb2Reade
   const fontWeight =
     inline.textStyle?.fontWeight ?? (inline.kind === 'strong' ? 'bold' : undefined);
 
-  if (inline.kind === 'code') return `${settings.fontSize}px "Cousine", monospace`;
+  if (inline.kind === 'code')
+    return `${fontSizeFrom(inheritedFont, settings.fontSize) * 0.92}px "Cousine", monospace`;
   if (!fontStyle && !fontWeight) return inheritedFont;
 
   const match = inheritedFont.match(/^(\S+)\s+(\d+)\s+(.+)$/);
@@ -135,6 +141,19 @@ function richInlineLines(
         break: 'never',
         extraWidth: settings.fontSize * 2.2,
       });
+      return;
+    }
+
+    if (inline.kind === 'code') {
+      const text = inlinePlainText(inline);
+      const codeFont = inlineFont(inline, font, settings);
+      if (text) {
+        lines.at(-1)?.push({
+          text,
+          font: codeFont,
+          extraWidth: fontSizeFrom(codeFont, settings.fontSize) * inlineCodeHorizontalPaddingEm,
+        });
+      }
       return;
     }
 
