@@ -174,6 +174,7 @@ type PdfWebglFilterRenderer = {
 
 let sharedOffscreenCanvas: HTMLCanvasElement | undefined;
 let sharedRenderer: PdfWebglFilterRenderer | undefined;
+let cachedMaxTextureSize: number | undefined;
 
 function createShader(gl: WebGLRenderingContext, type: number, source: string) {
   if (gl.isContextLost()) {
@@ -492,14 +493,47 @@ export function destroySharedPdfWebglFilterRenderer() {
   sharedOffscreenCanvas = undefined;
 }
 
+function getMaxTextureSize(): number {
+  if (cachedMaxTextureSize !== undefined) {
+    return cachedMaxTextureSize;
+  }
+
+  const canvas = document.createElement('canvas');
+  const gl = getWebglContext(canvas);
+
+  cachedMaxTextureSize = gl ? (gl.getParameter(gl.MAX_TEXTURE_SIZE) as number) : 4096;
+  gl?.getExtension('WEBGL_lose_context')?.loseContext();
+
+  return cachedMaxTextureSize;
+}
+
 export function renderPdfPageFilter(
   source: HTMLCanvasElement,
   target: HTMLCanvasElement,
   chain: PdfFilterChain,
 ) {
-  const renderer = ensureSharedRenderer(source.width, source.height);
+  const maxTextureSize = getMaxTextureSize();
+  const downscale = Math.min(1, maxTextureSize / source.width, maxTextureSize / source.height);
 
-  renderer.render(source, chain);
+  let renderSource = source;
+
+  if (downscale < 1) {
+    const scaled = document.createElement('canvas');
+    scaled.width = Math.max(1, Math.round(source.width * downscale));
+    scaled.height = Math.max(1, Math.round(source.height * downscale));
+    const scaledContext = scaled.getContext('2d');
+
+    if (!scaledContext) {
+      throw new Error('Не удалось получить 2D-контекст для масштабирования страницы.');
+    }
+
+    scaledContext.drawImage(source, 0, 0, scaled.width, scaled.height);
+    renderSource = scaled;
+  }
+
+  const renderer = ensureSharedRenderer(renderSource.width, renderSource.height);
+
+  renderer.render(renderSource, chain);
 
   if (target.width !== source.width || target.height !== source.height) {
     target.width = source.width;
@@ -512,5 +546,5 @@ export function renderPdfPageFilter(
     throw new Error('Не удалось получить 2D-контекст для отфильтрованной страницы.');
   }
 
-  context.drawImage(renderer.canvas, 0, 0);
+  context.drawImage(renderer.canvas, 0, 0, source.width, source.height);
 }
