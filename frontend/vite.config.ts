@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
 import { fileURLToPath, URL } from 'node:url';
 
+const API_PROXY_TARGET = process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8080';
+
 function normalizeBasePath(value: string | undefined) {
   if (!value || value === '/') {
     return '/';
@@ -20,7 +22,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://vm:8080',
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
     },

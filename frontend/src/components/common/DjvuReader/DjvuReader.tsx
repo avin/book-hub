@@ -74,6 +74,7 @@ const guideOutsideMargin = 12;
 const horizontalScrollCenter = 0.5;
 const horizontalScrollPositionTolerance = 0.01;
 const renderAfterScrollDelayMs = 80;
+const releasedPageBuffer = 5;
 
 function renderPixelRatio() {
   return Math.min(maxPixelRatio, Math.max(1, window.devicePixelRatio || 1));
@@ -529,6 +530,33 @@ function DjvuReader(props: {
     scheduleVisiblePageRendering();
   };
 
+  const releasePageResources = (pageNumber: number) => {
+    renderQueue = renderQueue.filter((page) => page.pageNumber !== pageNumber);
+
+    const canvas = canvasRefs.get(pageNumber);
+
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+
+    const filteredCanvas = filteredCanvasRefs.get(pageNumber);
+
+    if (filteredCanvas) {
+      filteredCanvas.width = 0;
+      filteredCanvas.height = 0;
+      filteredCanvas.classList.remove(styles.filteredCanvasVisible);
+    }
+
+    const textLayer = textLayerRefs.get(pageNumber);
+
+    if (textLayer) {
+      textLayer.textContent = '';
+    }
+
+    renderedKeys.delete(pageNumber);
+  };
+
   const loadDocument = async () => {
     const loadGeneration = ++generation;
     let nextWorker: DjVuWorker | undefined;
@@ -843,6 +871,42 @@ function DjvuReader(props: {
     visiblePages();
     pages();
     scheduleVisiblePageRendering();
+  });
+  createEffect(() => {
+    const currentPages = pages();
+    const currentVisiblePages = visiblePages();
+
+    if (currentPages.length === 0 || currentVisiblePages.size === 0) {
+      return;
+    }
+
+    let minVisible = Number.POSITIVE_INFINITY;
+    let maxVisible = Number.NEGATIVE_INFINITY;
+
+    for (const pageNumber of currentVisiblePages) {
+      if (pageNumber < minVisible) {
+        minVisible = pageNumber;
+      }
+
+      if (pageNumber > maxVisible) {
+        maxVisible = pageNumber;
+      }
+    }
+
+    const retainMin = minVisible - releasedPageBuffer;
+    const retainMax = maxVisible + releasedPageBuffer;
+
+    for (const page of currentPages) {
+      if (page.pageNumber >= retainMin && page.pageNumber <= retainMax) {
+        continue;
+      }
+
+      if (!renderedKeys.has(page.pageNumber)) {
+        continue;
+      }
+
+      releasePageResources(page.pageNumber);
+    }
   });
   createEffect(() => {
     void props.fileUrl;

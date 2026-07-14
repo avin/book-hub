@@ -236,14 +236,6 @@ function getWebglContext(canvas: HTMLCanvasElement) {
   });
 }
 
-function getOffscreenCanvas() {
-  if (!sharedOffscreenCanvas) {
-    sharedOffscreenCanvas = document.createElement('canvas');
-  }
-
-  return sharedOffscreenCanvas;
-}
-
 function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebglFilterRenderer {
   const gl = getWebglContext(canvas);
 
@@ -467,22 +459,23 @@ function createPdfWebglFilterRenderer(canvas: HTMLCanvasElement): PdfWebglFilter
 }
 
 function ensureSharedRenderer(width: number, height: number): PdfWebglFilterRenderer {
-  const offscreenCanvas = getOffscreenCanvas();
-  const sizeChanged = offscreenCanvas.width !== width || offscreenCanvas.height !== height;
-
-  if (sharedRenderer?.isUsable() && !sizeChanged) {
+  if (
+    sharedRenderer?.isUsable() &&
+    sharedOffscreenCanvas &&
+    sharedOffscreenCanvas.width === width &&
+    sharedOffscreenCanvas.height === height
+  ) {
     return sharedRenderer;
   }
 
   sharedRenderer?.destroy();
   sharedRenderer = undefined;
 
-  if (sizeChanged) {
-    offscreenCanvas.width = width;
-    offscreenCanvas.height = height;
-  }
+  sharedOffscreenCanvas = document.createElement('canvas');
+  sharedOffscreenCanvas.width = width;
+  sharedOffscreenCanvas.height = height;
 
-  sharedRenderer = createPdfWebglFilterRenderer(offscreenCanvas);
+  sharedRenderer = createPdfWebglFilterRenderer(sharedOffscreenCanvas);
 
   return sharedRenderer;
 }

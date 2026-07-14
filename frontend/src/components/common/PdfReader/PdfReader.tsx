@@ -88,6 +88,7 @@ const guideOutsideMargin = 12;
 const resizeAnchorHoldMs = 180;
 const horizontalScrollCenter = 0.5;
 const horizontalScrollPositionTolerance = 0.01;
+const releasedPageBuffer = 5;
 
 function renderPixelRatio() {
   return Math.min(maxRenderPixelRatio, Math.max(1, window.devicePixelRatio || 1));
@@ -835,6 +836,54 @@ function PdfReader(props: {
     textHighlighters.clear();
   };
 
+  const releasePageResources = (pageNumber: number) => {
+    cancelRenderTask(pageNumber);
+    cancelTextLayerTask(pageNumber);
+
+    const canvas = canvasRefs.get(pageNumber);
+
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+
+    const filteredCanvas = filteredCanvasRefs.get(pageNumber);
+
+    if (filteredCanvas) {
+      filteredCanvas.width = 0;
+      filteredCanvas.height = 0;
+    }
+
+    const textLayer = textLayerRefs.get(pageNumber);
+
+    if (textLayer) {
+      textLayer.textContent = '';
+    }
+
+    renderedKeys.delete(pageNumber);
+    filteredKeys.delete(pageNumber);
+    textLayerKeys.delete(pageNumber);
+
+    setFilteredPages((current) => {
+      if (!current.has(pageNumber)) {
+        return current;
+      }
+
+      const next = new Set(current);
+      next.delete(pageNumber);
+      return next;
+    });
+    setAppliedFilterKeys((current) => {
+      if (!current.has(pageNumber)) {
+        return current;
+      }
+
+      const next = new Map(current);
+      next.delete(pageNumber);
+      return next;
+    });
+  };
+
   const measureDocument = () => {
     if (!rootRef) {
       return;
@@ -1358,9 +1407,60 @@ function PdfReader(props: {
 
     for (const descriptor of currentPages) {
       if (currentVisiblePages.has(descriptor.pageNumber)) {
-        void renderPage(descriptor);
-        void renderTextLayer(descriptor);
+        void renderPage(descriptor).catch((error) => {
+          if (!destroyed && !isRenderCancelled(error)) {
+            console.error('Failed to render PDF page', error);
+          }
+        });
+        void renderTextLayer(descriptor).catch((error) => {
+          if (!destroyed && !isRenderCancelled(error)) {
+            console.error('Failed to render PDF text layer', error);
+          }
+        });
       }
+    }
+  });
+
+  createEffect(() => {
+    const currentPages = pages();
+    const currentVisiblePages = visiblePages();
+
+    if (currentPages.length === 0 || currentVisiblePages.size === 0) {
+      return;
+    }
+
+    let minVisible = Number.POSITIVE_INFINITY;
+    let maxVisible = Number.NEGATIVE_INFINITY;
+
+    for (const pageNumber of currentVisiblePages) {
+      if (pageNumber < minVisible) {
+        minVisible = pageNumber;
+      }
+
+      if (pageNumber > maxVisible) {
+        maxVisible = pageNumber;
+      }
+    }
+
+    const retainMin = minVisible - releasedPageBuffer;
+    const retainMax = maxVisible + releasedPageBuffer;
+
+    for (const descriptor of currentPages) {
+      const pageNumber = descriptor.pageNumber;
+
+      if (pageNumber >= retainMin && pageNumber <= retainMax) {
+        continue;
+      }
+
+      if (
+        !renderedKeys.has(pageNumber) &&
+        !filteredKeys.has(pageNumber) &&
+        !textLayerKeys.has(pageNumber)
+      ) {
+        continue;
+      }
+
+      releasePageResources(pageNumber);
     }
   });
 
