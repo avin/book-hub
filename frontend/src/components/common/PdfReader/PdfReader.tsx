@@ -884,6 +884,30 @@ function PdfReader(props: {
     });
   };
 
+  const hasAllocatedPageResources = (pageNumber: number) => {
+    if (
+      renderedKeys.has(pageNumber) ||
+      filteredKeys.has(pageNumber) ||
+      textLayerKeys.has(pageNumber)
+    ) {
+      return true;
+    }
+
+    const canvas = canvasRefs.get(pageNumber);
+
+    if (canvas && (canvas.width > 0 || canvas.height > 0)) {
+      return true;
+    }
+
+    const filteredCanvas = filteredCanvasRefs.get(pageNumber);
+
+    if (filteredCanvas && (filteredCanvas.width > 0 || filteredCanvas.height > 0)) {
+      return true;
+    }
+
+    return false;
+  };
+
   const measureDocument = () => {
     if (!rootRef) {
       return;
@@ -1452,11 +1476,7 @@ function PdfReader(props: {
         continue;
       }
 
-      if (
-        !renderedKeys.has(pageNumber) &&
-        !filteredKeys.has(pageNumber) &&
-        !textLayerKeys.has(pageNumber)
-      ) {
+      if (!hasAllocatedPageResources(pageNumber)) {
         continue;
       }
 

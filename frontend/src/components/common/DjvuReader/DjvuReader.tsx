@@ -56,7 +56,12 @@ import {
   clampPdfPageWidthOverflow,
   defaultPdfPageWidthOverflow,
 } from '../PdfReader/pdfPageSettings';
-import { isPdfWebglAvailable, renderPdfPageFilter } from '../PdfReader/pdfWebglFilter';
+import {
+  destroySharedPdfWebglFilterRenderer,
+  isPdfWebglAvailable,
+  isRecoverablePdfFilterError,
+  renderPdfPageFilter,
+} from '../PdfReader/pdfWebglFilter';
 import styles from '../PdfReader/PdfReader.module.scss';
 
 type Page = { pageNumber: number; width: number; height: number };
@@ -121,6 +126,7 @@ function DjvuReader(props: {
   const textLayerRefs = new Map<number, HTMLDivElement>();
   const textByPage = new Map<number, DjVuTextZone[]>();
   const renderedKeys = new Map<number, string>();
+  const allocatedCanvasPages = new Set<number>();
   const tocTargets = new Map<TocEntry, string>();
   const [pages, setPages] = createSignal<Page[]>([]);
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
@@ -435,6 +441,7 @@ function DjvuReader(props: {
         const ratio = renderPixelRatio();
         canvas.width = Math.max(1, Math.round(width * ratio));
         canvas.height = Math.max(1, Math.round(canvas.width * (page.height / page.width)));
+        allocatedCanvasPages.add(page.pageNumber);
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         const context = canvas.getContext('2d');
@@ -455,7 +462,14 @@ function DjvuReader(props: {
         filteredCanvas.style.width = canvas.style.width;
         filteredCanvas.style.height = canvas.style.height;
         filteredCanvas.classList.add(styles.filteredCanvasVisible);
-      } catch {
+      } catch (error) {
+        if (isRecoverablePdfFilterError(error)) {
+          destroySharedPdfWebglFilterRenderer();
+          refreshVisiblePages();
+          return;
+        }
+
+        console.error('Failed to apply DJVU page filter', error);
         setFilterError('pdfFiltersUnavailable');
       }
     } else if (filteredCanvas) {
@@ -555,7 +569,11 @@ function DjvuReader(props: {
     }
 
     renderedKeys.delete(pageNumber);
+    allocatedCanvasPages.delete(pageNumber);
   };
+
+  const hasAllocatedPageResources = (pageNumber: number) =>
+    renderedKeys.has(pageNumber) || allocatedCanvasPages.has(pageNumber);
 
   const loadDocument = async () => {
     const loadGeneration = ++generation;
@@ -573,6 +591,7 @@ function DjvuReader(props: {
     setOutlineLoaded(false);
     textByPage.clear();
     renderedKeys.clear();
+    allocatedCanvasPages.clear();
     tocTargets.clear();
     lastScrollAnchor = undefined;
     try {
@@ -901,7 +920,7 @@ function DjvuReader(props: {
         continue;
       }
 
-      if (!renderedKeys.has(page.pageNumber)) {
+      if (!hasAllocatedPageResources(page.pageNumber)) {
         continue;
       }
 
@@ -990,6 +1009,7 @@ function DjvuReader(props: {
     observer?.disconnect();
     resizeObserver?.disconnect();
     worker?.worker.terminate();
+    destroySharedPdfWebglFilterRenderer();
     if (horizontalScrollRestoreFrame !== undefined)
       cancelAnimationFrame(horizontalScrollRestoreFrame);
     if (widthScrollAnchorFrame !== undefined) cancelAnimationFrame(widthScrollAnchorFrame);

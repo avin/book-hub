@@ -175,6 +175,7 @@ type PdfWebglFilterRenderer = {
 let sharedOffscreenCanvas: HTMLCanvasElement | undefined;
 let sharedRenderer: PdfWebglFilterRenderer | undefined;
 let cachedMaxTextureSize: number | undefined;
+let sharedTileBuffer: HTMLCanvasElement | undefined;
 
 function createShader(gl: WebGLRenderingContext, type: number, source: string) {
   if (gl.isContextLost()) {
@@ -491,6 +492,7 @@ export function destroySharedPdfWebglFilterRenderer() {
   sharedRenderer?.destroy();
   sharedRenderer = undefined;
   sharedOffscreenCanvas = undefined;
+  sharedTileBuffer = undefined;
 }
 
 function getMaxTextureSize(): number {
@@ -507,33 +509,16 @@ function getMaxTextureSize(): number {
   return cachedMaxTextureSize;
 }
 
-export function renderPdfPageFilter(
+const filterSamplingOverlap = 4;
+
+function renderUntiledPdfPageFilter(
   source: HTMLCanvasElement,
   target: HTMLCanvasElement,
   chain: PdfFilterChain,
 ) {
-  const maxTextureSize = getMaxTextureSize();
-  const downscale = Math.min(1, maxTextureSize / source.width, maxTextureSize / source.height);
+  const renderer = ensureSharedRenderer(source.width, source.height);
 
-  let renderSource = source;
-
-  if (downscale < 1) {
-    const scaled = document.createElement('canvas');
-    scaled.width = Math.max(1, Math.round(source.width * downscale));
-    scaled.height = Math.max(1, Math.round(source.height * downscale));
-    const scaledContext = scaled.getContext('2d');
-
-    if (!scaledContext) {
-      throw new Error('Не удалось получить 2D-контекст для масштабирования страницы.');
-    }
-
-    scaledContext.drawImage(source, 0, 0, scaled.width, scaled.height);
-    renderSource = scaled;
-  }
-
-  const renderer = ensureSharedRenderer(renderSource.width, renderSource.height);
-
-  renderer.render(renderSource, chain);
+  renderer.render(source, chain);
 
   if (target.width !== source.width || target.height !== source.height) {
     target.width = source.width;
@@ -546,5 +531,94 @@ export function renderPdfPageFilter(
     throw new Error('Не удалось получить 2D-контекст для отфильтрованной страницы.');
   }
 
-  context.drawImage(renderer.canvas, 0, 0, source.width, source.height);
+  context.drawImage(renderer.canvas, 0, 0);
+}
+
+export function renderPdfPageFilter(
+  source: HTMLCanvasElement,
+  target: HTMLCanvasElement,
+  chain: PdfFilterChain,
+) {
+  const maxTextureSize = getMaxTextureSize();
+
+  if (source.width <= maxTextureSize && source.height <= maxTextureSize) {
+    renderUntiledPdfPageFilter(source, target, chain);
+    return;
+  }
+
+  if (target.width !== source.width || target.height !== source.height) {
+    target.width = source.width;
+    target.height = source.height;
+  }
+
+  const targetContext = target.getContext('2d');
+
+  if (!targetContext) {
+    throw new Error('Не удалось получить 2D-контекст для отфильтрованной страницы.');
+  }
+
+  targetContext.clearRect(0, 0, source.width, source.height);
+
+  const overlap = filterSamplingOverlap;
+  const tileWidth = Math.max(1, Math.min(source.width, maxTextureSize - overlap * 2));
+  const tileHeight = Math.max(1, Math.min(source.height, maxTextureSize - overlap * 2));
+
+  if (
+    !sharedTileBuffer ||
+    sharedTileBuffer.width !== tileWidth ||
+    sharedTileBuffer.height !== tileHeight
+  ) {
+    sharedTileBuffer = document.createElement('canvas');
+    sharedTileBuffer.width = tileWidth;
+    sharedTileBuffer.height = tileHeight;
+  }
+
+  const tileBuffer = sharedTileBuffer;
+  const tileBufferContext = tileBuffer.getContext('2d');
+
+  if (!tileBufferContext) {
+    throw new Error('Не удалось получить 2D-контекст для тайла страницы.');
+  }
+
+  const renderer = ensureSharedRenderer(tileWidth, tileHeight);
+
+  for (let y = 0; y < source.height; y += tileHeight) {
+    for (let x = 0; x < source.width; x += tileWidth) {
+      const innerWidth = Math.min(tileWidth, source.width - x);
+      const innerHeight = Math.min(tileHeight, source.height - y);
+      const regionX = Math.max(0, x - overlap);
+      const regionY = Math.max(0, y - overlap);
+      const regionRight = Math.min(source.width, x + innerWidth + overlap);
+      const regionBottom = Math.min(source.height, y + innerHeight + overlap);
+      const regionWidth = regionRight - regionX;
+      const regionHeight = regionBottom - regionY;
+
+      tileBufferContext.clearRect(0, 0, tileWidth, tileHeight);
+      tileBufferContext.drawImage(
+        source,
+        regionX,
+        regionY,
+        regionWidth,
+        regionHeight,
+        0,
+        0,
+        regionWidth,
+        regionHeight,
+      );
+
+      renderer.render(tileBuffer, chain);
+
+      targetContext.drawImage(
+        renderer.canvas,
+        x - regionX,
+        y - regionY,
+        innerWidth,
+        innerHeight,
+        x,
+        y,
+        innerWidth,
+        innerHeight,
+      );
+    }
+  }
 }
