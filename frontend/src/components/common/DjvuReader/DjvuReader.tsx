@@ -38,7 +38,7 @@ import {
   setFixedLayoutReaderFilterChainPreference,
   setFixedLayoutReaderHorizontalScrollPositionPreference,
   setFixedLayoutReaderPageWidthOverflowPreference,
-} from '@/storage/browserPreferences';
+} from '@/storage/browserPreferencesFixedLayout';
 import useReaderChrome from '../ReaderChrome/useReaderChrome';
 import PdfFilterPanel from '../PdfReader/PdfFilterPanel/PdfFilterPanel';
 import {

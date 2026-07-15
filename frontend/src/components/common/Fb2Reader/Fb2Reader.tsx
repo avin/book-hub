@@ -41,7 +41,7 @@ import {
 import {
   getFb2ReaderSettingsPreference,
   setFb2ReaderSettingsPreference,
-} from '@/storage/browserPreferences';
+} from '@/storage/browserPreferencesReflowable';
 import styles from './Fb2Reader.module.scss';
 import { useI18n } from '@/i18n/I18nProvider';
 

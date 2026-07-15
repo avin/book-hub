@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   getFb2ReaderSettingsPreference,
   getFixedLayoutReaderContentWidthPreference,
+  getFixedLayoutReaderFilterChainPreference,
+  getFixedLayoutReaderHorizontalScrollPositionPreference,
   getFixedLayoutReaderPageWidthOverflowPreference,
   getLanguagePreference,
   getPdfReaderFilterChainPreference,
@@ -69,6 +71,37 @@ describe('browserPreferences', () => {
     expect(getLanguagePreference()).toBeUndefined();
     expect(getThemePreference()).toBeUndefined();
     expect(getFixedLayoutReaderContentWidthPreference()).toBeUndefined();
+  });
+
+  it('сохраняет значения для пустого, повреждённого и fixed-layout fixtures', () => {
+    expect(getFixedLayoutReaderContentWidthPreference()).toBeUndefined();
+    expect(getFixedLayoutReaderPageWidthOverflowPreference('book')).toBe(0);
+
+    localStorage.setItem('book-hub-preferences', '{');
+    expect(getFixedLayoutReaderContentWidthPreference()).toBeUndefined();
+    expect(getFixedLayoutReaderPageWidthOverflowPreference('book')).toBe(0);
+
+    localStorage.setItem(
+      'book-hub-preferences',
+      JSON.stringify({
+        version: 1,
+        readers: {
+          fixedLayout: {
+            contentWidth: 720,
+            pageWidthOverflows: { book: 24 },
+            horizontalScrollPositions: { book: 0.25 },
+            filterChains: { book: [{ id: 'invert', enabled: true, strength: 0.5 }] },
+          },
+        },
+      }),
+    );
+
+    expect(getFixedLayoutReaderContentWidthPreference()).toBe(720);
+    expect(getFixedLayoutReaderPageWidthOverflowPreference('book')).toBe(24);
+    expect(getFixedLayoutReaderHorizontalScrollPositionPreference('book')).toBe(0.25);
+    expect(
+      getFixedLayoutReaderFilterChainPreference('book')?.find((filter) => filter.id === 'invert'),
+    ).toMatchObject({ strength: 0.5 });
   });
 
   it('читает legacy PDF preferences через fixed-layout fallback и сохраняет диапазон расширения страницы', () => {

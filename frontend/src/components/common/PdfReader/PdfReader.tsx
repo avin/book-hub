@@ -35,15 +35,15 @@ import {
 import { useI18n } from '@/i18n/I18nProvider';
 import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import {
-  getPdfReaderContentWidthPreference,
-  getPdfReaderFilterChainPreference,
-  getPdfReaderHorizontalScrollPositionPreference,
-  getPdfReaderPageWidthOverflowPreference,
-  setPdfReaderContentWidthPreference,
-  setPdfReaderFilterChainPreference,
-  setPdfReaderHorizontalScrollPositionPreference,
-  setPdfReaderPageWidthOverflowPreference,
-} from '@/storage/browserPreferences';
+  getFixedLayoutReaderContentWidthPreference,
+  getFixedLayoutReaderFilterChainPreference,
+  getFixedLayoutReaderHorizontalScrollPositionPreference,
+  getFixedLayoutReaderPageWidthOverflowPreference,
+  setFixedLayoutReaderContentWidthPreference,
+  setFixedLayoutReaderFilterChainPreference,
+  setFixedLayoutReaderHorizontalScrollPositionPreference,
+  setFixedLayoutReaderPageWidthOverflowPreference,
+} from '@/storage/browserPreferencesFixedLayout';
 import { mapPdfOutline, resolvePdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import PdfTextHighlighter from './PdfTextHighlighter';
 import {
@@ -219,7 +219,8 @@ function PdfReader(props: {
   const [filterChain, setFilterChain] = createSignal<PdfFilterChain>(
     untrack(
       () =>
-        getPdfReaderFilterChainPreference(props.bookId ?? props.fileUrl) ?? defaultPdfFilterChain(),
+        getFixedLayoutReaderFilterChainPreference(props.bookId ?? props.fileUrl) ??
+        defaultPdfFilterChain(),
     ),
   );
   const [filteredPages, setFilteredPages] = createSignal<ReadonlySet<number>>(new Set());
@@ -230,13 +231,15 @@ function PdfReader(props: {
   const [outlineEntries, setOutlineEntries] = createSignal<PdfOutlineEntry[]>([]);
   const [outlineLoaded, setOutlineLoaded] = createSignal(false);
   const [maxPageWidth, setMaxPageWidth] = createSignal<number | undefined>(
-    getPdfReaderContentWidthPreference(),
+    getFixedLayoutReaderContentWidthPreference(),
   );
   const [pageWidthOverflow, setPageWidthOverflow] = createSignal(
-    untrack(() => getPdfReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl)),
+    untrack(() => getFixedLayoutReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl)),
   );
   const [horizontalScrollPosition, setHorizontalScrollPosition] = createSignal<number | undefined>(
-    untrack(() => getPdfReaderHorizontalScrollPositionPreference(props.bookId ?? props.fileUrl)),
+    untrack(() =>
+      getFixedLayoutReaderHorizontalScrollPositionPreference(props.bookId ?? props.fileUrl),
+    ),
   );
   const [draggingWidth, setDraggingWidth] = createSignal(false);
   const [guideX, setGuideX] = createSignal<number | undefined>();
@@ -470,7 +473,10 @@ function PdfReader(props: {
     }
 
     setHorizontalScrollPosition(nextPosition);
-    setPdfReaderHorizontalScrollPositionPreference(props.bookId ?? props.fileUrl, nextPosition);
+    setFixedLayoutReaderHorizontalScrollPositionPreference(
+      props.bookId ?? props.fileUrl,
+      nextPosition,
+    );
   };
 
   const syncCurrentPage = () => {
@@ -691,7 +697,7 @@ function PdfReader(props: {
     }
 
     setMaxPageWidth(width);
-    setPdfReaderContentWidthPreference(width);
+    setFixedLayoutReaderContentWidthPreference(width);
     renderedKeys.clear();
     invalidateFilteredPages();
     textLayerKeys.clear();
@@ -811,7 +817,7 @@ function PdfReader(props: {
     const nextChain = update(filterChain());
 
     setFilterChainState(nextChain);
-    setPdfReaderFilterChainPreference(props.bookId ?? props.fileUrl, nextChain);
+    setFixedLayoutReaderFilterChainPreference(props.bookId ?? props.fileUrl, nextChain);
     scheduleVisiblePageFilterRender();
   };
 
@@ -985,7 +991,7 @@ function PdfReader(props: {
     }
 
     setPageWidthOverflow(nextOverflow);
-    setPdfReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl, nextOverflow);
+    setFixedLayoutReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl, nextOverflow);
     renderedKeys.clear();
     invalidateFilteredPages();
     textLayerKeys.clear();
@@ -1380,7 +1386,8 @@ function PdfReader(props: {
     }
 
     filterPreferenceStorageKey = storageKey;
-    const nextChain = getPdfReaderFilterChainPreference(storageKey) ?? defaultPdfFilterChain();
+    const nextChain =
+      getFixedLayoutReaderFilterChainPreference(storageKey) ?? defaultPdfFilterChain();
 
     destroyFilterRenderers();
     setFilterChainState(nextChain);
@@ -1395,7 +1402,7 @@ function PdfReader(props: {
     }
 
     pageWidthOverflowPreferenceStorageKey = storageKey;
-    setPageWidthOverflow(getPdfReaderPageWidthOverflowPreference(storageKey));
+    setPageWidthOverflow(getFixedLayoutReaderPageWidthOverflowPreference(storageKey));
     restoreHorizontalScrollPositionIfNeeded();
   });
 
@@ -1407,7 +1414,7 @@ function PdfReader(props: {
     }
 
     horizontalScrollPositionPreferenceStorageKey = storageKey;
-    setHorizontalScrollPosition(getPdfReaderHorizontalScrollPositionPreference(storageKey));
+    setHorizontalScrollPosition(getFixedLayoutReaderHorizontalScrollPositionPreference(storageKey));
     restoreHorizontalScrollPositionIfNeeded();
   });
 
