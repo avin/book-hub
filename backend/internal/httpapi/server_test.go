@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +23,79 @@ import (
 	"book-hub/internal/storage/files"
 	"book-hub/internal/storage/memory"
 )
+
+func TestCSRFContractPreservesBasePathCookieAndErrorResponse(t *testing.T) {
+	app := newTestAppAtBasePath(t, true, "/book-hub")
+	client := app.client(t)
+
+	response, err := client.Get(app.server.URL + "/book-hub/api/v1/auth/csrf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expected csrf status %d, got %d", http.StatusOK, response.StatusCode)
+	}
+	if response.Header.Get("Content-Type") != "application/json" {
+		t.Fatalf("expected JSON content type, got %q", response.Header.Get("Content-Type"))
+	}
+	requestID := response.Header.Get("X-Request-Id")
+	if requestID == "" {
+		t.Fatal("expected request id header")
+	}
+	var csrfBody map[string]string
+	if err := json.NewDecoder(response.Body).Decode(&csrfBody); err != nil {
+		t.Fatal(err)
+	}
+	csrfToken := csrfBody["csrf_token"]
+	if csrfToken == "" {
+		t.Fatalf("expected csrf token body, got %#v", csrfBody)
+	}
+	setCookie := response.Header.Get("Set-Cookie")
+	if !strings.Contains(setCookie, "book_hub_csrf="+csrfToken) ||
+		!strings.Contains(setCookie, "Path=/book-hub") ||
+		!strings.Contains(setCookie, "SameSite=Lax") {
+		t.Fatalf("unexpected csrf cookie: %q", setCookie)
+	}
+
+	request, err := http.NewRequest(
+		http.MethodPost,
+		app.server.URL+"/book-hub/api/v1/auth/register",
+		strings.NewReader(`{"login":"reader","password":"password"}`),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err = client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected missing csrf status %d, got %d", http.StatusForbidden, response.StatusCode)
+	}
+	var errorBody map[string]string
+	if err := json.NewDecoder(response.Body).Decode(&errorBody); err != nil {
+		t.Fatal(err)
+	}
+	if errorBody["code"] != "csrf_invalid" || errorBody["message"] != "invalid csrf token" {
+		t.Fatalf("unexpected csrf error: %#v", errorBody)
+	}
+	if errorBody["request_id"] == "" || errorBody["request_id"] != response.Header.Get("X-Request-Id") {
+		t.Fatalf("expected matching request ids, body=%#v header=%q", errorBody, response.Header.Get("X-Request-Id"))
+	}
+
+	response, err = client.Get(app.server.URL + "/api/v1/auth/csrf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected unprefixed path status %d, got %d", http.StatusNotFound, response.StatusCode)
+	}
+}
 
 func TestAuthFlowRequiresActivationAndSupportsPasswordChange(t *testing.T) {
 	app := newTestApp(t, false)
@@ -187,10 +261,14 @@ type testApp struct {
 }
 
 func newTestApp(t *testing.T, autoActivate bool) testApp {
+	return newTestAppAtBasePath(t, autoActivate, "/")
+}
+
+func newTestAppAtBasePath(t *testing.T, autoActivate bool, basePath string) testApp {
 	t.Helper()
 	root := t.TempDir()
 	cfg := config.Config{
-		BasePath:                 "/",
+		BasePath:                 basePath,
 		DefaultQuotaBytes:        1024 * 1024,
 		RegistrationEnabled:      true,
 		RegistrationAutoActivate: autoActivate,

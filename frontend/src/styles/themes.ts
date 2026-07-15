@@ -7,8 +7,6 @@
 // a flash of the wrong theme (FOUC). This module owns the canonical list and
 // the post-hydration sync.
 //
-// ADR: docs/adr/0001-theme-system.md
-
 export const themes = [
   { id: 'light-clay', kind: 'light', order: 0 },
   { id: 'light-slate', kind: 'light', order: 1 },

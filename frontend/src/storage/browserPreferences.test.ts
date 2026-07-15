@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   getFb2ReaderSettingsPreference,
   getFixedLayoutReaderContentWidthPreference,
+  getFixedLayoutReaderPageWidthOverflowPreference,
   getLanguagePreference,
   getPdfReaderFilterChainPreference,
   getPdfReaderPageWidthOverflowPreference,
@@ -9,6 +10,7 @@ import {
   getThemePreference,
   setFb2ReaderSettingsPreference,
   setFixedLayoutReaderContentWidthPreference,
+  setFixedLayoutReaderPageWidthOverflowPreference,
   setLanguagePreference,
   setPdfReaderFilterChainPreference,
   setPdfReaderPageWidthOverflowPreference,
@@ -67,5 +69,27 @@ describe('browserPreferences', () => {
     expect(getLanguagePreference()).toBeUndefined();
     expect(getThemePreference()).toBeUndefined();
     expect(getFixedLayoutReaderContentWidthPreference()).toBeUndefined();
+  });
+
+  it('читает legacy PDF preferences через fixed-layout fallback и сохраняет диапазон расширения страницы', () => {
+    localStorage.setItem(
+      'book-hub-preferences',
+      JSON.stringify({
+        version: 1,
+        readers: { pdf: { pageWidthOverflows: { legacy: 25, tooWide: 999 } } },
+      }),
+    );
+
+    expect(getFixedLayoutReaderPageWidthOverflowPreference('legacy')).toBe(25);
+    expect(getFixedLayoutReaderPageWidthOverflowPreference('tooWide')).toBe(80);
+    expect(JSON.parse(localStorage.getItem('book-hub-preferences')!).readers).toMatchObject({
+      fixedLayout: { pageWidthOverflows: { legacy: 25, tooWide: 999 } },
+    });
+
+    setFixedLayoutReaderPageWidthOverflowPreference('current', -4);
+    setFixedLayoutReaderPageWidthOverflowPreference('rounded', 12.6);
+
+    expect(getFixedLayoutReaderPageWidthOverflowPreference('current')).toBe(0);
+    expect(getFixedLayoutReaderPageWidthOverflowPreference('rounded')).toBe(13);
   });
 });

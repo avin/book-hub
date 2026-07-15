@@ -1,6 +1,6 @@
 # План системного рефакторинга Book Hub
 
-**Статус:** согласованный план, к выполнению не приступали.
+**Статус:** в работе; этап 1 завершён.
 **Последняя верификация исходного состояния:** 2026-07-15.
 **Рабочее дерево на момент аудита:** чистое.
 
@@ -187,7 +187,7 @@ flowchart LR
 
 ## Progress
 
-- [ ] 1. Characterization-тесты и документация
+- [x] 1. Characterization-тесты и документация
 - [ ] 2. Контрактные тесты storage adapters
 - [ ] 3. Узкие storage interfaces
 - [ ] 4. Декомпозиция HTTP module
@@ -206,6 +206,8 @@ flowchart LR
 - **Подтверждено:** API, migrations, зависимости и форматы данных не меняются в этапах 1–12.
 - **Подтверждено:** interfaces оправданы только там, где есть два реальных adapters — DB и memory storage, PDF и DJVU reader adapters.
 - **Подтверждено:** существующий on-read fallback `readers.pdf` → `readers.fixedLayout` сохраняется в refactoring scope.
+- **Подтверждено (этап 1, 2026-07-16):** CSRF cookie сохраняет configured base path, а успешные и ошибочные HTTP-ответы несут `X-Request-Id`; unprefixed API path при размещении в подпапке остаётся недоступным.
+- **Подтверждено (этап 1, 2026-07-16):** localStorage fallback `readers.pdf` → `readers.fixedLayout` переносит существующие значения при чтении; диапазон расширения страницы остаётся `0..80`.
 - **Непроверенное предположение:** внешний пользователь не зависит от недокументированного admin CLI output или внутренних frontend localStorage details помимо уже описанной схемы.
 
 ## Discoveries
@@ -216,6 +218,8 @@ flowchart LR
 - Frontend unit coverage: statements 10,43%, branches 12,47%, functions 9,84%, lines 11,30%.
 - Локальных TypeScript import cycles в статическом графе не обнаружено.
 - В Makefile существуют `backend-test`, `frontend-unit-test`, `frontend-e2e-test`, `frontend-test`, `frontend-generate`, `frontend-build`, `test`; отдельной DB test цели нет.
+- Этап 1 (2026-07-16): добавлены characterization-тесты HTTP CSRF/base path/request ID, frontend API base path и ordinary/infinite query cache, legacy fixed-layout preferences и частичного upload batch. `CONTEXT.md` исправлен на диапазон `0..80`; из документации и theme-комментариев удалены ссылки на отсутствующий ADR темы.
+- Этап 1 (2026-07-16): успешно прошли `git diff --check`, `make backend-test`, `make frontend-unit-test` (9 файлов, 30 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck` и дополнительно `npm --prefix frontend exec playwright test tests/upload.spec.ts` (2 теста). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 
 ## Blockers
 
@@ -223,6 +227,7 @@ flowchart LR
 - Нельзя установить по коду, есть ли внешние потребители недокументированных HTTP-деталей, localStorage keys или вывода admin CLI.
 - Для acceptance renderer/refactor нужны реальные PDF, DJVU, FB2 и EPUB fixtures, включая проблемные пользовательские книги; текущие mocked E2E этого не доказывают.
 - Политика CI неизвестна: нужно подтверждение, обязателен ли Playwright/PostgreSQL job на каждом PR или только на protected branches.
+- Этап 1 (2026-07-16): новых блокеров не выявлено.
 
 ## Deferred work
 
