@@ -3,7 +3,7 @@ import { defaultSettings } from './fb2ReaderSettings';
 import { buildVirtualLayout, findBlockIndex } from './fb2Layout';
 import { binaryToDataUrl, parseFb2 } from './fb2Parser';
 import { findFb2SearchMatches, normalizeSearchQuery } from './fb2Search';
-import { decodeFb2Text } from './fb2TextDecoder';
+import { decodeFb2Text } from '@/bookFormats/fb2TextDecoder';
 import { isExternalHref, normalizeInternalHref } from './linkUtils';
 
 describe('FB2 core', () => {

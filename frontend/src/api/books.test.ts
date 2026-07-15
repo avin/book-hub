@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider, type InfiniteData } from '@tanstack/solid-query';
 import { render } from '@solidjs/testing-library';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   apiClient: {
@@ -27,6 +27,7 @@ import {
   createUpdateBookMutation,
   updateBook,
   updateReadingProgress,
+  uploadBook,
 } from './books';
 
 function book(overrides: Partial<Book> = {}): Book {
@@ -75,6 +76,8 @@ describe('books API', () => {
     mocks.getCsrfToken.mockResolvedValue('csrf-token');
   });
 
+  afterEach(() => vi.unstubAllGlobals());
+
   it('передаёт CSRF-токен при изменении данных и ограничивает прогресс', async () => {
     mocks.apiClient.PATCH.mockResolvedValue({ data: { id: 'book' } });
     mocks.apiClient.PUT.mockResolvedValue({ data: { progress_percent: 100 } });
@@ -121,6 +124,60 @@ describe('books API', () => {
       body: { q: '', offset: 0, limit: 24 },
       params: { header: { 'X-CSRF-Token': 'csrf-token' } },
     });
+  });
+
+  it('сохраняет multipart-формат загрузки и CSRF-токен', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(book()), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const file = new File(['%PDF'], 'example.pdf', { type: 'application/pdf' });
+
+    await expect(
+      uploadBook({
+        file,
+        title: '  Заголовок  ',
+        tags: ['tag-one', 'tag-two'],
+        favorite: true,
+      }),
+    ).resolves.toMatchObject({ id: 'book' });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/v1/books');
+    expect(init).toMatchObject({
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CSRF-Token': 'csrf-token' },
+    });
+    expect(init.body).toBeInstanceOf(FormData);
+    const formData = init.body as FormData;
+    expect(formData.get('file')).toBe(file);
+    expect(formData.get('title')).toBe('Заголовок');
+    expect(formData.getAll('tags')).toEqual(['tag-one', 'tag-two']);
+    expect(formData.get('favorite')).toBe('true');
+  });
+
+  it('пробрасывает JSON-ошибку сервера при multipart-загрузке', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ code: 'quota_exceeded' }), {
+          status: 413,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+
+    await expect(
+      uploadBook({
+        file: new File(['%PDF'], 'example.pdf', { type: 'application/pdf' }),
+        tags: [],
+        favorite: false,
+      }),
+    ).rejects.toEqual({ code: 'quota_exceeded' });
   });
 
   it('обновляет обычные списки в cache без invalidation, сохраняя фильтр избранного', async () => {

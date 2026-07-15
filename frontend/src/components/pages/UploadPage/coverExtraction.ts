@@ -1,7 +1,7 @@
 import * as pdfjs from 'pdfjs-dist';
 import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import { parseFb2 } from '@/components/common/Fb2Reader/fb2Parser';
-import { readFb2BlobText } from '@/components/common/Fb2Reader/fb2TextDecoder';
+import { readFb2BlobText } from '@/bookFormats/fb2TextDecoder';
 import type { Fb2Binary } from '@/components/common/Fb2Reader/fb2Types';
 import { extractEpubMetadata } from '@/components/common/EpubReader/epubParser';
 import { createDjVuWorker, type DjVuWorker } from '@/api/djvujs';
