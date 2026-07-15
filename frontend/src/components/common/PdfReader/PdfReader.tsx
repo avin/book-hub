@@ -33,7 +33,8 @@ import {
   computeWidthRulerMarkers,
 } from '@/components/common/WidthRuler/widthRulerUtils';
 import { useI18n } from '@/i18n/I18nProvider';
-import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
+import { pdfjsWorkerSrc } from '@/api/pdfjsConfig';
+import { createFixedLayoutDocumentLifecycle } from '../FixedLayoutReader/fixedLayoutDocument';
 import {
   getFixedLayoutReaderContentWidthPreference,
   getFixedLayoutReaderFilterChainPreference,
@@ -45,6 +46,7 @@ import {
   setFixedLayoutReaderPageWidthOverflowPreference,
 } from '@/storage/browserPreferencesFixedLayout';
 import { mapPdfOutline, resolvePdfDestination, type PdfOutlineEntry } from './pdfOutline';
+import { createPdfFixedLayoutAdapter } from './pdfFixedLayoutAdapter';
 import PdfTextHighlighter from './PdfTextHighlighter';
 import {
   defaultFixedLayoutFilterChain as defaultPdfFilterChain,
@@ -208,6 +210,13 @@ function PdfReader(props: {
   const filteredKeys = new Map<number, string>();
   const textLayerKeys = new Map<number, string>();
   const [pages, setPages] = createSignal<PdfPageDescriptor[]>([]);
+  const pdfAdapter = createPdfFixedLayoutAdapter({
+    fileUrl: () => props.fileUrl,
+    onLoadingTask: (task) => {
+      loadingTask = task;
+    },
+  });
+  const pdfDocumentLifecycle = createFixedLayoutDocumentLifecycle(pdfAdapter.adapter);
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
   const [documentWidth, setDocumentWidth] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
@@ -1310,52 +1319,31 @@ function PdfReader(props: {
       filterRenderFrame = undefined;
     }
     const previousLoadingTask = loadingTask;
-    const previousDocument = pdfDocument;
-
     loadingTask = undefined;
     pdfDocument = undefined;
     await previousLoadingTask?.destroy().catch(() => undefined);
-    await previousDocument?.cleanup().catch(() => undefined);
-    loadingTask = pdfjs.getDocument({
-      url: props.fileUrl,
-      withCredentials: true,
-      ...pdfjsDocumentParams,
-    });
+    await pdfDocumentLifecycle.release().catch(() => undefined);
 
     try {
-      const document = await loadingTask.promise;
+      const loaded = await pdfDocumentLifecycle.load();
 
-      if (destroyed || generation !== loadGeneration) {
-        await document.cleanup();
+      if (!loaded) {
         return;
       }
 
-      const nextPages: PdfPageDescriptor[] = [];
+      const { document, pages: nextPages, outline: rawOutline } = loaded;
 
-      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-        const page = await document.getPage(pageNumber);
-
-        if (destroyed || generation !== loadGeneration) {
-          await document.cleanup();
-          return;
-        }
-
-        const viewport = page.getViewport({ scale: 1 });
-
-        pageCache.set(pageNumber, page);
-        nextPages.push({
-          pageNumber,
-          width: viewport.width,
-          height: viewport.height,
-        });
+      if (destroyed || generation !== loadGeneration) {
+        await pdfDocumentLifecycle.release();
+        return;
       }
 
       pdfDocument = document;
-      const rawOutline = await document.getOutline();
-
-      if (destroyed || generation !== loadGeneration) {
-        await document.cleanup();
-        return;
+      for (const page of nextPages) {
+        const cachedPage = pdfAdapter.getCachedPage(document, page.pageNumber);
+        if (cachedPage) {
+          pageCache.set(page.pageNumber, cachedPage);
+        }
       }
 
       setOutlineEntries(mapPdfOutline(rawOutline));
@@ -1813,7 +1801,7 @@ function PdfReader(props: {
     textLayerTasks.clear();
     textLayerKeys.clear();
     void loadingTask?.destroy().catch(() => undefined);
-    void pdfDocument?.cleanup().catch(() => undefined);
+    void pdfDocumentLifecycle.release().catch(() => undefined);
   });
 
   return (
