@@ -1,6 +1,6 @@
 # План системного рефакторинга Book Hub
 
-**Статус:** в работе; этапы 1–8 завершены.
+**Статус:** в работе; этапы 1–9 завершены.
 **Последняя верификация исходного состояния:** 2026-07-15.
 **Рабочее дерево на момент аудита:** чистое.
 
@@ -195,7 +195,7 @@ flowchart LR
 - [x] 6. Upload model/lifecycle/presentation
 - [x] 7. Tags utilities и control
 - [x] 8. Preferences и fixed-layout terminology
-- [ ] 9. Fixed-layout foundation
+- [x] 9. Fixed-layout foundation
 - [ ] 10. Общий fixed-layout reader
 - [ ] 11. Нейтральный reflowable reader
 - [ ] 12. Quality gate
@@ -215,6 +215,7 @@ flowchart LR
 - **Подтверждено (этап 6, 2026-07-16):** чистая модель черновика сохраняет существующие статусы, а preparation и batch lifecycle вынесены в локальные hooks. Последовательность batch, partial success, page lock, generation guards, отмена preparation и освобождение preview URL не менялись.
 - **Подтверждено (этап 7, 2026-07-16):** Upload, Library и `TagsSelect` используют единые правила объединения, нормализации и недавних тегов. Внешние props и DOM-контракт `TagsSelect` сохранены; async selection model игнорирует устаревшие результаты поиска, а overflow hook сохраняет прежний расчёт видимых и свёрнутых тегов.
 - **Подтверждено (этап 8, 2026-07-16):** JSON access/migration, UI, reflowable и fixed-layout preferences разнесены по modules; facade `browserPreferences.ts` сохраняет прежние exports. PDF переведён на `get/setFixedLayout…`, а `readers.pdf` → `readers.fixedLayout` fallback, schema/version и sanitization сохранены.
+- **Подтверждено (этап 9, 2026-07-16):** общие geometry и filter foundation перенесены в `FixedLayoutReader`, а общая filter panel — в `FixedLayoutFilterPanel`; PDF/DJVU используют их напрямую. PDF-совместимые paths остались facade, localStorage schema не изменилась, universal renderer не вводился.
 - **Непроверенное предположение:** внешний пользователь не зависит от недокументированного admin CLI output или внутренних frontend localStorage details помимо уже описанной схемы.
 
 ## Discoveries
@@ -235,6 +236,7 @@ flowchart LR
 - Этап 6 (2026-07-16): добавлены unit-тесты чистой модели черновика для форматов, transition-ов, тегов и завершения подготовки. `npm --prefix frontend exec playwright test tests/upload.spec.ts` не применяет `frontend/playwright.config.ts`, поэтому не задаёт base URL; корректная package-script команда `npm --prefix frontend run test:e2e -- tests/upload.spec.ts` успешно выполнила 2 upload-сценария. Успешно прошли `git diff --check`, `make frontend-unit-test` (10 файлов, 36 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck`, upload E2E (2 теста) и дополнительно `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 - Этап 7 (2026-07-16): общие utilities фиксируют дедупликацию, порядок, нормализацию и недавние теги; async search model отбрасывает устаревшие результаты. Component-тесты `TagsSelect` покрывают Enter, навигацию стрелками, двойной Backspace, свёрнутые теги и disabled state. Успешно прошли `git diff --check`, `make frontend-unit-test` (13 файлов, 44 теста), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck` и `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 - Этап 8 (2026-07-16): добавлены fixtures для пустого, повреждённого, legacy `readers.pdf` и `readers.fixedLayout` preferences. Успешно прошли `git diff --check`, `make frontend-unit-test` (13 файлов, 45 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck` и `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
+- Этап 9 (2026-07-16): geometry clamp и filter-order tests теперь импортируют нейтральные modules; PDF/DJVU DOM/UI для ширины, overflow и filters сохраняются. Успешно прошли `git diff --check`, `make frontend-unit-test` (13 файлов, 45 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck` и `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 
 ## Blockers
 
@@ -249,6 +251,7 @@ flowchart LR
 - Этап 6 (2026-07-16): новых блокеров не выявлено.
 - Этап 7 (2026-07-16): новых блокеров не выявлено.
 - Этап 8 (2026-07-16): новых блокеров не выявлено.
+- Этап 9 (2026-07-16): новых блокеров не выявлено.
 
 ## Deferred work
 
