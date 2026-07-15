@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-  defaultPdfFilterChain,
-  hasEnabledPdfFilters,
-  invertFilterFromChain,
-  normalizedPdfFilterChain,
-  pdfFilterChainKey,
-  sanitizePdfFilterChain,
-  textEnhancementFilterFromChain,
-} from './pdfFilters';
+  defaultFixedLayoutFilterChain,
+  fixedLayoutFilterChainKey,
+  hasEnabledFixedLayoutFilters,
+  invertFilterFromFixedLayoutChain,
+  normalizedFixedLayoutFilterChain,
+  sanitizeFixedLayoutFilterChain,
+  textEnhancementFilterFromFixedLayoutChain,
+} from '../FixedLayoutReader/fixedLayoutFilters';
 
-describe('pdfFilters', () => {
+describe('fixedLayoutFilters', () => {
   it('нормализует старую цепочку, ограничивает значения и добавляет пропущенные фильтры', () => {
-    const chain = sanitizePdfFilterChain([
+    const chain = sanitizeFixedLayoutFilterChain([
       {
         id: 'enhanceText',
         enabled: true,
@@ -27,7 +27,7 @@ describe('pdfFilters', () => {
     ]);
 
     expect(chain).toHaveLength(6);
-    expect(textEnhancementFilterFromChain(chain!)).toMatchObject({
+    expect(textEnhancementFilterFromFixedLayoutChain(chain!)).toMatchObject({
       enabled: true,
       strokeWidth: 2,
       threshold: 0,
@@ -35,20 +35,20 @@ describe('pdfFilters', () => {
       grayLevels: 9,
       toneShift: 1,
     });
-    expect(invertFilterFromChain(chain!)).toMatchObject({ enabled: true, strength: 0 });
+    expect(invertFilterFromFixedLayoutChain(chain!)).toMatchObject({ enabled: true, strength: 0 });
   });
 
   it('отклоняет невалидную цепочку и создаёт независимые значения по умолчанию', () => {
-    expect(sanitizePdfFilterChain({})).toBeUndefined();
-    expect(sanitizePdfFilterChain([])).toBeUndefined();
+    expect(sanitizeFixedLayoutFilterChain({})).toBeUndefined();
+    expect(sanitizeFixedLayoutFilterChain([])).toBeUndefined();
 
-    const first = defaultPdfFilterChain();
-    const second = normalizedPdfFilterChain(undefined);
+    const first = defaultFixedLayoutFilterChain();
+    const second = normalizedFixedLayoutFilterChain(undefined);
     first[0].enabled = true;
 
     expect(second[0].enabled).toBe(false);
-    expect(hasEnabledPdfFilters(first)).toBe(true);
-    expect(hasEnabledPdfFilters(second)).toBe(false);
-    expect(pdfFilterChainKey(second)).toBe(JSON.stringify(second));
+    expect(hasEnabledFixedLayoutFilters(first)).toBe(true);
+    expect(hasEnabledFixedLayoutFilters(second)).toBe(false);
+    expect(fixedLayoutFilterChainKey(second)).toBe(JSON.stringify(second));
   });
 });

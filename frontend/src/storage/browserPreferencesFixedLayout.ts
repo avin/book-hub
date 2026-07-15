@@ -1,11 +1,11 @@
 import {
-  sanitizePdfFilterChain,
-  type PdfFilterChain,
-} from '@/components/common/PdfReader/pdfFilters';
+  sanitizeFixedLayoutFilterChain,
+  type FixedLayoutFilterChain,
+} from '@/components/common/FixedLayoutReader/fixedLayoutFilters';
 import {
-  clampPdfPageWidthOverflow,
-  defaultPdfPageWidthOverflow,
-} from '@/components/common/PdfReader/pdfPageSettings';
+  clampFixedLayoutPageWidthOverflow,
+  defaultFixedLayoutPageWidthOverflow,
+} from '@/components/common/FixedLayoutReader/fixedLayoutPageSettings';
 import {
   finiteNumber,
   fixedLayoutReaderPreferences,
@@ -35,10 +35,12 @@ export function setFixedLayoutReaderContentWidthPreference(contentWidth: number 
 
 export function getFixedLayoutReaderPageWidthOverflowPreference(bookId: string) {
   const pageWidthOverflows = fixedLayoutReaderPreferences()?.pageWidthOverflows;
-  if (!isRecord(pageWidthOverflows)) return defaultPdfPageWidthOverflow;
+  if (!isRecord(pageWidthOverflows)) return defaultFixedLayoutPageWidthOverflow;
 
   const value = finiteNumber(pageWidthOverflows[bookId]);
-  return value === undefined ? defaultPdfPageWidthOverflow : clampPdfPageWidthOverflow(value);
+  return value === undefined
+    ? defaultFixedLayoutPageWidthOverflow
+    : clampFixedLayoutPageWidthOverflow(value);
 }
 
 export function setFixedLayoutReaderPageWidthOverflowPreference(bookId: string, value: number) {
@@ -52,7 +54,10 @@ export function setFixedLayoutReaderPageWidthOverflowPreference(bookId: string, 
         ...readerPreferencesForWrite(preferences),
         fixedLayout: {
           ...fixedLayoutReaderPreferencesForWrite(preferences),
-          pageWidthOverflows: { ...pageWidthOverflows, [bookId]: clampPdfPageWidthOverflow(value) },
+          pageWidthOverflows: {
+            ...pageWidthOverflows,
+            [bookId]: clampFixedLayoutPageWidthOverflow(value),
+          },
         },
       },
     };
@@ -89,10 +94,13 @@ export function setFixedLayoutReaderHorizontalScrollPositionPreference(
 
 export function getFixedLayoutReaderFilterChainPreference(bookId: string) {
   const chains = fixedLayoutReaderPreferences()?.filterChains;
-  return isRecord(chains) ? sanitizePdfFilterChain(chains[bookId]) : undefined;
+  return isRecord(chains) ? sanitizeFixedLayoutFilterChain(chains[bookId]) : undefined;
 }
 
-export function setFixedLayoutReaderFilterChainPreference(bookId: string, chain: PdfFilterChain) {
+export function setFixedLayoutReaderFilterChainPreference(
+  bookId: string,
+  chain: FixedLayoutFilterChain,
+) {
   updatePreferences((preferences) => {
     const current = fixedLayoutReaderPreferencesForWrite(preferences)?.filterChains;
     const filterChains = isRecord(current) ? current : {};

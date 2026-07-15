@@ -20,7 +20,7 @@ import {
 import { ListTree, SlidersHorizontal } from 'lucide-solid';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
-import PdfFilterPanel from './PdfFilterPanel/PdfFilterPanel';
+import FixedLayoutFilterPanel from '../FixedLayoutFilterPanel/FixedLayoutFilterPanel';
 import useReaderChrome from '@/components/common/ReaderChrome/useReaderChrome';
 import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
 import ReaderFloatingChrome from '@/components/common/ReaderFloatingChrome/ReaderFloatingChrome';
@@ -47,18 +47,21 @@ import {
 import { mapPdfOutline, resolvePdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import PdfTextHighlighter from './PdfTextHighlighter';
 import {
-  defaultPdfFilterChain,
-  grayscaleFilterFromChain,
-  hasEnabledPdfFilters,
-  invertFilterFromChain,
-  pdfFilterChainKey,
-  softTextEnhancementFilterFromChain,
-  textEnhancementFilterFromChain,
-  visualAdjustmentFilterFromChain,
-  warmthFilterFromChain,
-  type PdfFilterChain,
-} from './pdfFilters';
-import { clampPdfPageWidthOverflow, defaultPdfPageWidthOverflow } from './pdfPageSettings';
+  defaultFixedLayoutFilterChain as defaultPdfFilterChain,
+  fixedLayoutFilterChainKey as pdfFilterChainKey,
+  grayscaleFilterFromFixedLayoutChain as grayscaleFilterFromChain,
+  hasEnabledFixedLayoutFilters as hasEnabledPdfFilters,
+  invertFilterFromFixedLayoutChain as invertFilterFromChain,
+  softTextEnhancementFilterFromFixedLayoutChain as softTextEnhancementFilterFromChain,
+  textEnhancementFilterFromFixedLayoutChain as textEnhancementFilterFromChain,
+  visualAdjustmentFilterFromFixedLayoutChain as visualAdjustmentFilterFromChain,
+  warmthFilterFromFixedLayoutChain as warmthFilterFromChain,
+  type FixedLayoutFilterChain as PdfFilterChain,
+} from '../FixedLayoutReader/fixedLayoutFilters';
+import {
+  clampFixedLayoutPageWidthOverflow,
+  defaultFixedLayoutPageWidthOverflow,
+} from '../FixedLayoutReader/fixedLayoutPageSettings';
 import {
   destroySharedPdfWebglFilterRenderer,
   isPdfWebglAvailable,
@@ -976,7 +979,7 @@ function PdfReader(props: {
   };
 
   const updatePageWidthOverflow = (value: number) => {
-    const nextOverflow = clampPdfPageWidthOverflow(value);
+    const nextOverflow = clampFixedLayoutPageWidthOverflow(value);
     if (nextOverflow === pageWidthOverflow()) return;
 
     const anchor = currentScrollAnchor();
@@ -1711,7 +1714,7 @@ function PdfReader(props: {
 
   const resetFilters = () => {
     updateFilterChain(() => defaultPdfFilterChain());
-    updatePageWidthOverflow(defaultPdfPageWidthOverflow);
+    updatePageWidthOverflow(defaultFixedLayoutPageWidthOverflow);
   };
 
   const readerChrome = useReaderChrome({
@@ -1913,7 +1916,7 @@ function PdfReader(props: {
         onSelect={onTocSelect}
       />
 
-      <PdfFilterPanel
+      <FixedLayoutFilterPanel
         open={filterPanelOpen()}
         filterChain={filterChain()}
         textEnhancementFilter={

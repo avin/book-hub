@@ -40,22 +40,22 @@ import {
   setFixedLayoutReaderPageWidthOverflowPreference,
 } from '@/storage/browserPreferencesFixedLayout';
 import useReaderChrome from '../ReaderChrome/useReaderChrome';
-import PdfFilterPanel from '../PdfReader/PdfFilterPanel/PdfFilterPanel';
+import FixedLayoutFilterPanel from '../FixedLayoutFilterPanel/FixedLayoutFilterPanel';
 import {
-  defaultPdfFilterChain,
-  grayscaleFilterFromChain,
-  hasEnabledPdfFilters,
-  invertFilterFromChain,
-  softTextEnhancementFilterFromChain,
-  textEnhancementFilterFromChain,
-  visualAdjustmentFilterFromChain,
-  warmthFilterFromChain,
-  type PdfFilterChain,
-} from '../PdfReader/pdfFilters';
+  defaultFixedLayoutFilterChain as defaultPdfFilterChain,
+  grayscaleFilterFromFixedLayoutChain as grayscaleFilterFromChain,
+  hasEnabledFixedLayoutFilters as hasEnabledPdfFilters,
+  invertFilterFromFixedLayoutChain as invertFilterFromChain,
+  softTextEnhancementFilterFromFixedLayoutChain as softTextEnhancementFilterFromChain,
+  textEnhancementFilterFromFixedLayoutChain as textEnhancementFilterFromChain,
+  visualAdjustmentFilterFromFixedLayoutChain as visualAdjustmentFilterFromChain,
+  warmthFilterFromFixedLayoutChain as warmthFilterFromChain,
+  type FixedLayoutFilterChain as PdfFilterChain,
+} from '../FixedLayoutReader/fixedLayoutFilters';
 import {
-  clampPdfPageWidthOverflow,
-  defaultPdfPageWidthOverflow,
-} from '../PdfReader/pdfPageSettings';
+  clampFixedLayoutPageWidthOverflow,
+  defaultFixedLayoutPageWidthOverflow,
+} from '../FixedLayoutReader/fixedLayoutPageSettings';
 import {
   destroySharedPdfWebglFilterRenderer,
   isPdfWebglAvailable,
@@ -826,7 +826,7 @@ function DjvuReader(props: {
     });
   };
   const updateOverflow = (value: number) => {
-    const next = clampPdfPageWidthOverflow(value);
+    const next = clampFixedLayoutPageWidthOverflow(value);
     if (next === overflow()) return;
 
     overflowScrollAnchor ??= captureScrollAnchor();
@@ -1123,7 +1123,7 @@ function DjvuReader(props: {
         onClose={() => setTocOpen(false)}
         onSelect={selectToc}
       />
-      <PdfFilterPanel
+      <FixedLayoutFilterPanel
         open={filterPanelOpen()}
         filterChain={filterChain()}
         textEnhancementFilter={
@@ -1227,7 +1227,7 @@ function DjvuReader(props: {
         onPageWidthOverflowChange={updateOverflow}
         onReset={() => {
           updateFilterChain(() => defaultPdfFilterChain());
-          updateOverflow(defaultPdfPageWidthOverflow);
+          updateOverflow(defaultFixedLayoutPageWidthOverflow);
         }}
         onAutoWidth={resetToFitWidth}
       />

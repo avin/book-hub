@@ -6,7 +6,7 @@ import {
   getBookDownloadUrl,
   getBookFileUrl,
 } from '@/api/books';
-import { clampPdfPageWidthOverflow } from './PdfReader/pdfPageSettings';
+import { clampFixedLayoutPageWidthOverflow } from './FixedLayoutReader/fixedLayoutPageSettings';
 import {
   applyWidthRulerPointer,
   clampWidth,
@@ -86,7 +86,7 @@ describe('общие утилиты фронтенда', () => {
     expect(onWidthChange).toHaveBeenCalledWith(280);
     expect(onGuideX).toHaveBeenCalledWith(160);
     expect(clampWidth(999, 1, 20)).toBe(20);
-    expect(clampPdfPageWidthOverflow(-10)).toBe(0);
+    expect(clampFixedLayoutPageWidthOverflow(-10)).toBe(0);
     expect(computeWidthRulerMarkers(ruler, 400, 0).left).toEqual({ left: '0px' });
   });
 
