@@ -10,12 +10,8 @@ import {
   type JSX,
   untrack,
 } from 'solid-js';
-import {
-  createDjVuWorker,
-  type DjVuContentsEntry,
-  type DjVuTextZone,
-  type DjVuWorker,
-} from '@/api/djvujs';
+import { type DjVuContentsEntry, type DjVuTextZone, type DjVuWorker } from '@/api/djvujs';
+import { createFixedLayoutDocumentLifecycle } from '../FixedLayoutReader/fixedLayoutDocument';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
@@ -41,6 +37,7 @@ import {
 } from '@/storage/browserPreferencesFixedLayout';
 import useReaderChrome from '../ReaderChrome/useReaderChrome';
 import FixedLayoutFilterPanel from '../FixedLayoutFilterPanel/FixedLayoutFilterPanel';
+import { createDjvuFixedLayoutAdapter } from './djvuFixedLayoutAdapter';
 import {
   defaultFixedLayoutFilterChain as defaultPdfFilterChain,
   grayscaleFilterFromFixedLayoutChain as grayscaleFilterFromChain,
@@ -129,6 +126,9 @@ function DjvuReader(props: {
   const allocatedCanvasPages = new Set<number>();
   const tocTargets = new Map<TocEntry, string>();
   const [pages, setPages] = createSignal<Page[]>([]);
+  const djvuDocumentLifecycle = createFixedLayoutDocumentLifecycle(
+    createDjvuFixedLayoutAdapter({ fileUrl: () => props.fileUrl }),
+  );
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
   const [documentWidth, setDocumentWidth] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
@@ -577,13 +577,12 @@ function DjvuReader(props: {
 
   const loadDocument = async () => {
     const loadGeneration = ++generation;
-    let nextWorker: DjVuWorker | undefined;
     renderQueue = [];
     renderInProgress = false;
     if (renderAfterScrollTimeout !== undefined) clearTimeout(renderAfterScrollTimeout);
     renderAfterScrollTimeout = undefined;
-    worker?.worker.terminate();
     worker = undefined;
+    await djvuDocumentLifecycle.release().catch(() => undefined);
     setLoading(true);
     setFailed(false);
     setPages([]);
@@ -595,16 +594,14 @@ function DjvuReader(props: {
     tocTargets.clear();
     lastScrollAnchor = undefined;
     try {
-      nextWorker = await createDjVuWorker();
-      const response = await fetch(props.fileUrl);
-      if (!response.ok) throw new Error('Could not load DJVU');
-      await nextWorker.createDocument(await response.arrayBuffer());
-      if (!(await nextWorker.doc.isBundled().run()))
-        throw new Error('Indirect DJVU is not supported');
-      const sizes = await nextWorker.doc.getPagesSizes().run();
-      const contents = await nextWorker.doc.getContents().run();
+      const loaded = await djvuDocumentLifecycle.load();
+      if (!loaded) {
+        return;
+      }
+
+      const { document: nextWorker, pages: nextPages, outline: contents } = loaded;
       if (loadGeneration !== generation || destroyed) {
-        nextWorker.worker.terminate();
+        await djvuDocumentLifecycle.release();
         return;
       }
       worker = nextWorker;
@@ -617,13 +614,7 @@ function DjvuReader(props: {
           tocTargets.set(tocEntry, entry.url);
           return tocEntry;
         });
-      setPages(
-        sizes.map((size, index) => ({
-          pageNumber: index + 1,
-          width: size.width,
-          height: size.height,
-        })),
-      );
+      setPages(nextPages);
       setOutline(mapContents(contents));
       setOutlineLoaded(true);
       setLoading(false);
@@ -631,7 +622,6 @@ function DjvuReader(props: {
       requestAnimationFrame(() => props.onReady?.());
     } catch (error) {
       console.error('Could not open DJVU', error);
-      nextWorker?.worker.terminate();
       if (loadGeneration === generation && !destroyed) {
         setLoading(false);
         setFailed(true);
@@ -1008,7 +998,7 @@ function DjvuReader(props: {
     destroyed = true;
     observer?.disconnect();
     resizeObserver?.disconnect();
-    worker?.worker.terminate();
+    void djvuDocumentLifecycle.release();
     destroySharedPdfWebglFilterRenderer();
     if (horizontalScrollRestoreFrame !== undefined)
       cancelAnimationFrame(horizontalScrollRestoreFrame);
