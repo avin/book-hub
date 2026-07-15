@@ -441,7 +441,6 @@ func (s *Store) UpdateBook(ctx context.Context, userID, bookID uuid.UUID, patch 
 		return domain.Book{}, err
 	}
 	title := current.Title
-	tags := current.Tags
 	favorite := current.Favorite
 	if patch.Title != nil {
 		title = domain.NormalizeTitle(*patch.Title)
@@ -466,7 +465,7 @@ func (s *Store) UpdateBook(ctx context.Context, userID, bookID uuid.UUID, patch 
 		return domain.Book{}, domain.ErrNotFound
 	}
 	if patch.Tags != nil {
-		tags = domain.NormalizeTags(*patch.Tags)
+		tags := domain.NormalizeTags(*patch.Tags)
 		if err := replaceBookTags(ctx, tx, userID, bookID, tags); err != nil {
 			return domain.Book{}, err
 		}

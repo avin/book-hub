@@ -35,7 +35,7 @@ HEALTH_PATH ?= $(if $(HEALTH_BASE_PATH),$(HEALTH_BASE_PATH)/api/readyz,/api/read
 
 .PHONY: help env \
 	dev-db dev-backend dev-frontend dev-storybook \
-	backend-test frontend-unit-test frontend-e2e-test frontend-test frontend-generate frontend-build test \
+	backend-test storage-contract-test frontend-unit-test frontend-e2e-test frontend-test frontend-generate frontend-build test \
 	docker-build docker-up docker-down docker-stop docker-restart \
 	local-deploy ghcr-require-image-tag ghcr-deploy ghcr-migrate ghcr-admin \
 	migrate migrate-up migrate-down migrate-version admin \
@@ -57,6 +57,7 @@ help:
 	@echo ""
 	@echo "Checks and generation:"
 	@echo "  backend-test           Run Go tests"
+	@echo "  storage-contract-test  Run PostgreSQL storage contract suite"
 	@echo "  frontend-unit-test     Run frontend unit tests"
 	@echo "  frontend-e2e-test      Run frontend end-to-end tests (Playwright)"
 	@echo "  frontend-test          Run all frontend tests"
@@ -108,6 +109,11 @@ dev-storybook:
 # Запускает все Go-тесты backend.
 backend-test:
 	go -C $(BACKEND_DIR) test ./...
+
+# Запускает contract-suite на изолированной schema в указанной PostgreSQL базе.
+storage-contract-test:
+	@test -n "$(BOOK_HUB_TEST_DATABASE_URL)" || { echo "BOOK_HUB_TEST_DATABASE_URL is required" >&2; exit 1; }
+	go -C $(BACKEND_DIR) test ./internal/storage/db -run TestStoreContract -count=1
 
 # Запускает unit-тесты frontend через Vitest.
 frontend-unit-test:

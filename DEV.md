@@ -53,6 +53,7 @@ Backend слушает `http://localhost:8080`, Vite — `http://localhost:5173`
 ```bash
 make dev-storybook
 make backend-test
+make storage-contract-test BOOK_HUB_TEST_DATABASE_URL=postgres://...
 make frontend-test
 make frontend-e2e-test
 make frontend-generate
@@ -61,6 +62,8 @@ make test
 ```
 
 `make frontend-generate` запускайте после изменений в `api/openapi.yaml`.
+
+`make storage-contract-test` выполняет общую contract-suite PostgreSQL adapter на реально применённых миграциях. URL должен указывать на отдельную тестовую базу, где пользователь может создавать schema; suite создаёт случайную schema через `search_path` и удаляет её после завершения. Не передавайте URL production-базы.
 
 ## Docker и диагностика
 

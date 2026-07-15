@@ -40,8 +40,6 @@ type Server struct {
 
 type contextKey string
 
-const userIDKey contextKey = "user_id"
-
 func New(cfg config.Config, store storage.Store, fileStore files.Store, logger *slog.Logger) *Server {
 	if logger == nil {
 		logger = slog.Default()
