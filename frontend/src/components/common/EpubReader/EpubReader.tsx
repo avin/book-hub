@@ -1,5 +1,5 @@
 import { createEffect, createSignal, onCleanup, Show, type JSX } from 'solid-js';
-import Fb2Reader from '@/components/common/Fb2Reader/Fb2Reader';
+import ReflowableReader from '@/components/common/ReflowableReader/ReflowableReader';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import { useI18n } from '@/i18n/I18nProvider';
 import { parseEpub } from './epubParser';
@@ -54,7 +54,7 @@ function EpubReader(props: {
       }
     >
       {(parsed) => (
-        <Fb2Reader
+        <ReflowableReader
           document={parsed()}
           historyId={props.historyId}
           class={props.class}
