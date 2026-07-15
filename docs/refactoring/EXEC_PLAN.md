@@ -1,6 +1,6 @@
 # План системного рефакторинга Book Hub
 
-**Статус:** в работе; этапы 1–11 завершены.
+**Статус:** завершён; этапы 1–12 завершены.
 **Последняя верификация исходного состояния:** 2026-07-15.
 **Рабочее дерево на момент аудита:** чистое.
 
@@ -198,7 +198,7 @@ flowchart LR
 - [x] 9. Fixed-layout foundation
 - [x] 10. Общий fixed-layout reader
 - [x] 11. Нейтральный reflowable reader
-- [ ] 12. Quality gate
+- [x] 12. Quality gate
 
 ## Decisions
 
@@ -219,6 +219,7 @@ flowchart LR
 - **Подтверждено (этап 10, 2026-07-16):** `FixedLayoutReader` владеет generation-safe lifecycle активного документа и малым контрактом pages, render/release, search, outline и navigation. PDF и DJVU реализуют этот контракт отдельными adapters; DOM-виртуализация, text layers, scroll anchors и format-specific presentation остались в существующих readers.
 - **Подтверждено (этап 10, 2026-07-16):** PDF find controller и resolve destination инкапсулированы PDF-adapter-ом, DJVU page raster/text zones/TOC navigation и Worker termination — DJVU-adapter-ом. URL, API, localStorage schema, filters и DOM-контракты readers не менялись.
 - **Подтверждено (этап 11, 2026-07-16):** `ReflowableReader` владеет нейтральной моделью документа, layout, поиском, сносками, оглавлением и presentation modules; `Fb2Reader` и `EpubReader` остались format adapters. Для сохранения существующих данных browser preferences продолжает читать и записывать `readers.fb2.settings` без миграции схемы.
+- **Подтверждено (этап 12, 2026-07-16):** `verify.yml` использует отдельные cached jobs для backend/PostgreSQL contract-suite, frontend и generated API types. Он имеет только read-permissions, не публикует образы и сохраняет Playwright artifacts при сбое; `publish-images.yml` не изменён.
 - **Непроверенное предположение:** внешний пользователь не зависит от недокументированного admin CLI output или внутренних frontend localStorage details помимо уже описанной схемы.
 
 ## Discoveries
@@ -242,6 +243,7 @@ flowchart LR
 - Этап 9 (2026-07-16): geometry clamp и filter-order tests теперь импортируют нейтральные modules; PDF/DJVU DOM/UI для ширины, overflow и filters сохраняются. Успешно прошли `git diff --check`, `make frontend-unit-test` (13 файлов, 45 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck` и `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 - Этап 10 (2026-07-16): fake-adapter contract tests покрывают замену и release документа, устаревший page resource, search/navigation и cleanup после ошибки pages/outline. E2E на минимальных реальных PDF/DJVU fixtures проверяют PDF search, TOC, browser history, width/overflow, filters и horizontal scroll, а также DJVU Worker termination при client-side unmount. Успешно прошли `git diff --check`, `make frontend-test` (14 unit-файлов, 48 тестов; 9 Playwright-тестов), `make frontend-build`, `make test` и дополнительно `npm --prefix frontend run lint`. Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 - Этап 11 (2026-07-16): нейтральная модель, implementation и удаление compatibility aliases выполнены тремя отдельными commits. Добавлены E2E для FB2 и EPUB: поиск, оглавление, сноски, настройка шрифта и сохранение progress. Успешно прошли `git diff --check`, `make frontend-unit-test` (14 файлов, 48 тестов), `make frontend-test` (14 unit-файлов, 48 тестов; 11 Playwright-тестов), `make frontend-build`, `make test` и дополнительно `npm --prefix frontend run lint`. Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
+- Этап 12 (2026-07-16): добавлен `verify.yml` для push и pull request с Go tests, PostgreSQL contract-suite, frontend lint/unit/typecheck/build, Playwright и generated API types cleanliness. Локально `verify.yml` разобран как корректный YAML; actionlint в окружении отсутствует. Успешно прошли `git diff --check`, `make test`, `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck`, `make frontend-generate` и `git diff --exit-code -- frontend/src/api/generated/schema.ts`. Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 
 ## Blockers
 
@@ -259,6 +261,7 @@ flowchart LR
 - Этап 9 (2026-07-16): новых блокеров не выявлено.
 - Этап 10 (2026-07-16): новых блокеров не выявлено; глобальное ограничение на реальные пользовательские проблемные fixtures сохраняется.
 - Этап 11 (2026-07-16): новых блокеров не выявлено; глобальное ограничение на реальные пользовательские проблемные fixtures сохраняется.
+- Этап 12 (2026-07-16): новых блокеров для workflow не выявлено. Настройка branch protection остаётся внешним административным решением и не менялась.
 
 ## Deferred work
 

@@ -1,0 +1,122 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend and storage contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: book_hub_test
+          POSTGRES_USER: book_hub
+          POSTGRES_PASSWORD: book_hub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U book_hub -d book_hub_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Run Go tests
+        run: make backend-test
+
+      - name: Run PostgreSQL storage contract suite
+        env:
+          BOOK_HUB_TEST_DATABASE_URL: postgresql://book_hub:book_hub@localhost:5432/book_hub_test?sslmode=disable
+        run: make storage-contract-test
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Lint frontend
+        run: npm --prefix frontend run lint
+
+      - name: Run frontend unit tests
+        run: make frontend-unit-test
+
+      - name: Type-check frontend
+        run: npm --prefix frontend run typecheck
+
+      - name: Build frontend
+        run: make frontend-build
+
+      - name: Install Playwright browser
+        run: npm --prefix frontend exec playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: make frontend-e2e-test
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          if-no-files-found: ignore
+
+  generated-api:
+    name: Generated API types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Regenerate API types
+        run: make frontend-generate
+
+      - name: Verify generated API types are committed
+        run: git diff --exit-code
