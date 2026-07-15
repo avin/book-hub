@@ -11,6 +11,7 @@ import (
 	"book-hub/internal/auth"
 	"book-hub/internal/config"
 	"book-hub/internal/domain"
+	"book-hub/internal/storage"
 	"book-hub/internal/storage/db"
 	"book-hub/internal/storage/files"
 	"github.com/google/uuid"
@@ -92,15 +93,8 @@ func run() error {
 }
 
 type adminStore interface {
-	CreateUser(context.Context, string, string, bool, int64) (domain.User, error)
-	GetUser(context.Context, uuid.UUID) (domain.UserWithPassword, error)
-	GetUserByLogin(context.Context, string) (domain.UserWithPassword, error)
-	SetUserActive(context.Context, uuid.UUID, bool) error
-	SetUserPassword(context.Context, uuid.UUID, string) error
-	SetUserQuota(context.Context, uuid.UUID, int64) error
-	DeleteUser(context.Context, uuid.UUID) ([]domain.DeletedBookFiles, error)
-	ListUsers(context.Context) ([]domain.User, error)
-	RevokeUserSessions(context.Context, uuid.UUID, *string) error
+	storage.Users
+	storage.Sessions
 }
 
 func printHelp() {
@@ -158,9 +152,6 @@ func setActive(ctx context.Context, scanner *bufio.Scanner, store adminStore, ac
 	}
 	if err := store.SetUserActive(ctx, user.ID, active); err != nil {
 		return err
-	}
-	if !active {
-		return store.RevokeUserSessions(ctx, user.ID, nil)
 	}
 	return nil
 }

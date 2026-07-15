@@ -646,13 +646,11 @@ func deleteUnusedTags(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
 }
 
 type bookQuerier interface {
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
 func scanBook(ctx context.Context, q bookQuerier, userID, bookID uuid.UUID) (domain.Book, error) {
-	rows, err := q.(interface {
-		Query(context.Context, string, ...any) (pgx.Rows, error)
-	}).Query(ctx, `
+	rows, err := q.Query(ctx, `
 		select ub.id, ub.title,
 			coalesce(array_agg(t.name order by t.name) filter (where t.name is not null), '{}'::text[]) as tags,
 			ub.favorite, bf.format, bf.size_bytes,

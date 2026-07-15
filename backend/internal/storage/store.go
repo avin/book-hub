@@ -8,10 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Store interface {
-	Ping(ctx context.Context) error
-	Close()
-
+type Users interface {
 	CreateUser(ctx context.Context, login, passwordHash string, active bool, quotaBytes int64) (domain.User, error)
 	GetUser(ctx context.Context, userID uuid.UUID) (domain.UserWithPassword, error)
 	GetUserByLogin(ctx context.Context, login string) (domain.UserWithPassword, error)
@@ -21,15 +18,21 @@ type Store interface {
 	DeleteUser(ctx context.Context, userID uuid.UUID) ([]domain.DeletedBookFiles, error)
 	ListUsers(ctx context.Context) ([]domain.User, error)
 	UsedBytes(ctx context.Context, userID uuid.UUID) (int64, error)
+}
 
+type Sessions interface {
 	CreateSession(ctx context.Context, userID uuid.UUID, tokenHash string, ttlSeconds int64) error
 	GetSession(ctx context.Context, tokenHash string) (uuid.UUID, error)
 	RevokeSession(ctx context.Context, tokenHash string) error
 	RevokeUserSessions(ctx context.Context, userID uuid.UUID, exceptTokenHash *string) error
+}
 
+type Settings interface {
 	GetSettings(ctx context.Context, userID uuid.UUID) (json.RawMessage, error)
 	PutSettings(ctx context.Context, userID uuid.UUID, settings json.RawMessage) error
+}
 
+type Books interface {
 	GetBookFileByHash(ctx context.Context, sha256 string) (*domain.BookFile, error)
 	UserHasBookFile(ctx context.Context, userID, bookFileID uuid.UUID) (bool, error)
 	CreateBook(ctx context.Context, userID uuid.UUID, file domain.BookFileInput, book domain.BookInput) (domain.Book, error)
@@ -45,6 +48,17 @@ type Store interface {
 	PutProgress(ctx context.Context, userID, bookID uuid.UUID, progress float64) (domain.ReadingProgress, error)
 	DeleteProgress(ctx context.Context, userID, bookID uuid.UUID) error
 	DeleteAllProgress(ctx context.Context, userID uuid.UUID) error
+}
+
+// Store remains the HTTP composition root compatibility interface.
+type Store interface {
+	Users
+	Sessions
+	Settings
+	Books
+
+	Ping(ctx context.Context) error
+	Close()
 }
 
 type BookPatch struct {
