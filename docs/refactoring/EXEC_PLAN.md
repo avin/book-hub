@@ -1,6 +1,6 @@
 # План системного рефакторинга Book Hub
 
-**Статус:** в работе; этапы 1–6 завершены.
+**Статус:** в работе; этапы 1–7 завершены.
 **Последняя верификация исходного состояния:** 2026-07-15.
 **Рабочее дерево на момент аудита:** чистое.
 
@@ -193,7 +193,7 @@ flowchart LR
 - [x] 4. Декомпозиция HTTP module
 - [x] 5. Books transport и query-cache
 - [x] 6. Upload model/lifecycle/presentation
-- [ ] 7. Tags utilities и control
+- [x] 7. Tags utilities и control
 - [ ] 8. Preferences и fixed-layout terminology
 - [ ] 9. Fixed-layout foundation
 - [ ] 10. Общий fixed-layout reader
@@ -213,6 +213,7 @@ flowchart LR
 - **Подтверждено (этап 4, 2026-07-16):** внешние symbols `New`, `ServeHTTP` и `ListenAndServe`, порядок маршрутов, middleware request ID, проверки CSRF/ownership и очистка файлов сохранены; implementation разнесён по cohesive HTTP modules без изменения публичного контракта.
 - **Подтверждено (этап 5, 2026-07-16):** `books.ts` сохранён как compatibility facade; URL, multipart-поля, `credentials`, CSRF, значения query keys и cache invalidation semantics сохранены. Transport больше не импортирует UI modules; декодер FB2 вынесен в нейтральный module.
 - **Подтверждено (этап 6, 2026-07-16):** чистая модель черновика сохраняет существующие статусы, а preparation и batch lifecycle вынесены в локальные hooks. Последовательность batch, partial success, page lock, generation guards, отмена preparation и освобождение preview URL не менялись.
+- **Подтверждено (этап 7, 2026-07-16):** Upload, Library и `TagsSelect` используют единые правила объединения, нормализации и недавних тегов. Внешние props и DOM-контракт `TagsSelect` сохранены; async selection model игнорирует устаревшие результаты поиска, а overflow hook сохраняет прежний расчёт видимых и свёрнутых тегов.
 - **Непроверенное предположение:** внешний пользователь не зависит от недокументированного admin CLI output или внутренних frontend localStorage details помимо уже описанной схемы.
 
 ## Discoveries
@@ -231,6 +232,7 @@ flowchart LR
 - Этап 4 (2026-07-16): `server.go` сокращён до composition root; routing, auth/profile, books, health, request helpers, responses/DTO и lifecycle вынесены в отдельные cohesive modules. Добавлены table-driven black-box проверки base path, request ID, CSRF, JSON errors и multipart errors. Успешно прошли `git diff --check`, `make backend-test`, PostgreSQL contract-suite на Go 1.26 и `staticcheck ./...` на Go 1.26.
 - Этап 5 (2026-07-16): books transport, query keys, cache updaters и query/mutation factories разделены по modules, а facade сохраняет все прежние exports. Unit-тесты дополнительно фиксируют multipart-формат, CSRF и JSON server error; обычный и infinite cache уже покрыты. Успешно прошли `git diff --check`, `make frontend-unit-test` (9 файлов, 32 теста), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck`, `make frontend-e2e-test` (7 тестов) и `make frontend-build`. Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 - Этап 6 (2026-07-16): добавлены unit-тесты чистой модели черновика для форматов, transition-ов, тегов и завершения подготовки. `npm --prefix frontend exec playwright test tests/upload.spec.ts` не применяет `frontend/playwright.config.ts`, поэтому не задаёт base URL; корректная package-script команда `npm --prefix frontend run test:e2e -- tests/upload.spec.ts` успешно выполнила 2 upload-сценария. Успешно прошли `git diff --check`, `make frontend-unit-test` (10 файлов, 36 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck`, upload E2E (2 теста) и дополнительно `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
+- Этап 7 (2026-07-16): общие utilities фиксируют дедупликацию, порядок, нормализацию и недавние теги; async search model отбрасывает устаревшие результаты. Component-тесты `TagsSelect` покрывают Enter, навигацию стрелками, двойной Backspace, свёрнутые теги и disabled state. Успешно прошли `git diff --check`, `make frontend-unit-test` (13 файлов, 44 теста), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck` и `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 
 ## Blockers
 
@@ -243,6 +245,7 @@ flowchart LR
 - Этап 4 (2026-07-16): новых блокеров не выявлено.
 - Этап 5 (2026-07-16): новых блокеров не выявлено.
 - Этап 6 (2026-07-16): новых блокеров не выявлено.
+- Этап 7 (2026-07-16): новых блокеров не выявлено.
 
 ## Deferred work
 
