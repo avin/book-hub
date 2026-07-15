@@ -16,30 +16,22 @@ import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import TextInput from '@/components/common/TextInput/TextInput';
 import AppLayout from '@/components/layouts/AppLayout/AppLayout';
 import { useI18n } from '@/i18n/I18nProvider';
+import {
+  applyBulkTags as applyBulkTagsToDrafts,
+  createBookDraft,
+  finalizeDraftPreparation,
+  isDjvuBookFile,
+  isEpubBookFile,
+  isSupportedBookFile,
+  markDraftUploadFailed,
+  markDraftUploading,
+  removeDraft as removeDraftFromList,
+  uniqueTags,
+  updateDraft as updateDrafts,
+  type BookDraft,
+  type CoverStatus,
+} from './uploadDraftModel';
 import styles from './UploadPage.module.scss';
-
-type CoverStatus = 'pending' | 'ready' | 'missing' | 'failed';
-type UploadStatus = 'idle' | 'uploading' | 'failed';
-type EpubValidationStatus = 'pending' | 'ready' | 'failed';
-type DjvuValidationStatus = 'pending' | 'ready' | 'failed';
-
-type BookDraft = {
-  id: string;
-  file: File;
-  title: string;
-  tags: string[];
-  coverFile?: File;
-  coverPreviewUrl?: string;
-  coverSource?: 'auto' | 'manual';
-  coverStatus: CoverStatus;
-  epubValidationStatus: EpubValidationStatus;
-  djvuValidationStatus: DjvuValidationStatus;
-  coverError?: string;
-  titleExtracting: boolean;
-  titleError?: string;
-  uploadStatus: UploadStatus;
-  uploadError?: string;
-};
 
 let coverExtractionModule: Promise<typeof import('./coverExtraction')> | undefined;
 
@@ -47,53 +39,6 @@ function loadCoverExtraction() {
   coverExtractionModule ??= import('./coverExtraction');
 
   return coverExtractionModule;
-}
-
-function uniqueTags(existingTags: string[], drafts: BookDraft[]) {
-  const tags = new Map<string, string>();
-
-  for (const tag of existingTags) {
-    tags.set(tag, tag);
-  }
-  for (const draft of drafts) {
-    for (const tag of draft.tags) {
-      tags.set(tag, tag);
-    }
-  }
-
-  return [...tags.values()].sort((left, right) => left.localeCompare(right));
-}
-
-function appendTags(existingTags: string[], tags: string[]) {
-  const existingTagsSet = new Set(existingTags);
-
-  return [...existingTags, ...tags.filter((tag) => !existingTagsSet.has(tag))];
-}
-
-function titleFromFile(file: File) {
-  return file.name.replace(/\.[^.]+$/, '');
-}
-
-function isSupportedBookFile(file: File) {
-  const fileName = file.name.toLowerCase();
-  return (
-    file.type === 'application/pdf' ||
-    fileName.endsWith('.pdf') ||
-    fileName.endsWith('.fb2') ||
-    fileName.endsWith('.epub') ||
-    fileName.endsWith('.djvu') ||
-    fileName.endsWith('.djv')
-  );
-}
-
-function isEpubBookFile(file: File) {
-  return file.name.toLowerCase().endsWith('.epub');
-}
-
-function isDjvuBookFile(file: File) {
-  const fileName = file.name.toLowerCase();
-
-  return fileName.endsWith('.djvu') || fileName.endsWith('.djv');
 }
 
 function createDraftId() {
@@ -187,9 +132,7 @@ function UploadPage() {
       return;
     }
 
-    setDrafts((currentDrafts) =>
-      currentDrafts.map((draft) => (draft.id === id ? updater(draft) : draft)),
-    );
+    setDrafts((currentDrafts) => updateDrafts(currentDrafts, id, updater));
   };
 
   const updatePreparedDraft = (
@@ -292,17 +235,7 @@ function UploadPage() {
       return;
     }
 
-    const nextDrafts = selectedFiles.map((file) => ({
-      id: createDraftId(),
-      file,
-      title: titleFromFile(file),
-      tags: [],
-      coverStatus: 'pending' as const,
-      epubValidationStatus: isEpubBookFile(file) ? ('pending' as const) : ('ready' as const),
-      djvuValidationStatus: isDjvuBookFile(file) ? ('pending' as const) : ('ready' as const),
-      titleExtracting: false,
-      uploadStatus: 'idle' as const,
-    }));
+    const nextDrafts = selectedFiles.map((file) => createBookDraft(file, createDraftId()));
 
     if (!nextDrafts.length) {
       return;
@@ -384,7 +317,7 @@ function UploadPage() {
       revokePreviewUrl(draft);
     }
 
-    const nextDrafts = drafts().filter((currentDraft) => currentDraft.id !== id);
+    const nextDrafts = removeDraftFromList(drafts(), id);
     setDrafts(nextDrafts);
     if (nextDrafts.length === 0) {
       setError('');
@@ -453,20 +386,10 @@ function UploadPage() {
   const finalizePreparationForUpload = () => {
     setDrafts((currentDrafts) =>
       currentDrafts.map((draft) => {
-        if (draft.coverStatus !== 'pending') {
-          return draft.titleExtracting ? { ...draft, titleExtracting: false } : draft;
+        if (draft.coverStatus === 'pending') {
+          revokePreviewUrl(draft);
         }
-
-        revokePreviewUrl(draft);
-        return {
-          ...draft,
-          coverFile: undefined,
-          coverPreviewUrl: undefined,
-          coverSource: undefined,
-          coverStatus: 'missing',
-          coverError: undefined,
-          titleExtracting: false,
-        };
+        return finalizeDraftPreparation(draft);
       }),
     );
   };
@@ -477,21 +400,11 @@ function UploadPage() {
       return;
     }
 
-    setDrafts((currentDrafts) =>
-      currentDrafts.map((draft) => ({
-        ...draft,
-        tags: appendTags(draft.tags, tags),
-        uploadError: undefined,
-      })),
-    );
+    setDrafts((currentDrafts) => applyBulkTagsToDrafts(currentDrafts, tags));
   };
 
   const uploadDraft = async (draft: BookDraft) => {
-    updateDraft(draft.id, (currentDraft) => ({
-      ...currentDraft,
-      uploadStatus: 'uploading',
-      uploadError: undefined,
-    }));
+    updateDraft(draft.id, markDraftUploading);
 
     try {
       const book = await uploadBook({
@@ -508,11 +421,9 @@ function UploadPage() {
       removeDraft(draft.id);
       return true;
     } catch (nextError) {
-      updateDraft(draft.id, (currentDraft) => ({
-        ...currentDraft,
-        uploadStatus: 'failed',
-        uploadError: errorMessage(nextError, t('requestFailedTryAgain')),
-      }));
+      updateDraft(draft.id, (currentDraft) =>
+        markDraftUploadFailed(currentDraft, errorMessage(nextError, t('requestFailedTryAgain'))),
+      );
       return false;
     }
   };
