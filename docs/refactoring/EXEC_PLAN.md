@@ -1,6 +1,6 @@
 # План системного рефакторинга Book Hub
 
-**Статус:** в работе; этапы 1–3 завершены.
+**Статус:** в работе; этапы 1–4 завершены.
 **Последняя верификация исходного состояния:** 2026-07-15.
 **Рабочее дерево на момент аудита:** чистое.
 
@@ -190,7 +190,7 @@ flowchart LR
 - [x] 1. Characterization-тесты и документация
 - [x] 2. Контрактные тесты storage adapters
 - [x] 3. Узкие storage interfaces
-- [ ] 4. Декомпозиция HTTP module
+- [x] 4. Декомпозиция HTTP module
 - [ ] 5. Books transport и query-cache
 - [ ] 6. Upload model/lifecycle/presentation
 - [ ] 7. Tags utilities и control
@@ -210,6 +210,7 @@ flowchart LR
 - **Подтверждено (этап 1, 2026-07-16):** localStorage fallback `readers.pdf` → `readers.fixedLayout` переносит существующие значения при чтении; диапазон расширения страницы остаётся `0..80`.
 - **Подтверждено (этап 2, 2026-07-16):** PostgreSQL contract-suite использует `BOOK_HUB_TEST_DATABASE_URL`, создаёт случайную schema, применяет к ней фактические миграции через `search_path` и удаляет schema в cleanup; public schema и данные не затрагиваются.
 - **Подтверждено (этап 3, 2026-07-16):** `storage.Store` сохранён как compatibility aggregate для HTTP composition root; users, sessions, settings и books выделены в предметные interfaces без изменения методов adapters.
+- **Подтверждено (этап 4, 2026-07-16):** внешние symbols `New`, `ServeHTTP` и `ListenAndServe`, порядок маршрутов, middleware request ID, проверки CSRF/ownership и очистка файлов сохранены; implementation разнесён по cohesive HTTP modules без изменения публичного контракта.
 - **Непроверенное предположение:** внешний пользователь не зависит от недокументированного admin CLI output или внутренних frontend localStorage details помимо уже описанной схемы.
 
 ## Discoveries
@@ -225,6 +226,7 @@ flowchart LR
 - Этап 2 (2026-07-16): общая contract-suite проходит для memory adapter и для PostgreSQL adapter на реально применённых миграциях в отдельной случайной schema. Документированная Make-цель требует `BOOK_HUB_TEST_DATABASE_URL`; локальный PostgreSQL текущего compose-стека доступен только из Docker network, поэтому фактический запуск выполнен в Go 1.26 container в этой сети.
 - Этап 2 (2026-07-16): suite проверяет ownership, нормализацию и выборку тегов, relevance после progress/`last_opened_at`, обложки, сессии, квоты, пользовательскую дедупликацию и удаление последней файловой ссылки. Успешно прошли `git diff --check`, `make backend-test`, PostgreSQL contract-suite на Go 1.26 и `staticcheck ./...` на Go 1.26. Локальный staticcheck собран под Go 1.24 и не совместим с модулем Go 1.26.
 - Этап 3 (2026-07-16): `bookQuerier` теперь объявляет фактически используемый `Query`; admin CLI зависит от users/sessions interfaces и не делает повторный `RevokeUserSessions` после `SetUserActive(..., false)`, которое уже отзывает сессии в обоих adapters. Успешно прошли `git diff --check`, `make backend-test`, PostgreSQL contract-suite на Go 1.26 и `staticcheck ./...` на Go 1.26.
+- Этап 4 (2026-07-16): `server.go` сокращён до composition root; routing, auth/profile, books, health, request helpers, responses/DTO и lifecycle вынесены в отдельные cohesive modules. Добавлены table-driven black-box проверки base path, request ID, CSRF, JSON errors и multipart errors. Успешно прошли `git diff --check`, `make backend-test`, PostgreSQL contract-suite на Go 1.26 и `staticcheck ./...` на Go 1.26.
 
 ## Blockers
 
@@ -234,6 +236,7 @@ flowchart LR
 - Этап 1 (2026-07-16): новых блокеров не выявлено.
 - Этап 2 (2026-07-16): новых блокеров не выявлено.
 - Этап 3 (2026-07-16): новых блокеров не выявлено.
+- Этап 4 (2026-07-16): новых блокеров не выявлено.
 
 ## Deferred work
 
