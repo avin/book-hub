@@ -8,3 +8,4 @@ data
 .superpowers/
 backups
 tmp
+frontend/coverage

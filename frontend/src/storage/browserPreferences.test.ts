@@ -1,0 +1,71 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  getFb2ReaderSettingsPreference,
+  getFixedLayoutReaderContentWidthPreference,
+  getLanguagePreference,
+  getPdfReaderFilterChainPreference,
+  getPdfReaderPageWidthOverflowPreference,
+  getRecentTagsPreference,
+  getThemePreference,
+  setFb2ReaderSettingsPreference,
+  setFixedLayoutReaderContentWidthPreference,
+  setLanguagePreference,
+  setPdfReaderFilterChainPreference,
+  setPdfReaderPageWidthOverflowPreference,
+  setRecentTagsPreference,
+  setThemePreference,
+} from './browserPreferences';
+import { defaultSettings } from '@/components/common/Fb2Reader/fb2ReaderSettings';
+
+describe('browserPreferences', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('переносит старые языковые настройки и очищает legacy-ключи', () => {
+    localStorage.setItem('book-hub-language', 'en');
+    localStorage.setItem(
+      'book-hub-tags-recent',
+      JSON.stringify([' sci-fi ', '', 'sci-fi', 'history']),
+    );
+
+    expect(getLanguagePreference()).toBe('en');
+    expect(getRecentTagsPreference()).toEqual([' sci-fi ', 'sci-fi', 'history']);
+    expect(localStorage.getItem('book-hub-language')).toBeNull();
+    expect(localStorage.getItem('book-hub-tags-recent')).toBeNull();
+  });
+
+  it('сохраняет только допустимые значения и восстанавливает данные чтения', () => {
+    setLanguagePreference('ru');
+    setThemePreference('dark-ocean');
+    setRecentTagsPreference(['  ', 'fantasy', 'history']);
+    setFb2ReaderSettingsPreference(defaultSettings);
+    setFixedLayoutReaderContentWidthPreference(840);
+    setPdfReaderPageWidthOverflowPreference('book', 999);
+    setPdfReaderFilterChainPreference('book', [{ id: 'invert', enabled: true, strength: 2 }]);
+
+    expect(getLanguagePreference()).toBe('ru');
+    expect(getThemePreference()).toBe('dark-ocean');
+    expect(getRecentTagsPreference()).toEqual(['fantasy', 'history']);
+    expect(getFb2ReaderSettingsPreference()).toMatchObject({ fontSize: defaultSettings.fontSize });
+    expect(getFixedLayoutReaderContentWidthPreference()).toBe(840);
+    expect(getPdfReaderPageWidthOverflowPreference('book')).toBe(80);
+    expect(
+      getPdfReaderFilterChainPreference('book')?.find((filter) => filter.id === 'invert'),
+    ).toMatchObject({ strength: 1 });
+  });
+
+  it('игнорирует повреждённые предпочтения', () => {
+    localStorage.setItem(
+      'book-hub-preferences',
+      JSON.stringify({
+        version: 1,
+        language: 'de',
+        theme: 'bad',
+        readers: { fixedLayout: { contentWidth: 'wide' } },
+      }),
+    );
+
+    expect(getLanguagePreference()).toBeUndefined();
+    expect(getThemePreference()).toBeUndefined();
+    expect(getFixedLayoutReaderContentWidthPreference()).toBeUndefined();
+  });
+});
