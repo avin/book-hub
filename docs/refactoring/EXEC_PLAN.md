@@ -1,6 +1,6 @@
 # План системного рефакторинга Book Hub
 
-**Статус:** в работе; этапы 1–5 завершены.
+**Статус:** в работе; этапы 1–6 завершены.
 **Последняя верификация исходного состояния:** 2026-07-15.
 **Рабочее дерево на момент аудита:** чистое.
 
@@ -125,7 +125,7 @@ flowchart LR
 - **Критерий завершения:** сохранены последовательность batch, частичный успех, global page lock, abort/generation guards, preview URL cleanup и поведение ошибок из ADR-0001/0002.
 - **Риски и откат:** поздние async results, двойной unlock, утечка URL. Делить на два revertible commits: model и hook/presentation.
 - **Зависимости / размер diff:** зависит от этапа 5; два малых/средних diff.
-- **Проверки:** `make frontend-unit-test`, `npm --prefix frontend exec playwright test tests/upload.spec.ts`, lint, typecheck.
+- **Проверки:** `make frontend-unit-test`, `npm --prefix frontend run test:e2e -- tests/upload.spec.ts`, lint, typecheck.
 
 ### 7. Tags: общие правила и декомпозиция control
 
@@ -192,7 +192,7 @@ flowchart LR
 - [x] 3. Узкие storage interfaces
 - [x] 4. Декомпозиция HTTP module
 - [x] 5. Books transport и query-cache
-- [ ] 6. Upload model/lifecycle/presentation
+- [x] 6. Upload model/lifecycle/presentation
 - [ ] 7. Tags utilities и control
 - [ ] 8. Preferences и fixed-layout terminology
 - [ ] 9. Fixed-layout foundation
@@ -212,6 +212,7 @@ flowchart LR
 - **Подтверждено (этап 3, 2026-07-16):** `storage.Store` сохранён как compatibility aggregate для HTTP composition root; users, sessions, settings и books выделены в предметные interfaces без изменения методов adapters.
 - **Подтверждено (этап 4, 2026-07-16):** внешние symbols `New`, `ServeHTTP` и `ListenAndServe`, порядок маршрутов, middleware request ID, проверки CSRF/ownership и очистка файлов сохранены; implementation разнесён по cohesive HTTP modules без изменения публичного контракта.
 - **Подтверждено (этап 5, 2026-07-16):** `books.ts` сохранён как compatibility facade; URL, multipart-поля, `credentials`, CSRF, значения query keys и cache invalidation semantics сохранены. Transport больше не импортирует UI modules; декодер FB2 вынесен в нейтральный module.
+- **Подтверждено (этап 6, 2026-07-16):** чистая модель черновика сохраняет существующие статусы, а preparation и batch lifecycle вынесены в локальные hooks. Последовательность batch, partial success, page lock, generation guards, отмена preparation и освобождение preview URL не менялись.
 - **Непроверенное предположение:** внешний пользователь не зависит от недокументированного admin CLI output или внутренних frontend localStorage details помимо уже описанной схемы.
 
 ## Discoveries
@@ -229,6 +230,7 @@ flowchart LR
 - Этап 3 (2026-07-16): `bookQuerier` теперь объявляет фактически используемый `Query`; admin CLI зависит от users/sessions interfaces и не делает повторный `RevokeUserSessions` после `SetUserActive(..., false)`, которое уже отзывает сессии в обоих adapters. Успешно прошли `git diff --check`, `make backend-test`, PostgreSQL contract-suite на Go 1.26 и `staticcheck ./...` на Go 1.26.
 - Этап 4 (2026-07-16): `server.go` сокращён до composition root; routing, auth/profile, books, health, request helpers, responses/DTO и lifecycle вынесены в отдельные cohesive modules. Добавлены table-driven black-box проверки base path, request ID, CSRF, JSON errors и multipart errors. Успешно прошли `git diff --check`, `make backend-test`, PostgreSQL contract-suite на Go 1.26 и `staticcheck ./...` на Go 1.26.
 - Этап 5 (2026-07-16): books transport, query keys, cache updaters и query/mutation factories разделены по modules, а facade сохраняет все прежние exports. Unit-тесты дополнительно фиксируют multipart-формат, CSRF и JSON server error; обычный и infinite cache уже покрыты. Успешно прошли `git diff --check`, `make frontend-unit-test` (9 файлов, 32 теста), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck`, `make frontend-e2e-test` (7 тестов) и `make frontend-build`. Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
+- Этап 6 (2026-07-16): добавлены unit-тесты чистой модели черновика для форматов, transition-ов, тегов и завершения подготовки. `npm --prefix frontend exec playwright test tests/upload.spec.ts` не применяет `frontend/playwright.config.ts`, поэтому не задаёт base URL; корректная package-script команда `npm --prefix frontend run test:e2e -- tests/upload.spec.ts` успешно выполнила 2 upload-сценария. Успешно прошли `git diff --check`, `make frontend-unit-test` (10 файлов, 36 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck`, upload E2E (2 теста) и дополнительно `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 
 ## Blockers
 
@@ -240,6 +242,7 @@ flowchart LR
 - Этап 3 (2026-07-16): новых блокеров не выявлено.
 - Этап 4 (2026-07-16): новых блокеров не выявлено.
 - Этап 5 (2026-07-16): новых блокеров не выявлено.
+- Этап 6 (2026-07-16): новых блокеров не выявлено.
 
 ## Deferred work
 
