@@ -5,7 +5,6 @@ import type {
   PDFPageProxy,
   RenderTask,
 } from 'pdfjs-dist';
-import { EventBus, PDFFindController } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import {
   createEffect,
   createMemo,
@@ -34,7 +33,7 @@ import {
 } from '@/components/common/WidthRuler/widthRulerUtils';
 import { useI18n } from '@/i18n/I18nProvider';
 import { pdfjsWorkerSrc } from '@/api/pdfjsConfig';
-import { createFixedLayoutDocumentLifecycle } from '../FixedLayoutReader/fixedLayoutDocument';
+import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import {
   getFixedLayoutReaderContentWidthPreference,
   getFixedLayoutReaderFilterChainPreference,
@@ -45,7 +44,7 @@ import {
   setFixedLayoutReaderHorizontalScrollPositionPreference,
   setFixedLayoutReaderPageWidthOverflowPreference,
 } from '@/storage/browserPreferencesFixedLayout';
-import { mapPdfOutline, resolvePdfDestination, type PdfOutlineEntry } from './pdfOutline';
+import { mapPdfOutline, type PdfOutlineEntry } from './pdfOutline';
 import { createPdfFixedLayoutAdapter } from './pdfFixedLayoutAdapter';
 import PdfTextHighlighter from './PdfTextHighlighter';
 import {
@@ -210,13 +209,6 @@ function PdfReader(props: {
   const filteredKeys = new Map<number, string>();
   const textLayerKeys = new Map<number, string>();
   const [pages, setPages] = createSignal<PdfPageDescriptor[]>([]);
-  const pdfAdapter = createPdfFixedLayoutAdapter({
-    fileUrl: () => props.fileUrl,
-    onLoadingTask: (task) => {
-      loadingTask = task;
-    },
-  });
-  const pdfDocumentLifecycle = createFixedLayoutDocumentLifecycle(pdfAdapter.adapter);
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
   const [documentWidth, setDocumentWidth] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
@@ -599,7 +591,6 @@ function PdfReader(props: {
     },
   });
 
-  const searchEventBus = new EventBus();
   const searchLinkService = {
     get page() {
       return currentPage();
@@ -611,11 +602,15 @@ function PdfReader(props: {
       return untrack(() => pages().length);
     },
   };
-  const findController = new PDFFindController({
-    linkService: searchLinkService as never,
-    eventBus: searchEventBus,
-    delay: 0,
+  const pdfAdapter = createPdfFixedLayoutAdapter({
+    fileUrl: () => props.fileUrl,
+    onLoadingTask: (task) => {
+      loadingTask = task;
+    },
+    searchLinkService,
   });
+  const pdfFixedLayoutReader = createFixedLayoutReader(pdfAdapter.adapter);
+  const { findController, searchEventBus } = pdfAdapter;
 
   findController.onIsPageVisible = (pageNumber: number) =>
     untrack(() => visiblePages().has(pageNumber));
@@ -881,6 +876,8 @@ function PdfReader(props: {
     renderedKeys.delete(pageNumber);
     filteredKeys.delete(pageNumber);
     textLayerKeys.delete(pageNumber);
+    pageCache.delete(pageNumber);
+    void pdfFixedLayoutReader.releasePage(pageNumber);
 
     setFilteredPages((current) => {
       if (!current.has(pageNumber)) {
@@ -1044,11 +1041,12 @@ function PdfReader(props: {
       return cachedPage;
     }
 
-    if (!pdfDocument) {
+    const page = await pdfFixedLayoutReader.renderPage(pageNumber);
+
+    if (!page) {
       return undefined;
     }
 
-    const page = await pdfDocument.getPage(pageNumber);
     pageCache.set(pageNumber, page);
 
     return page;
@@ -1287,7 +1285,7 @@ function PdfReader(props: {
     loadGeneration = generation;
     executedSearchQuery = undefined;
     setSearchCount(undefined);
-    findController.setDocument(null as never);
+    pdfAdapter.setSearchDocument(null);
     setLoading(true);
     setFailed(false);
     setPages([]);
@@ -1322,10 +1320,10 @@ function PdfReader(props: {
     loadingTask = undefined;
     pdfDocument = undefined;
     await previousLoadingTask?.destroy().catch(() => undefined);
-    await pdfDocumentLifecycle.release().catch(() => undefined);
+    await pdfFixedLayoutReader.release().catch(() => undefined);
 
     try {
-      const loaded = await pdfDocumentLifecycle.load();
+      const loaded = await pdfFixedLayoutReader.load();
 
       if (!loaded) {
         return;
@@ -1334,7 +1332,7 @@ function PdfReader(props: {
       const { document, pages: nextPages, outline: rawOutline } = loaded;
 
       if (destroyed || generation !== loadGeneration) {
-        await pdfDocumentLifecycle.release();
+        await pdfFixedLayoutReader.release();
         return;
       }
 
@@ -1349,7 +1347,7 @@ function PdfReader(props: {
       setOutlineEntries(mapPdfOutline(rawOutline));
       setOutlineLoaded(true);
       setPages(nextPages);
-      findController.setDocument(document);
+      pdfAdapter.setSearchDocument(document);
       setLoading(false);
       readyFrame = requestAnimationFrame(() => {
         readyFrame = undefined;
@@ -1544,14 +1542,16 @@ function PdfReader(props: {
 
     const previousLocation = captureScrollAnchor();
 
-    void resolvePdfDestination(pdfDocument, node.dest, pageWidth()).then((location) => {
-      if (!location) {
-        return;
-      }
+    void pdfFixedLayoutReader
+      .navigate({ destination: node.dest, pageWidth: pageWidth() })
+      .then((location) => {
+        if (!location) {
+          return;
+        }
 
-      readerNavigationHistory.recordNavigation(location, previousLocation);
-      scrollToPdfAnchor(location);
-    });
+        readerNavigationHistory.recordNavigation(location, previousLocation);
+        scrollToPdfAnchor(location);
+      });
   };
 
   type SearchDirection = 'next' | 'previous';
@@ -1562,7 +1562,7 @@ function PdfReader(props: {
       searchScrollFrame = undefined;
     }
 
-    searchEventBus.dispatch('findbarclose', { source: findController });
+    pdfAdapter.clearSearch();
     setSearchCount(undefined);
     executedSearchQuery = undefined;
   };
@@ -1576,17 +1576,7 @@ function PdfReader(props: {
 
     const isContinuation = executedSearchQuery === query;
     executedSearchQuery = query;
-    searchEventBus.dispatch('find', {
-      source: findController,
-      type: isContinuation ? 'again' : 'find',
-      query,
-      phraseSearch: true,
-      caseSensitive: false,
-      entireWord: false,
-      highlightAll: true,
-      findPrevious: direction === 'previous',
-      matchDiacritics: false,
-    });
+    void pdfFixedLayoutReader.search({ query, direction, isContinuation });
   };
 
   const toggleToc = () => {
@@ -1801,7 +1791,7 @@ function PdfReader(props: {
     textLayerTasks.clear();
     textLayerKeys.clear();
     void loadingTask?.destroy().catch(() => undefined);
-    void pdfDocumentLifecycle.release().catch(() => undefined);
+    void pdfFixedLayoutReader.release().catch(() => undefined);
   });
 
   return (
