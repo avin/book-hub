@@ -1,8 +1,24 @@
-import { createDjVuWorker, type DjVuContentsEntry, type DjVuWorker } from '@/api/djvujs';
-import type { FixedLayoutDocumentAdapter } from '../FixedLayoutReader/fixedLayoutDocument';
+import {
+  createDjVuWorker,
+  type DjVuContentsEntry,
+  type DjVuPageImage,
+  type DjVuTextZone,
+  type DjVuWorker,
+} from '@/api/djvujs';
+import type { FixedLayoutDocumentAdapter } from '../FixedLayoutReader/fixedLayoutReader';
+
+export type DjvuSearchQuery = { pageNumber: number };
 
 export function createDjvuFixedLayoutAdapter(config: { fileUrl: () => string }) {
-  const adapter: FixedLayoutDocumentAdapter<DjVuWorker, DjVuContentsEntry[] | null, never> = {
+  const adapter: FixedLayoutDocumentAdapter<
+    DjVuWorker,
+    DjVuContentsEntry[] | null,
+    DjVuPageImage,
+    DjvuSearchQuery,
+    DjVuTextZone[],
+    string,
+    number | undefined
+  > = {
     async load() {
       let worker: DjVuWorker | undefined;
 
@@ -35,6 +51,20 @@ export function createDjvuFixedLayoutAdapter(config: { fileUrl: () => string }) 
     },
     getOutline(worker) {
       return worker.doc.getContents().run();
+    },
+    renderPage(worker, pageNumber) {
+      return worker.doc.getPage(pageNumber).createPngObjectUrl().run();
+    },
+    releasePage(worker, _pageNumber, pageImage) {
+      if (pageImage) {
+        worker.revokeObjectURL(pageImage.url);
+      }
+    },
+    async search(worker, query) {
+      return (await worker.doc.getPage(query.pageNumber).getNormalizedTextZones().run()) ?? [];
+    },
+    async navigate(worker, target) {
+      return (await worker.doc.getPageNumberByUrl(target).run()) ?? undefined;
     },
     async release(worker) {
       worker.worker.terminate();

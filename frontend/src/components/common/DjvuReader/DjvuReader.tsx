@@ -11,7 +11,7 @@ import {
   untrack,
 } from 'solid-js';
 import { type DjVuContentsEntry, type DjVuTextZone, type DjVuWorker } from '@/api/djvujs';
-import { createFixedLayoutDocumentLifecycle } from '../FixedLayoutReader/fixedLayoutDocument';
+import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
@@ -126,7 +126,7 @@ function DjvuReader(props: {
   const allocatedCanvasPages = new Set<number>();
   const tocTargets = new Map<TocEntry, string>();
   const [pages, setPages] = createSignal<Page[]>([]);
-  const djvuDocumentLifecycle = createFixedLayoutDocumentLifecycle(
+  const djvuFixedLayoutReader = createFixedLayoutReader(
     createDjvuFixedLayoutAdapter({ fileUrl: () => props.fileUrl }),
   );
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
@@ -428,7 +428,8 @@ function DjvuReader(props: {
     const key = `${width}:${renderPixelRatio()}`;
 
     if (renderedKeys.get(page.pageNumber) !== key) {
-      const pageImage = await activeWorker.doc.getPage(page.pageNumber).createPngObjectUrl().run();
+      const pageImage = await djvuFixedLayoutReader.renderPage(page.pageNumber);
+      if (!pageImage) return;
       try {
         if (!isPageRenderRelevant(page, activeWorker)) return;
         const image = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -449,7 +450,7 @@ function DjvuReader(props: {
         renderedKeys.set(page.pageNumber, key);
         restoreHorizontalScrollPositionIfNeeded();
       } finally {
-        activeWorker.revokeObjectURL(pageImage.url);
+        void djvuFixedLayoutReader.releasePage(page.pageNumber, pageImage);
       }
     }
 
@@ -479,8 +480,7 @@ function DjvuReader(props: {
     if (!isPageRenderRelevant(page, activeWorker)) return;
 
     if (!textByPage.has(page.pageNumber)) {
-      const zones =
-        (await activeWorker.doc.getPage(page.pageNumber).getNormalizedTextZones().run()) ?? [];
+      const zones = (await djvuFixedLayoutReader.search({ pageNumber: page.pageNumber })) ?? [];
       if (isPageRenderRelevant(page, activeWorker)) textByPage.set(page.pageNumber, zones);
     }
     if (isPageRenderRelevant(page, activeWorker)) renderTextLayer(page.pageNumber);
@@ -582,7 +582,7 @@ function DjvuReader(props: {
     if (renderAfterScrollTimeout !== undefined) clearTimeout(renderAfterScrollTimeout);
     renderAfterScrollTimeout = undefined;
     worker = undefined;
-    await djvuDocumentLifecycle.release().catch(() => undefined);
+    await djvuFixedLayoutReader.release().catch(() => undefined);
     setLoading(true);
     setFailed(false);
     setPages([]);
@@ -594,14 +594,14 @@ function DjvuReader(props: {
     tocTargets.clear();
     lastScrollAnchor = undefined;
     try {
-      const loaded = await djvuDocumentLifecycle.load();
+      const loaded = await djvuFixedLayoutReader.load();
       if (!loaded) {
         return;
       }
 
       const { document: nextWorker, pages: nextPages, outline: contents } = loaded;
       if (loadGeneration !== generation || destroyed) {
-        await djvuDocumentLifecycle.release();
+        await djvuFixedLayoutReader.release();
         return;
       }
       worker = nextWorker;
@@ -702,7 +702,7 @@ function DjvuReader(props: {
     for (const page of pages()) {
       let zones = textByPage.get(page.pageNumber);
       if (!zones) {
-        zones = (await worker.doc.getPage(page.pageNumber).getNormalizedTextZones().run()) ?? [];
+        zones = (await djvuFixedLayoutReader.search({ pageNumber: page.pageNumber })) ?? [];
         if (currentSearchGeneration !== searchGeneration) return;
         textByPage.set(page.pageNumber, zones);
       }
@@ -764,7 +764,7 @@ function DjvuReader(props: {
       window.open(target, '_blank', 'noopener,noreferrer');
       return;
     }
-    const pageNumber = await worker?.doc.getPageNumberByUrl(target).run();
+    const pageNumber = await djvuFixedLayoutReader.navigate(target);
     if (pageNumber) {
       readerNavigationHistory.recordNavigation({ pageNumber, offsetRatio: 0 });
       pageRefs.get(pageNumber)?.scrollIntoView({ block: 'start' });
@@ -998,7 +998,7 @@ function DjvuReader(props: {
     destroyed = true;
     observer?.disconnect();
     resizeObserver?.disconnect();
-    void djvuDocumentLifecycle.release();
+    void djvuFixedLayoutReader.release();
     destroySharedPdfWebglFilterRenderer();
     if (horizontalScrollRestoreFrame !== undefined)
       cancelAnimationFrame(horizontalScrollRestoreFrame);
