@@ -54,6 +54,7 @@ Backend слушает `http://localhost:8080`, Vite — `http://localhost:5173`
 make dev-storybook
 make backend-test
 make frontend-test
+make frontend-e2e-test
 make frontend-generate
 make frontend-build
 make test
