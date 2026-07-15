@@ -1,14 +1,6 @@
-import { useNavigate } from '@solidjs/router';
-import { useQueryClient } from '@tanstack/solid-query';
 import { createMemo, createSignal, Index, onCleanup, Show } from 'solid-js';
 import { FileUp, ImagePlus, ScanText, Trash2, Upload } from 'lucide-solid';
-import {
-  bookTagsQueryKey,
-  booksQueryKey,
-  createBookTagsQuery,
-  uploadBook,
-  uploadBookCover,
-} from '@/api/books';
+import { createBookTagsQuery } from '@/api/books';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import usePageLocker from '@/components/common/PageLockerProvider/usePageLocker';
@@ -20,11 +12,7 @@ import {
   applyBulkTags as applyBulkTagsToDrafts,
   createBookDraft,
   finalizeDraftPreparation,
-  isDjvuBookFile,
-  isEpubBookFile,
   isSupportedBookFile,
-  markDraftUploadFailed,
-  markDraftUploading,
   removeDraft as removeDraftFromList,
   uniqueTags,
   updateDraft as updateDrafts,
@@ -32,6 +20,7 @@ import {
   type CoverStatus,
 } from './uploadDraftModel';
 import useUploadDraftPreparation from './useUploadDraftPreparation';
+import useUploadBatch from './useUploadBatch';
 import styles from './UploadPage.module.scss';
 
 function createDraftId() {
@@ -65,9 +54,7 @@ function revokePreviewUrl(draft: BookDraft) {
 
 function UploadPage() {
   const { t } = useI18n();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { lockPage, unlockPage } = usePageLocker();
+  const { unlockPage } = usePageLocker();
   const [drafts, setDrafts] = createSignal<BookDraft[]>([]);
   const [dragActive, setDragActive] = createSignal(false);
   const [uploading, setUploading] = createSignal(false);
@@ -213,103 +200,32 @@ function UploadPage() {
     setDrafts((currentDrafts) => applyBulkTagsToDrafts(currentDrafts, tags));
   };
 
-  const uploadDraft = async (draft: BookDraft) => {
-    updateDraft(draft.id, markDraftUploading);
-
-    try {
-      const book = await uploadBook({
-        file: draft.file,
-        title: draft.title.trim(),
-        tags: draft.tags,
-        favorite: false,
-      });
-
-      if (draft.coverFile) {
-        await uploadBookCover(book.id, draft.coverFile).catch(() => undefined);
-      }
-
-      removeDraft(draft.id);
-      return true;
-    } catch (nextError) {
-      updateDraft(draft.id, (currentDraft) =>
-        markDraftUploadFailed(currentDraft, errorMessage(nextError, t('requestFailedTryAgain'))),
-      );
-      return false;
-    }
-  };
-
-  const handleSubmit = async (event: Event) => {
-    event.preventDefault();
-
-    if (drafts().length === 0) {
-      setError(t('selectBookFile'));
-      return;
-    }
-
-    const epubDrafts = drafts().filter((draft) => isEpubBookFile(draft.file));
-    const djvuDrafts = drafts().filter((draft) => isDjvuBookFile(draft.file));
-    if (epubDrafts.some((draft) => draft.epubValidationStatus === 'pending')) {
-      setError(t('validatingEpub'));
-      return;
-    }
-
-    if (epubDrafts.some((draft) => draft.epubValidationStatus === 'failed')) {
-      setError(t('invalidEpub'));
-      return;
-    }
-
-    if (djvuDrafts.some((draft) => draft.djvuValidationStatus === 'pending')) {
-      setError(t('validatingDjvu'));
-      return;
-    }
-
-    if (djvuDrafts.some((draft) => draft.djvuValidationStatus === 'failed')) {
-      setError(t('invalidDjvu'));
-      return;
-    }
-
-    const totalDrafts = drafts().length;
-    setUploading(true);
-    setUploadProgress(totalDrafts > 1 ? { completed: 0, total: totalDrafts } : undefined);
-    setError('');
-    lockPage();
-    batchInProgress = true;
-    preparationGeneration += 1;
-    draftPreparation.cancelAllDraftPreparations();
-    finalizePreparationForUpload();
-
-    try {
-      const uploadableDrafts = drafts();
-      const results: boolean[] = [];
-      for (const draft of uploadableDrafts) {
-        const isUploaded = await uploadDraft(draft);
-        results.push(isUploaded);
-        if (isUploaded && isPageActive) {
-          setUploadProgress((progress) =>
-            progress ? { ...progress, completed: progress.completed + 1 } : progress,
-          );
-        }
-      }
-
-      if (!isPageActive) {
-        return;
-      }
-
-      await queryClient.invalidateQueries({ queryKey: booksQueryKey });
-      await queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
-
-      if (isPageActive && results.every(Boolean)) {
-        navigate('/library');
-      }
-    } finally {
-      batchInProgress = false;
-      if (isPageActive) {
-        setUploading(false);
-        setUploadProgress(undefined);
-      }
-      unlockPage();
-    }
-  };
+  const uploadBatch = useUploadBatch({
+    drafts,
+    updateDraft,
+    removeDraft,
+    setUploading,
+    setUploadProgress,
+    setError,
+    isPageActive: () => isPageActive,
+    setBatchInProgress: (value) => {
+      batchInProgress = value;
+    },
+    incrementPreparationGeneration: () => {
+      preparationGeneration += 1;
+    },
+    cancelAllDraftPreparations: draftPreparation.cancelAllDraftPreparations,
+    finalizePreparationForUpload,
+    errorMessage,
+    messages: {
+      selectBookFile: () => t('selectBookFile'),
+      validatingEpub: () => t('validatingEpub'),
+      invalidEpub: () => t('invalidEpub'),
+      validatingDjvu: () => t('validatingDjvu'),
+      invalidDjvu: () => t('invalidDjvu'),
+      requestFailedTryAgain: () => t('requestFailedTryAgain'),
+    },
+  });
 
   onCleanup(() => {
     isPageActive = false;
@@ -335,7 +251,7 @@ function UploadPage() {
           </div>
         </header>
 
-        <form class={styles.form} onSubmit={handleSubmit}>
+        <form class={styles.form} onSubmit={uploadBatch.handleSubmit}>
           <button
             type="button"
             class={styles.dropzone}
