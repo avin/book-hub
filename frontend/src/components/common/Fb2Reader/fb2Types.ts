@@ -1,136 +1,35 @@
-import type { JSX } from 'solid-js';
+import type {
+  ReflowableBinary,
+  ReflowableBlock,
+  ReflowableBlockKind,
+  ReflowableBlockRole,
+  ReflowableCssVars,
+  ReflowableDocument,
+  ReflowableInline,
+  ReflowableInlineKind,
+  ReflowableNote,
+  ReflowableOutlineEntry,
+  ReflowableReaderSettings,
+  ReflowableTableCell,
+  ReflowableTableRow,
+  ReflowableTextStyle,
+  RenderedBlock,
+  VirtualLayout,
+} from '../ReflowableReader/reflowableTypes';
 
-export type Fb2InlineKind =
-  | 'text'
-  | 'lineBreak'
-  | 'strong'
-  | 'emphasis'
-  | 'strikethrough'
-  | 'sub'
-  | 'sup'
-  | 'code'
-  | 'link'
-  | 'style'
-  | 'epubStyle'
-  | 'image';
+export type { RenderedBlock, VirtualLayout };
 
-export type ReaderTextStyle = {
-  textAlign?: 'left' | 'right' | 'center' | 'justify' | 'start' | 'end';
-  fontStyle?: 'normal' | 'italic';
-  fontWeight?: 'normal' | 'bold';
-  textDecorationLine?: 'none' | 'underline' | 'line-through' | 'underline line-through';
-  whiteSpace?: 'normal' | 'pre-line' | 'pre-wrap';
-};
-
-export type Fb2Inline = {
-  kind: Fb2InlineKind;
-  text?: string;
-  children?: Fb2Inline[];
-  href?: string;
-  linkType?: string;
-  imageId?: string;
-  styleName?: string;
-  textStyle?: ReaderTextStyle;
-};
-
-export type Fb2BlockKind =
-  | 'title'
-  | 'subtitle'
-  | 'paragraph'
-  | 'listItem'
-  | 'codeBlock'
-  | 'divider'
-  | 'emptyLine'
-  | 'image'
-  | 'poemLine'
-  | 'textAuthor'
-  | 'date'
-  | 'table';
-
-export type Fb2BlockRole =
-  'body' | 'annotation' | 'epigraph' | 'cite' | 'poem' | 'metadata' | 'note';
-
-export type Fb2TableCell = {
-  header: boolean;
-  colspan: number;
-  rowspan: number;
-  align?: 'left' | 'center' | 'right';
-  textStyle?: ReaderTextStyle;
-  inlines: Fb2Inline[];
-};
-
-export type Fb2TableRow = {
-  cells: Fb2TableCell[];
-};
-
-export type Fb2Block = {
-  id: string;
-  sourceId?: string;
-  kind: Fb2BlockKind;
-  inlines?: Fb2Inline[];
-  imageId?: string;
-  rows?: Fb2TableRow[];
-  textStyle?: ReaderTextStyle;
-  level: number;
-  role: Fb2BlockRole;
-};
-
-export type Fb2Binary = {
-  id: string;
-  contentType: string;
-  data: string;
-};
-
-export type Fb2Note = {
-  id: string;
-  blocks: Fb2Block[];
-};
-
-export type Fb2OutlineEntry = {
-  label: string;
-  targetId: string;
-  children?: Fb2OutlineEntry[];
-};
-
-export type Fb2Document = {
-  title: string;
-  authors: string[];
-  blocks: Fb2Block[];
-  outline: Fb2OutlineEntry[];
-  notes: Map<string, Fb2Note>;
-  binaries: Map<string, Fb2Binary>;
-};
-
-export type Fb2ReaderSettings = {
-  backgroundColor: string;
-  textColor: string;
-  linkColor: string;
-  fontFamily: string;
-  fontSize: number;
-  lineHeight: number;
-  paragraphSpacing: number;
-  paragraphIndent: number;
-  maxTextWidth?: number;
-};
-
-export type RenderedBlock = {
-  block: Fb2Block;
-  index: number;
-  height: number;
-};
-
-export type VirtualLayout = {
-  offsets: number[];
-  heights: number[];
-  totalHeight: number;
-};
-
-export type CssVars = JSX.CSSProperties & {
-  '--fb2-bg': string;
-  '--fb2-text': string;
-  '--fb2-link': string;
-  '--fb2-font-family': string;
-  '--fb2-font-size': string;
-  '--fb2-line-height': string;
-  '--fb2-paragraph-indent': string;
-};
+export type Fb2InlineKind = ReflowableInlineKind;
+export type ReaderTextStyle = ReflowableTextStyle;
+export type Fb2Inline = ReflowableInline;
+export type Fb2BlockKind = ReflowableBlockKind;
+export type Fb2BlockRole = ReflowableBlockRole;
+export type Fb2TableCell = ReflowableTableCell;
+export type Fb2TableRow = ReflowableTableRow;
+export type Fb2Block = ReflowableBlock;
+export type Fb2Binary = ReflowableBinary;
+export type Fb2Note = ReflowableNote;
+export type Fb2OutlineEntry = ReflowableOutlineEntry;
+export type Fb2Document = ReflowableDocument;
+export type Fb2ReaderSettings = ReflowableReaderSettings;
+export type CssVars = ReflowableCssVars;
