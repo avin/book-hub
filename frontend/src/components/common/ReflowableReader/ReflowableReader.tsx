@@ -10,30 +10,30 @@ import {
   untrack,
 } from 'solid-js';
 import { X } from 'lucide-solid';
-import BlockView from '../Fb2Reader/BlockView/BlockView';
+import BlockView from './BlockView/BlockView';
 import Button from '@/components/common/Button/Button';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
-import { findBlockIndex, buildVirtualLayout } from '../Fb2Reader/fb2Layout';
-import { isReaderLayoutFontReady, loadReaderLayoutFonts } from '../Fb2Reader/fb2FontMetrics';
+import { findBlockIndex, buildVirtualLayout } from './reflowableLayout';
+import { isReaderLayoutFontReady, loadReaderLayoutFonts } from './reflowableFontMetrics';
 import { binaryToDataUrl } from './reflowableBinary';
-import { defaultSettings } from '../Fb2Reader/fb2ReaderSettings';
+import { defaultSettings } from './reflowableReaderSettings';
 import {
   findReflowableSearchMatches,
   normalizeSearchQuery,
   type ReflowableSearchMatch,
 } from './reflowableSearch';
 import type {
-  CssVars,
-  Fb2Block,
-  Fb2Document,
-  Fb2Inline,
-  Fb2Note,
-  Fb2ReaderSettings,
+  ReflowableBlock,
+  ReflowableCssVars,
+  ReflowableDocument,
+  ReflowableInline,
+  ReflowableNote,
+  ReflowableReaderSettings,
   RenderedBlock,
   VirtualLayout,
-} from '../Fb2Reader/fb2Types';
-import ReaderChrome from '../Fb2Reader/ReaderChrome/ReaderChrome';
-import SettingsPanel from '../Fb2Reader/SettingsPanel/SettingsPanel';
+} from './reflowableTypes';
+import ReaderChrome from './ReaderChrome/ReaderChrome';
+import SettingsPanel from './SettingsPanel/SettingsPanel';
 import useReaderChrome from '@/components/common/ReaderChrome/useReaderChrome';
 import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
 import TocPanel from '@/components/common/TocPanel/TocPanel';
@@ -43,10 +43,10 @@ import {
   computeWidthRulerMarkers,
 } from '@/components/common/WidthRuler/widthRulerUtils';
 import {
-  getFb2ReaderSettingsPreference,
-  setFb2ReaderSettingsPreference,
+  getReflowableReaderSettingsPreference,
+  setReflowableReaderSettingsPreference,
 } from '@/storage/browserPreferencesReflowable';
-import styles from '../Fb2Reader/Fb2Reader.module.scss';
+import styles from './ReflowableReader.module.scss';
 import { useI18n } from '@/i18n/I18nProvider';
 
 type ScrollAnchor = {
@@ -63,10 +63,10 @@ function visualViewportHeight() {
   return window.visualViewport?.height ?? window.innerHeight;
 }
 
-function settingValue<T extends keyof Fb2ReaderSettings>(
-  settings: Fb2ReaderSettings,
+function settingValue<T extends keyof ReflowableReaderSettings>(
+  settings: ReflowableReaderSettings,
   key: T,
-  value: Fb2ReaderSettings[T],
+  value: ReflowableReaderSettings[T],
 ) {
   return { ...settings, [key]: value };
 }
@@ -103,7 +103,7 @@ function elementContentBounds(element: HTMLElement | undefined) {
   };
 }
 
-function inlineText(inlines: Fb2Inline[] | undefined): string {
+function inlineText(inlines: ReflowableInline[] | undefined): string {
   return (
     inlines
       ?.map((inline) => inline.text ?? inlineText(inline.children))
@@ -114,9 +114,9 @@ function inlineText(inlines: Fb2Inline[] | undefined): string {
 }
 
 function splitFootnote(
-  note: Fb2Note | undefined,
+  note: ReflowableNote | undefined,
   fallbackTitle: string,
-): { title: string; blocks: Fb2Block[] } | undefined {
+): { title: string; blocks: ReflowableBlock[] } | undefined {
   if (!note) {
     return undefined;
   }
@@ -147,10 +147,10 @@ function splitFootnote(
 }
 
 function ReflowableReader(props: {
-  document: Fb2Document;
+  document: ReflowableDocument;
   historyId?: string;
   class?: string;
-  initialSettings?: Partial<Fb2ReaderSettings>;
+  initialSettings?: Partial<ReflowableReaderSettings>;
   headerContent?: JSX.Element;
 }) {
   const { t } = useI18n();
@@ -170,9 +170,9 @@ function ReflowableReader(props: {
   let searchScrollFrame: number | undefined;
   let lastMeasuredReaderWidth = 0;
   let disposed = false;
-  const [settings, setSettings] = createSignal<Fb2ReaderSettings>({
+  const [settings, setSettings] = createSignal<ReflowableReaderSettings>({
     ...defaultSettings,
-    ...getFb2ReaderSettingsPreference(),
+    ...getReflowableReaderSettingsPreference(),
     ...props.initialSettings,
   });
   const [viewportHeight, setViewportHeight] = createSignal(900);
@@ -262,7 +262,7 @@ function ReflowableReader(props: {
     }, layoutWidthDebounceMs);
   };
 
-  let frozenLayoutSettings: Fb2ReaderSettings | undefined;
+  let frozenLayoutSettings: ReflowableReaderSettings | undefined;
   const layoutSettings = createMemo(
     () => {
       const s = settings();
@@ -300,7 +300,7 @@ function ReflowableReader(props: {
   });
   const imageSrc = (id: string | undefined) =>
     binaryToDataUrl(id ? parsed().binaries.get(id) : undefined);
-  const cssVars = createMemo<CssVars>(() => ({
+  const cssVars = createMemo<ReflowableCssVars>(() => ({
     '--fb2-bg': settings().backgroundColor,
     '--fb2-text': settings().textColor,
     '--fb2-link': settings().linkColor,
@@ -449,9 +449,9 @@ function ReflowableReader(props: {
     return { blockIndex, offsetPx };
   };
 
-  const updateSetting = <T extends keyof Fb2ReaderSettings>(
+  const updateSetting = <T extends keyof ReflowableReaderSettings>(
     key: T,
-    value: Fb2ReaderSettings[T],
+    value: ReflowableReaderSettings[T],
     keepLockedAnchor = false,
   ) => {
     const anchor =
@@ -869,7 +869,7 @@ function ReflowableReader(props: {
   });
 
   createEffect(() => {
-    setFb2ReaderSettingsPreference(settings());
+    setReflowableReaderSettingsPreference(settings());
   });
 
   createEffect(() => {

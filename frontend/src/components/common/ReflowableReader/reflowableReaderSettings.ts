@@ -1,6 +1,6 @@
-import { Fb2ReaderSettings } from './fb2Types';
+import type { ReflowableReaderSettings } from './reflowableTypes';
 
-export const defaultSettings: Fb2ReaderSettings = {
+export const defaultSettings: ReflowableReaderSettings = {
   backgroundColor: '#f7f3ea',
   textColor: '#211f1b',
   linkColor: '#24527a',

@@ -1,18 +1,18 @@
 import { For, Match, Show, Switch, type JSX } from 'solid-js';
 import Button from '@/components/common/Button/Button';
-import { inlineTextLength, type Fb2SearchRange } from '../fb2Search';
-import type { Fb2Inline } from '../fb2Types';
+import { inlineTextLength, type ReflowableSearchRange } from '../reflowableSearch';
+import type { ReflowableInline } from '../reflowableTypes';
 import { isExternalHref, normalizeInternalHref } from '../linkUtils';
 import { readerTextStyle } from '../readerTextStyle';
 import styles from './RenderInlines.module.scss';
 
 function RenderInlines(props: {
-  inlines: Fb2Inline[] | undefined;
+  inlines: ReflowableInline[] | undefined;
   imageSrc: (id: string | undefined) => string | undefined;
   onInternalLink: (targetId: string) => void;
   onFootnoteLink: (targetId: string) => void;
   isFootnoteTarget: (targetId: string) => boolean;
-  searchRanges?: Fb2SearchRange[];
+  searchRanges?: ReflowableSearchRange[];
   textOffset?: number;
 }) {
   const textOffset = () => props.textOffset ?? 0;

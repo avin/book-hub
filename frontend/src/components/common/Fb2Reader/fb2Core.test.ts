@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings } from './fb2ReaderSettings';
-import { buildVirtualLayout, findBlockIndex } from './fb2Layout';
-import { binaryToDataUrl, parseFb2 } from './fb2Parser';
-import { findFb2SearchMatches, normalizeSearchQuery } from './fb2Search';
+import { defaultSettings } from '../ReflowableReader/reflowableReaderSettings';
+import { buildVirtualLayout, findBlockIndex } from '../ReflowableReader/reflowableLayout';
+import { binaryToDataUrl } from '../ReflowableReader/reflowableBinary';
+import {
+  findReflowableSearchMatches,
+  normalizeSearchQuery,
+} from '../ReflowableReader/reflowableSearch';
+import { parseFb2 } from './fb2Parser';
 import { decodeFb2Text } from '@/bookFormats/fb2TextDecoder';
-import { isExternalHref, normalizeInternalHref } from './linkUtils';
+import { isExternalHref, normalizeInternalHref } from '../ReflowableReader/linkUtils';
 
 describe('FB2 core', () => {
   it('разбирает метаданные, текст, сноски и встроенную обложку', () => {
@@ -27,7 +31,7 @@ describe('FB2 core', () => {
     const blocks = parseFb2(
       '<FictionBook><body><section><p>Первый <strong>тест</strong></p><p>Второй тест</p></section></body></FictionBook>',
     ).blocks;
-    const matches = findFb2SearchMatches(blocks, ' тест ');
+    const matches = findReflowableSearchMatches(blocks, ' тест ');
     const layout = buildVirtualLayout(
       [
         { id: 'first', kind: 'emptyLine', level: 0, role: 'body' },

@@ -1,4 +1,4 @@
-import type { Fb2ReaderSettings } from './fb2Types';
+import type { ReflowableReaderSettings } from './reflowableTypes';
 
 function primaryFontFamily(fontFamily: string) {
   const trimmed = fontFamily.trim();
@@ -24,7 +24,7 @@ export function isSystemFontStack(fontFamily: string) {
 }
 
 export function readerLayoutFontSpec(
-  settings: Fb2ReaderSettings,
+  settings: ReflowableReaderSettings,
   fontSize = settings.fontSize,
   weight = 400,
   style: 'normal' | 'italic' = 'normal',
@@ -36,7 +36,7 @@ export function readerLayoutFontSpec(
   return `${style} ${weight} ${fontSize}px ${family}`;
 }
 
-export function isReaderLayoutFontReady(settings: Fb2ReaderSettings) {
+export function isReaderLayoutFontReady(settings: ReflowableReaderSettings) {
   if (typeof document === 'undefined') {
     return true;
   }
@@ -44,7 +44,7 @@ export function isReaderLayoutFontReady(settings: Fb2ReaderSettings) {
   return document.fonts.check(readerLayoutFontSpec(settings));
 }
 
-export function loadReaderLayoutFonts(settings: Fb2ReaderSettings) {
+export function loadReaderLayoutFonts(settings: ReflowableReaderSettings) {
   if (typeof document === 'undefined') {
     return Promise.resolve();
   }
@@ -58,7 +58,7 @@ export function loadReaderLayoutFonts(settings: Fb2ReaderSettings) {
   return Promise.all(loads).then(() => undefined);
 }
 
-export function fontFamilyForMeasurement(settings: Fb2ReaderSettings) {
+export function fontFamilyForMeasurement(settings: ReflowableReaderSettings) {
   if (isSystemFontStack(settings.fontFamily)) {
     return settings.fontFamily.includes(',') ? settings.fontFamily : `"${settings.fontFamily}"`;
   }
@@ -66,7 +66,7 @@ export function fontFamilyForMeasurement(settings: Fb2ReaderSettings) {
   return `"${primaryFontFamily(settings.fontFamily)}"`;
 }
 
-export function webFontMeasureWidthFudge(settings: Fb2ReaderSettings) {
+export function webFontMeasureWidthFudge(settings: ReflowableReaderSettings) {
   if (isSystemFontStack(settings.fontFamily)) {
     return 0;
   }

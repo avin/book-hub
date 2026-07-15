@@ -1,19 +1,19 @@
 import { For, Match, Show, Switch } from 'solid-js';
 import { useI18n } from '@/i18n/I18nProvider';
-import { inlinesText, type Fb2SearchRange } from '../fb2Search';
-import type { Fb2Block } from '../fb2Types';
+import { inlinesText, type ReflowableSearchRange } from '../reflowableSearch';
+import type { ReflowableBlock } from '../reflowableTypes';
 import { readerTextStyle } from '../readerTextStyle';
 import RenderInlines from '../RenderInlines/RenderInlines';
 import TableCell from './TableCell/TableCell';
 import styles from './BlockView.module.scss';
 
 function BlockView(props: {
-  block: Fb2Block;
+  block: ReflowableBlock;
   imageSrc: (id: string | undefined) => string | undefined;
   onInternalLink: (targetId: string) => void;
   onFootnoteLink: (targetId: string) => void;
   isFootnoteTarget: (targetId: string) => boolean;
-  searchRanges?: Fb2SearchRange[];
+  searchRanges?: ReflowableSearchRange[];
 }) {
   const { t } = useI18n();
   const tableCellTextOffset = (rowIndex: number, cellIndex: number) => {

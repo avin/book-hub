@@ -4,19 +4,19 @@ import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import ReaderSidePanel from '@/components/common/ReaderSidePanel/ReaderSidePanel';
 import { useI18n } from '@/i18n/I18nProvider';
-import { fontOptions } from '../fb2ReaderSettings';
-import type { Fb2ReaderSettings } from '../fb2Types';
+import { fontOptions } from '../reflowableReaderSettings';
+import type { ReflowableReaderSettings } from '../reflowableTypes';
 import styles from './SettingsPanel.module.scss';
 
-type UpdateSetting = <T extends keyof Fb2ReaderSettings>(
+type UpdateSetting = <T extends keyof ReflowableReaderSettings>(
   key: T,
-  value: Fb2ReaderSettings[T],
+  value: ReflowableReaderSettings[T],
   keepLockedAnchor?: boolean,
 ) => void;
 
 function SettingsPanel(props: {
   open: boolean;
-  settings: Fb2ReaderSettings;
+  settings: ReflowableReaderSettings;
   onClose: () => void;
   onReset: () => void;
   onUpdateSetting: UpdateSetting;

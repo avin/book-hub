@@ -1,7 +1,9 @@
 import type { JSX } from 'solid-js';
-import type { ReaderTextStyle } from './fb2Types';
+import type { ReflowableTextStyle } from './reflowableTypes';
 
-export function readerTextStyle(value: ReaderTextStyle | undefined): JSX.CSSProperties | undefined {
+export function readerTextStyle(
+  value: ReflowableTextStyle | undefined,
+): JSX.CSSProperties | undefined {
   if (!value) return undefined;
 
   return {

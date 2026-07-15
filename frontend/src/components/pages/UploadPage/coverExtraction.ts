@@ -2,7 +2,7 @@ import * as pdfjs from 'pdfjs-dist';
 import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import { parseFb2 } from '@/components/common/Fb2Reader/fb2Parser';
 import { readFb2BlobText } from '@/bookFormats/fb2TextDecoder';
-import type { Fb2Binary } from '@/components/common/Fb2Reader/fb2Types';
+import type { ReflowableBinary } from '@/components/common/ReflowableReader/reflowableTypes';
 import { extractEpubMetadata } from '@/components/common/EpubReader/epubParser';
 import { createDjVuWorker, type DjVuWorker } from '@/api/djvujs';
 
@@ -96,7 +96,7 @@ function coverFileName(bookFileName: string, extension: string) {
   return `${baseName(bookFileName)}-cover.${extension}`;
 }
 
-function binaryToBlob(binary: Fb2Binary) {
+function binaryToBlob(binary: ReflowableBinary) {
   const bytes = Uint8Array.from(atob(binary.data), (char) => char.charCodeAt(0));
   return new Blob([bytes], { type: normalizeImageType(binary.contentType) });
 }

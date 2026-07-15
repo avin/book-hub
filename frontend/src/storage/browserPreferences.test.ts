@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  getFb2ReaderSettingsPreference,
+  getReflowableReaderSettingsPreference,
   getFixedLayoutReaderContentWidthPreference,
   getFixedLayoutReaderFilterChainPreference,
   getFixedLayoutReaderHorizontalScrollPositionPreference,
@@ -10,7 +10,7 @@ import {
   getPdfReaderPageWidthOverflowPreference,
   getRecentTagsPreference,
   getThemePreference,
-  setFb2ReaderSettingsPreference,
+  setReflowableReaderSettingsPreference,
   setFixedLayoutReaderContentWidthPreference,
   setFixedLayoutReaderPageWidthOverflowPreference,
   setLanguagePreference,
@@ -19,7 +19,7 @@ import {
   setRecentTagsPreference,
   setThemePreference,
 } from './browserPreferences';
-import { defaultSettings } from '@/components/common/Fb2Reader/fb2ReaderSettings';
+import { defaultSettings } from '@/components/common/ReflowableReader/reflowableReaderSettings';
 
 describe('browserPreferences', () => {
   beforeEach(() => localStorage.clear());
@@ -41,7 +41,7 @@ describe('browserPreferences', () => {
     setLanguagePreference('ru');
     setThemePreference('dark-ocean');
     setRecentTagsPreference(['  ', 'fantasy', 'history']);
-    setFb2ReaderSettingsPreference(defaultSettings);
+    setReflowableReaderSettingsPreference(defaultSettings);
     setFixedLayoutReaderContentWidthPreference(840);
     setPdfReaderPageWidthOverflowPreference('book', 999);
     setPdfReaderFilterChainPreference('book', [{ id: 'invert', enabled: true, strength: 2 }]);
@@ -49,7 +49,9 @@ describe('browserPreferences', () => {
     expect(getLanguagePreference()).toBe('ru');
     expect(getThemePreference()).toBe('dark-ocean');
     expect(getRecentTagsPreference()).toEqual(['fantasy', 'history']);
-    expect(getFb2ReaderSettingsPreference()).toMatchObject({ fontSize: defaultSettings.fontSize });
+    expect(getReflowableReaderSettingsPreference()).toMatchObject({
+      fontSize: defaultSettings.fontSize,
+    });
     expect(getFixedLayoutReaderContentWidthPreference()).toBe(840);
     expect(getPdfReaderPageWidthOverflowPreference('book')).toBe(80);
     expect(

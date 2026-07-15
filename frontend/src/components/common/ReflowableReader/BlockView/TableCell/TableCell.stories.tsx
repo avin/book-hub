@@ -1,9 +1,9 @@
-import type { Fb2TableCell } from '../../fb2Types';
+import type { ReflowableTableCell } from '../../reflowableTypes';
 import TableCell from './TableCell';
 
 export default { component: TableCell };
 
-const cell: Fb2TableCell = {
+const cell: ReflowableTableCell = {
   header: false,
   colspan: 1,
   rowspan: 1,

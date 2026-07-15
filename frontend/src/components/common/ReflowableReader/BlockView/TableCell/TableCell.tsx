@@ -1,16 +1,16 @@
 import { Show } from 'solid-js';
-import type { Fb2SearchRange } from '../../fb2Search';
-import type { Fb2TableCell } from '../../fb2Types';
+import type { ReflowableSearchRange } from '../../reflowableSearch';
+import type { ReflowableTableCell } from '../../reflowableTypes';
 import { readerTextStyle } from '../../readerTextStyle';
 import RenderInlines from '../../RenderInlines/RenderInlines';
 
 function TableCell(props: {
-  cell: Fb2TableCell;
+  cell: ReflowableTableCell;
   imageSrc: (id: string | undefined) => string | undefined;
   onInternalLink: (targetId: string) => void;
   onFootnoteLink: (targetId: string) => void;
   isFootnoteTarget: (targetId: string) => boolean;
-  searchRanges?: Fb2SearchRange[];
+  searchRanges?: ReflowableSearchRange[];
   textOffset?: number;
 }) {
   const alignmentStyle = () => ({

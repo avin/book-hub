@@ -9,8 +9,8 @@ export {
   setFixedLayoutReaderPageWidthOverflowPreference,
 } from './browserPreferencesFixedLayout';
 export {
-  getFb2ReaderSettingsPreference,
-  setFb2ReaderSettingsPreference,
+  getReflowableReaderSettingsPreference,
+  setReflowableReaderSettingsPreference,
 } from './browserPreferencesReflowable';
 export {
   getLanguagePreference,

@@ -1,4 +1,4 @@
-import type { Fb2ReaderSettings } from '@/components/common/Fb2Reader/fb2Types';
+import type { ReflowableReaderSettings } from '@/components/common/ReflowableReader/reflowableTypes';
 import {
   isRecord,
   finiteNumber,
@@ -8,12 +8,14 @@ import {
   updatePreferences,
 } from './browserPreferencesCore';
 
-function sanitizeFb2ReaderSettings(settings: unknown): Partial<Fb2ReaderSettings> | undefined {
+function sanitizeReflowableReaderSettings(
+  settings: unknown,
+): Partial<ReflowableReaderSettings> | undefined {
   if (!isRecord(settings)) {
     return undefined;
   }
 
-  const sanitized: Partial<Fb2ReaderSettings> = {};
+  const sanitized: Partial<ReflowableReaderSettings> = {};
   const values = {
     backgroundColor: stringValue(settings.backgroundColor),
     textColor: stringValue(settings.textColor),
@@ -35,11 +37,11 @@ function sanitizeFb2ReaderSettings(settings: unknown): Partial<Fb2ReaderSettings
   return sanitized;
 }
 
-export function getFb2ReaderSettingsPreference() {
-  return sanitizeFb2ReaderSettings(readPreferences().readers?.fb2?.settings);
+export function getReflowableReaderSettingsPreference() {
+  return sanitizeReflowableReaderSettings(readPreferences().readers?.fb2?.settings);
 }
 
-export function setFb2ReaderSettingsPreference(settings: Fb2ReaderSettings) {
+export function setReflowableReaderSettingsPreference(settings: ReflowableReaderSettings) {
   updatePreferences((preferences) => ({
     ...preferences,
     readers: { ...readerPreferencesForWrite(preferences), fb2: { settings } },

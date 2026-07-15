@@ -5,8 +5,14 @@ import {
   type RichInlineCursor,
   type RichInlineItem,
 } from '@chenglou/pretext/rich-inline';
-import { fontFamilyForMeasurement, webFontMeasureWidthFudge } from './fb2FontMetrics';
-import { Fb2Block, Fb2Inline, Fb2ReaderSettings, Fb2TableCell, VirtualLayout } from './fb2Types';
+import { fontFamilyForMeasurement, webFontMeasureWidthFudge } from './reflowableFontMetrics';
+import type {
+  ReflowableBlock,
+  ReflowableInline,
+  ReflowableReaderSettings,
+  ReflowableTableCell,
+  VirtualLayout,
+} from './reflowableTypes';
 
 const minMeasureWidth = 240;
 const quoteInset = 32;
@@ -25,17 +31,22 @@ type TextMetrics = {
   marginBlock: number;
 };
 
-function fontFamily(settings: Fb2ReaderSettings) {
+function fontFamily(settings: ReflowableReaderSettings) {
   return fontFamilyForMeasurement(settings);
 }
 
-function fontString(settings: Fb2ReaderSettings, fontSize: number, weight = 400, style = 'normal') {
+function fontString(
+  settings: ReflowableReaderSettings,
+  fontSize: number,
+  weight = 400,
+  style = 'normal',
+) {
   return `${style} ${weight} ${fontSize}px ${fontFamily(settings)}`;
 }
 
 function blockFont(
-  block: Fb2Block,
-  settings: Fb2ReaderSettings,
+  block: ReflowableBlock,
+  settings: ReflowableReaderSettings,
   fontSize: number,
   defaultWeight = 400,
   defaultStyle = 'normal',
@@ -54,7 +65,7 @@ function fontSizeFrom(font: string, fallback: number) {
   return Number(font.match(/\s(\d+(?:\.\d+)?)px\s/)?.[1]) || fallback;
 }
 
-function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics {
+function textMetrics(block: ReflowableBlock, settings: ReflowableReaderSettings): TextMetrics {
   switch (block.kind) {
     case 'title': {
       const fontSize = settings.fontSize * (block.level === 1 ? 1.72 : 1.58);
@@ -101,7 +112,11 @@ function textMetrics(block: Fb2Block, settings: Fb2ReaderSettings): TextMetrics 
   }
 }
 
-function inlineFont(inline: Fb2Inline, inheritedFont: string, settings: Fb2ReaderSettings) {
+function inlineFont(
+  inline: ReflowableInline,
+  inheritedFont: string,
+  settings: ReflowableReaderSettings,
+) {
   const fontStyle =
     inline.textStyle?.fontStyle ?? (inline.kind === 'emphasis' ? 'italic' : undefined);
   const fontWeight =
@@ -118,12 +133,12 @@ function inlineFont(inline: Fb2Inline, inheritedFont: string, settings: Fb2Reade
 }
 
 function richInlineLines(
-  inlines: Fb2Inline[] | undefined,
+  inlines: ReflowableInline[] | undefined,
   inheritedFont: string,
-  settings: Fb2ReaderSettings,
+  settings: ReflowableReaderSettings,
 ) {
   const lines: RichInlineItem[][] = [[]];
-  const append = (inline: Fb2Inline, font: string) => {
+  const append = (inline: ReflowableInline, font: string) => {
     if (inline.kind === 'lineBreak') {
       lines.push([]);
       return;
@@ -165,7 +180,7 @@ function richInlineLines(
   return lines;
 }
 
-function inlinePlainText(inline: Fb2Inline): string {
+function inlinePlainText(inline: ReflowableInline): string {
   if (inline.kind === 'text') {
     return inline.text ?? '';
   }
@@ -181,14 +196,14 @@ function inlinePlainText(inline: Fb2Inline): string {
   return (inline.children ?? []).map(inlinePlainText).join('');
 }
 
-function tightenMeasureWidth(width: number, settings: Fb2ReaderSettings) {
+function tightenMeasureWidth(width: number, settings: ReflowableReaderSettings) {
   return Math.max(minMeasureWidth, width - webFontMeasureWidthFudge(settings));
 }
 
 function measureWidthsForBlock(
-  block: Fb2Block,
+  block: ReflowableBlock,
   width: number,
-  settings: Fb2ReaderSettings,
+  settings: ReflowableReaderSettings,
 ): MeasureWidths {
   const measureWidth = tightenMeasureWidth(width, settings);
 
@@ -246,10 +261,10 @@ function measureRichLineCount(prepared: PreparedRichInline, widths: MeasureWidth
 }
 
 function measureInlinesHeight(
-  inlines: Fb2Inline[] | undefined,
+  inlines: ReflowableInline[] | undefined,
   widths: MeasureWidths,
   metrics: TextMetrics,
-  settings: Fb2ReaderSettings,
+  settings: ReflowableReaderSettings,
 ) {
   const lineCount = richInlineLines(inlines, metrics.font, settings).reduce(
     (total, items) =>
@@ -260,7 +275,11 @@ function measureInlinesHeight(
   return Math.max(1, lineCount) * metrics.lineHeightPx + metrics.marginBlock;
 }
 
-function measureCodeBlock(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
+function measureCodeBlock(
+  block: ReflowableBlock,
+  width: number,
+  settings: ReflowableReaderSettings,
+) {
   const fontSize = settings.fontSize * 0.92;
   const lineHeightPx = fontSize * 1.45;
   const text = (block.inlines ?? []).map(inlinePlainText).join('').replace(/\s+$/, '');
@@ -276,7 +295,11 @@ function measureCodeBlock(block: Fb2Block, width: number, settings: Fb2ReaderSet
   return visualLineCount * lineHeightPx + settings.paragraphSpacing + 28;
 }
 
-function measureTableCell(cell: Fb2TableCell, width: number, settings: Fb2ReaderSettings) {
+function measureTableCell(
+  cell: ReflowableTableCell,
+  width: number,
+  settings: ReflowableReaderSettings,
+) {
   const metrics = {
     fontSize: settings.fontSize * 0.94,
     lineHeightPx: settings.fontSize * 0.94 * 1.42,
@@ -287,7 +310,7 @@ function measureTableCell(cell: Fb2TableCell, width: number, settings: Fb2Reader
   return measureInlinesHeight(cell.inlines, { lineWidth: width }, metrics, settings);
 }
 
-function measureTable(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
+function measureTable(block: ReflowableBlock, width: number, settings: ReflowableReaderSettings) {
   const rows = block.rows ?? [];
 
   if (rows.length === 0) {
@@ -313,7 +336,11 @@ function measureTable(block: Fb2Block, width: number, settings: Fb2ReaderSetting
   );
 }
 
-function measureBlockHeight(block: Fb2Block, width: number, settings: Fb2ReaderSettings) {
+function measureBlockHeight(
+  block: ReflowableBlock,
+  width: number,
+  settings: ReflowableReaderSettings,
+) {
   switch (block.kind) {
     case 'emptyLine':
       return settings.fontSize * settings.lineHeight;
@@ -339,9 +366,9 @@ function measureBlockHeight(block: Fb2Block, width: number, settings: Fb2ReaderS
 }
 
 export function buildVirtualLayout(
-  blocks: Fb2Block[],
+  blocks: ReflowableBlock[],
   width: number,
-  settings: Fb2ReaderSettings,
+  settings: ReflowableReaderSettings,
 ): VirtualLayout {
   const heights = blocks.map((block) => measureBlockHeight(block, width, settings));
   const offsets: number[] = [];

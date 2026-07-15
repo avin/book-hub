@@ -1,14 +1,17 @@
 import { createMemo, type JSX } from 'solid-js';
 import ReflowableReader from '@/components/common/ReflowableReader/ReflowableReader';
 import { parseFb2 } from './fb2Parser';
-import type { Fb2Document, Fb2ReaderSettings } from './fb2Types';
+import type {
+  ReflowableDocument,
+  ReflowableReaderSettings,
+} from '../ReflowableReader/reflowableTypes';
 
 function Fb2Reader(props: {
   fb2?: string;
-  document?: Fb2Document;
+  document?: ReflowableDocument;
   historyId?: string;
   class?: string;
-  initialSettings?: Partial<Fb2ReaderSettings>;
+  initialSettings?: Partial<ReflowableReaderSettings>;
   headerContent?: JSX.Element;
 }) {
   const document = createMemo(() => props.document ?? parseFb2(props.fb2 ?? ''));
