@@ -1,6 +1,6 @@
 # План системного рефакторинга Book Hub
 
-**Статус:** в работе; этапы 1–10 завершены.
+**Статус:** в работе; этапы 1–11 завершены.
 **Последняя верификация исходного состояния:** 2026-07-15.
 **Рабочее дерево на момент аудита:** чистое.
 
@@ -197,7 +197,7 @@ flowchart LR
 - [x] 8. Preferences и fixed-layout terminology
 - [x] 9. Fixed-layout foundation
 - [x] 10. Общий fixed-layout reader
-- [ ] 11. Нейтральный reflowable reader
+- [x] 11. Нейтральный reflowable reader
 - [ ] 12. Quality gate
 
 ## Decisions
@@ -218,12 +218,13 @@ flowchart LR
 - **Подтверждено (этап 9, 2026-07-16):** общие geometry и filter foundation перенесены в `FixedLayoutReader`, а общая filter panel — в `FixedLayoutFilterPanel`; PDF/DJVU используют их напрямую. PDF-совместимые paths остались facade, localStorage schema не изменилась, universal renderer не вводился.
 - **Подтверждено (этап 10, 2026-07-16):** `FixedLayoutReader` владеет generation-safe lifecycle активного документа и малым контрактом pages, render/release, search, outline и navigation. PDF и DJVU реализуют этот контракт отдельными adapters; DOM-виртуализация, text layers, scroll anchors и format-specific presentation остались в существующих readers.
 - **Подтверждено (этап 10, 2026-07-16):** PDF find controller и resolve destination инкапсулированы PDF-adapter-ом, DJVU page raster/text zones/TOC navigation и Worker termination — DJVU-adapter-ом. URL, API, localStorage schema, filters и DOM-контракты readers не менялись.
+- **Подтверждено (этап 11, 2026-07-16):** `ReflowableReader` владеет нейтральной моделью документа, layout, поиском, сносками, оглавлением и presentation modules; `Fb2Reader` и `EpubReader` остались format adapters. Для сохранения существующих данных browser preferences продолжает читать и записывать `readers.fb2.settings` без миграции схемы.
 - **Непроверенное предположение:** внешний пользователь не зависит от недокументированного admin CLI output или внутренних frontend localStorage details помимо уже описанной схемы.
 
 ## Discoveries
 
 - Backend имеет 23 Go-файла и 9 test-файлов; DB adapter не покрыт отдельными тестами.
-- Frontend содержит 105 TypeScript/TSX source files, 8 unit test files, 6 Playwright spec files и 16 Storybook stories.
+- Frontend содержит 105 TypeScript/TSX source files, 8 unit test files, 7 Playwright spec files и 16 Storybook stories.
 - 2026-07-15 успешно прошли `make backend-test`, `staticcheck ./...`, frontend lint, unit-тесты и typecheck.
 - Frontend unit coverage: statements 10,43%, branches 12,47%, functions 9,84%, lines 11,30%.
 - Локальных TypeScript import cycles в статическом графе не обнаружено.
@@ -240,6 +241,7 @@ flowchart LR
 - Этап 8 (2026-07-16): добавлены fixtures для пустого, повреждённого, legacy `readers.pdf` и `readers.fixedLayout` preferences. Успешно прошли `git diff --check`, `make frontend-unit-test` (13 файлов, 45 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck` и `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 - Этап 9 (2026-07-16): geometry clamp и filter-order tests теперь импортируют нейтральные modules; PDF/DJVU DOM/UI для ширины, overflow и filters сохраняются. Успешно прошли `git diff --check`, `make frontend-unit-test` (13 файлов, 45 тестов), `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck` и `make frontend-e2e-test` (7 тестов). Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 - Этап 10 (2026-07-16): fake-adapter contract tests покрывают замену и release документа, устаревший page resource, search/navigation и cleanup после ошибки pages/outline. E2E на минимальных реальных PDF/DJVU fixtures проверяют PDF search, TOC, browser history, width/overflow, filters и horizontal scroll, а также DJVU Worker termination при client-side unmount. Успешно прошли `git diff --check`, `make frontend-test` (14 unit-файлов, 48 тестов; 9 Playwright-тестов), `make frontend-build`, `make test` и дополнительно `npm --prefix frontend run lint`. Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
+- Этап 11 (2026-07-16): нейтральная модель, implementation и удаление compatibility aliases выполнены тремя отдельными commits. Добавлены E2E для FB2 и EPUB: поиск, оглавление, сноски, настройка шрифта и сохранение progress. Успешно прошли `git diff --check`, `make frontend-unit-test` (14 файлов, 48 тестов), `make frontend-test` (14 unit-файлов, 48 тестов; 11 Playwright-тестов), `make frontend-build`, `make test` и дополнительно `npm --prefix frontend run lint`. Lint завершился с кодом 0; единственное предупреждение относится к игнорируемому coverage-артефакту `frontend/coverage/block-navigation.js`.
 
 ## Blockers
 
@@ -256,6 +258,7 @@ flowchart LR
 - Этап 8 (2026-07-16): новых блокеров не выявлено.
 - Этап 9 (2026-07-16): новых блокеров не выявлено.
 - Этап 10 (2026-07-16): новых блокеров не выявлено; глобальное ограничение на реальные пользовательские проблемные fixtures сохраняется.
+- Этап 11 (2026-07-16): новых блокеров не выявлено; глобальное ограничение на реальные пользовательские проблемные fixtures сохраняется.
 
 ## Deferred work
 
