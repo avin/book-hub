@@ -3,6 +3,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack }
 import Dropdown from '@/components/common/Dropdown/Dropdown';
 import { useI18n } from '@/i18n/I18nProvider';
 import { getRecentTagsPreference, setRecentTagsPreference } from '@/storage/browserPreferences';
+import { mergeRecentTags, normalizeTag, normalizeTags, sortTagsByRecent } from './tagUtils';
 import styles from './TagsSelect.module.scss';
 
 const MAX_RECENT_TAGS = 20;
@@ -10,43 +11,12 @@ const SEARCH_DEBOUNCE_MS = 200;
 const DOUBLE_BACKSPACE_MS = 450;
 const TAG_GAP = 4;
 
-function normalizeTag(tag: string) {
-  return tag.trim().toLowerCase();
-}
-
 function loadRecentTags() {
-  const seen = new Set<string>();
-
-  return getRecentTagsPreference()
-    .map(normalizeTag)
-    .filter((tag) => {
-      if (!tag || seen.has(tag)) {
-        return false;
-      }
-
-      seen.add(tag);
-      return true;
-    });
+  return normalizeTags(getRecentTagsPreference());
 }
 
 function saveRecentTags(tags: string[]) {
   setRecentTagsPreference(tags);
-}
-
-function sortTagsByRecent(tags: string[], recentTags: string[]) {
-  if (!recentTags.length) {
-    return tags;
-  }
-
-  const tagsSet = new Set(tags);
-  const recentInList = recentTags.filter((tag) => tagsSet.has(tag));
-  if (!recentInList.length) {
-    return tags;
-  }
-
-  const recentSet = new Set(recentInList);
-  const rest = tags.filter((tag) => !recentSet.has(tag));
-  return [...recentInList, ...rest];
 }
 
 function preventLabelActivation(event: MouseEvent) {
@@ -256,16 +226,7 @@ function TagsSelect(props: {
       return;
     }
 
-    let nextRecentTags = [...loadRecentTags()];
-    for (const tag of addedTags) {
-      if (!tag.trim()) {
-        continue;
-      }
-
-      nextRecentTags = [tag, ...nextRecentTags.filter((recentTag) => recentTag !== tag)];
-    }
-
-    saveRecentTags(nextRecentTags.slice(0, MAX_RECENT_TAGS));
+    saveRecentTags(mergeRecentTags(loadRecentTags(), addedTags, MAX_RECENT_TAGS));
   };
 
   const addTag = (tag: string) => {

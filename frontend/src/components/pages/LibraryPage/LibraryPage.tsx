@@ -18,6 +18,7 @@ import InputContainer from '@/components/common/InputContainer/InputContainer';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
+import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
 import TextInput from '@/components/common/TextInput/TextInput';
 import AppLayout from '@/components/layouts/AppLayout/AppLayout';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -44,19 +45,6 @@ import styles from './LibraryPage.module.scss';
 const pageLimit = 24;
 const searchDebounceMs = 400;
 const libraryRoutePath = '/library';
-
-function uniqueTags(existingTags: string[], selectedTags: string[]) {
-  const tags = new Map<string, string>();
-
-  for (const tag of existingTags) {
-    tags.set(tag, tag);
-  }
-  for (const tag of selectedTags) {
-    tags.set(tag, tag);
-  }
-
-  return [...tags.values()].sort((left, right) => left.localeCompare(right));
-}
 
 function LibraryPage() {
   const { t } = useI18n();
@@ -155,7 +143,9 @@ function LibraryPage() {
     };
   });
   const books = createMemo(() => booksQuery.data?.pages.flatMap((page) => page.items) ?? []);
-  const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], selectedTags()));
+  const tagOptions = createMemo(() =>
+    mergeTagOptions(bookTagsQuery.data?.items ?? [], selectedTags()),
+  );
   const booksTotal = createMemo(() => booksQuery.data?.pages[0]?.total);
   const showInitialLoading = createMemo(() => booksQuery.isLoading && books().length === 0);
   const hasActiveFilters = createMemo(

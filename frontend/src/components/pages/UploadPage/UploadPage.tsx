@@ -5,6 +5,7 @@ import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import usePageLocker from '@/components/common/PageLockerProvider/usePageLocker';
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
+import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
 import TextInput from '@/components/common/TextInput/TextInput';
 import AppLayout from '@/components/layouts/AppLayout/AppLayout';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -14,7 +15,6 @@ import {
   finalizeDraftPreparation,
   isSupportedBookFile,
   removeDraft as removeDraftFromList,
-  uniqueTags,
   updateDraft as updateDrafts,
   type BookDraft,
   type CoverStatus,
@@ -73,7 +73,12 @@ function UploadPage() {
     const count = drafts().length;
     return count > 0 ? t('booksSelected').replace('{count}', String(count)) : t('fileNotSelected');
   });
-  const tagOptions = createMemo(() => uniqueTags(bookTagsQuery.data?.items ?? [], drafts()));
+  const tagOptions = createMemo(() =>
+    mergeTagOptions(
+      bookTagsQuery.data?.items ?? [],
+      drafts().flatMap((draft) => draft.tags),
+    ),
+  );
   const canSubmit = createMemo(() => drafts().length > 0 && !uploading());
   const hasMultipleDrafts = createMemo(() => drafts().length > 1);
 

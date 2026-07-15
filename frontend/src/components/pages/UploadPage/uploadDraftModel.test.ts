@@ -9,9 +9,9 @@ import {
   markDraftUploadFailed,
   markDraftUploading,
   removeDraft,
-  uniqueTags,
   updateDraft,
 } from './uploadDraftModel';
+import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
 
 function file(name: string, type = '') {
   return new File(['book'], name, { type });
@@ -56,7 +56,12 @@ describe('upload draft model', () => {
       { id: 'first', tags: ['one', 'two'] },
       { id: 'second', tags: ['one', 'two'] },
     ]);
-    expect(uniqueTags(['existing'], updated)).toEqual(['existing', 'one']);
+    expect(
+      mergeTagOptions(
+        ['existing'],
+        updated.flatMap((draft) => draft.tags),
+      ),
+    ).toEqual(['existing', 'one']);
     expect(removeDraft(updated, 'first')).toEqual([second]);
   });
 

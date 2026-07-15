@@ -1,3 +1,5 @@
+import { appendUniqueTags } from '@/components/common/TagsSelect/tagUtils';
+
 export type CoverStatus = 'pending' | 'ready' | 'missing' | 'failed';
 export type UploadStatus = 'idle' | 'uploading' | 'failed';
 export type EpubValidationStatus = 'pending' | 'ready' | 'failed';
@@ -61,27 +63,6 @@ export function createBookDraft(file: File, id: string): BookDraft {
   };
 }
 
-export function uniqueTags(existingTags: string[], drafts: BookDraft[]) {
-  const tags = new Map<string, string>();
-
-  for (const tag of existingTags) {
-    tags.set(tag, tag);
-  }
-  for (const draft of drafts) {
-    for (const tag of draft.tags) {
-      tags.set(tag, tag);
-    }
-  }
-
-  return [...tags.values()].sort((left, right) => left.localeCompare(right));
-}
-
-export function appendTags(existingTags: string[], tags: string[]) {
-  const existingTagsSet = new Set(existingTags);
-
-  return [...existingTags, ...tags.filter((tag) => !existingTagsSet.has(tag))];
-}
-
 export function updateDraft(
   drafts: BookDraft[],
   id: string,
@@ -101,7 +82,7 @@ export function applyBulkTags(drafts: BookDraft[], tags: string[]) {
 
   return drafts.map((draft) => ({
     ...draft,
-    tags: appendTags(draft.tags, tags),
+    tags: appendUniqueTags(draft.tags, tags),
     uploadError: undefined,
   }));
 }
