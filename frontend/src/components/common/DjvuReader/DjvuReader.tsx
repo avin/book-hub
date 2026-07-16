@@ -10,12 +10,8 @@ import {
   type JSX,
   untrack,
 } from 'solid-js';
-import {
-  createDjVuWorker,
-  type DjVuContentsEntry,
-  type DjVuTextZone,
-  type DjVuWorker,
-} from '@/api/djvujs';
+import { type DjVuContentsEntry, type DjVuTextZone, type DjVuWorker } from '@/api/djvujs';
+import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
@@ -38,24 +34,25 @@ import {
   setFixedLayoutReaderFilterChainPreference,
   setFixedLayoutReaderHorizontalScrollPositionPreference,
   setFixedLayoutReaderPageWidthOverflowPreference,
-} from '@/storage/browserPreferences';
+} from '@/storage/browserPreferencesFixedLayout';
 import useReaderChrome from '../ReaderChrome/useReaderChrome';
-import PdfFilterPanel from '../PdfReader/PdfFilterPanel/PdfFilterPanel';
+import FixedLayoutFilterPanel from '../FixedLayoutFilterPanel/FixedLayoutFilterPanel';
+import { createDjvuFixedLayoutAdapter } from './djvuFixedLayoutAdapter';
 import {
-  defaultPdfFilterChain,
-  grayscaleFilterFromChain,
-  hasEnabledPdfFilters,
-  invertFilterFromChain,
-  softTextEnhancementFilterFromChain,
-  textEnhancementFilterFromChain,
-  visualAdjustmentFilterFromChain,
-  warmthFilterFromChain,
-  type PdfFilterChain,
-} from '../PdfReader/pdfFilters';
+  defaultFixedLayoutFilterChain as defaultPdfFilterChain,
+  grayscaleFilterFromFixedLayoutChain as grayscaleFilterFromChain,
+  hasEnabledFixedLayoutFilters as hasEnabledPdfFilters,
+  invertFilterFromFixedLayoutChain as invertFilterFromChain,
+  softTextEnhancementFilterFromFixedLayoutChain as softTextEnhancementFilterFromChain,
+  textEnhancementFilterFromFixedLayoutChain as textEnhancementFilterFromChain,
+  visualAdjustmentFilterFromFixedLayoutChain as visualAdjustmentFilterFromChain,
+  warmthFilterFromFixedLayoutChain as warmthFilterFromChain,
+  type FixedLayoutFilterChain as PdfFilterChain,
+} from '../FixedLayoutReader/fixedLayoutFilters';
 import {
-  clampPdfPageWidthOverflow,
-  defaultPdfPageWidthOverflow,
-} from '../PdfReader/pdfPageSettings';
+  clampFixedLayoutPageWidthOverflow,
+  defaultFixedLayoutPageWidthOverflow,
+} from '../FixedLayoutReader/fixedLayoutPageSettings';
 import {
   destroySharedPdfWebglFilterRenderer,
   isPdfWebglAvailable,
@@ -129,6 +126,9 @@ function DjvuReader(props: {
   const allocatedCanvasPages = new Set<number>();
   const tocTargets = new Map<TocEntry, string>();
   const [pages, setPages] = createSignal<Page[]>([]);
+  const djvuFixedLayoutReader = createFixedLayoutReader(
+    createDjvuFixedLayoutAdapter({ fileUrl: () => props.fileUrl }),
+  );
   const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
   const [documentWidth, setDocumentWidth] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
@@ -428,7 +428,8 @@ function DjvuReader(props: {
     const key = `${width}:${renderPixelRatio()}`;
 
     if (renderedKeys.get(page.pageNumber) !== key) {
-      const pageImage = await activeWorker.doc.getPage(page.pageNumber).createPngObjectUrl().run();
+      const pageImage = await djvuFixedLayoutReader.renderPage(page.pageNumber);
+      if (!pageImage) return;
       try {
         if (!isPageRenderRelevant(page, activeWorker)) return;
         const image = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -449,7 +450,7 @@ function DjvuReader(props: {
         renderedKeys.set(page.pageNumber, key);
         restoreHorizontalScrollPositionIfNeeded();
       } finally {
-        activeWorker.revokeObjectURL(pageImage.url);
+        void djvuFixedLayoutReader.releasePage(page.pageNumber, pageImage);
       }
     }
 
@@ -479,8 +480,7 @@ function DjvuReader(props: {
     if (!isPageRenderRelevant(page, activeWorker)) return;
 
     if (!textByPage.has(page.pageNumber)) {
-      const zones =
-        (await activeWorker.doc.getPage(page.pageNumber).getNormalizedTextZones().run()) ?? [];
+      const zones = (await djvuFixedLayoutReader.search({ pageNumber: page.pageNumber })) ?? [];
       if (isPageRenderRelevant(page, activeWorker)) textByPage.set(page.pageNumber, zones);
     }
     if (isPageRenderRelevant(page, activeWorker)) renderTextLayer(page.pageNumber);
@@ -577,13 +577,12 @@ function DjvuReader(props: {
 
   const loadDocument = async () => {
     const loadGeneration = ++generation;
-    let nextWorker: DjVuWorker | undefined;
     renderQueue = [];
     renderInProgress = false;
     if (renderAfterScrollTimeout !== undefined) clearTimeout(renderAfterScrollTimeout);
     renderAfterScrollTimeout = undefined;
-    worker?.worker.terminate();
     worker = undefined;
+    await djvuFixedLayoutReader.release().catch(() => undefined);
     setLoading(true);
     setFailed(false);
     setPages([]);
@@ -595,16 +594,14 @@ function DjvuReader(props: {
     tocTargets.clear();
     lastScrollAnchor = undefined;
     try {
-      nextWorker = await createDjVuWorker();
-      const response = await fetch(props.fileUrl);
-      if (!response.ok) throw new Error('Could not load DJVU');
-      await nextWorker.createDocument(await response.arrayBuffer());
-      if (!(await nextWorker.doc.isBundled().run()))
-        throw new Error('Indirect DJVU is not supported');
-      const sizes = await nextWorker.doc.getPagesSizes().run();
-      const contents = await nextWorker.doc.getContents().run();
+      const loaded = await djvuFixedLayoutReader.load();
+      if (!loaded) {
+        return;
+      }
+
+      const { document: nextWorker, pages: nextPages, outline: contents } = loaded;
       if (loadGeneration !== generation || destroyed) {
-        nextWorker.worker.terminate();
+        await djvuFixedLayoutReader.release();
         return;
       }
       worker = nextWorker;
@@ -617,13 +614,7 @@ function DjvuReader(props: {
           tocTargets.set(tocEntry, entry.url);
           return tocEntry;
         });
-      setPages(
-        sizes.map((size, index) => ({
-          pageNumber: index + 1,
-          width: size.width,
-          height: size.height,
-        })),
-      );
+      setPages(nextPages);
       setOutline(mapContents(contents));
       setOutlineLoaded(true);
       setLoading(false);
@@ -631,7 +622,6 @@ function DjvuReader(props: {
       requestAnimationFrame(() => props.onReady?.());
     } catch (error) {
       console.error('Could not open DJVU', error);
-      nextWorker?.worker.terminate();
       if (loadGeneration === generation && !destroyed) {
         setLoading(false);
         setFailed(true);
@@ -712,7 +702,7 @@ function DjvuReader(props: {
     for (const page of pages()) {
       let zones = textByPage.get(page.pageNumber);
       if (!zones) {
-        zones = (await worker.doc.getPage(page.pageNumber).getNormalizedTextZones().run()) ?? [];
+        zones = (await djvuFixedLayoutReader.search({ pageNumber: page.pageNumber })) ?? [];
         if (currentSearchGeneration !== searchGeneration) return;
         textByPage.set(page.pageNumber, zones);
       }
@@ -774,7 +764,7 @@ function DjvuReader(props: {
       window.open(target, '_blank', 'noopener,noreferrer');
       return;
     }
-    const pageNumber = await worker?.doc.getPageNumberByUrl(target).run();
+    const pageNumber = await djvuFixedLayoutReader.navigate(target);
     if (pageNumber) {
       readerNavigationHistory.recordNavigation({ pageNumber, offsetRatio: 0 });
       pageRefs.get(pageNumber)?.scrollIntoView({ block: 'start' });
@@ -826,7 +816,7 @@ function DjvuReader(props: {
     });
   };
   const updateOverflow = (value: number) => {
-    const next = clampPdfPageWidthOverflow(value);
+    const next = clampFixedLayoutPageWidthOverflow(value);
     if (next === overflow()) return;
 
     overflowScrollAnchor ??= captureScrollAnchor();
@@ -1008,7 +998,7 @@ function DjvuReader(props: {
     destroyed = true;
     observer?.disconnect();
     resizeObserver?.disconnect();
-    worker?.worker.terminate();
+    void djvuFixedLayoutReader.release();
     destroySharedPdfWebglFilterRenderer();
     if (horizontalScrollRestoreFrame !== undefined)
       cancelAnimationFrame(horizontalScrollRestoreFrame);
@@ -1123,7 +1113,7 @@ function DjvuReader(props: {
         onClose={() => setTocOpen(false)}
         onSelect={selectToc}
       />
-      <PdfFilterPanel
+      <FixedLayoutFilterPanel
         open={filterPanelOpen()}
         filterChain={filterChain()}
         textEnhancementFilter={
@@ -1227,7 +1217,7 @@ function DjvuReader(props: {
         onPageWidthOverflowChange={updateOverflow}
         onReset={() => {
           updateFilterChain(() => defaultPdfFilterChain());
-          updateOverflow(defaultPdfPageWidthOverflow);
+          updateOverflow(defaultFixedLayoutPageWidthOverflow);
         }}
         onAutoWidth={resetToFitWidth}
       />

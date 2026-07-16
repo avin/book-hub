@@ -1,13 +1,13 @@
 import { unzipSync } from 'fflate';
 import type {
-  Fb2Binary,
-  Fb2Block,
-  Fb2Inline,
-  Fb2Note,
-  Fb2OutlineEntry,
-  Fb2TableCell,
-  ReaderTextStyle,
-} from '@/components/common/Fb2Reader/fb2Types';
+  ReflowableBinary as Fb2Binary,
+  ReflowableBlock as Fb2Block,
+  ReflowableInline as Fb2Inline,
+  ReflowableNote as Fb2Note,
+  ReflowableOutlineEntry as Fb2OutlineEntry,
+  ReflowableTableCell as Fb2TableCell,
+  ReflowableTextStyle as ReaderTextStyle,
+} from '@/components/common/ReflowableReader/reflowableTypes';
 import type { EpubDocument, EpubMetadata, EpubParseOptions, EpubValidation } from './epubTypes';
 
 const maxEntries = 10_000;

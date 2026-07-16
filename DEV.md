@@ -53,13 +53,21 @@ Backend слушает `http://localhost:8080`, Vite — `http://localhost:5173`
 ```bash
 make dev-storybook
 make backend-test
+make storage-contract-test BOOK_HUB_TEST_DATABASE_URL=postgres://...
 make frontend-test
+make frontend-e2e-test
 make frontend-generate
 make frontend-build
 make test
 ```
 
 `make frontend-generate` запускайте после изменений в `api/openapi.yaml`.
+
+`make storage-contract-test` выполняет общую contract-suite PostgreSQL adapter на реально применённых миграциях. URL должен указывать на отдельную тестовую базу, где пользователь может создавать schema; suite создаёт случайную schema через `search_path` и удаляет её после завершения. Не передавайте URL production-базы.
+
+## CI
+
+Workflow `.github/workflows/verify.yml` запускается для каждого push и pull request. Он отдельно проверяет Go-тесты и PostgreSQL contract-suite, frontend lint/unit/typecheck/build и Playwright; при сбое Playwright сохраняет его артефакты. Отдельная job генерирует API-типы и проверяет отсутствие незакоммиченного diff. Workflow не публикует образы.
 
 ## Docker и диагностика
 

@@ -9,7 +9,6 @@
       // Apply the active theme before first paint to avoid a flash of the
       // wrong theme (FOUC). Runs synchronously in <head>. Mirrors the logic in
       // src/styles/themes.ts; kept inline and dependency-free on purpose.
-      // ADR: docs/adr/0001-theme-system.md
       (function () {
         try {
           var raw = localStorage.getItem('book-hub-preferences');

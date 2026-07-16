@@ -1,53 +1,10 @@
 import { X } from 'lucide-solid';
-import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from 'solid-js';
+import { createEffect, For, onCleanup, Show } from 'solid-js';
 import Dropdown from '@/components/common/Dropdown/Dropdown';
 import { useI18n } from '@/i18n/I18nProvider';
-import { getRecentTagsPreference, setRecentTagsPreference } from '@/storage/browserPreferences';
+import { createTagSelectionModel } from './tagSelectionModel';
+import { useTagOverflow } from './useTagOverflow';
 import styles from './TagsSelect.module.scss';
-
-const MAX_RECENT_TAGS = 20;
-const SEARCH_DEBOUNCE_MS = 200;
-const DOUBLE_BACKSPACE_MS = 450;
-const TAG_GAP = 4;
-
-function normalizeTag(tag: string) {
-  return tag.trim().toLowerCase();
-}
-
-function loadRecentTags() {
-  const seen = new Set<string>();
-
-  return getRecentTagsPreference()
-    .map(normalizeTag)
-    .filter((tag) => {
-      if (!tag || seen.has(tag)) {
-        return false;
-      }
-
-      seen.add(tag);
-      return true;
-    });
-}
-
-function saveRecentTags(tags: string[]) {
-  setRecentTagsPreference(tags);
-}
-
-function sortTagsByRecent(tags: string[], recentTags: string[]) {
-  if (!recentTags.length) {
-    return tags;
-  }
-
-  const tagsSet = new Set(tags);
-  const recentInList = recentTags.filter((tag) => tagsSet.has(tag));
-  if (!recentInList.length) {
-    return tags;
-  }
-
-  const recentSet = new Set(recentInList);
-  const rest = tags.filter((tag) => !recentSet.has(tag));
-  return [...recentInList, ...rest];
-}
 
 function preventLabelActivation(event: MouseEvent) {
   event.preventDefault();
@@ -112,39 +69,27 @@ function TagsSelect(props: {
   showOptionsOnFocus?: boolean;
 }) {
   const { t } = useI18n();
-  const [query, setQuery] = createSignal('');
-  const [options, setOptions] = createSignal<string[]>([]);
-  const [dropdownMode, setDropdownMode] = createSignal<'options' | 'collapsed' | null>(null);
-  const [focusedOptionIndex, setFocusedOptionIndex] = createSignal<number | null>(null);
-  const [arrowScrolling, setArrowScrolling] = createSignal(false);
-  const [inputWidth, setInputWidth] = createSignal(100);
-  const [containerWidth, setContainerWidth] = createSignal(0);
-  const [dropdownWidth, setDropdownWidth] = createSignal<number | undefined>(undefined);
-  const [visibleTagCount, setVisibleTagCount] = createSignal(untrack(() => props.value.length));
-
   let inputEl: HTMLInputElement | undefined;
-  let inputContainerEl: HTMLDivElement | undefined;
   let dropdownEl: HTMLDivElement | undefined;
   let listContainerEl: HTMLDivElement | undefined;
-  let measureInputWidthEl: HTMLSpanElement | undefined;
-  let collapsedBadgeMeasureEl: HTMLSpanElement | undefined;
-  let searchTimeout: ReturnType<typeof setTimeout> | undefined;
-  let searchRequestId = 0;
-  let resizeObserver: ResizeObserver | undefined;
-  let shouldOpenOptionsAfterSearch = false;
-  let lastEmptyInputBackspaceAt = 0;
-  const knownOptions: string[] = [];
-  const tagMeasureEls: (HTMLSpanElement | undefined)[] = [];
 
   const placeholder = () => props.placeholder ?? t('findOrAddTag');
-  const isOptionsOpen = () => dropdownMode() === 'options';
-  const isCollapsedOpen = () => dropdownMode() === 'collapsed';
-  const isDropdownOpen = () => dropdownMode() !== null;
-
-  const closeDropdown = () => {
-    shouldOpenOptionsAfterSearch = false;
-    setDropdownMode(null);
-  };
+  const selection = createTagSelectionModel({
+    value: () => props.value,
+    options: () => props.options,
+    onSearchOptions: () => props.onSearchOptions,
+    onChange: (value) => props.onChange(value),
+    disabled: () => Boolean(props.disabled),
+    showOptionsOnFocus: () => props.showOptionsOnFocus ?? true,
+  });
+  const overflow = useTagOverflow({
+    value: () => props.value,
+    query: selection.query,
+    placeholder,
+    isDropdownOpen: selection.isDropdownOpen,
+    isCollapsedOpen: selection.isCollapsedOpen,
+    closeDropdown: selection.closeDropdown,
+  });
 
   const openOptions = () => {
     if (props.disabled || !(props.showOptionsOnFocus ?? true)) {
@@ -152,271 +97,7 @@ function TagsSelect(props: {
     }
 
     inputEl?.focus();
-    shouldOpenOptionsAfterSearch = true;
-    debouncedSearchOptions(query(), true);
-  };
-
-  const toggleCollapsedDropdown = () => {
-    shouldOpenOptionsAfterSearch = false;
-    setDropdownMode((previousMode) => (previousMode === 'collapsed' ? null : 'collapsed'));
-  };
-
-  const normalizeOptions = (nextOptions: string[]) => {
-    const seen = new Set<string>();
-
-    const availableOptions = nextOptions.map(normalizeTag).filter((option) => {
-      if (!option || props.value.includes(option) || seen.has(option)) {
-        return false;
-      }
-
-      seen.add(option);
-      return true;
-    });
-
-    return sortTagsByRecent(availableOptions, loadRecentTags());
-  };
-
-  const rememberOptions = (nextOptions: string[]) => {
-    const knownOptionsSet = new Set(knownOptions);
-    for (const option of nextOptions) {
-      if (knownOptionsSet.has(option)) {
-        continue;
-      }
-
-      knownOptionsSet.add(option);
-      knownOptions.push(option);
-    }
-  };
-
-  const searchLocalOptions = (searchQuery: string) => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    const localOptions = [...(props.options ?? []), ...knownOptions];
-
-    return localOptions.filter((option) => {
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      return option.toLowerCase().includes(normalizedQuery);
-    });
-  };
-
-  const searchOptions = async (searchQuery: string) => {
-    const requestId = ++searchRequestId;
-    let nextOptions: string[] = [];
-
-    try {
-      nextOptions = props.onSearchOptions
-        ? await props.onSearchOptions(searchQuery)
-        : searchLocalOptions(searchQuery);
-    } catch {
-      nextOptions = [];
-    }
-
-    if (requestId !== searchRequestId) {
-      return;
-    }
-
-    rememberOptions(nextOptions);
-
-    const normalizedOptions = normalizeOptions(nextOptions);
-    setOptions(normalizedOptions);
-    if (shouldOpenOptionsAfterSearch) {
-      setDropdownMode(normalizedOptions.length ? 'options' : null);
-    }
-  };
-
-  const debouncedSearchOptions = (searchQuery: string, immediate = false) => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-
-    if (immediate) {
-      void searchOptions(searchQuery);
-      return;
-    }
-
-    searchTimeout = setTimeout(() => {
-      searchTimeout = undefined;
-      void searchOptions(searchQuery);
-    }, SEARCH_DEBOUNCE_MS);
-  };
-
-  const cancelSearch = () => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-      searchTimeout = undefined;
-    }
-
-    searchRequestId += 1;
-  };
-
-  const updateRecentTags = (addedTags: string[]) => {
-    if (!addedTags.length) {
-      return;
-    }
-
-    let nextRecentTags = [...loadRecentTags()];
-    for (const tag of addedTags) {
-      if (!tag.trim()) {
-        continue;
-      }
-
-      nextRecentTags = [tag, ...nextRecentTags.filter((recentTag) => recentTag !== tag)];
-    }
-
-    saveRecentTags(nextRecentTags.slice(0, MAX_RECENT_TAGS));
-  };
-
-  const addTag = (tag: string) => {
-    const normalized = normalizeTag(tag);
-
-    if (!normalized || props.value.includes(normalized)) {
-      return;
-    }
-
-    props.onChange([...props.value, normalized]);
-    updateRecentTags([normalized]);
-    setQuery('');
-    closeDropdown();
-  };
-
-  const removeTag = (tag: string) => {
-    lastEmptyInputBackspaceAt = 0;
-    props.onChange(props.value.filter((selected) => selected !== tag));
-  };
-
-  const removeLastTag = () => {
-    const lastTag = props.value[props.value.length - 1];
-    if (!lastTag) {
-      return;
-    }
-
-    removeTag(lastTag);
-  };
-
-  const applyTypedInput = () => {
-    cancelSearch();
-
-    const normalized = normalizeTag(query());
-    if (!normalized) {
-      closeDropdown();
-      return;
-    }
-
-    if (!props.value.includes(normalized)) {
-      props.onChange([...props.value, normalized]);
-      updateRecentTags([normalized]);
-    }
-
-    setQuery('');
-    closeDropdown();
-  };
-
-  const applyCurrentInput = () => {
-    cancelSearch();
-
-    const focusedIndex = focusedOptionIndex();
-    const option = focusedIndex === null ? undefined : options()[focusedIndex];
-    if (option) {
-      addTag(option);
-      return;
-    }
-
-    applyTypedInput();
-  };
-
-  const handleChangeQuery = (nextQuery: string) => {
-    const normalizedQuery = nextQuery.toLowerCase();
-
-    setQuery(normalizedQuery);
-    lastEmptyInputBackspaceAt = 0;
-    setFocusedOptionIndex(null);
-    shouldOpenOptionsAfterSearch = true;
-    if (!isOptionsOpen()) {
-      setDropdownMode(null);
-    }
-
-    debouncedSearchOptions(normalizedQuery);
-  };
-
-  const handleInputFocus = () => {
-    if (props.disabled) {
-      return;
-    }
-
-    shouldOpenOptionsAfterSearch = true;
-    if (!isOptionsOpen()) {
-      setDropdownMode(null);
-    }
-
-    if (props.showOptionsOnFocus ?? true) {
-      debouncedSearchOptions(query(), true);
-      return;
-    }
-
-    if (query().trim()) {
-      debouncedSearchOptions(query());
-    }
-  };
-
-  const handleInputBlur = (event: FocusEvent) => {
-    const relatedTarget = event.relatedTarget;
-    if (relatedTarget instanceof HTMLElement && dropdownEl?.contains(relatedTarget)) {
-      return;
-    }
-
-    applyTypedInput();
-  };
-
-  const handleContainerClick = (event: MouseEvent) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) {
-      return;
-    }
-
-    if (target.closest('[data-tag-badge]') || target.tagName === 'BUTTON') {
-      return;
-    }
-
-    if (target !== inputEl) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    inputEl?.focus();
-    openOptions();
-  };
-
-  const handleEmptyInputBackspace = (event: KeyboardEvent) => {
-    if (inputEl?.value.length) {
-      return;
-    }
-
-    if (!props.value.length) {
-      return;
-    }
-
-    event.preventDefault();
-    if (event.repeat) {
-      return;
-    }
-
-    const now = Date.now();
-    const isDoubleBackspace = now - lastEmptyInputBackspaceAt <= DOUBLE_BACKSPACE_MS;
-    lastEmptyInputBackspaceAt = isDoubleBackspace ? 0 : now;
-
-    if (!isDoubleBackspace) {
-      return;
-    }
-
-    if (hiddenTags().length > 0 && !isCollapsedOpen()) {
-      shouldOpenOptionsAfterSearch = false;
-      setDropdownMode('collapsed');
-      return;
-    }
-
-    removeLastTag();
+    selection.openOptions();
   };
 
   const scrollToFocused = () => {
@@ -438,117 +119,42 @@ function TagsSelect(props: {
     container.scrollTop += elementCenter - containerCenter;
   };
 
-  const visibleTags = createMemo(() => {
-    const safeVisibleCount = Math.min(visibleTagCount(), props.value.length);
-    return props.value.slice(0, safeVisibleCount);
-  });
-
-  const hiddenTags = createMemo(() => {
-    const safeVisibleCount = Math.min(visibleTagCount(), props.value.length);
-    return props.value.slice(safeVisibleCount);
-  });
-
-  createEffect(() => {
-    if (!inputContainerEl) {
+  const handleInputBlur = (event: FocusEvent) => {
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget instanceof HTMLElement && dropdownEl?.contains(relatedTarget)) {
       return;
     }
 
-    setContainerWidth(inputContainerEl.offsetWidth);
-    resizeObserver?.disconnect();
-    resizeObserver = new ResizeObserver(([entry]) => {
-      setContainerWidth(entry.contentRect.width);
-    });
-    resizeObserver.observe(inputContainerEl);
-  });
+    selection.applyTypedInput();
+  };
 
-  createEffect(() => {
-    if (!isDropdownOpen()) {
-      setDropdownWidth(undefined);
+  const handleContainerClick = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
       return;
     }
 
-    if (dropdownWidth() === undefined && inputContainerEl) {
-      setDropdownWidth(inputContainerEl.offsetWidth);
-    }
-  });
-
-  createEffect(() => {
-    if (!measureInputWidthEl || !inputContainerEl) {
+    if (target.closest('[data-tag-badge]') || target.tagName === 'BUTTON') {
       return;
     }
 
-    const textToMeasure = query() || (props.value.length ? '' : placeholder()) || ' ';
-    measureInputWidthEl.textContent = textToMeasure || ' ';
-    const measuredWidth = measureInputWidthEl.offsetWidth;
-    const maxAvailableWidth = inputContainerEl.offsetWidth - 16;
-    const nextInputWidth = Math.max(100, Math.min(measuredWidth + 10, maxAvailableWidth));
-    setInputWidth(nextInputWidth);
-  });
+    if (target !== inputEl) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    inputEl?.focus();
+    selection.openOptions();
+  };
 
   createEffect(() => {
-    const availableWidth = containerWidth() || inputContainerEl?.offsetWidth || 0;
-    const currentValue = props.value;
-    const currentInputWidth = inputWidth();
-
-    if (!availableWidth) {
-      setVisibleTagCount(currentValue.length);
-      return;
-    }
-
-    const tagWidths = currentValue.map((_, index) => tagMeasureEls[index]?.offsetWidth ?? 0);
-    const prefixWidths = [0];
-    for (const width of tagWidths) {
-      prefixWidths.push(prefixWidths[prefixWidths.length - 1] + width);
-    }
-
-    const getCollapsedBadgeWidth = (hiddenCount: number) => {
-      if (!hiddenCount || !collapsedBadgeMeasureEl) {
-        return 0;
-      }
-
-      collapsedBadgeMeasureEl.textContent = `+${hiddenCount}`;
-      return collapsedBadgeMeasureEl.offsetWidth;
-    };
-
-    const getTotalWidth = (visibleCount: number) => {
-      const hiddenCount = currentValue.length - visibleCount;
-      const tagsWidth = prefixWidths[visibleCount] ?? 0;
-      const collapsedWidth = getCollapsedBadgeWidth(hiddenCount);
-      const itemsCount = visibleCount + 1 + (hiddenCount > 0 ? 1 : 0);
-      const gaps = TAG_GAP * Math.max(0, itemsCount - 1);
-
-      return tagsWidth + collapsedWidth + currentInputWidth + gaps;
-    };
-
-    let nextVisibleCount = currentValue.length;
-    while (nextVisibleCount > 0 && getTotalWidth(nextVisibleCount) > availableWidth) {
-      nextVisibleCount -= 1;
-    }
-
-    if (getTotalWidth(nextVisibleCount) > availableWidth) {
-      nextVisibleCount = 0;
-    }
-
-    setVisibleTagCount((previousCount) =>
-      previousCount === nextVisibleCount ? previousCount : nextVisibleCount,
-    );
-  });
-
-  createEffect(() => {
-    if (!isOptionsOpen()) {
-      setFocusedOptionIndex(null);
-    }
-  });
-
-  createEffect(() => {
-    if (!hiddenTags().length && isCollapsedOpen()) {
-      closeDropdown();
-    }
-  });
-
-  createEffect(() => {
-    const focusedIndex = focusedOptionIndex();
-    if (!arrowScrolling() || !isOptionsOpen() || focusedIndex === null || !options().length) {
+    const focusedIndex = selection.focusedOptionIndex();
+    if (
+      !selection.arrowScrolling() ||
+      !selection.isOptionsOpen() ||
+      focusedIndex === null ||
+      !selection.options().length
+    ) {
       return;
     }
 
@@ -556,43 +162,31 @@ function TagsSelect(props: {
     onCleanup(() => cancelAnimationFrame(animationFrameId));
   });
 
-  onCleanup(() => {
-    cancelSearch();
-    resizeObserver?.disconnect();
-  });
-
   return (
     <Dropdown
-      open={isDropdownOpen()}
-      onOpenChange={(nextOpen) => {
-        if (nextOpen) {
-          setDropdownMode('options');
-          return;
-        }
-
-        closeDropdown();
-      }}
+      open={selection.isDropdownOpen()}
+      onOpenChange={selection.handleDropdownOpenChange}
       placement="bottom-start"
       trigger={
         <>
           <div
-            ref={inputContainerEl}
+            ref={overflow.setInputContainer}
             class={styles.inputContainer}
             classList={{ [styles.disabled]: props.disabled }}
             onClick={handleContainerClick}
           >
-            <For each={visibleTags()}>
+            <For each={overflow.visibleTags()}>
               {(tag) => (
                 <TagBadge
                   tag={tag}
                   disabled={props.disabled}
                   onClick={openOptions}
-                  onRemove={() => removeTag(tag)}
+                  onRemove={() => selection.removeTag(tag)}
                 />
               )}
             </For>
 
-            <Show when={hiddenTags().length > 0}>
+            <Show when={overflow.hiddenTags().length > 0}>
               <span
                 class={`${styles.badge} ${styles.collapsedBadge}`}
                 data-tag-badge
@@ -606,7 +200,7 @@ function TagsSelect(props: {
                     return;
                   }
 
-                  toggleCollapsedDropdown();
+                  selection.toggleCollapsedDropdown();
                 }}
                 onKeyDown={(event) => {
                   if (props.disabled || (event.key !== 'Enter' && event.key !== ' ')) {
@@ -614,62 +208,55 @@ function TagsSelect(props: {
                   }
 
                   event.preventDefault();
-                  toggleCollapsedDropdown();
+                  selection.toggleCollapsedDropdown();
                 }}
               >
-                +{hiddenTags().length}
+                +{overflow.hiddenTags().length}
               </span>
             </Show>
 
-            <span ref={measureInputWidthEl} class={styles.measureInputWidth} aria-hidden="true" />
+            <span
+              ref={overflow.setMeasureInputWidth}
+              class={styles.measureInputWidth}
+              aria-hidden="true"
+            />
             <input
               ref={inputEl}
               type="text"
-              value={query()}
+              value={selection.query()}
               class={styles.input}
-              style={{ width: `${inputWidth()}px` }}
+              style={{ width: `${overflow.inputWidth()}px` }}
               placeholder={props.value.length ? undefined : placeholder()}
               disabled={props.disabled}
-              onFocus={handleInputFocus}
+              onFocus={selection.handleInputFocus}
               onBlur={handleInputBlur}
-              onInput={(event) => handleChangeQuery(event.currentTarget.value)}
+              onInput={(event) => selection.handleChangeQuery(event.currentTarget.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Backspace') {
-                  handleEmptyInputBackspace(event);
+                  if (
+                    selection.handleEmptyInputBackspace(
+                      event.currentTarget.value,
+                      overflow.hiddenTags().length,
+                      event.repeat,
+                      Date.now(),
+                    )
+                  ) {
+                    event.preventDefault();
+                  }
                   return;
                 }
 
-                if (event.key === 'ArrowDown') {
-                  if (!isOptionsOpen() || !options().length) {
-                    return;
-                  }
-
+                if (event.key === 'ArrowDown' && selection.moveFocusedOption(1)) {
                   event.preventDefault();
-                  setArrowScrolling(true);
-                  setFocusedOptionIndex((currentIndex) =>
-                    currentIndex === null || currentIndex === options().length - 1
-                      ? 0
-                      : currentIndex + 1,
-                  );
                 }
 
-                if (event.key === 'ArrowUp') {
-                  if (!isOptionsOpen() || !options().length) {
-                    return;
-                  }
-
+                if (event.key === 'ArrowUp' && selection.moveFocusedOption(-1)) {
                   event.preventDefault();
-                  setArrowScrolling(true);
-                  setFocusedOptionIndex((currentIndex) =>
-                    currentIndex === null || currentIndex === 0
-                      ? options().length - 1
-                      : currentIndex - 1,
-                  );
                 }
 
                 if (event.key === 'Enter') {
                   event.preventDefault();
-                  applyCurrentInput();
+                  selection.applyCurrentInput();
                 }
               }}
             />
@@ -681,34 +268,35 @@ function TagsSelect(props: {
                 <TagBadge
                   tag={tag}
                   measure
-                  ref={(element) => {
-                    tagMeasureEls[index()] = element;
-                  }}
+                  ref={(element) => overflow.setTagMeasure(index(), element)}
                 />
               )}
             </For>
-            <span ref={collapsedBadgeMeasureEl} class={styles.badge} />
+            <span ref={overflow.setCollapsedBadgeMeasure} class={styles.badge} />
           </div>
         </>
       }
     >
       <Show
-        when={isCollapsedOpen()}
+        when={selection.isCollapsedOpen()}
         fallback={
-          <div ref={dropdownEl} class={styles.menu} style={{ width: `${dropdownWidth() ?? 0}px` }}>
+          <div
+            ref={dropdownEl}
+            class={styles.menu}
+            style={{ width: `${overflow.dropdownWidth() ?? 0}px` }}
+          >
             <div ref={listContainerEl} class={styles.optionsList}>
-              <For each={options()}>
+              <For each={selection.options()}>
                 {(option, index) => (
                   <button
                     type="button"
                     class={styles.option}
-                    data-focused={focusedOptionIndex() === index() ? '1' : undefined}
-                    classList={{ [styles.focusedOption]: focusedOptionIndex() === index() }}
-                    onClick={() => addTag(option)}
-                    onMouseEnter={() => {
-                      setArrowScrolling(false);
-                      setFocusedOptionIndex(index());
+                    data-focused={selection.focusedOptionIndex() === index() ? '1' : undefined}
+                    classList={{
+                      [styles.focusedOption]: selection.focusedOptionIndex() === index(),
                     }}
+                    onClick={() => selection.addTag(option)}
+                    onMouseEnter={() => selection.focusOption(index())}
                   >
                     <span>{option}</span>
                   </button>
@@ -721,11 +309,15 @@ function TagsSelect(props: {
         <div
           ref={dropdownEl}
           class={styles.collapsedTagsDropdownArea}
-          style={{ width: `${dropdownWidth() ?? 0}px` }}
+          style={{ width: `${overflow.dropdownWidth() ?? 0}px` }}
         >
-          <For each={hiddenTags()}>
+          <For each={overflow.hiddenTags()}>
             {(tag) => (
-              <TagBadge tag={tag} disabled={props.disabled} onRemove={() => removeTag(tag)} />
+              <TagBadge
+                tag={tag}
+                disabled={props.disabled}
+                onRemove={() => selection.removeTag(tag)}
+              />
             )}
           </For>
         </div>

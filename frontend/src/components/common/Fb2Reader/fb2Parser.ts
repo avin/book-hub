@@ -1,13 +1,13 @@
 import {
-  Fb2Binary,
-  Fb2Block,
-  Fb2BlockRole,
-  Fb2Document,
-  Fb2Inline,
-  Fb2Note,
-  Fb2OutlineEntry,
-  Fb2TableCell,
-} from './fb2Types';
+  ReflowableBinary as Fb2Binary,
+  ReflowableBlock as Fb2Block,
+  ReflowableBlockRole as Fb2BlockRole,
+  ReflowableDocument as Fb2Document,
+  ReflowableInline as Fb2Inline,
+  ReflowableNote as Fb2Note,
+  ReflowableOutlineEntry as Fb2OutlineEntry,
+  ReflowableTableCell as Fb2TableCell,
+} from '../ReflowableReader/reflowableTypes';
 
 const parserErrorTagName = 'parsererror';
 
@@ -515,14 +515,6 @@ function parseNotes(body: Element) {
     });
 
   return notes;
-}
-
-export function binaryToDataUrl(binary: Fb2Binary | undefined) {
-  if (!binary) {
-    return undefined;
-  }
-
-  return `data:${binary.contentType};base64,${binary.data}`;
 }
 
 export function parseFb2(source: string): Fb2Document {

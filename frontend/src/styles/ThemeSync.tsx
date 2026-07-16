@@ -11,7 +11,7 @@ import { getThemePreference, setThemePreference } from '@/storage/browserPrefere
 //
 // Runtime theme changes go through `changeTheme`, which updates both the
 // preference and the DOM attribute imperatively. Theme is a device-local
-// preference (ADR: docs/adr/0001-theme-system.md), not a server profile value.
+// preference, not a server profile value.
 function ThemeSync() {
   onMount(() => {
     applyTheme(getThemePreference() ?? defaultThemeId());

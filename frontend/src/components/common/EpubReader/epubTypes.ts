@@ -1,9 +1,7 @@
 import type {
-  Fb2Binary,
-  Fb2Block,
-  Fb2Note,
-  Fb2OutlineEntry,
-} from '@/components/common/Fb2Reader/fb2Types';
+  ReflowableBinary,
+  ReflowableDocument,
+} from '@/components/common/ReflowableReader/reflowableTypes';
 
 /** A spine item retained for diagnostics and future document-level navigation. */
 export type EpubSpineItem = {
@@ -16,16 +14,10 @@ export type EpubSpineItem = {
  * EPUB in the same shape consumed by the reflowable FB2 reader.
  * Resource ids in `binaries` are opaque and are only used by parsed blocks.
  */
-export type EpubDocument = {
-  title: string;
-  authors: string[];
-  blocks: Fb2Block[];
-  outline: Fb2OutlineEntry[];
-  notes: Map<string, Fb2Note>;
-  binaries: Map<string, Fb2Binary>;
+export type EpubDocument = ReflowableDocument & {
   spine: EpubSpineItem[];
   coverImageId?: string;
-  coverBinary?: Fb2Binary;
+  coverBinary?: ReflowableBinary;
 };
 
 export type EpubMetadata = Pick<EpubDocument, 'title' | 'authors' | 'coverImageId' | 'coverBinary'>;

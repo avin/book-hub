@@ -6,8 +6,16 @@ import (
 	"testing"
 
 	"book-hub/internal/domain"
+	"book-hub/internal/storage"
+	"book-hub/internal/storage/contract"
 	"book-hub/internal/storage/memory"
 )
+
+func TestStoreContract(t *testing.T) {
+	contract.Run(t, func(*testing.T) storage.Store {
+		return memory.New()
+	})
+}
 
 func TestQuotaAccountingCountsFullSizePerUserBook(t *testing.T) {
 	ctx := context.Background()
