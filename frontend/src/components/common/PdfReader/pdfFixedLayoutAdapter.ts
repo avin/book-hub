@@ -1,124 +1,99 @@
-import * as pdfjs from 'pdfjs-dist';
-import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
-import { EventBus, PDFFindController } from 'pdfjs-dist/web/pdf_viewer.mjs';
-import { pdfjsDocumentParams } from '@/api/pdfjsConfig';
-import { resolvePdfDestination, type PdfOutlineEntry } from './pdfOutline';
 import type {
-  FixedLayoutDocumentAdapter,
-  FixedLayoutPageDescriptor,
-} from '../FixedLayoutReader/fixedLayoutReader';
+  ImageDataLike,
+  PdfBookmarkObject,
+  PdfDocumentObject,
+  PdfPageObject,
+  PdfTextRectObject,
+  SearchAllPagesResult,
+} from '@embedpdf/models';
+import { getPdfiumEngine } from '@/api/pdfiumEngine';
+import { resolvePdfDestination, type PdfOutlineEntry } from './pdfOutline';
+import type { FixedLayoutDocumentAdapter } from '../FixedLayoutReader/fixedLayoutReader';
 
 export type PdfSearchQuery = {
   query: string;
-  direction: 'next' | 'previous';
-  isContinuation: boolean;
 };
 
 export type PdfNavigationTarget = {
-  destination: PdfOutlineEntry['dest'];
-  pageWidth: number;
+  destination: PdfOutlineEntry['destination'];
 };
 
-export function createPdfFixedLayoutAdapter(config: {
-  fileUrl: () => string;
-  onLoadingTask: (task: PDFDocumentLoadingTask) => void;
-  searchLinkService: { page: number; pagesCount: number };
-}) {
-  const pagesByDocument = new WeakMap<PDFDocumentProxy, Map<number, PDFPageProxy>>();
-  const searchEventBus = new EventBus();
-  const findController = new PDFFindController({
-    linkService: config.searchLinkService as never,
-    eventBus: searchEventBus,
-    delay: 0,
-  });
+function documentId() {
+  return `book-hub-${crypto.randomUUID()}`;
+}
+
+export function createPdfFixedLayoutAdapter(config: { fileUrl: () => string }) {
+  const engine = getPdfiumEngine();
   const adapter: FixedLayoutDocumentAdapter<
-    PDFDocumentProxy,
-    Awaited<ReturnType<PDFDocumentProxy['getOutline']>>,
-    PDFPageProxy,
+    PdfDocumentObject,
+    PdfBookmarkObject[],
+    PdfPageObject,
     PdfSearchQuery,
-    undefined,
+    SearchAllPagesResult,
     PdfNavigationTarget,
-    Awaited<ReturnType<typeof resolvePdfDestination>>
+    ReturnType<typeof resolvePdfDestination>
   > = {
     load() {
-      const task = pdfjs.getDocument({
-        url: config.fileUrl(),
-        withCredentials: true,
-        ...pdfjsDocumentParams,
-      });
-      config.onLoadingTask(task);
-      return task.promise;
+      return engine
+        .openDocumentUrl(
+          { id: documentId(), url: config.fileUrl() },
+          {
+            mode: 'range-request',
+            normalizeRotation: true,
+            requestOptions: { credentials: 'include' },
+          },
+        )
+        .toPromise();
     },
     async getPages(document) {
-      const pages: FixedLayoutPageDescriptor[] = [];
-      const pagesByNumber = new Map<number, PDFPageProxy>();
-
-      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-        const page = await document.getPage(pageNumber);
-        const viewport = page.getViewport({ scale: 1 });
-        pagesByNumber.set(pageNumber, page);
-        pages.push({ pageNumber, width: viewport.width, height: viewport.height });
-      }
-
-      pagesByDocument.set(document, pagesByNumber);
-
-      return pages;
+      return document.pages.map((page) => ({
+        pageNumber: page.index + 1,
+        width: page.size.width,
+        height: page.size.height,
+      }));
     },
-    getOutline(document) {
-      return document.getOutline();
+    async getOutline(document) {
+      return (await engine.getBookmarks(document).toPromise()).bookmarks;
     },
     async renderPage(document, pageNumber) {
-      const pages = pagesByDocument.get(document);
-      const cachedPage = pages?.get(pageNumber);
+      const page = document.pages[pageNumber - 1];
 
-      if (cachedPage) {
-        return cachedPage;
+      if (!page) {
+        throw new Error(`PDF page ${pageNumber} does not exist`);
       }
-
-      const page = await document.getPage(pageNumber);
-      pages?.set(pageNumber, page);
 
       return page;
     },
-    releasePage(document, pageNumber) {
-      pagesByDocument.get(document)?.delete(pageNumber);
+    releasePage() {},
+    search(document, query) {
+      return engine.searchAllPages(document, query.query).toPromise();
     },
-    async search(_document, query) {
-      searchEventBus.dispatch('find', {
-        source: findController,
-        type: query.isContinuation ? 'again' : 'find',
-        query: query.query,
-        phraseSearch: true,
-        caseSensitive: false,
-        entireWord: false,
-        highlightAll: true,
-        findPrevious: query.direction === 'previous',
-        matchDiacritics: false,
-      });
-
-      return undefined;
-    },
-    navigate(document, target) {
-      return resolvePdfDestination(document, target.destination, target.pageWidth);
+    async navigate(_document, target) {
+      const page = target.destination ? _document.pages[target.destination.pageIndex] : undefined;
+      return resolvePdfDestination(target.destination, page?.size.height);
     },
     async release(document) {
-      pagesByDocument.delete(document);
-      await document.cleanup();
+      await engine.closeDocument(document).toPromise();
     },
   };
 
   return {
     adapter,
-    findController,
-    searchEventBus,
-    setSearchDocument(document: PDFDocumentProxy | null) {
-      findController.setDocument(document as never);
+    renderPage(
+      document: PdfDocumentObject,
+      page: PdfPageObject,
+      scaleFactor: number,
+    ): { task: ReturnType<typeof engine.renderPageRaw>; promise: Promise<ImageDataLike> } {
+      const task = engine.renderPageRaw(document, page, {
+        scaleFactor,
+        withAnnotations: true,
+        withForms: true,
+      });
+
+      return { task, promise: task.toPromise() };
     },
-    clearSearch() {
-      searchEventBus.dispatch('findbarclose', { source: findController });
-    },
-    getCachedPage(document: PDFDocumentProxy, pageNumber: number) {
-      return pagesByDocument.get(document)?.get(pageNumber);
+    getPageText(document: PdfDocumentObject, page: PdfPageObject): Promise<PdfTextRectObject[]> {
+      return engine.getPageTextRects(document, page).toPromise();
     },
   };
 }

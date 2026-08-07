@@ -1,10 +1,10 @@
-import * as pdfjs from 'pdfjs-dist';
 import type {
-  PDFDocumentLoadingTask,
-  PDFDocumentProxy,
-  PDFPageProxy,
-  RenderTask,
-} from 'pdfjs-dist';
+  PdfDocumentObject,
+  PdfPageObject,
+  PdfTextRectObject,
+  SearchResult,
+} from '@embedpdf/models';
+import { PdfErrorCode } from '@embedpdf/models';
 import {
   createEffect,
   createMemo,
@@ -32,7 +32,6 @@ import {
   computeWidthRulerMarkers,
 } from '@/components/common/WidthRuler/widthRulerUtils';
 import { useI18n } from '@/i18n/I18nProvider';
-import { pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import {
   getFixedLayoutReaderContentWidthPreference,
@@ -46,7 +45,6 @@ import {
 } from '@/storage/browserPreferencesFixedLayout';
 import { mapPdfOutline, type PdfOutlineEntry } from './pdfOutline';
 import { createPdfFixedLayoutAdapter } from './pdfFixedLayoutAdapter';
-import PdfTextHighlighter from './PdfTextHighlighter';
 import {
   defaultFixedLayoutFilterChain as defaultPdfFilterChain,
   fixedLayoutFilterChainKey as pdfFilterChainKey,
@@ -70,8 +68,6 @@ import {
   renderPdfPageFilter,
 } from './pdfWebglFilter';
 import styles from './PdfReader.module.scss';
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
 
 type PdfPageDescriptor = {
   pageNumber: number;
@@ -99,7 +95,10 @@ function renderPixelRatio() {
 }
 
 function isRenderCancelled(error: unknown) {
-  return error instanceof Error && error.name === 'RenderingCancelledException';
+  return (
+    error instanceof Error &&
+    (error.name === 'TaskAbortedError' || error.name === 'RenderingCancelledException')
+  );
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -174,8 +173,7 @@ function PdfReader(props: {
   const { t } = useI18n();
   let rootRef: HTMLDivElement | undefined;
   let documentRef: HTMLElement | undefined;
-  let loadingTask: PDFDocumentLoadingTask | undefined;
-  let pdfDocument: PDFDocumentProxy | undefined;
+  let pdfDocument: PdfDocumentObject | undefined;
   let resizeObserver: ResizeObserver | undefined;
   let observer: IntersectionObserver | undefined;
   let observeFrame: number | undefined;
@@ -197,14 +195,20 @@ function PdfReader(props: {
   const canvasRefs = new Map<number, HTMLCanvasElement>();
   const filteredCanvasRefs = new Map<number, HTMLCanvasElement>();
   const textLayerRefs = new Map<number, HTMLDivElement>();
-  const pageCache = new Map<number, PDFPageProxy>();
-  const renderTasks = new Map<number, RenderTask>();
+  const searchLayerRefs = new Map<number, HTMLDivElement>();
+  const pageCache = new Map<number, PdfPageObject>();
+  const renderTasks = new Map<
+    number,
+    { abort: (reason: { code: PdfErrorCode; message: string }) => void }
+  >();
   let filterRenderGeneration = 0;
   let filterRenderDebounceTimeout: number | undefined;
   let sharedFilterRenderQueue: Promise<void> = Promise.resolve();
   const filterRenderDebounceMs = 50;
-  const textLayerTasks = new Map<number, pdfjs.TextLayer>();
-  const textHighlighters = new Map<number, ReturnType<typeof PdfTextHighlighter>>();
+  const textLayerTasks = new Map<number, { cancelled: boolean; cancel: () => void }>();
+  let searchResults: SearchResult[] = [];
+  let selectedSearchIndex = -1;
+  let searchGeneration = 0;
   const renderedKeys = new Map<number, string>();
   const filteredKeys = new Map<number, string>();
   const textLayerKeys = new Map<number, string>();
@@ -591,67 +595,10 @@ function PdfReader(props: {
     },
   });
 
-  const searchLinkService = {
-    get page() {
-      return currentPage();
-    },
-    set page(pageNumber: number) {
-      goToPage(String(pageNumber));
-    },
-    get pagesCount() {
-      return untrack(() => pages().length);
-    },
-  };
   const pdfAdapter = createPdfFixedLayoutAdapter({
     fileUrl: () => props.fileUrl,
-    onLoadingTask: (task) => {
-      loadingTask = task;
-    },
-    searchLinkService,
   });
   const pdfFixedLayoutReader = createFixedLayoutReader(pdfAdapter.adapter);
-  const { findController, searchEventBus } = pdfAdapter;
-
-  findController.onIsPageVisible = (pageNumber: number) =>
-    untrack(() => visiblePages().has(pageNumber));
-  findController.scrollMatchIntoView = ({ element, pageIndex, matchIndex }) => {
-    const selected = findController.selected;
-
-    if (selected?.pageIdx !== pageIndex || selected.matchIdx !== matchIndex) {
-      return;
-    }
-
-    if (searchScrollFrame !== undefined) {
-      cancelAnimationFrame(searchScrollFrame);
-    }
-
-    searchScrollFrame = requestAnimationFrame(() => {
-      searchScrollFrame = undefined;
-      element.scrollIntoView({ behavior: 'instant', block: 'center' });
-      syncCurrentPage();
-    });
-  };
-
-  const updateSearchCount = (matchesCount: { current: number; total: number }) => {
-    setSearchCount(matchesCount.total > 0 ? matchesCount : undefined);
-  };
-
-  searchEventBus.on(
-    'updatefindmatchescount',
-    (event: { source: unknown; matchesCount: { current: number; total: number } }) => {
-      if (event.source === findController) {
-        updateSearchCount(event.matchesCount);
-      }
-    },
-  );
-  searchEventBus.on(
-    'updatefindcontrolstate',
-    (event: { source: unknown; matchesCount: { current: number; total: number } }) => {
-      if (event.source === findController) {
-        updateSearchCount(event.matchesCount);
-      }
-    },
-  );
 
   const applySynchronizedScrollAnchor = (anchor: ScrollAnchor, targetWidthPx: number) => {
     if (!documentRef) {
@@ -712,13 +659,16 @@ function PdfReader(props: {
   };
 
   const cancelRenderTask = (pageNumber: number) => {
-    renderTasks.get(pageNumber)?.cancel();
+    renderTasks.get(pageNumber)?.abort({
+      code: PdfErrorCode.Cancelled,
+      message: 'PDF page render cancelled',
+    });
     renderTasks.delete(pageNumber);
   };
 
   const cancelRenderTasks = () => {
     for (const task of renderTasks.values()) {
-      task.cancel();
+      task.abort({ code: PdfErrorCode.Cancelled, message: 'PDF page render cancelled' });
     }
 
     renderTasks.clear();
@@ -831,8 +781,6 @@ function PdfReader(props: {
   const cancelTextLayerTask = (pageNumber: number) => {
     textLayerTasks.get(pageNumber)?.cancel();
     textLayerTasks.delete(pageNumber);
-    textHighlighters.get(pageNumber)?.disable();
-    textHighlighters.delete(pageNumber);
   };
 
   const cancelTextLayerTasks = () => {
@@ -841,12 +789,6 @@ function PdfReader(props: {
     }
 
     textLayerTasks.clear();
-
-    for (const highlighter of textHighlighters.values()) {
-      highlighter.disable();
-    }
-
-    textHighlighters.clear();
   };
 
   const releasePageResources = (pageNumber: number) => {
@@ -872,6 +814,8 @@ function PdfReader(props: {
     if (textLayer) {
       textLayer.textContent = '';
     }
+
+    searchLayerRefs.get(pageNumber)?.replaceChildren();
 
     renderedKeys.delete(pageNumber);
     filteredKeys.delete(pageNumber);
@@ -1087,27 +1031,33 @@ function PdfReader(props: {
       cancelRenderTask(descriptor.pageNumber);
 
       const scale = (displayWidth * ratio) / descriptor.width;
-      const viewport = page.getViewport({ scale });
-
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
-      canvas.style.width = `${displayWidth}px`;
-      canvas.style.height = `${displayHeight}px`;
-      if (filteredCanvas) {
-        resizeFilteredCanvas(
-          filteredCanvas,
-          canvas.width,
-          canvas.height,
-          displayWidth,
-          displayHeight,
-        );
-      }
-
-      const task = page.render({ canvas, viewport });
+      const { task, promise } = pdfAdapter.renderPage(pdfDocument, page, scale);
       renderTasks.set(descriptor.pageNumber, task);
 
       try {
-        await task.promise;
+        const image = await promise;
+        const context = canvas.getContext('2d');
+
+        if (!context || destroyed || renderTasks.get(descriptor.pageNumber) !== task) {
+          return;
+        }
+
+        canvas.width = image.width;
+        canvas.height = image.height;
+        canvas.style.width = `${displayWidth}px`;
+        canvas.style.height = `${displayHeight}px`;
+        context.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+
+        if (filteredCanvas) {
+          resizeFilteredCanvas(
+            filteredCanvas,
+            canvas.width,
+            canvas.height,
+            displayWidth,
+            displayHeight,
+          );
+        }
+
         renderedKeys.set(descriptor.pageNumber, renderKey);
         filteredKeys.delete(descriptor.pageNumber);
         setFilteredPages((current) => {
@@ -1203,12 +1153,47 @@ function PdfReader(props: {
     });
   };
 
+  const renderSearchHighlights = (pageNumber: number) => {
+    const layer = searchLayerRefs.get(pageNumber);
+    const descriptor = pages().find((page) => page.pageNumber === pageNumber);
+
+    if (!layer || !descriptor) {
+      return;
+    }
+
+    const highlights: HTMLElement[] = [];
+
+    searchResults.forEach((result, resultIndex) => {
+      if (result.pageIndex !== pageNumber - 1) {
+        return;
+      }
+
+      for (const rect of result.rects) {
+        const highlight = document.createElement('span');
+        highlight.className = styles.searchHighlight;
+        highlight.classList.toggle(
+          styles.searchHighlightSelected,
+          resultIndex === selectedSearchIndex,
+        );
+        highlight.dataset.searchResultIndex = String(resultIndex);
+        highlight.style.left = `${(rect.origin.x / descriptor.width) * 100}%`;
+        highlight.style.top = `${(rect.origin.y / descriptor.height) * 100}%`;
+        highlight.style.width = `${(rect.size.width / descriptor.width) * 100}%`;
+        highlight.style.height = `${(rect.size.height / descriptor.height) * 100}%`;
+        highlights.push(highlight);
+      }
+    });
+
+    layer.replaceChildren(...highlights);
+  };
+
   const renderTextLayer = async (descriptor: PdfPageDescriptor) => {
     const generation = loadGeneration;
     const layer = textLayerRefs.get(descriptor.pageNumber);
     const pageElement = pageRefs.get(descriptor.pageNumber);
+    const currentDocument = pdfDocument;
 
-    if (!layer || !pageElement) {
+    if (!layer || !pageElement || !currentDocument) {
       return;
     }
 
@@ -1218,9 +1203,8 @@ function PdfReader(props: {
       return;
     }
 
-    const ratio = renderPixelRatio();
     const displayHeight = Math.round(displayWidth * (descriptor.height / descriptor.width));
-    const renderKey = `${displayWidth}:${ratio}`;
+    const renderKey = `${displayWidth}`;
 
     if (textLayerKeys.get(descriptor.pageNumber) === renderKey) {
       return;
@@ -1233,43 +1217,47 @@ function PdfReader(props: {
     }
 
     cancelTextLayerTask(descriptor.pageNumber);
-
-    const scale = (displayWidth * ratio) / descriptor.width;
-    const viewport = page.getViewport({ scale });
-
-    pageElement.style.setProperty('--scale-factor', `${displayWidth / descriptor.width}`);
+    const scale = displayWidth / descriptor.width;
     layer.style.width = `${displayWidth}px`;
     layer.style.height = `${displayHeight}px`;
     layer.textContent = '';
-
-    const task = new pdfjs.TextLayer({
-      textContentSource: page.streamTextContent(),
-      container: layer,
-      viewport,
-    });
-    const highlighter = PdfTextHighlighter({
-      findController,
-      eventBus: searchEventBus,
-      pageIndex: descriptor.pageNumber - 1,
-    });
-
-    highlighter.setTextMapping(task.textDivs, task.textContentItemsStr);
+    const task = {
+      cancelled: false,
+      cancel() {
+        this.cancelled = true;
+      },
+    };
 
     textLayerTasks.set(descriptor.pageNumber, task);
 
     try {
-      await task.render();
+      const textRects = await pdfAdapter.getPageText(currentDocument, page);
+
+      if (task.cancelled || destroyed || generation !== loadGeneration) {
+        return;
+      }
+
+      const fragments = textRects.map((textRect: PdfTextRectObject) => {
+        const span = document.createElement('span');
+        span.textContent = textRect.content;
+        span.style.left = `${textRect.rect.origin.x * scale}px`;
+        span.style.top = `${textRect.rect.origin.y * scale}px`;
+        span.style.width = `${textRect.rect.size.width * scale}px`;
+        span.style.height = `${textRect.rect.size.height * scale}px`;
+        span.style.fontFamily = textRect.font.family;
+        span.style.fontSize = `${textRect.font.size * scale}px`;
+        span.style.lineHeight = `${textRect.rect.size.height * scale}px`;
+        return span;
+      });
+
+      layer.replaceChildren(...fragments);
 
       if (!destroyed && generation === loadGeneration) {
         textLayerKeys.set(descriptor.pageNumber, renderKey);
-        textHighlighters.set(descriptor.pageNumber, highlighter);
-        highlighter.enable();
+        renderSearchHighlights(descriptor.pageNumber);
       }
     } catch (error) {
-      if (!(
-        error instanceof Error &&
-        (error.name === 'AbortException' || isRenderCancelled(error))
-      )) {
+      if (!isRenderCancelled(error)) {
         console.error('Failed to render PDF text layer', error);
       }
     } finally {
@@ -1284,8 +1272,10 @@ function PdfReader(props: {
 
     loadGeneration = generation;
     executedSearchQuery = undefined;
+    searchResults = [];
+    selectedSearchIndex = -1;
+    searchGeneration += 1;
     setSearchCount(undefined);
-    pdfAdapter.setSearchDocument(null);
     setLoading(true);
     setFailed(false);
     setPages([]);
@@ -1297,6 +1287,7 @@ function PdfReader(props: {
     canvasRefs.clear();
     filteredCanvasRefs.clear();
     textLayerRefs.clear();
+    searchLayerRefs.clear();
     pageCache.clear();
     renderedKeys.clear();
     invalidateFilteredPages();
@@ -1316,10 +1307,7 @@ function PdfReader(props: {
       cancelAnimationFrame(filterRenderFrame);
       filterRenderFrame = undefined;
     }
-    const previousLoadingTask = loadingTask;
-    loadingTask = undefined;
     pdfDocument = undefined;
-    await previousLoadingTask?.destroy().catch(() => undefined);
     await pdfFixedLayoutReader.release().catch(() => undefined);
 
     try {
@@ -1337,17 +1325,13 @@ function PdfReader(props: {
       }
 
       pdfDocument = document;
-      for (const page of nextPages) {
-        const cachedPage = pdfAdapter.getCachedPage(document, page.pageNumber);
-        if (cachedPage) {
-          pageCache.set(page.pageNumber, cachedPage);
-        }
+      for (const page of document.pages) {
+        pageCache.set(page.index + 1, page);
       }
 
       setOutlineEntries(mapPdfOutline(rawOutline));
       setOutlineLoaded(true);
       setPages(nextPages);
-      pdfAdapter.setSearchDocument(document);
       setLoading(false);
       readyFrame = requestAnimationFrame(() => {
         readyFrame = undefined;
@@ -1542,30 +1526,70 @@ function PdfReader(props: {
 
     const previousLocation = captureScrollAnchor();
 
-    void pdfFixedLayoutReader
-      .navigate({ destination: node.dest, pageWidth: pageWidth() })
-      .then((location) => {
-        if (!location) {
-          return;
-        }
+    void pdfFixedLayoutReader.navigate({ destination: node.destination }).then((location) => {
+      if (!location) {
+        return;
+      }
 
-        readerNavigationHistory.recordNavigation(location, previousLocation);
-        scrollToPdfAnchor(location);
-      });
+      readerNavigationHistory.recordNavigation(location, previousLocation);
+      scrollToPdfAnchor(location);
+    });
   };
 
   type SearchDirection = 'next' | 'previous';
 
   const clearSearchHighlights = () => {
+    searchGeneration += 1;
     if (searchScrollFrame !== undefined) {
       cancelAnimationFrame(searchScrollFrame);
       searchScrollFrame = undefined;
     }
 
-    pdfAdapter.clearSearch();
+    searchResults = [];
+    selectedSearchIndex = -1;
+    for (const layer of searchLayerRefs.values()) {
+      layer.replaceChildren();
+    }
     setSearchCount(undefined);
     executedSearchQuery = undefined;
   };
+
+  const selectSearchResult = (direction: SearchDirection, reset: boolean) => {
+    if (searchResults.length === 0) {
+      selectedSearchIndex = -1;
+      setSearchCount(undefined);
+      return;
+    }
+
+    if (reset) {
+      selectedSearchIndex = direction === 'previous' ? searchResults.length - 1 : 0;
+    } else {
+      const delta = direction === 'previous' ? -1 : 1;
+      selectedSearchIndex =
+        (selectedSearchIndex + delta + searchResults.length) % searchResults.length;
+    }
+
+    setSearchCount({ current: selectedSearchIndex + 1, total: searchResults.length });
+    for (const page of pages()) {
+      renderSearchHighlights(page.pageNumber);
+    }
+
+    const result = searchResults[selectedSearchIndex];
+    goToPage(String(result.pageIndex + 1));
+
+    if (searchScrollFrame !== undefined) {
+      cancelAnimationFrame(searchScrollFrame);
+    }
+    searchScrollFrame = requestAnimationFrame(() => {
+      searchScrollFrame = undefined;
+      const highlight = searchLayerRefs
+        .get(result.pageIndex + 1)
+        ?.querySelector<HTMLElement>(`[data-search-result-index="${selectedSearchIndex}"]`);
+      highlight?.scrollIntoView({ behavior: 'instant', block: 'center' });
+      syncCurrentPage();
+    });
+  };
+
   const search = (direction: SearchDirection) => {
     const query = searchValue().trim();
 
@@ -1574,9 +1598,23 @@ function PdfReader(props: {
       return;
     }
 
-    const isContinuation = executedSearchQuery === query;
+    if (executedSearchQuery === query) {
+      selectSearchResult(direction, false);
+      return;
+    }
+
     executedSearchQuery = query;
-    void pdfFixedLayoutReader.search({ query, direction, isContinuation });
+    const generation = ++searchGeneration;
+    void pdfFixedLayoutReader.search({ query }).then((result) => {
+      if (!result || generation !== searchGeneration || executedSearchQuery !== query) {
+        return;
+      }
+
+      untrack(() => {
+        searchResults = result.results;
+        selectSearchResult(direction, true);
+      });
+    });
   };
 
   const toggleToc = () => {
@@ -1788,9 +1826,9 @@ function PdfReader(props: {
     destroyFilterRenderers();
     filteredCanvasRefs.clear();
     textLayerRefs.clear();
+    searchLayerRefs.clear();
     textLayerTasks.clear();
     textLayerKeys.clear();
-    void loadingTask?.destroy().catch(() => undefined);
     void pdfFixedLayoutReader.release().catch(() => undefined);
   });
 
@@ -2000,6 +2038,13 @@ function PdfReader(props: {
                     aria-hidden="true"
                   />
                 </Show>
+                <div
+                  ref={(element) => {
+                    searchLayerRefs.set(page.pageNumber, element);
+                  }}
+                  class={styles.searchLayer}
+                  aria-hidden="true"
+                />
                 <div
                   ref={(element) => {
                     textLayerRefs.set(page.pageNumber, element);

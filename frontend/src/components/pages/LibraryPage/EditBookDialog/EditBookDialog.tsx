@@ -19,7 +19,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import styles from './EditBookDialog.module.scss';
 
 // Lazy-loaded cover extraction (same logic as the upload screen). Bundling it
-// eagerly would pull pdf.js into the edit dialog chunk.
+// eagerly would pull the PDFium engine into the edit dialog chunk.
 let coverExtractionModule:
   Promise<typeof import('@/components/pages/UploadPage/coverExtraction')> | undefined;
 

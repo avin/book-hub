@@ -1,6 +1,7 @@
 node_modules
 dist
 storybook-static
+public/pdfium-assets
 public/pdfjs-assets
 public/djvujs-assets
 test-results

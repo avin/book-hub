@@ -1,12 +1,10 @@
-import * as pdfjs from 'pdfjs-dist';
-import { pdfjsDocumentParams, pdfjsWorkerSrc } from '@/api/pdfjsConfig';
+import type { PdfDocumentObject } from '@embedpdf/models';
+import { getPdfiumEngine } from '@/api/pdfiumEngine';
 import { parseFb2 } from '@/components/common/Fb2Reader/fb2Parser';
 import { readFb2BlobText } from '@/bookFormats/fb2TextDecoder';
 import type { ReflowableBinary } from '@/components/common/ReflowableReader/reflowableTypes';
 import { extractEpubMetadata } from '@/components/common/EpubReader/epubParser';
 import { createDjVuWorker, type DjVuWorker } from '@/api/djvujs';
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerSrc;
 
 const MAX_COVER_WIDTH = 900;
 const MAX_COVER_HEIGHT = 1400;
@@ -186,34 +184,31 @@ async function compressCover(blob: Blob, bookFileName: string) {
 async function withPdfDocument<T>(
   file: File,
   signal: AbortSignal | undefined,
-  run: (pdfDocument: pdfjs.PDFDocumentProxy) => Promise<T>,
+  run: (pdfDocument: PdfDocumentObject) => Promise<T>,
 ): Promise<T> {
   throwIfAborted(signal);
   const arrayBuffer = await abortable(file.arrayBuffer(), signal);
   throwIfAborted(signal);
-
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(arrayBuffer),
-    ...pdfjsDocumentParams,
-  });
-  let pdfDocument: pdfjs.PDFDocumentProxy | undefined;
-
-  const destroyLoadingTask = () => {
-    void loadingTask.destroy();
-  };
-  signal?.addEventListener('abort', destroyLoadingTask, { once: true });
+  const engine = getPdfiumEngine();
+  let pdfDocument: PdfDocumentObject | undefined;
 
   try {
-    pdfDocument = await abortable(loadingTask.promise, signal);
+    pdfDocument = await abortable(
+      engine
+        .openDocumentBuffer(
+          { id: `book-cover-${crypto.randomUUID()}`, content: arrayBuffer },
+          { normalizeRotation: true },
+        )
+        .toPromise(),
+      signal,
+    );
     throwIfAborted(signal);
 
     return await run(pdfDocument);
   } finally {
-    signal?.removeEventListener('abort', destroyLoadingTask);
     if (pdfDocument) {
-      await pdfDocument.cleanup();
+      await engine.closeDocument(pdfDocument).toPromise();
     }
-    await loadingTask.destroy();
   }
 }
 
@@ -224,16 +219,28 @@ async function extractPdfCover(
   const signal = options?.signal;
 
   return withPdfDocument(file, signal, async (pdfDocument) => {
-    const page = await abortable(pdfDocument.getPage(1), signal);
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(2, MAX_COVER_WIDTH / viewport.width, MAX_COVER_HEIGHT / viewport.height);
-    const renderViewport = page.getViewport({ scale });
+    const page = pdfDocument.pages[0];
+    if (!page) {
+      throw new Error('PDF does not contain pages');
+    }
+
+    const scale = Math.min(
+      2,
+      MAX_COVER_WIDTH / page.size.width,
+      MAX_COVER_HEIGHT / page.size.height,
+    );
+    const image = await abortable(
+      getPdfiumEngine().renderPageRaw(pdfDocument, page, { scaleFactor: scale }).toPromise(),
+      signal,
+    );
     const canvas = document.createElement('canvas');
-
-    canvas.width = Math.max(1, Math.round(renderViewport.width));
-    canvas.height = Math.max(1, Math.round(renderViewport.height));
-
-    await abortable(page.render({ canvas, viewport: renderViewport }).promise, signal);
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return {};
+    }
+    context.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
 
     const coverBlob = await canvasToBlob(canvas, 'image/jpeg', COVER_QUALITY);
     return {
@@ -404,22 +411,12 @@ export async function extractBookTitle(file: File, options?: BookPreparationOpti
   }
 
   return withPdfDocument(file, signal, async (pdfDocument) => {
-    const metadata = await abortable(pdfDocument.getMetadata(), signal);
-    const info = metadata.info as { Title?: unknown; Author?: unknown };
-    const metadataTitle = metadata.metadata?.get('dc:title') ?? metadata.metadata?.get('Title');
-    const metadataAuthor = metadata.metadata?.get('dc:creator') ?? metadata.metadata?.get('Author');
-    const title =
-      typeof metadataTitle === 'string'
-        ? metadataTitle
-        : typeof info.Title === 'string'
-          ? info.Title
-          : '';
-    const author =
-      typeof metadataAuthor === 'string'
-        ? metadataAuthor
-        : typeof info.Author === 'string'
-          ? info.Author
-          : '';
+    const metadata = await abortable(
+      getPdfiumEngine().getMetadata(pdfDocument).toPromise(),
+      signal,
+    );
+    const title = metadata.title ?? '';
+    const author = metadata.author ?? '';
 
     return bookTitle(author ? [author] : [], title);
   });

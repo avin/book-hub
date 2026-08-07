@@ -10,6 +10,7 @@ export default tseslint.config(
       'dist/**',
       'storybook-static/**',
       'public/pdfjs-assets/**',
+      'public/pdfium-assets/**',
       'public/djvujs-assets/**',
     ],
   },

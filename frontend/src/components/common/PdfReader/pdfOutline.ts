@@ -1,8 +1,9 @@
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { PdfActionType, PdfZoomMode } from '@embedpdf/models';
+import type { PdfBookmarkObject, PdfDestinationObject } from '@embedpdf/models';
 
 export type PdfOutlineEntry = {
   label: string;
-  dest: string | Array<unknown> | null;
+  destination?: PdfDestinationObject;
   children?: PdfOutlineEntry[];
 };
 
@@ -11,63 +12,48 @@ export type PdfDestination = {
   offsetRatio: number;
 };
 
-type PdfJsOutlineItem = {
-  title: string;
-  dest: string | Array<unknown> | null;
-  items?: PdfJsOutlineItem[];
-};
+function bookmarkDestination(bookmark: PdfBookmarkObject) {
+  const target = bookmark.target;
 
-export function mapPdfOutline(items: PdfJsOutlineItem[] | null | undefined): PdfOutlineEntry[] {
+  if (!target) {
+    return undefined;
+  }
+
+  if (target.type === 'destination') {
+    return target.destination;
+  }
+
+  if (target.action.type === PdfActionType.Goto) {
+    return target.action.destination;
+  }
+
+  return undefined;
+}
+
+export function mapPdfOutline(items: PdfBookmarkObject[] | null | undefined): PdfOutlineEntry[] {
   if (!items?.length) {
     return [];
   }
 
   return items.map((item) => ({
     label: item.title,
-    dest: item.dest,
-    children: item.items?.length ? mapPdfOutline(item.items) : undefined,
+    destination: bookmarkDestination(item),
+    children: item.children?.length ? mapPdfOutline(item.children) : undefined,
   }));
 }
 
-export async function resolvePdfDestination(
-  document: PDFDocumentProxy,
-  dest: string | Array<unknown> | null,
-  pageWidthPx: number,
-): Promise<PdfDestination | undefined> {
-  if (!dest) {
-    return;
+export function resolvePdfDestination(
+  destination: PdfDestinationObject | undefined,
+  pageHeight: number | undefined,
+): PdfDestination | undefined {
+  if (!destination || destination.pageIndex < 0) {
+    return undefined;
   }
 
-  const destination = Array.isArray(dest) ? dest : await document.getDestination(dest);
+  const offsetRatio =
+    destination.zoom.mode === PdfZoomMode.XYZ && pageHeight && pageHeight > 0
+      ? Math.max(0, Math.min(1, 1 - destination.zoom.params.y / pageHeight))
+      : 0;
 
-  if (!destination) {
-    return;
-  }
-
-  const [pageRef, ...args] = destination;
-
-  if (!pageRef || typeof pageRef !== 'object') {
-    return;
-  }
-
-  const pageIndex = await document.getPageIndex(pageRef as { num: number; gen: number });
-  const pageNumber = pageIndex + 1;
-  const page = await document.getPage(pageNumber);
-  const viewport = page.getViewport({ scale: 1 });
-  const displayScale = pageWidthPx / viewport.width;
-  const displayHeight = viewport.height * displayScale;
-  let offsetTop = 0;
-  const kind = args[0];
-
-  if (kind === 'XYZ' && typeof args[2] === 'number') {
-    offsetTop = (viewport.height - args[2]) * displayScale;
-  } else if (kind === 'FitH' && typeof args[1] === 'number') {
-    offsetTop = (viewport.height - args[1]) * displayScale;
-  } else if (kind === 'FitBH' && typeof args[1] === 'number') {
-    offsetTop = (viewport.height - args[1]) * displayScale;
-  }
-
-  offsetTop = Math.max(0, Math.min(offsetTop, Math.max(0, displayHeight - 1)));
-
-  return { pageNumber, offsetRatio: offsetTop / displayHeight };
+  return { pageNumber: destination.pageIndex + 1, offsetRatio };
 }

@@ -77,10 +77,31 @@
   }
 }
 
+.searchLayer,
 .textLayer {
   position: absolute;
   inset: 0;
   overflow: hidden;
+}
+
+.searchLayer {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.searchHighlight {
+  position: absolute;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.searchHighlightSelected {
+  background: color-mix(in srgb, var(--accent) 75%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 80%, transparent);
+}
+
+.textLayer {
+  z-index: 2;
   line-height: 1;
   user-select: text;
   pointer-events: auto;
@@ -90,60 +111,17 @@
   -webkit-text-size-adjust: none;
   text-size-adjust: none;
   forced-color-adjust: none;
-  transform-origin: 0 0;
   caret-color: CanvasText;
-  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
-  --min-font-size-inv: calc(1 / var(--min-font-size));
-
-  :global(span),
-  :global(br) {
-    position: absolute;
-    white-space: pre;
-    cursor: text;
-    transform-origin: 0 0;
-    -webkit-user-select: text;
-    user-select: text;
-  }
 
   :global(span) {
+    position: absolute;
+    display: block;
+    overflow: hidden;
     color: transparent;
-  }
-
-  > :global(span),
-  > :global(br),
-  :global(.markedContent span:not(.markedContent)) {
-    z-index: 1;
-    --font-height: 0;
-    font-size: calc(var(--text-scale-factor) * var(--font-height));
-    --scale-x: 1;
-    --rotate: 0deg;
-    transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
-  }
-
-  :global(.markedContent) {
-    display: contents;
-  }
-
-  :global(span[role='img']) {
-    -webkit-user-select: none;
-    user-select: none;
-    cursor: default;
-  }
-
-  :global(.highlight) {
-    color: transparent;
-    background: color-mix(in srgb, var(--accent) 35%, transparent);
-    border-radius: 2px;
-  }
-
-  :global(.highlight.appended) {
-    position: relative;
-    z-index: 2;
-  }
-
-  :global(.highlight.selected) {
-    background: color-mix(in srgb, var(--accent) 75%, transparent);
-    outline: 1px solid color-mix(in srgb, var(--accent) 80%, transparent);
+    white-space: pre;
+    cursor: text;
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   :global(::selection) {
