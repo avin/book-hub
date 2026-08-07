@@ -130,6 +130,80 @@ describe('PDF render scheduler', () => {
     expect(starts).toEqual(['bitmap', 'text']);
   });
 
+  it('pruneQueue удаляет только неактуальные queued tasks без сброса generation', async () => {
+    const scheduler = createPdfRenderScheduler();
+    const starts: string[] = [];
+    const running = deferred<string>();
+
+    scheduler.beginGeneration();
+    scheduler.enqueue({
+      id: 'running',
+      pageNumber: 1,
+      kind: 'bitmap',
+      priority: 0,
+      run: () => {
+        starts.push('running');
+        return { promise: running.promise };
+      },
+      commit: vi.fn(),
+    });
+    scheduler.enqueue({
+      id: 'keep',
+      pageNumber: 2,
+      kind: 'bitmap',
+      priority: 0,
+      run: () => {
+        starts.push('keep');
+        return { promise: Promise.resolve('keep') };
+      },
+      commit: vi.fn(),
+    });
+    scheduler.enqueue({
+      id: 'drop',
+      pageNumber: 3,
+      kind: 'bitmap',
+      priority: 0,
+      run: () => {
+        starts.push('drop');
+        return { promise: Promise.resolve('drop') };
+      },
+      commit: vi.fn(),
+    });
+    scheduler.pruneQueue((task) => task.id === 'running' || task.id === 'keep');
+    running.resolve('done');
+    await settle();
+
+    expect(starts).toEqual(['running', 'keep']);
+    expect(scheduler.currentGeneration()).toBe(1);
+  });
+
+  it('interruptRunning отменяет in-flight задачу без сброса generation', async () => {
+    const scheduler = createPdfRenderScheduler();
+    const operation = deferred<string>();
+    const cancel = vi.fn();
+    const commit = vi.fn();
+    const onAbort = vi.fn();
+
+    scheduler.beginGeneration();
+    scheduler.enqueue({
+      id: 'running',
+      pageNumber: 1,
+      kind: 'bitmap',
+      priority: 0,
+      run: () => ({ promise: operation.promise, cancel }),
+      commit,
+      onAbort,
+    });
+    scheduler.interruptRunning();
+    operation.resolve('pixels');
+    await settle();
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(onAbort).toHaveBeenCalledTimes(1);
+    expect(commit).not.toHaveBeenCalled();
+    expect(scheduler.currentGeneration()).toBe(1);
+  });
+
   it('release отменяет работу и безопасен при повторном вызове', async () => {
     const scheduler = createPdfRenderScheduler();
     const operation = deferred<string>();

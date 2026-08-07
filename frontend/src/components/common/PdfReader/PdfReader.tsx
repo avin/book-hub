@@ -93,7 +93,15 @@ type PdfTileSurface = {
   sourceCanvas: HTMLCanvasElement;
   filteredCanvas?: HTMLCanvasElement;
   rendered: boolean;
+  rendering?: boolean;
   filterKey?: string;
+};
+
+type PendingBitmapTile = {
+  descriptor: PdfPageDescriptor;
+  tile: PdfRenderTile;
+  surface: PdfTileSurface;
+  generation: number;
 };
 
 const maxRenderPixelRatio = 2;
@@ -102,6 +110,11 @@ const minPageWidth = 240;
 const minPageHalfWidth = 120;
 const guideOutsideMargin = 12;
 const resizeAnchorHoldMs = 180;
+const navigationSettleMs = 80;
+const deferredTileExpandMs = 600;
+const textLayerMountChunkSize = 400;
+const maxDetachedTileCache = 32;
+const pdfPreviewMaxCssWidth = 360;
 const horizontalScrollCenter = 0.5;
 const horizontalScrollPositionTolerance = 0.01;
 
@@ -118,6 +131,10 @@ function isRenderCancelled(error: unknown) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function stableLayoutNumber(value: number) {
+  return Number(value.toFixed(2));
 }
 
 function pageHeightAtWidth(descriptor: PdfPageDescriptor, widthPx: number) {
@@ -191,9 +208,17 @@ function PdfReader(props: {
   let pdfDocument: PdfDocumentObject | undefined;
   let resizeObserver: ResizeObserver | undefined;
   let viewportRenderFrame: number | undefined;
+  let viewportRenderDebounceTimeout: number | undefined;
   let readyFrame: number | undefined;
   let destroyed = false;
   let loadGeneration = 0;
+  let bitmapPlanGeneration = 0;
+  let pendingBitmapTiles: PendingBitmapTile[] = [];
+  let deferredBitmapTiles: PendingBitmapTile[] = [];
+  let deferredTileExpandTimeout: number | undefined;
+  const detachedTileCache = new Map<string, PdfTileSurface>();
+  const previewCanvasRefs = new Map<number, HTMLCanvasElement>();
+  const previewRenderedPages = new Set<number>();
   let lockedScrollAnchor: ScrollAnchor | undefined;
   let resizeScrollAnchor: ScrollAnchor | undefined;
   let resizeAnchorTimeout: number | undefined;
@@ -214,6 +239,7 @@ function PdfReader(props: {
   const tileSurfaces = new Map<string, PdfTileSurface>();
   const renderScheduler = createPdfRenderScheduler();
   let viewportPlanKey = '';
+  let layoutPlanKey = '';
   let filterRenderGeneration = 0;
   let filterRenderDebounceTimeout: number | undefined;
   let sharedFilterRenderQueue: Promise<void> = Promise.resolve();
@@ -552,6 +578,7 @@ function PdfReader(props: {
     });
     setCurrentPage(anchor.pageNumber);
     setPageInputValue(String(anchor.pageNumber));
+    scheduleViewportRender();
   };
 
   const goToPage = (value: string) => {
@@ -579,6 +606,7 @@ function PdfReader(props: {
     window.scrollTo({ top: Math.max(0, nextScrollTop), behavior: 'instant' });
     setCurrentPage(nextPage);
     setPageInputValue(String(nextPage));
+    scheduleViewportRender();
   };
 
   const readerNavigationHistory = useReaderNavigationHistory({
@@ -662,10 +690,11 @@ function PdfReader(props: {
     setMaxPageWidth(width);
     setFixedLayoutReaderContentWidthPreference(width);
     viewportPlanKey = '';
+    layoutPlanKey = '';
     invalidateFilteredPages();
     textLayerKeys.clear();
     restoreHorizontalScrollPositionIfNeeded();
-    scheduleViewportRender();
+    scheduleViewportRender({ reset: true, settleMs: 0 });
   };
 
   const destroyFilterRenderers = () => {
@@ -695,6 +724,7 @@ function PdfReader(props: {
   };
 
   const releaseTileSurface = (surface: PdfTileSurface) => {
+    surface.rendering = false;
     surface.sourceCanvas.width = 0;
     surface.sourceCanvas.height = 0;
     if (surface.filteredCanvas) {
@@ -704,12 +734,43 @@ function PdfReader(props: {
     surface.wrapper.remove();
   };
 
+  const detachTileSurface = (surface: PdfTileSurface) => {
+    clearTileFilter(surface);
+    surface.rendering = false;
+    surface.wrapper.remove();
+    detachedTileCache.set(surface.tile.key, surface);
+
+    while (detachedTileCache.size > maxDetachedTileCache) {
+      const oldestKey = detachedTileCache.keys().next().value;
+
+      if (!oldestKey) {
+        break;
+      }
+
+      const oldest = detachedTileCache.get(oldestKey);
+
+      if (oldest) {
+        releaseTileSurface(oldest);
+      }
+
+      detachedTileCache.delete(oldestKey);
+    }
+  };
+
   const releaseAllTileSurfaces = () => {
     for (const surface of tileSurfaces.values()) {
       releaseTileSurface(surface);
     }
 
+    for (const surface of detachedTileCache.values()) {
+      releaseTileSurface(surface);
+    }
+
     tileSurfaces.clear();
+    detachedTileCache.clear();
+    pendingBitmapTiles = [];
+    deferredBitmapTiles = [];
+    previewRenderedPages.clear();
     setAppliedFilterKeys(new Map());
   };
 
@@ -910,7 +971,7 @@ function PdfReader(props: {
 
     setDocumentWidth(nextWidth);
     restoreHorizontalScrollPositionIfNeeded();
-    scheduleViewportRender();
+    scheduleViewportRender({ reset: isFitWidth(), settleMs: 0 });
   };
 
   const resetToFitWidth = () => {
@@ -935,10 +996,11 @@ function PdfReader(props: {
     setPageWidthOverflow(nextOverflow);
     setFixedLayoutReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl, nextOverflow);
     viewportPlanKey = '';
+    layoutPlanKey = '';
     invalidateFilteredPages();
     textLayerKeys.clear();
     restoreHorizontalScrollPositionIfNeeded();
-    scheduleViewportRender();
+    scheduleViewportRender({ reset: true, settleMs: 0 });
   };
 
   const createTileSurface = (tile: PdfRenderTile) => {
@@ -946,6 +1008,15 @@ function PdfReader(props: {
 
     if (!rasterLayer) {
       return undefined;
+    }
+
+    const cached = detachedTileCache.get(tile.key);
+
+    if (cached) {
+      detachedTileCache.delete(tile.key);
+      rasterLayer.append(cached.wrapper);
+      tileSurfaces.set(tile.key, cached);
+      return cached;
     }
 
     const wrapper = document.createElement('div');
@@ -979,6 +1050,206 @@ function PdfReader(props: {
     return surface;
   };
 
+  const resetBitmapRenderingState = () => {
+    for (const surface of tileSurfaces.values()) {
+      surface.rendering = false;
+    }
+
+    for (const surface of detachedTileCache.values()) {
+      surface.rendering = false;
+    }
+
+    for (const entry of pendingBitmapTiles) {
+      entry.surface.rendering = false;
+    }
+
+    for (const entry of deferredBitmapTiles) {
+      entry.surface.rendering = false;
+    }
+  };
+
+  const scheduleDeferredBitmapExpansion = () => {
+    if (deferredTileExpandTimeout !== undefined) {
+      window.clearTimeout(deferredTileExpandTimeout);
+    }
+
+    deferredTileExpandTimeout = window.setTimeout(() => {
+      deferredTileExpandTimeout = undefined;
+
+      if (destroyed) {
+        return;
+      }
+
+      if (promoteDeferredBitmapTiles()) {
+        enqueueNextPendingBitmapTile();
+      }
+    }, deferredTileExpandMs);
+  };
+
+  const ensurePreviewCanvas = (pageNumber: number, displayWidth: number, displayHeight: number) => {
+    let canvas = previewCanvasRefs.get(pageNumber);
+    const rasterLayer = rasterLayerRefs.get(pageNumber);
+
+    if (!rasterLayer) {
+      return undefined;
+    }
+
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.className = styles.previewCanvas;
+      canvas.dataset.pdfPreviewPage = String(pageNumber);
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+      rasterLayer.prepend(canvas);
+      previewCanvasRefs.set(pageNumber, canvas);
+    } else if (!canvas.isConnected) {
+      rasterLayer.prepend(canvas);
+    }
+
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    return canvas;
+  };
+
+  const hidePagePreview = (pageNumber: number) => {
+    const canvas = previewCanvasRefs.get(pageNumber);
+
+    if (canvas) {
+      canvas.style.display = 'none';
+    }
+  };
+
+  const enqueuePagePreview = (
+    descriptor: PdfPageDescriptor,
+    displayWidth: number,
+    displayHeight: number,
+  ) => {
+    if (
+      previewRenderedPages.has(descriptor.pageNumber) ||
+      isPageBitmapReady(descriptor.pageNumber)
+    ) {
+      return;
+    }
+
+    const currentDocument = pdfDocument;
+    const page = pageCache.get(descriptor.pageNumber);
+    const previewCanvas = ensurePreviewCanvas(descriptor.pageNumber, displayWidth, displayHeight);
+    const planGeneration = bitmapPlanGeneration;
+
+    if (!currentDocument || !page || !previewCanvas) {
+      return;
+    }
+
+    const previewCssWidth = Math.min(displayWidth, pdfPreviewMaxCssWidth);
+    const scale = previewCssWidth / descriptor.width;
+    const pdfRect = {
+      origin: { x: 0, y: 0 },
+      size: { width: descriptor.width, height: descriptor.height },
+    };
+
+    renderScheduler.enqueue({
+      id: `preview:${descriptor.pageNumber}:${stableLayoutNumber(displayWidth)}`,
+      pageNumber: descriptor.pageNumber,
+      kind: 'bitmap',
+      priority: -1,
+      run: () => {
+        const { task, promise } = pdfAdapter.renderPageRect(currentDocument, page, pdfRect, scale);
+
+        return {
+          promise,
+          cancel: () =>
+            task.abort({
+              code: PdfErrorCode.Cancelled,
+              message: 'PDF preview render cancelled',
+            }),
+        };
+      },
+      commit: (image) => {
+        if (
+          destroyed ||
+          planGeneration !== bitmapPlanGeneration ||
+          !activePages().has(descriptor.pageNumber) ||
+          isPageBitmapReady(descriptor.pageNumber)
+        ) {
+          return;
+        }
+
+        const context = previewCanvas.getContext('2d');
+
+        if (!context) {
+          return;
+        }
+
+        previewCanvas.width = image.width;
+        previewCanvas.height = image.height;
+        context.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+        previewCanvas.style.display = 'block';
+        previewRenderedPages.add(descriptor.pageNumber);
+      },
+      onError: (error) => {
+        if (!isRenderCancelled(error)) {
+          console.error('Failed to render PDF page preview', error);
+        }
+      },
+    });
+  };
+
+  const enqueueActiveTextLayers = () => {
+    const currentPages = pages();
+
+    for (const pageNumber of activePages()) {
+      const descriptor = currentPages[pageNumber - 1];
+
+      if (descriptor) {
+        enqueueTextLayer(descriptor);
+      }
+    }
+  };
+
+  const promoteDeferredBitmapTiles = () => {
+    const nextDeferred = deferredBitmapTiles.filter(
+      (entry) =>
+        entry.generation === bitmapPlanGeneration &&
+        !entry.surface.rendered &&
+        !entry.surface.rendering,
+    );
+
+    if (nextDeferred.length === 0) {
+      return false;
+    }
+
+    pendingBitmapTiles.push(...nextDeferred);
+    deferredBitmapTiles = deferredBitmapTiles.filter(
+      (entry) => entry.generation !== bitmapPlanGeneration,
+    );
+    return true;
+  };
+
+  const enqueueNextPendingBitmapTile = () => {
+    const candidates = pendingBitmapTiles.filter(
+      (entry) =>
+        entry.generation === bitmapPlanGeneration &&
+        !entry.surface.rendered &&
+        !entry.surface.rendering,
+    );
+
+    if (candidates.length === 0) {
+      scheduleDeferredBitmapExpansion();
+      enqueueActiveTextLayers();
+      return;
+    }
+
+    candidates.sort(
+      (left, right) =>
+        left.tile.priority - right.tile.priority ||
+        left.tile.distanceFromViewportCenter - right.tile.distanceFromViewportCenter,
+    );
+
+    const next = candidates[0];
+    next.surface.rendering = true;
+    enqueueBitmapTile(next.descriptor, next.tile, next.surface);
+  };
+
   const enqueueBitmapTile = (
     descriptor: PdfPageDescriptor,
     tile: PdfRenderTile,
@@ -992,6 +1263,7 @@ function PdfReader(props: {
     }
 
     const scale = tile.outputWidth / tile.pdfRect.size.width || 1;
+    const planGeneration = bitmapPlanGeneration;
 
     renderScheduler.enqueue({
       id: `bitmap:${tile.key}`,
@@ -1016,23 +1288,43 @@ function PdfReader(props: {
         };
       },
       commit: (image) => {
-        if (destroyed || tileSurfaces.get(tile.key) !== surface) {
-          return;
+        try {
+          if (destroyed || tileSurfaces.get(tile.key) !== surface) {
+            return;
+          }
+
+          const context = surface.sourceCanvas.getContext('2d');
+
+          if (!context) {
+            return;
+          }
+
+          surface.sourceCanvas.width = image.width;
+          surface.sourceCanvas.height = image.height;
+          context.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+          surface.rendered = true;
+          hidePagePreview(descriptor.pageNumber);
+          scheduleVisiblePageFilterRender();
+        } finally {
+          surface.rendering = false;
+
+          if (planGeneration !== bitmapPlanGeneration) {
+            return;
+          }
+
+          enqueueNextPendingBitmapTile();
         }
-
-        const context = surface.sourceCanvas.getContext('2d');
-
-        if (!context) {
-          return;
-        }
-
-        surface.sourceCanvas.width = image.width;
-        surface.sourceCanvas.height = image.height;
-        context.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
-        surface.rendered = true;
-        void applyFilterToTile(surface);
+      },
+      onAbort: () => {
+        surface.rendering = false;
       },
       onError: (error) => {
+        surface.rendering = false;
+
+        if (planGeneration === bitmapPlanGeneration) {
+          enqueueNextPendingBitmapTile();
+        }
+
         if (!isRenderCancelled(error)) {
           console.error('Failed to render PDF tile', error);
           setFailed(true);
@@ -1075,6 +1367,84 @@ function PdfReader(props: {
     layer.replaceChildren(...highlights);
   };
 
+  const isPageBitmapReady = (pageNumber: number) => {
+    for (const surface of tileSurfaces.values()) {
+      if (surface.tile.pageNumber === pageNumber && surface.rendered) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  const mountTextRects = (
+    descriptor: PdfPageDescriptor,
+    layer: HTMLDivElement,
+    textRects: PdfTextRectObject[],
+    renderKey: string,
+    scale: number,
+  ) => {
+    let cancelled = false;
+    let frame: number | undefined;
+    let index = 0;
+
+    const finish = () => {
+      if (cancelled) {
+        return;
+      }
+
+      textLayerKeys.set(descriptor.pageNumber, renderKey);
+      renderSearchHighlights(descriptor.pageNumber);
+    };
+
+    const mountChunk = () => {
+      if (
+        cancelled ||
+        textLayerKeys.get(descriptor.pageNumber) === renderKey ||
+        !activePages().has(descriptor.pageNumber)
+      ) {
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      const end = Math.min(index + textLayerMountChunkSize, textRects.length);
+
+      for (; index < end; index += 1) {
+        const textRect = textRects[index];
+        const span = document.createElement('span');
+        span.textContent = textRect.content;
+        span.style.left = `${textRect.rect.origin.x * scale}px`;
+        span.style.top = `${textRect.rect.origin.y * scale}px`;
+        span.style.width = `${textRect.rect.size.width * scale}px`;
+        span.style.height = `${textRect.rect.size.height * scale}px`;
+        span.style.fontFamily = textRect.font.family;
+        span.style.fontSize = `${textRect.font.size * scale}px`;
+        span.style.lineHeight = `${textRect.rect.size.height * scale}px`;
+        fragment.append(span);
+      }
+
+      layer.append(fragment);
+
+      if (index < textRects.length) {
+        frame = requestAnimationFrame(mountChunk);
+        return;
+      }
+
+      finish();
+    };
+
+    layer.replaceChildren();
+    mountChunk();
+
+    return () => {
+      cancelled = true;
+
+      if (frame !== undefined) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  };
+
   const enqueueTextLayer = (descriptor: PdfPageDescriptor) => {
     const generation = loadGeneration;
     const layer = textLayerRefs.get(descriptor.pageNumber);
@@ -1102,28 +1472,13 @@ function PdfReader(props: {
     const scale = displayWidth / descriptor.width;
     layer.style.width = `${displayWidth}px`;
     layer.style.height = `${displayHeight}px`;
-    const mountTextRects = (textRects: PdfTextRectObject[]) => {
-      const fragments = textRects.map((textRect: PdfTextRectObject) => {
-        const span = document.createElement('span');
-        span.textContent = textRect.content;
-        span.style.left = `${textRect.rect.origin.x * scale}px`;
-        span.style.top = `${textRect.rect.origin.y * scale}px`;
-        span.style.width = `${textRect.rect.size.width * scale}px`;
-        span.style.height = `${textRect.rect.size.height * scale}px`;
-        span.style.fontFamily = textRect.font.family;
-        span.style.fontSize = `${textRect.font.size * scale}px`;
-        span.style.lineHeight = `${textRect.rect.size.height * scale}px`;
-        return span;
-      });
-
-      layer.replaceChildren(...fragments);
-      textLayerKeys.set(descriptor.pageNumber, renderKey);
-      renderSearchHighlights(descriptor.pageNumber);
-    };
     const cachedTextRects = textRectCache.get(descriptor.pageNumber);
 
     if (cachedTextRects) {
-      mountTextRects(cachedTextRects);
+      if (isPageBitmapReady(descriptor.pageNumber)) {
+        mountTextRects(descriptor, layer, cachedTextRects, renderKey, scale);
+      }
+
       return;
     }
 
@@ -1154,7 +1509,12 @@ function PdfReader(props: {
         }
 
         textRectCache.set(descriptor.pageNumber, textRects);
-        mountTextRects(textRects);
+
+        if (!isPageBitmapReady(descriptor.pageNumber)) {
+          return;
+        }
+
+        mountTextRects(descriptor, layer, textRects, renderKey, scale);
       },
       onError: (error) => {
         if (!isRenderCancelled(error)) {
@@ -1164,15 +1524,33 @@ function PdfReader(props: {
     });
   };
 
-  const updateViewportRenderPlan = () => {
+  const updateViewportRenderPlan = (options?: { reset?: boolean }) => {
     const currentPages = pages();
 
     if (destroyed || !pdfDocument || currentPages.length === 0) {
       return;
     }
 
+    resetBitmapRenderingState();
+
+    if (deferredTileExpandTimeout !== undefined) {
+      window.clearTimeout(deferredTileExpandTimeout);
+      deferredTileExpandTimeout = undefined;
+    }
+
     const ratio = renderPixelRatio();
     const plannedTiles: PdfRenderTile[] = [];
+    const layoutKey = [
+      `ratio:${ratio}`,
+      `width:${stableLayoutNumber(pageWidth())}`,
+      ...currentPages.map(
+        (descriptor) =>
+          `${descriptor.pageNumber}:${stableLayoutNumber(descriptor.width)}:${stableLayoutNumber(descriptor.height)}`,
+      ),
+    ].join('|');
+    const scrollTop = window.scrollY;
+    const scrollBottom = scrollTop + window.innerHeight;
+    const pageCullMargin = window.innerHeight * 1.5;
 
     for (const descriptor of currentPages) {
       const pageElement = pageRefs.get(descriptor.pageNumber);
@@ -1182,6 +1560,13 @@ function PdfReader(props: {
       }
 
       const rect = pageElement.getBoundingClientRect();
+      const pageTop = rect.top + window.scrollY;
+      const pageBottom = pageTop + rect.height;
+
+      if (pageBottom < scrollTop - pageCullMargin || pageTop > scrollBottom + pageCullMargin) {
+        continue;
+      }
+
       const displayWidth = pageElement.clientWidth;
       const displayHeight = pageElement.clientHeight;
 
@@ -1210,18 +1595,43 @@ function PdfReader(props: {
     const tiles = limitPdfRenderTiles(plannedTiles, pdfMaxActivePixels);
     const nextPlanKey = tiles.map((tile) => tile.key).join('|');
 
-    if (nextPlanKey === viewportPlanKey) {
+    if (nextPlanKey === viewportPlanKey && !options?.reset) {
       return;
     }
 
+    const layoutChanged = layoutKey !== layoutPlanKey || options?.reset;
     viewportPlanKey = nextPlanKey;
-    renderScheduler.beginGeneration();
+    layoutPlanKey = layoutKey;
     const requiredKeys = new Set(tiles.map((tile) => tile.key));
+    const requiredBitmapIds = new Set(tiles.map((tile) => `bitmap:${tile.key}`));
     const nextActivePages = new Set(tiles.map((tile) => tile.pageNumber));
+
+    if (layoutChanged) {
+      renderScheduler.beginGeneration();
+    } else {
+      renderScheduler.interruptRunning();
+      renderScheduler.pruneQueue((task) => {
+        if (task.kind === 'bitmap') {
+          return requiredBitmapIds.has(task.id);
+        }
+
+        if (task.kind === 'text') {
+          return nextActivePages.has(task.pageNumber);
+        }
+
+        return true;
+      });
+      renderScheduler.clearBitmapReadyExcept(nextActivePages);
+    }
 
     for (const [key, surface] of tileSurfaces) {
       if (!requiredKeys.has(key)) {
-        releaseTileSurface(surface);
+        if (surface.rendered) {
+          detachTileSurface(surface);
+        } else {
+          releaseTileSurface(surface);
+        }
+
         tileSurfaces.delete(key);
       }
     }
@@ -1234,6 +1644,9 @@ function PdfReader(props: {
       textLayerRefs.get(descriptor.pageNumber)?.replaceChildren();
       searchLayerRefs.get(descriptor.pageNumber)?.replaceChildren();
       textLayerKeys.delete(descriptor.pageNumber);
+      previewRenderedPages.delete(descriptor.pageNumber);
+      previewCanvasRefs.get(descriptor.pageNumber)?.remove();
+      previewCanvasRefs.delete(descriptor.pageNumber);
     }
 
     setActivePages(nextActivePages);
@@ -1247,11 +1660,29 @@ function PdfReader(props: {
       return next;
     });
 
+    bitmapPlanGeneration += 1;
+    const currentBitmapPlanGeneration = bitmapPlanGeneration;
+    pendingBitmapTiles = [];
+    deferredBitmapTiles = [];
+
     for (const tile of tiles) {
       const descriptor = currentPages[tile.pageNumber - 1];
 
       if (!descriptor) {
         continue;
+      }
+
+      const pageElement = pageRefs.get(descriptor.pageNumber);
+      const displayWidth = pageElement?.clientWidth ?? 0;
+      const displayHeight = pageElement?.clientHeight ?? 0;
+
+      if (
+        pageElement &&
+        displayWidth > 0 &&
+        displayHeight > 0 &&
+        !isPageBitmapReady(descriptor.pageNumber)
+      ) {
+        enqueuePagePreview(descriptor, displayWidth, displayHeight);
       }
 
       const surface = tileSurfaces.get(tile.key) ?? createTileSurface(tile);
@@ -1262,29 +1693,73 @@ function PdfReader(props: {
 
       if (surface.rendered) {
         renderScheduler.markBitmapReady(tile.pageNumber);
-        void applyFilterToTile(surface);
+        scheduleVisiblePageFilterRender();
       } else {
-        enqueueBitmapTile(descriptor, tile, surface);
+        const pendingEntry: PendingBitmapTile = {
+          descriptor,
+          tile,
+          surface,
+          generation: currentBitmapPlanGeneration,
+        };
+
+        if (tile.priority === 0) {
+          pendingBitmapTiles.push(pendingEntry);
+        } else {
+          deferredBitmapTiles.push(pendingEntry);
+        }
       }
     }
 
-    for (const pageNumber of nextActivePages) {
-      const descriptor = currentPages[pageNumber - 1];
-      if (descriptor) {
-        enqueueTextLayer(descriptor);
-      }
-    }
+    enqueueNextPendingBitmapTile();
   };
 
-  const scheduleViewportRender = () => {
+  const flushViewportRender = (options?: { reset?: boolean }) => {
     if (viewportRenderFrame !== undefined) {
+      cancelAnimationFrame(viewportRenderFrame);
+      viewportRenderFrame = undefined;
+    }
+
+    if (viewportRenderDebounceTimeout !== undefined) {
+      window.clearTimeout(viewportRenderDebounceTimeout);
+      viewportRenderDebounceTimeout = undefined;
+    }
+
+    updateViewportRenderPlan(options);
+  };
+
+  const scheduleViewportRender = (options?: { reset?: boolean; settleMs?: number }) => {
+    if (options?.reset) {
+      viewportPlanKey = '';
+      layoutPlanKey = '';
+    }
+
+    const settleMs = options?.settleMs ?? navigationSettleMs;
+
+    if (viewportRenderDebounceTimeout !== undefined) {
+      window.clearTimeout(viewportRenderDebounceTimeout);
+      viewportRenderDebounceTimeout = undefined;
+    }
+
+    if (viewportRenderFrame !== undefined) {
+      cancelAnimationFrame(viewportRenderFrame);
+      viewportRenderFrame = undefined;
+    }
+
+    if (settleMs <= 0) {
+      viewportRenderFrame = requestAnimationFrame(() => {
+        viewportRenderFrame = undefined;
+        flushViewportRender(options);
+      });
       return;
     }
 
-    viewportRenderFrame = requestAnimationFrame(() => {
-      viewportRenderFrame = undefined;
-      updateViewportRenderPlan();
-    });
+    viewportRenderDebounceTimeout = window.setTimeout(() => {
+      viewportRenderDebounceTimeout = undefined;
+      viewportRenderFrame = requestAnimationFrame(() => {
+        viewportRenderFrame = undefined;
+        flushViewportRender(options);
+      });
+    }, settleMs);
   };
 
   const loadDocument = async () => {
@@ -1306,8 +1781,11 @@ function PdfReader(props: {
     renderScheduler.beginGeneration();
     releaseAllTileSurfaces();
     viewportPlanKey = '';
+    layoutPlanKey = '';
     pageRefs.clear();
     rasterLayerRefs.clear();
+    previewCanvasRefs.clear();
+    previewRenderedPages.clear();
     textLayerRefs.clear();
     searchLayerRefs.clear();
     pageCache.clear();
@@ -1361,7 +1839,7 @@ function PdfReader(props: {
 
         measureDocument();
         restoreHorizontalScrollPositionIfNeeded();
-        scheduleViewportRender();
+        scheduleViewportRender({ settleMs: 0 });
         props.onReady?.();
       });
     } catch (error) {
@@ -1423,7 +1901,8 @@ function PdfReader(props: {
     void pageWidth();
     void isFitWidth();
     viewportPlanKey = '';
-    scheduleViewportRender();
+    layoutPlanKey = '';
+    scheduleViewportRender({ reset: true, settleMs: 0 });
   });
 
   createEffect(() => {
@@ -1434,7 +1913,8 @@ function PdfReader(props: {
     measureDocument();
     textLayerKeys.clear();
     viewportPlanKey = '';
-    scheduleViewportRender();
+    layoutPlanKey = '';
+    scheduleViewportRender({ reset: true, settleMs: 0 });
   });
 
   const onRulerPointerDown = (event: PointerEvent) => {
@@ -1714,12 +2194,10 @@ function PdfReader(props: {
     };
     const onResize = () => {
       handleViewportResize();
-      scheduleViewportRender();
     };
 
     resizeObserver = new ResizeObserver(() => {
       handleViewportResize();
-      scheduleViewportRender();
     });
 
     if (rootRef) {
@@ -1727,7 +2205,7 @@ function PdfReader(props: {
     }
 
     measureDocument();
-    scheduleViewportRender();
+    scheduleViewportRender({ settleMs: 0 });
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
     window.visualViewport?.addEventListener('resize', onResize);
@@ -1745,6 +2223,14 @@ function PdfReader(props: {
 
     if (viewportRenderFrame !== undefined) {
       cancelAnimationFrame(viewportRenderFrame);
+    }
+
+    if (viewportRenderDebounceTimeout !== undefined) {
+      window.clearTimeout(viewportRenderDebounceTimeout);
+    }
+
+    if (deferredTileExpandTimeout !== undefined) {
+      window.clearTimeout(deferredTileExpandTimeout);
     }
 
     if (readyFrame !== undefined) {
@@ -1771,6 +2257,7 @@ function PdfReader(props: {
     releaseAllTileSurfaces();
     destroyFilterRenderers();
     rasterLayerRefs.clear();
+    previewCanvasRefs.clear();
     textLayerRefs.clear();
     searchLayerRefs.clear();
     textRectCache.clear();

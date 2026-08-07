@@ -14,6 +14,7 @@ export type PdfRenderSchedulerTask<Result> = {
   commit: (result: Result) => void;
   release?: (result: Result) => void;
   onError?: (error: unknown) => void;
+  onAbort?: () => void;
 };
 
 type QueuedTask = PdfRenderSchedulerTask<unknown> & {
@@ -100,6 +101,10 @@ export function createPdfRenderScheduler() {
         }
       })
       .finally(() => {
+        if (current.cancelled) {
+          current.onAbort?.();
+        }
+
         if (running === current) {
           running = undefined;
         }
@@ -119,6 +124,30 @@ export function createPdfRenderScheduler() {
       }
 
       return generation;
+    },
+    pruneQueue(shouldKeep: (task: PdfRenderSchedulerTask<unknown>) => boolean) {
+      if (released) {
+        return;
+      }
+
+      for (let index = queue.length - 1; index >= 0; index -= 1) {
+        if (!shouldKeep(queue[index])) {
+          queue.splice(index, 1);
+        }
+      }
+    },
+    interruptRunning() {
+      if (running) {
+        running.cancelled = true;
+        running.cancelOperation?.();
+      }
+    },
+    clearBitmapReadyExcept(pageNumbers: ReadonlySet<number>) {
+      for (const pageNumber of bitmapReadyPages) {
+        if (!pageNumbers.has(pageNumber)) {
+          bitmapReadyPages.delete(pageNumber);
+        }
+      }
     },
     enqueue<Result>(task: PdfRenderSchedulerTask<Result>) {
       if (released) {
