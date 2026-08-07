@@ -4,6 +4,7 @@ import type {
   PdfDocumentObject,
   PdfPageObject,
   PdfTextRectObject,
+  Rect,
   SearchAllPagesResult,
 } from '@embedpdf/models';
 import { getPdfiumEngine } from '@/api/pdfiumEngine';
@@ -38,7 +39,6 @@ export function createPdfFixedLayoutAdapter(config: { fileUrl: () => string }) {
         .openDocumentUrl(
           { id: documentId(), url: config.fileUrl() },
           {
-            mode: 'range-request',
             normalizeRotation: true,
             requestOptions: { credentials: 'include' },
           },
@@ -79,12 +79,13 @@ export function createPdfFixedLayoutAdapter(config: { fileUrl: () => string }) {
 
   return {
     adapter,
-    renderPage(
+    renderPageRect(
       document: PdfDocumentObject,
       page: PdfPageObject,
+      rect: Rect,
       scaleFactor: number,
-    ): { task: ReturnType<typeof engine.renderPageRaw>; promise: Promise<ImageDataLike> } {
-      const task = engine.renderPageRaw(document, page, {
+    ): { task: ReturnType<typeof engine.renderPageRectRaw>; promise: Promise<ImageDataLike> } {
+      const task = engine.renderPageRectRaw(document, page, rect, {
         scaleFactor,
         withAnnotations: true,
         withForms: true,
@@ -92,8 +93,16 @@ export function createPdfFixedLayoutAdapter(config: { fileUrl: () => string }) {
 
       return { task, promise: task.toPromise() };
     },
-    getPageText(document: PdfDocumentObject, page: PdfPageObject): Promise<PdfTextRectObject[]> {
-      return engine.getPageTextRects(document, page).toPromise();
+    getPageText(
+      document: PdfDocumentObject,
+      page: PdfPageObject,
+    ): {
+      task: ReturnType<typeof engine.getPageTextRects>;
+      promise: Promise<PdfTextRectObject[]>;
+    } {
+      const task = engine.getPageTextRects(document, page);
+
+      return { task, promise: task.toPromise() };
     },
   };
 }

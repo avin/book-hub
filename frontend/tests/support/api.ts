@@ -89,6 +89,7 @@ export function createApiMocks(page: Page) {
     };
     const filtered = state.books.filter(
       (book) =>
+        book.id !== '00000000-0000-0000-0000-000000000105' &&
         (!query.q || book.title.toLowerCase().includes(query.q.toLowerCase())) &&
         (query.favorite === null ||
           query.favorite === undefined ||
@@ -108,7 +109,9 @@ export function createApiMocks(page: Page) {
         book.format === 'pdf'
           ? book.id === '00000000-0000-0000-0000-000000000103'
             ? books.pdfFileWithOutline
-            : books.pdfFile
+            : book.id === '00000000-0000-0000-0000-000000000105'
+              ? books.tallPdfFile
+              : books.pdfFile
           : book.format === 'epub'
             ? Buffer.from(books.epubFile)
             : books.fb2File;

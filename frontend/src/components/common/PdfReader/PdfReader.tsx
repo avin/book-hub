@@ -67,6 +67,13 @@ import {
   isRecoverablePdfFilterError,
   renderPdfPageFilter,
 } from './pdfWebglFilter';
+import {
+  createPdfPageRenderPlan,
+  limitPdfRenderTiles,
+  pdfMaxActivePixels,
+  type PdfRenderTile,
+} from './pdfRenderPlan';
+import { createPdfRenderScheduler } from './pdfRenderScheduler';
 import styles from './PdfReader.module.scss';
 
 type PdfPageDescriptor = {
@@ -80,6 +87,15 @@ type ScrollAnchor = {
   offsetRatio: number;
 };
 
+type PdfTileSurface = {
+  tile: PdfRenderTile;
+  wrapper: HTMLDivElement;
+  sourceCanvas: HTMLCanvasElement;
+  filteredCanvas?: HTMLCanvasElement;
+  rendered: boolean;
+  filterKey?: string;
+};
+
 const maxRenderPixelRatio = 2;
 const documentPaddingX = 20;
 const minPageWidth = 240;
@@ -88,7 +104,6 @@ const guideOutsideMargin = 12;
 const resizeAnchorHoldMs = 180;
 const horizontalScrollCenter = 0.5;
 const horizontalScrollPositionTolerance = 0.01;
-const releasedPageBuffer = 5;
 
 function renderPixelRatio() {
   return Math.min(maxRenderPixelRatio, Math.max(1, window.devicePixelRatio || 1));
@@ -175,8 +190,7 @@ function PdfReader(props: {
   let documentRef: HTMLElement | undefined;
   let pdfDocument: PdfDocumentObject | undefined;
   let resizeObserver: ResizeObserver | undefined;
-  let observer: IntersectionObserver | undefined;
-  let observeFrame: number | undefined;
+  let viewportRenderFrame: number | undefined;
   let readyFrame: number | undefined;
   let destroyed = false;
   let loadGeneration = 0;
@@ -192,28 +206,24 @@ function PdfReader(props: {
   let filterRenderFrame: number | undefined;
   let executedSearchQuery: string | undefined;
   const pageRefs = new Map<number, HTMLElement>();
-  const canvasRefs = new Map<number, HTMLCanvasElement>();
-  const filteredCanvasRefs = new Map<number, HTMLCanvasElement>();
+  const rasterLayerRefs = new Map<number, HTMLDivElement>();
   const textLayerRefs = new Map<number, HTMLDivElement>();
   const searchLayerRefs = new Map<number, HTMLDivElement>();
   const pageCache = new Map<number, PdfPageObject>();
-  const renderTasks = new Map<
-    number,
-    { abort: (reason: { code: PdfErrorCode; message: string }) => void }
-  >();
+  const textRectCache = new Map<number, PdfTextRectObject[]>();
+  const tileSurfaces = new Map<string, PdfTileSurface>();
+  const renderScheduler = createPdfRenderScheduler();
+  let viewportPlanKey = '';
   let filterRenderGeneration = 0;
   let filterRenderDebounceTimeout: number | undefined;
   let sharedFilterRenderQueue: Promise<void> = Promise.resolve();
   const filterRenderDebounceMs = 50;
-  const textLayerTasks = new Map<number, { cancelled: boolean; cancel: () => void }>();
   let searchResults: SearchResult[] = [];
   let selectedSearchIndex = -1;
   let searchGeneration = 0;
-  const renderedKeys = new Map<number, string>();
-  const filteredKeys = new Map<number, string>();
   const textLayerKeys = new Map<number, string>();
   const [pages, setPages] = createSignal<PdfPageDescriptor[]>([]);
-  const [visiblePages, setVisiblePages] = createSignal<ReadonlySet<number>>(new Set());
+  const [activePages, setActivePages] = createSignal<ReadonlySet<number>>(new Set());
   const [documentWidth, setDocumentWidth] = createSignal(0);
   const [loading, setLoading] = createSignal(true);
   const [failed, setFailed] = createSignal(false);
@@ -231,7 +241,6 @@ function PdfReader(props: {
         defaultPdfFilterChain(),
     ),
   );
-  const [filteredPages, setFilteredPages] = createSignal<ReadonlySet<number>>(new Set());
   const [appliedFilterKeys, setAppliedFilterKeys] = createSignal<ReadonlyMap<number, string>>(
     new Map(),
   );
@@ -652,60 +661,59 @@ function PdfReader(props: {
 
     setMaxPageWidth(width);
     setFixedLayoutReaderContentWidthPreference(width);
-    renderedKeys.clear();
+    viewportPlanKey = '';
     invalidateFilteredPages();
     textLayerKeys.clear();
     restoreHorizontalScrollPositionIfNeeded();
-  };
-
-  const cancelRenderTask = (pageNumber: number) => {
-    renderTasks.get(pageNumber)?.abort({
-      code: PdfErrorCode.Cancelled,
-      message: 'PDF page render cancelled',
-    });
-    renderTasks.delete(pageNumber);
-  };
-
-  const cancelRenderTasks = () => {
-    for (const task of renderTasks.values()) {
-      task.abort({ code: PdfErrorCode.Cancelled, message: 'PDF page render cancelled' });
-    }
-
-    renderTasks.clear();
+    scheduleViewportRender();
   };
 
   const destroyFilterRenderers = () => {
     destroySharedPdfWebglFilterRenderer();
   };
 
-  const invalidateFilteredPages = (options?: { hideFilteredPages?: boolean }) => {
+  const clearTileFilter = (surface: PdfTileSurface) => {
+    surface.sourceCanvas.style.display = 'block';
+    surface.filterKey = undefined;
+
+    if (surface.filteredCanvas) {
+      surface.filteredCanvas.width = 0;
+      surface.filteredCanvas.height = 0;
+      surface.filteredCanvas.remove();
+      surface.filteredCanvas = undefined;
+    }
+  };
+
+  const invalidateFilteredPages = () => {
     filterRenderGeneration += 1;
-    filteredKeys.clear();
 
-    if (options?.hideFilteredPages) {
-      setFilteredPages(new Set<number>());
-      setAppliedFilterKeys(new Map());
-    }
-  };
-
-  const resizeFilteredCanvas = (
-    filteredCanvas: HTMLCanvasElement,
-    width: number,
-    height: number,
-    displayWidth: number,
-    displayHeight: number,
-  ) => {
-    if (filteredCanvas.width === width && filteredCanvas.height === height) {
-      return;
+    for (const surface of tileSurfaces.values()) {
+      clearTileFilter(surface);
     }
 
-    filteredCanvas.width = width;
-    filteredCanvas.height = height;
-    filteredCanvas.style.width = `${displayWidth}px`;
-    filteredCanvas.style.height = `${displayHeight}px`;
+    setAppliedFilterKeys(new Map());
   };
 
-  const runExclusiveFilterRender = async (action: () => Promise<void>) => {
+  const releaseTileSurface = (surface: PdfTileSurface) => {
+    surface.sourceCanvas.width = 0;
+    surface.sourceCanvas.height = 0;
+    if (surface.filteredCanvas) {
+      surface.filteredCanvas.width = 0;
+      surface.filteredCanvas.height = 0;
+    }
+    surface.wrapper.remove();
+  };
+
+  const releaseAllTileSurfaces = () => {
+    for (const surface of tileSurfaces.values()) {
+      releaseTileSurface(surface);
+    }
+
+    tileSurfaces.clear();
+    setAppliedFilterKeys(new Map());
+  };
+
+  const runExclusiveFilterRender = async (action: () => void | Promise<void>) => {
     const previous = sharedFilterRenderQueue;
     let release!: () => void;
     const current = new Promise<void>((resolve) => {
@@ -731,7 +739,7 @@ function PdfReader(props: {
     );
     const allFiltersDisabled = !hasEnabledPdfFilters(nextChain);
 
-    invalidateFilteredPages({ hideFilteredPages: allFiltersDisabled });
+    invalidateFilteredPages();
 
     if (allFiltersDisabled) {
       destroyFilterRenderers();
@@ -740,8 +748,82 @@ function PdfReader(props: {
 
   const disablePdfFilters = () => {
     setFilterError('pdfFiltersUnavailable');
-    invalidateFilteredPages({ hideFilteredPages: true });
+    invalidateFilteredPages();
     destroyFilterRenderers();
+  };
+
+  const applyFilterToTile = async (surface: PdfTileSurface) => {
+    if (!surface.rendered || !filtersEnabled() || filterError()) {
+      clearTileFilter(surface);
+      return;
+    }
+
+    const currentFilterKey = filterKey();
+
+    if (surface.filterKey === currentFilterKey) {
+      return;
+    }
+
+    const filterGenerationAtStart = filterRenderGeneration;
+    const filterChainAtStart = filterChain();
+
+    await runExclusiveFilterRender(() => {
+      if (
+        destroyed ||
+        !tileSurfaces.has(surface.tile.key) ||
+        filterGenerationAtStart !== filterRenderGeneration ||
+        surface.filterKey === currentFilterKey
+      ) {
+        return;
+      }
+
+      const filteredCanvas = surface.filteredCanvas ?? document.createElement('canvas');
+      filteredCanvas.className = styles.filteredCanvas;
+      filteredCanvas.style.left = surface.sourceCanvas.style.left;
+      filteredCanvas.style.top = surface.sourceCanvas.style.top;
+      filteredCanvas.style.width = surface.sourceCanvas.style.width;
+      filteredCanvas.style.height = surface.sourceCanvas.style.height;
+
+      if (!surface.filteredCanvas) {
+        surface.filteredCanvas = filteredCanvas;
+        surface.wrapper.append(filteredCanvas);
+      }
+
+      try {
+        renderPdfPageFilter(surface.sourceCanvas, filteredCanvas, filterChainAtStart);
+
+        if (
+          destroyed ||
+          !tileSurfaces.has(surface.tile.key) ||
+          filterGenerationAtStart !== filterRenderGeneration
+        ) {
+          return;
+        }
+
+        surface.filterKey = currentFilterKey;
+        surface.sourceCanvas.style.display = 'none';
+        filteredCanvas.style.display = 'block';
+        setAppliedFilterKeys((current) => {
+          const next = new Map(current);
+          next.set(surface.tile.pageNumber, currentFilterKey);
+          return next;
+        });
+      } catch (error) {
+        clearTileFilter(surface);
+
+        if (filterGenerationAtStart !== filterRenderGeneration) {
+          return;
+        }
+
+        if (isRecoverablePdfFilterError(error)) {
+          destroyFilterRenderers();
+          return;
+        }
+
+        console.error('Failed to apply PDF page filter', error);
+        disablePdfFilters();
+      }
+    });
   };
 
   const scheduleVisiblePageFilterRender = () => {
@@ -758,13 +840,8 @@ function PdfReader(props: {
 
       filterRenderFrame = requestAnimationFrame(() => {
         filterRenderFrame = undefined;
-        const currentPages = pages();
-        const currentVisiblePages = visiblePages();
-
-        for (const descriptor of currentPages) {
-          if (currentVisiblePages.has(descriptor.pageNumber)) {
-            void renderPage(descriptor);
-          }
+        for (const surface of tileSurfaces.values()) {
+          void applyFilterToTile(surface);
         }
       });
     }, filterRenderDebounceMs);
@@ -776,95 +853,6 @@ function PdfReader(props: {
     setFilterChainState(nextChain);
     setFixedLayoutReaderFilterChainPreference(props.bookId ?? props.fileUrl, nextChain);
     scheduleVisiblePageFilterRender();
-  };
-
-  const cancelTextLayerTask = (pageNumber: number) => {
-    textLayerTasks.get(pageNumber)?.cancel();
-    textLayerTasks.delete(pageNumber);
-  };
-
-  const cancelTextLayerTasks = () => {
-    for (const task of textLayerTasks.values()) {
-      task.cancel();
-    }
-
-    textLayerTasks.clear();
-  };
-
-  const releasePageResources = (pageNumber: number) => {
-    cancelRenderTask(pageNumber);
-    cancelTextLayerTask(pageNumber);
-
-    const canvas = canvasRefs.get(pageNumber);
-
-    if (canvas) {
-      canvas.width = 0;
-      canvas.height = 0;
-    }
-
-    const filteredCanvas = filteredCanvasRefs.get(pageNumber);
-
-    if (filteredCanvas) {
-      filteredCanvas.width = 0;
-      filteredCanvas.height = 0;
-    }
-
-    const textLayer = textLayerRefs.get(pageNumber);
-
-    if (textLayer) {
-      textLayer.textContent = '';
-    }
-
-    searchLayerRefs.get(pageNumber)?.replaceChildren();
-
-    renderedKeys.delete(pageNumber);
-    filteredKeys.delete(pageNumber);
-    textLayerKeys.delete(pageNumber);
-    pageCache.delete(pageNumber);
-    void pdfFixedLayoutReader.releasePage(pageNumber);
-
-    setFilteredPages((current) => {
-      if (!current.has(pageNumber)) {
-        return current;
-      }
-
-      const next = new Set(current);
-      next.delete(pageNumber);
-      return next;
-    });
-    setAppliedFilterKeys((current) => {
-      if (!current.has(pageNumber)) {
-        return current;
-      }
-
-      const next = new Map(current);
-      next.delete(pageNumber);
-      return next;
-    });
-  };
-
-  const hasAllocatedPageResources = (pageNumber: number) => {
-    if (
-      renderedKeys.has(pageNumber) ||
-      filteredKeys.has(pageNumber) ||
-      textLayerKeys.has(pageNumber)
-    ) {
-      return true;
-    }
-
-    const canvas = canvasRefs.get(pageNumber);
-
-    if (canvas && (canvas.width > 0 || canvas.height > 0)) {
-      return true;
-    }
-
-    const filteredCanvas = filteredCanvasRefs.get(pageNumber);
-
-    if (filteredCanvas && (filteredCanvas.width > 0 || filteredCanvas.height > 0)) {
-      return true;
-    }
-
-    return false;
   };
 
   const measureDocument = () => {
@@ -915,13 +903,14 @@ function PdfReader(props: {
     }
 
     if (isFitWidth()) {
-      renderedKeys.clear();
+      viewportPlanKey = '';
       invalidateFilteredPages();
       textLayerKeys.clear();
     }
 
     setDocumentWidth(nextWidth);
     restoreHorizontalScrollPositionIfNeeded();
+    scheduleViewportRender();
   };
 
   const resetToFitWidth = () => {
@@ -945,211 +934,110 @@ function PdfReader(props: {
 
     setPageWidthOverflow(nextOverflow);
     setFixedLayoutReaderPageWidthOverflowPreference(props.bookId ?? props.fileUrl, nextOverflow);
-    renderedKeys.clear();
+    viewportPlanKey = '';
     invalidateFilteredPages();
     textLayerKeys.clear();
     restoreHorizontalScrollPositionIfNeeded();
+    scheduleViewportRender();
   };
 
-  const syncObservedPages = () => {
-    if (!observer) {
-      return;
-    }
+  const createTileSurface = (tile: PdfRenderTile) => {
+    const rasterLayer = rasterLayerRefs.get(tile.pageNumber);
 
-    observer.disconnect();
-
-    for (const page of pages()) {
-      const element = pageRefs.get(page.pageNumber);
-
-      if (element) {
-        observer.observe(element);
-      }
-    }
-  };
-
-  const scheduleObservedPagesSync = () => {
-    if (observeFrame !== undefined) {
-      cancelAnimationFrame(observeFrame);
-    }
-
-    observeFrame = requestAnimationFrame(() => {
-      syncObservedPages();
-      observeFrame = undefined;
-    });
-  };
-
-  const getPage = async (pageNumber: number) => {
-    const cachedPage = pageCache.get(pageNumber);
-
-    if (cachedPage) {
-      return cachedPage;
-    }
-
-    const page = await pdfFixedLayoutReader.renderPage(pageNumber);
-
-    if (!page) {
+    if (!rasterLayer) {
       return undefined;
     }
 
-    pageCache.set(pageNumber, page);
+    const wrapper = document.createElement('div');
+    wrapper.className = styles.rasterTile;
+    wrapper.dataset.pdfRasterTile = '';
+    wrapper.dataset.tileKey = tile.key;
+    wrapper.style.left = `${tile.coreCssRect.origin.x}px`;
+    wrapper.style.top = `${tile.coreCssRect.origin.y}px`;
+    wrapper.style.width = `${tile.coreCssRect.size.width}px`;
+    wrapper.style.height = `${tile.coreCssRect.size.height}px`;
 
-    return page;
+    const sourceCanvas = document.createElement('canvas');
+    sourceCanvas.className = styles.sourceCanvas;
+    sourceCanvas.dataset.rasterPageNumber = String(tile.pageNumber);
+    sourceCanvas.width = 0;
+    sourceCanvas.height = 0;
+    sourceCanvas.style.left = `${tile.renderCssRect.origin.x - tile.coreCssRect.origin.x}px`;
+    sourceCanvas.style.top = `${tile.renderCssRect.origin.y - tile.coreCssRect.origin.y}px`;
+    sourceCanvas.style.width = `${tile.renderCssRect.size.width}px`;
+    sourceCanvas.style.height = `${tile.renderCssRect.size.height}px`;
+    wrapper.append(sourceCanvas);
+    rasterLayer.append(wrapper);
+
+    const surface: PdfTileSurface = {
+      tile,
+      wrapper,
+      sourceCanvas,
+      rendered: false,
+    };
+    tileSurfaces.set(tile.key, surface);
+    return surface;
   };
 
-  const renderPage = async (descriptor: PdfPageDescriptor) => {
-    const canvas = canvasRefs.get(descriptor.pageNumber);
-    const filteredCanvas = filteredCanvasRefs.get(descriptor.pageNumber);
-    const pageElement = pageRefs.get(descriptor.pageNumber);
+  const enqueueBitmapTile = (
+    descriptor: PdfPageDescriptor,
+    tile: PdfRenderTile,
+    surface: PdfTileSurface,
+  ) => {
+    const currentDocument = pdfDocument;
+    const page = pageCache.get(descriptor.pageNumber);
 
-    if (!canvas || !pageElement || !pdfDocument) {
+    if (!currentDocument || !page) {
       return;
     }
 
-    const displayWidth = Math.round(pageElement.clientWidth);
+    const scale = tile.outputWidth / tile.pdfRect.size.width || 1;
 
-    if (displayWidth <= 0) {
-      return;
-    }
+    renderScheduler.enqueue({
+      id: `bitmap:${tile.key}`,
+      pageNumber: descriptor.pageNumber,
+      kind: 'bitmap',
+      priority: tile.priority,
+      run: () => {
+        const { task, promise } = pdfAdapter.renderPageRect(
+          currentDocument,
+          page,
+          tile.pdfRect,
+          scale,
+        );
 
-    const ratio = renderPixelRatio();
-    const displayHeight = Math.round(displayWidth * (descriptor.height / descriptor.width));
-    const renderKey = `${displayWidth}:${ratio}`;
-    const currentFilterKey = filterKey();
-    const hasFilters = filtersEnabled() && !filterError();
-
-    if (hasFilters && !filteredCanvas) {
-      return;
-    }
-
-    if (renderedKeys.get(descriptor.pageNumber) !== renderKey) {
-      const page = await getPage(descriptor.pageNumber);
-
-      if (!page || destroyed) {
-        return;
-      }
-
-      cancelRenderTask(descriptor.pageNumber);
-
-      const scale = (displayWidth * ratio) / descriptor.width;
-      const { task, promise } = pdfAdapter.renderPage(pdfDocument, page, scale);
-      renderTasks.set(descriptor.pageNumber, task);
-
-      try {
-        const image = await promise;
-        const context = canvas.getContext('2d');
-
-        if (!context || destroyed || renderTasks.get(descriptor.pageNumber) !== task) {
+        return {
+          promise,
+          cancel: () =>
+            task.abort({
+              code: PdfErrorCode.Cancelled,
+              message: 'PDF tile render cancelled',
+            }),
+        };
+      },
+      commit: (image) => {
+        if (destroyed || tileSurfaces.get(tile.key) !== surface) {
           return;
         }
 
-        canvas.width = image.width;
-        canvas.height = image.height;
-        canvas.style.width = `${displayWidth}px`;
-        canvas.style.height = `${displayHeight}px`;
-        context.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+        const context = surface.sourceCanvas.getContext('2d');
 
-        if (filteredCanvas) {
-          resizeFilteredCanvas(
-            filteredCanvas,
-            canvas.width,
-            canvas.height,
-            displayWidth,
-            displayHeight,
-          );
+        if (!context) {
+          return;
         }
 
-        renderedKeys.set(descriptor.pageNumber, renderKey);
-        filteredKeys.delete(descriptor.pageNumber);
-        setFilteredPages((current) => {
-          if (!current.has(descriptor.pageNumber)) {
-            return current;
-          }
-
-          const next = new Set(current);
-          next.delete(descriptor.pageNumber);
-          return next;
-        });
-        setAppliedFilterKeys((current) => {
-          if (!current.has(descriptor.pageNumber)) {
-            return current;
-          }
-
-          const next = new Map(current);
-          next.delete(descriptor.pageNumber);
-          return next;
-        });
-      } catch (error) {
+        surface.sourceCanvas.width = image.width;
+        surface.sourceCanvas.height = image.height;
+        context.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+        surface.rendered = true;
+        void applyFilterToTile(surface);
+      },
+      onError: (error) => {
         if (!isRenderCancelled(error)) {
+          console.error('Failed to render PDF tile', error);
           setFailed(true);
         }
-        return;
-      } finally {
-        if (renderTasks.get(descriptor.pageNumber) === task) {
-          renderTasks.delete(descriptor.pageNumber);
-        }
-      }
-    }
-
-    if (filteredCanvas) {
-      resizeFilteredCanvas(
-        filteredCanvas,
-        canvas.width,
-        canvas.height,
-        displayWidth,
-        displayHeight,
-      );
-    }
-
-    if (!hasFilters) {
-      return;
-    }
-
-    if (filteredKeys.get(descriptor.pageNumber) === currentFilterKey) {
-      return;
-    }
-
-    if (!filteredCanvas) {
-      return;
-    }
-
-    const filterGenerationAtStart = filterRenderGeneration;
-    const filterChainAtStart = filterChain();
-
-    await runExclusiveFilterRender(async () => {
-      if (
-        filterGenerationAtStart !== filterRenderGeneration ||
-        filteredKeys.get(descriptor.pageNumber) === currentFilterKey
-      ) {
-        return;
-      }
-
-      try {
-        renderPdfPageFilter(canvas, filteredCanvas, filterChainAtStart);
-
-        if (filterGenerationAtStart !== filterRenderGeneration) {
-          return;
-        }
-
-        filteredKeys.set(descriptor.pageNumber, currentFilterKey);
-        setAppliedFilterKeys((current) => {
-          const next = new Map(current);
-          next.set(descriptor.pageNumber, currentFilterKey);
-          return next;
-        });
-        setFilteredPages((current) => new Set(current).add(descriptor.pageNumber));
-      } catch (error) {
-        if (filterGenerationAtStart !== filterRenderGeneration) {
-          return;
-        }
-
-        if (isRecoverablePdfFilterError(error)) {
-          destroyFilterRenderers();
-          return;
-        }
-
-        console.error('Failed to apply PDF page filter', error);
-        disablePdfFilters();
-      }
+      },
     });
   };
 
@@ -1187,13 +1075,14 @@ function PdfReader(props: {
     layer.replaceChildren(...highlights);
   };
 
-  const renderTextLayer = async (descriptor: PdfPageDescriptor) => {
+  const enqueueTextLayer = (descriptor: PdfPageDescriptor) => {
     const generation = loadGeneration;
     const layer = textLayerRefs.get(descriptor.pageNumber);
     const pageElement = pageRefs.get(descriptor.pageNumber);
     const currentDocument = pdfDocument;
+    const page = pageCache.get(descriptor.pageNumber);
 
-    if (!layer || !pageElement || !currentDocument) {
+    if (!layer || !pageElement || !currentDocument || !page) {
       return;
     }
 
@@ -1210,33 +1099,10 @@ function PdfReader(props: {
       return;
     }
 
-    const page = await getPage(descriptor.pageNumber);
-
-    if (!page || destroyed || generation !== loadGeneration) {
-      return;
-    }
-
-    cancelTextLayerTask(descriptor.pageNumber);
     const scale = displayWidth / descriptor.width;
     layer.style.width = `${displayWidth}px`;
     layer.style.height = `${displayHeight}px`;
-    layer.textContent = '';
-    const task = {
-      cancelled: false,
-      cancel() {
-        this.cancelled = true;
-      },
-    };
-
-    textLayerTasks.set(descriptor.pageNumber, task);
-
-    try {
-      const textRects = await pdfAdapter.getPageText(currentDocument, page);
-
-      if (task.cancelled || destroyed || generation !== loadGeneration) {
-        return;
-      }
-
+    const mountTextRects = (textRects: PdfTextRectObject[]) => {
       const fragments = textRects.map((textRect: PdfTextRectObject) => {
         const span = document.createElement('span');
         span.textContent = textRect.content;
@@ -1251,20 +1117,174 @@ function PdfReader(props: {
       });
 
       layer.replaceChildren(...fragments);
+      textLayerKeys.set(descriptor.pageNumber, renderKey);
+      renderSearchHighlights(descriptor.pageNumber);
+    };
+    const cachedTextRects = textRectCache.get(descriptor.pageNumber);
 
-      if (!destroyed && generation === loadGeneration) {
-        textLayerKeys.set(descriptor.pageNumber, renderKey);
-        renderSearchHighlights(descriptor.pageNumber);
+    if (cachedTextRects) {
+      mountTextRects(cachedTextRects);
+      return;
+    }
+
+    renderScheduler.enqueue({
+      id: `text:${descriptor.pageNumber}:${renderKey}`,
+      pageNumber: descriptor.pageNumber,
+      kind: 'text',
+      priority: 100,
+      run: () => {
+        const { task, promise } = pdfAdapter.getPageText(currentDocument, page);
+
+        return {
+          promise,
+          cancel: () =>
+            task.abort({
+              code: PdfErrorCode.Cancelled,
+              message: 'PDF text layer render cancelled',
+            }),
+        };
+      },
+      commit: (textRects) => {
+        if (
+          destroyed ||
+          generation !== loadGeneration ||
+          !activePages().has(descriptor.pageNumber)
+        ) {
+          return;
+        }
+
+        textRectCache.set(descriptor.pageNumber, textRects);
+        mountTextRects(textRects);
+      },
+      onError: (error) => {
+        if (!isRenderCancelled(error)) {
+          console.error('Failed to render PDF text layer', error);
+        }
+      },
+    });
+  };
+
+  const updateViewportRenderPlan = () => {
+    const currentPages = pages();
+
+    if (destroyed || !pdfDocument || currentPages.length === 0) {
+      return;
+    }
+
+    const ratio = renderPixelRatio();
+    const plannedTiles: PdfRenderTile[] = [];
+
+    for (const descriptor of currentPages) {
+      const pageElement = pageRefs.get(descriptor.pageNumber);
+
+      if (!pageElement) {
+        continue;
       }
-    } catch (error) {
-      if (!isRenderCancelled(error)) {
-        console.error('Failed to render PDF text layer', error);
+
+      const rect = pageElement.getBoundingClientRect();
+      const displayWidth = pageElement.clientWidth;
+      const displayHeight = pageElement.clientHeight;
+
+      if (displayWidth <= 0 || displayHeight <= 0) {
+        continue;
       }
-    } finally {
-      if (textLayerTasks.get(descriptor.pageNumber) === task) {
-        textLayerTasks.delete(descriptor.pageNumber);
+
+      plannedTiles.push(
+        ...createPdfPageRenderPlan({
+          pageNumber: descriptor.pageNumber,
+          pdfWidth: descriptor.width,
+          pdfHeight: descriptor.height,
+          displayWidth,
+          displayHeight,
+          pageViewportRect: {
+            origin: { x: rect.left, y: rect.top },
+            size: { width: rect.width, height: rect.height },
+          },
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+          pixelRatio: ratio,
+        }).tiles,
+      );
+    }
+
+    const tiles = limitPdfRenderTiles(plannedTiles, pdfMaxActivePixels);
+    const nextPlanKey = tiles.map((tile) => tile.key).join('|');
+
+    if (nextPlanKey === viewportPlanKey) {
+      return;
+    }
+
+    viewportPlanKey = nextPlanKey;
+    renderScheduler.beginGeneration();
+    const requiredKeys = new Set(tiles.map((tile) => tile.key));
+    const nextActivePages = new Set(tiles.map((tile) => tile.pageNumber));
+
+    for (const [key, surface] of tileSurfaces) {
+      if (!requiredKeys.has(key)) {
+        releaseTileSurface(surface);
+        tileSurfaces.delete(key);
       }
     }
+
+    for (const descriptor of currentPages) {
+      if (nextActivePages.has(descriptor.pageNumber)) {
+        continue;
+      }
+
+      textLayerRefs.get(descriptor.pageNumber)?.replaceChildren();
+      searchLayerRefs.get(descriptor.pageNumber)?.replaceChildren();
+      textLayerKeys.delete(descriptor.pageNumber);
+    }
+
+    setActivePages(nextActivePages);
+    setAppliedFilterKeys((current) => {
+      const next = new Map<number, string>();
+      for (const [pageNumber, key] of current) {
+        if (nextActivePages.has(pageNumber)) {
+          next.set(pageNumber, key);
+        }
+      }
+      return next;
+    });
+
+    for (const tile of tiles) {
+      const descriptor = currentPages[tile.pageNumber - 1];
+
+      if (!descriptor) {
+        continue;
+      }
+
+      const surface = tileSurfaces.get(tile.key) ?? createTileSurface(tile);
+
+      if (!surface) {
+        continue;
+      }
+
+      if (surface.rendered) {
+        renderScheduler.markBitmapReady(tile.pageNumber);
+        void applyFilterToTile(surface);
+      } else {
+        enqueueBitmapTile(descriptor, tile, surface);
+      }
+    }
+
+    for (const pageNumber of nextActivePages) {
+      const descriptor = currentPages[pageNumber - 1];
+      if (descriptor) {
+        enqueueTextLayer(descriptor);
+      }
+    }
+  };
+
+  const scheduleViewportRender = () => {
+    if (viewportRenderFrame !== undefined) {
+      return;
+    }
+
+    viewportRenderFrame = requestAnimationFrame(() => {
+      viewportRenderFrame = undefined;
+      updateViewportRenderPlan();
+    });
   };
 
   const loadDocument = async () => {
@@ -1279,22 +1299,22 @@ function PdfReader(props: {
     setLoading(true);
     setFailed(false);
     setPages([]);
-    setVisiblePages(new Set<number>());
+    setActivePages(new Set<number>());
     setOutlineEntries([]);
     setOutlineLoaded(false);
     setTocOpen(false);
+    renderScheduler.beginGeneration();
+    releaseAllTileSurfaces();
+    viewportPlanKey = '';
     pageRefs.clear();
-    canvasRefs.clear();
-    filteredCanvasRefs.clear();
+    rasterLayerRefs.clear();
     textLayerRefs.clear();
     searchLayerRefs.clear();
     pageCache.clear();
-    renderedKeys.clear();
+    textRectCache.clear();
     invalidateFilteredPages();
     textLayerKeys.clear();
     destroyFilterRenderers();
-    cancelRenderTasks();
-    cancelTextLayerTasks();
     if (readyFrame !== undefined) {
       cancelAnimationFrame(readyFrame);
       readyFrame = undefined;
@@ -1341,6 +1361,7 @@ function PdfReader(props: {
 
         measureDocument();
         restoreHorizontalScrollPositionIfNeeded();
+        scheduleViewportRender();
         props.onReady?.();
       });
     } catch (error) {
@@ -1398,70 +1419,11 @@ function PdfReader(props: {
 
   createEffect(() => {
     void pages();
-    scheduleObservedPagesSync();
-  });
-
-  createEffect(() => {
-    const currentPages = pages();
-    const currentVisiblePages = visiblePages();
-
     void documentWidth();
     void pageWidth();
     void isFitWidth();
-
-    for (const descriptor of currentPages) {
-      if (currentVisiblePages.has(descriptor.pageNumber)) {
-        void renderPage(descriptor).catch((error) => {
-          if (!destroyed && !isRenderCancelled(error)) {
-            console.error('Failed to render PDF page', error);
-          }
-        });
-        void renderTextLayer(descriptor).catch((error) => {
-          if (!destroyed && !isRenderCancelled(error)) {
-            console.error('Failed to render PDF text layer', error);
-          }
-        });
-      }
-    }
-  });
-
-  createEffect(() => {
-    const currentPages = pages();
-    const currentVisiblePages = visiblePages();
-
-    if (currentPages.length === 0 || currentVisiblePages.size === 0) {
-      return;
-    }
-
-    let minVisible = Number.POSITIVE_INFINITY;
-    let maxVisible = Number.NEGATIVE_INFINITY;
-
-    for (const pageNumber of currentVisiblePages) {
-      if (pageNumber < minVisible) {
-        minVisible = pageNumber;
-      }
-
-      if (pageNumber > maxVisible) {
-        maxVisible = pageNumber;
-      }
-    }
-
-    const retainMin = minVisible - releasedPageBuffer;
-    const retainMax = maxVisible + releasedPageBuffer;
-
-    for (const descriptor of currentPages) {
-      const pageNumber = descriptor.pageNumber;
-
-      if (pageNumber >= retainMin && pageNumber <= retainMax) {
-        continue;
-      }
-
-      if (!hasAllocatedPageResources(pageNumber)) {
-        continue;
-      }
-
-      releasePageResources(pageNumber);
-    }
+    viewportPlanKey = '';
+    scheduleViewportRender();
   });
 
   createEffect(() => {
@@ -1470,8 +1432,9 @@ function PdfReader(props: {
     }
 
     measureDocument();
-    renderedKeys.clear();
     textLayerKeys.clear();
+    viewportPlanKey = '';
+    scheduleViewportRender();
   });
 
   const onRulerPointerDown = (event: PointerEvent) => {
@@ -1747,58 +1710,41 @@ function PdfReader(props: {
       syncCurrentPage();
       rememberHorizontalScrollPosition();
       readerNavigationHistory.updateCurrentLocation();
+      scheduleViewportRender();
+    };
+    const onResize = () => {
+      handleViewportResize();
+      scheduleViewportRender();
     };
 
-    resizeObserver = new ResizeObserver(() => handleViewportResize());
-    observer = new IntersectionObserver(
-      (entries) => {
-        setVisiblePages((current) => {
-          const next = new Set(current);
-
-          for (const entry of entries) {
-            const pageNumber = Number((entry.target as HTMLElement).dataset.pageNumber);
-
-            if (!Number.isFinite(pageNumber)) {
-              continue;
-            }
-
-            if (entry.isIntersecting) {
-              next.add(pageNumber);
-            } else {
-              next.delete(pageNumber);
-            }
-          }
-
-          return next;
-        });
-      },
-      { root: null, rootMargin: '1200px 0px' },
-    );
+    resizeObserver = new ResizeObserver(() => {
+      handleViewportResize();
+      scheduleViewportRender();
+    });
 
     if (rootRef) {
       resizeObserver.observe(rootRef);
     }
 
     measureDocument();
-    scheduleObservedPagesSync();
+    scheduleViewportRender();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', handleViewportResize);
-    window.visualViewport?.addEventListener('resize', handleViewportResize);
+    window.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('resize', onResize);
 
     onCleanup(() => {
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', handleViewportResize);
-      window.visualViewport?.removeEventListener('resize', handleViewportResize);
+      window.removeEventListener('resize', onResize);
+      window.visualViewport?.removeEventListener('resize', onResize);
       resizeObserver?.disconnect();
-      observer?.disconnect();
     });
   });
 
   onCleanup(() => {
     destroyed = true;
 
-    if (observeFrame !== undefined) {
-      cancelAnimationFrame(observeFrame);
+    if (viewportRenderFrame !== undefined) {
+      cancelAnimationFrame(viewportRenderFrame);
     }
 
     if (readyFrame !== undefined) {
@@ -1821,13 +1767,13 @@ function PdfReader(props: {
       cancelAnimationFrame(horizontalScrollRestoreFrame);
     }
 
-    cancelRenderTasks();
-    cancelTextLayerTasks();
+    renderScheduler.release();
+    releaseAllTileSurfaces();
     destroyFilterRenderers();
-    filteredCanvasRefs.clear();
+    rasterLayerRefs.clear();
     textLayerRefs.clear();
     searchLayerRefs.clear();
-    textLayerTasks.clear();
+    textRectCache.clear();
     textLayerKeys.clear();
     void pdfFixedLayoutReader.release().catch(() => undefined);
   });
@@ -2007,37 +1953,13 @@ function PdfReader(props: {
                 }}
                 aria-label={`${t('page')} ${page.pageNumber}`}
               >
-                <canvas
-                  class={styles.sourceCanvas}
-                  classList={{
-                    [styles.sourceCanvasHidden]:
-                      filtersEnabled() && filteredPages().has(page.pageNumber),
-                  }}
+                <div
+                  class={styles.rasterLayer}
                   ref={(element) => {
-                    canvasRefs.set(page.pageNumber, element);
+                    rasterLayerRefs.set(page.pageNumber, element);
                   }}
+                  aria-hidden="true"
                 />
-                <Show when={filtersEnabled()}>
-                  <canvas
-                    class={styles.filteredCanvas}
-                    classList={{
-                      [styles.filteredCanvasVisible]: filteredPages().has(page.pageNumber),
-                    }}
-                    ref={(element) => {
-                      if (!element) {
-                        filteredCanvasRefs.delete(page.pageNumber);
-                        return;
-                      }
-
-                      filteredCanvasRefs.set(page.pageNumber, element);
-
-                      onCleanup(() => {
-                        filteredCanvasRefs.delete(page.pageNumber);
-                      });
-                    }}
-                    aria-hidden="true"
-                  />
-                </Show>
                 <div
                   ref={(element) => {
                     searchLayerRefs.set(page.pageNumber, element);

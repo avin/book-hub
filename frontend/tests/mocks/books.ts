@@ -49,6 +49,18 @@ export const items = [
     last_opened_at: '2025-01-05T00:00:00Z',
     updated_at: '2025-01-05T00:00:00Z',
   },
+  {
+    id: '00000000-0000-0000-0000-000000000105',
+    title: 'Высокий PDF для проверки',
+    tags: ['тест'],
+    favorite: false,
+    format: 'pdf',
+    size_bytes: 8192,
+    progress_percent: 0,
+    created_at: '2025-01-06T00:00:00Z',
+    last_opened_at: '2025-01-06T00:00:00Z',
+    updated_at: '2025-01-06T00:00:00Z',
+  },
 ];
 
 export const tags = {
@@ -215,6 +227,60 @@ trailer
 startxref
 353
 %%EOF`;
+
+function buildPdf(objects: string[]) {
+  const encoder = new TextEncoder();
+  let result = '%PDF-1.4\n';
+  const offsets = [0];
+
+  objects.forEach((object, index) => {
+    offsets.push(encoder.encode(result).byteLength);
+    result += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = encoder.encode(result).byteLength;
+  result += `xref\n0 ${objects.length + 1}\n`;
+  result += '0000000000 65535 f \n';
+  result += offsets
+    .slice(1)
+    .map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`)
+    .join('');
+  result += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
+  result += `startxref\n${xrefOffset}\n%%EOF`;
+
+  return result;
+}
+
+function tallPdfPageStream(pageNumber: number) {
+  const colors = [
+    ['0.90 0.20 0.20', '0.20 0.35 0.90'],
+    ['0.20 0.65 0.30', '0.80 0.35 0.10'],
+    ['0.55 0.20 0.75', '0.10 0.65 0.65'],
+    ['0.85 0.65 0.10', '0.25 0.25 0.25'],
+    ['0.15 0.50 0.85', '0.80 0.20 0.55'],
+  ][pageNumber - 1];
+  const content = `q ${colors[0]} rg 0 5700 360 300 re f ${colors[1]} rg 0 0 360 300 re f Q BT /F1 32 Tf 42 5400 Td (Tall page ${pageNumber}) Tj /F1 18 Tf 0 -2600 Td (Middle marker ${pageNumber}) Tj 0 -2600 Td (Bottom marker ${pageNumber}) Tj ET`;
+
+  return `<< /Length ${new TextEncoder().encode(content).byteLength} >>\nstream\n${content}\nendstream`;
+}
+
+const tallPdfPageCount = 5;
+const tallPdfPageObjectStart = 3;
+const tallPdfFontObject = tallPdfPageObjectStart + tallPdfPageCount;
+const tallPdfContentObjectStart = tallPdfFontObject + 1;
+const tallPdfObjects = [
+  '<< /Type /Catalog /Pages 2 0 R >>',
+  `<< /Type /Pages /Kids [${Array.from({ length: tallPdfPageCount }, (_, index) => `${tallPdfPageObjectStart + index} 0 R`).join(' ')}] /Count ${tallPdfPageCount} >>`,
+  ...Array.from(
+    { length: tallPdfPageCount },
+    (_, index) =>
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 360 6000] /Resources << /Font << /F1 ${tallPdfFontObject} 0 R >> >> /Contents ${tallPdfContentObjectStart + index} 0 R >>`,
+  ),
+  '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ...Array.from({ length: tallPdfPageCount }, (_, index) => tallPdfPageStream(index + 1)),
+];
+
+export const tallPdfFile = buildPdf(tallPdfObjects);
 
 export const req = {
   list: { method: 'POST', path: '/v1/books/query' },

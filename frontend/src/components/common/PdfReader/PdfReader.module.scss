@@ -54,27 +54,31 @@
   background: var(--surface-raised);
   box-shadow: $shadow-lg;
   overflow-anchor: none;
+}
 
-  canvas {
-    display: block;
-    background: var(--surface-raised);
-  }
+.rasterLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 
-  .sourceCanvasHidden {
-    display: none;
-  }
+.rasterTile {
+  position: absolute;
+  overflow: hidden;
+  background: var(--surface-raised);
+}
 
-  .filteredCanvas {
-    position: absolute;
-    inset: 0;
-    display: none;
-    width: 100%;
-    height: 100%;
-  }
+.sourceCanvas,
+.filteredCanvas {
+  position: absolute;
+  display: block;
+  background: var(--surface-raised);
+}
 
-  .filteredCanvasVisible {
-    display: block;
-  }
+.filteredCanvas {
+  display: none;
 }
 
 .searchLayer,
