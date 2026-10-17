@@ -8,6 +8,7 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'coverage/**',
       'storybook-static/**',
       'public/pdfjs-assets/**',
       'public/djvujs-assets/**',
