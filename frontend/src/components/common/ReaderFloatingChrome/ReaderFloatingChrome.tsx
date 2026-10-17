@@ -1,8 +1,12 @@
-import { onCleanup, onMount, Show, type JSX } from 'solid-js';
-import { ChevronDown, ChevronUp, Search, X } from 'lucide-solid';
+import { createEffect, createSignal, onCleanup, onMount, Show, type JSX } from 'solid-js';
+import { ChevronDown, ChevronUp, PanelRight, Search, X } from 'lucide-solid';
 import Button from '@/components/common/Button/Button';
 import TextInput from '@/components/common/TextInput/TextInput';
 import { useI18n } from '@/i18n/I18nProvider';
+import {
+  getMinimalScrollbarsPreference,
+  setMinimalScrollbarsPreference,
+} from '@/storage/browserPreferences';
 import styles from './ReaderFloatingChrome.module.scss';
 
 function ReaderFloatingChrome(props: {
@@ -12,6 +16,7 @@ function ReaderFloatingChrome(props: {
   actions?: JSX.Element;
   secondaryBar?: JSX.Element;
   bottomContent?: JSX.Element;
+  scrollbarBackground?: string;
   searchValue?: string;
   searchCount?: { current: number; total: number };
   searchUnavailableMessage?: string;
@@ -23,8 +28,30 @@ function ReaderFloatingChrome(props: {
   onShow: () => void;
 }) {
   const { t } = useI18n();
+  const [minimalScrollbars, setMinimalScrollbars] = createSignal(getMinimalScrollbarsPreference());
   let searchInputRef: HTMLInputElement | undefined;
   const showChrome = () => props.onShow();
+
+  createEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle(styles.minimalScrollbars, minimalScrollbars());
+    root.style.setProperty(
+      '--reader-scrollbar-background',
+      props.scrollbarBackground ?? 'var(--surface-sunken)',
+    );
+  });
+
+  onCleanup(() => {
+    document.documentElement.classList.remove(styles.minimalScrollbars);
+    document.documentElement.style.removeProperty('--reader-scrollbar-background');
+  });
+
+  const toggleScrollbars = () => {
+    const enabled = !minimalScrollbars();
+    setMinimalScrollbars(enabled);
+    setMinimalScrollbarsPreference(enabled);
+    showChrome();
+  };
 
   const focusSearchInput = () => {
     props.onSearchOpen?.();
@@ -177,6 +204,17 @@ function ReaderFloatingChrome(props: {
           </Show>
 
           <div class={styles.positionContent}>{props.bottomContent}</div>
+          <Button
+            variant="secondary"
+            size="sm"
+            iconOnly
+            type="button"
+            iconStart={<PanelRight />}
+            aria-label={t('minimalScrollbars')}
+            title={t('minimalScrollbars')}
+            aria-pressed={minimalScrollbars()}
+            onClick={toggleScrollbars}
+          />
         </div>
       </footer>
     </>

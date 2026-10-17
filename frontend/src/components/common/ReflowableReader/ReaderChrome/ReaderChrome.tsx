@@ -10,6 +10,7 @@ function ReaderChrome(props: {
   title: string;
   headerContent?: JSX.Element;
   bottomContent?: JSX.Element;
+  scrollbarBackground: string;
   searchValue: string;
   searchCount?: { current: number; total: number };
   onSearchValueChange: (value: string) => void;
@@ -44,6 +45,7 @@ function ReaderChrome(props: {
       title={props.title}
       headerContent={props.headerContent}
       bottomContent={props.bottomContent}
+      scrollbarBackground={props.scrollbarBackground}
       searchValue={props.searchValue}
       searchCount={props.searchCount}
       onSearchValueChange={props.onSearchValueChange}

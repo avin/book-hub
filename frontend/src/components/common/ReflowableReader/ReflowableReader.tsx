@@ -1045,6 +1045,7 @@ function ReflowableReader(props: {
         onSearchNext={() => search('next')}
         onSearchPrevious={() => search('previous')}
         bottomContent={<span>{progressPercent()}%</span>}
+        scrollbarBackground={settings().backgroundColor}
         markerStyles={markerStyles()}
         availableTextWidth={availableTextWidth()}
         currentTextWidth={textWidth()}

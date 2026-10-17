@@ -15,10 +15,12 @@ export {
 export {
   getLanguagePreference,
   getLibraryViewPreference,
+  getMinimalScrollbarsPreference,
   getRecentTagsPreference,
   getThemePreference,
   setLanguagePreference,
   setLibraryViewPreference,
+  setMinimalScrollbarsPreference,
   setRecentTagsPreference,
   setThemePreference,
   type LibraryView,

@@ -45,6 +45,14 @@ export function setLibraryViewPreference(view: LibraryView) {
   updatePreferences((preferences) => ({ ...preferences, libraryView: view }));
 }
 
+export function getMinimalScrollbarsPreference() {
+  return readPreferences().minimalScrollbars === true;
+}
+
+export function setMinimalScrollbarsPreference(minimalScrollbars: boolean) {
+  updatePreferences((preferences) => ({ ...preferences, minimalScrollbars }));
+}
+
 export function getRecentTagsPreference() {
   const recentTags = readPreferences().recentTags;
   return isStringArray(recentTags) ? recentTags.filter((tag) => tag.trim().length > 0) : [];

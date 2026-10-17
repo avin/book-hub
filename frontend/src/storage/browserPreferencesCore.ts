@@ -16,6 +16,7 @@ export type BrowserPreferences = {
   language?: unknown;
   theme?: unknown;
   libraryView?: unknown;
+  minimalScrollbars?: unknown;
   recentTags?: unknown;
   readers?: {
     fb2?: { settings?: unknown };

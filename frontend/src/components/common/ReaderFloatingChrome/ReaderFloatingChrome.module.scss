@@ -1,6 +1,36 @@
 @use '@/styles/_variables.scss' as *;
 @use '@/styles/_mixins.scss' as *;
 
+:global(html).minimalScrollbars {
+  --reader-scrollbar-thumb: color-mix(
+    in srgb,
+    var(--text-muted) 25%,
+    var(--reader-scrollbar-background)
+  );
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--reader-scrollbar-thumb) var(--reader-scrollbar-background);
+
+  @supports selector(::-webkit-scrollbar) {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+
+  &::-webkit-scrollbar {
+    width: 1px;
+    height: 1px;
+  }
+
+  &::-webkit-scrollbar-track,
+  &::-webkit-scrollbar-corner {
+    background: var(--reader-scrollbar-background);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--reader-scrollbar-thumb);
+  }
+}
+
 @mixin bar-shadow {
   box-shadow:
     0 0 8px rgb(var(--shadow-color) / 0.06),

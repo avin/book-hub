@@ -5,6 +5,10 @@ export type Language = (typeof languages)[number];
 type Translation = Record<Language, string>;
 
 export const messages = {
+  minimalScrollbars: {
+    ru: 'Тонкие полосы прокрутки',
+    en: 'Minimal scrollbars',
+  },
   bookHub: {
     ru: 'Book Hub',
     en: 'Book Hub',
