@@ -613,18 +613,6 @@ export const messages = {
     ru: 'Глина',
     en: 'Clay',
   },
-  themeLightSlate: {
-    ru: 'Сланец',
-    en: 'Slate',
-  },
-  themeLightSage: {
-    ru: 'Шалфей',
-    en: 'Sage',
-  },
-  themeLightPeach: {
-    ru: 'Персик',
-    en: 'Peach',
-  },
   themeLightSand: {
     ru: 'Песок',
     en: 'Sand',

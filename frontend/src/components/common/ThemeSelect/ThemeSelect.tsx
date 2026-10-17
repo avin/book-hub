@@ -6,9 +6,6 @@ import styles from './ThemeSelect.module.scss';
 
 const labelKey: Record<ThemeId, MessageKey> = {
   'light-clay': 'themeLightClay',
-  'light-slate': 'themeLightSlate',
-  'light-sage': 'themeLightSage',
-  'light-peach': 'themeLightPeach',
   'light-sand': 'themeLightSand',
   'light-mint': 'themeLightMint',
   'dark-ink': 'themeDarkInk',

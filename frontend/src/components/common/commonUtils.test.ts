@@ -21,7 +21,10 @@ import {
 import { applyTheme, defaultThemeId, isThemeId } from '@/styles/themes';
 
 describe('общие утилиты фронтенда', () => {
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
 
   it('создаёт безопасные API-URL и имя скачиваемого файла', () => {
     vi.stubEnv('VITE_BASE_PATH', '/book-hub/');
@@ -90,15 +93,20 @@ describe('общие утилиты фронтенда', () => {
     expect(computeWidthRulerMarkers(ruler, 400, 0).left).toEqual({ left: '0px' });
   });
 
-  it('применяет допустимую тему и учитывает системное предпочтение', () => {
+  it('применяет допустимую тему и учитывает системное оформление', () => {
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => ({ matches: true })),
     );
     expect(defaultThemeId()).toBe('dark-ink');
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: false })),
+    );
+    expect(defaultThemeId()).toBe('light-sand');
     expect(isThemeId('dark-ocean')).toBe(true);
     expect(isThemeId('unknown')).toBe(false);
-    applyTheme('light-sage');
-    expect(document.documentElement.dataset.theme).toBe('light-sage');
+    applyTheme('light-sand');
+    expect(document.documentElement.dataset.theme).toBe('light-sand');
   });
 });

@@ -7,10 +7,67 @@
 //
 // ─────────────────────────────────────────────────────────────
 
-// Default = first light theme. Acts as fallback for any element rendered before
+// Default = Sand. Acts as fallback for any element rendered before
 // the data-theme attribute is set (e.g. during HMR, or if the inline FOUC script
 // fails). The inline script in index.html always sets data-theme before first paint.
+// ── Light: Sand ──────────────────────────────────────────────
 :root,
+[data-theme='light-sand'] {
+  color-scheme: light;
+
+  --surface-page: #f5ebd9;
+  --surface-raised: #faf5e8;
+  --surface-overlay: #fdfbf5;
+  --surface-sunken: #ebdcc8;
+  --surface-hover: #ebdcc8;
+  --surface-inset: #ebdcc8;
+  --surface-accent-soft: #fdfaf5;
+
+  --text-primary: #2c1e31;
+  --text-secondary: #5a3c45;
+  --text-muted: #8a5258;
+  --text-disabled: #ae6b60;
+  --text-on-accent: #ffffff;
+  --text-on-danger: #ffffff;
+  --text-on-scrim: #ffffff;
+  --text-on-raised: #2c1e31;
+  --text-link: #ba6156;
+
+  --accent: #ba6156;
+  --accent-hover: #964253;
+  --accent-active: #57294b;
+  --accent-soft-bg: #f9e6cf;
+  --accent-soft-text: #964253;
+  --accent-border: #d58d6b;
+
+  --border-subtle: #ebdcc8;
+  --border-default: #d89f75;
+  --border-strong: #ae6b60;
+  --border-accent: #ba6156;
+
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-soft-bg: #fee2e2;
+  --danger-soft-text: #b91c1c;
+
+  --success: #059669;
+  --success-hover: #047857;
+  --success-soft-bg: #d1fae5;
+  --success-soft-text: #047857;
+
+  --warning: #d97706;
+  --warning-hover: #b45309;
+  --warning-soft-bg: #fef3c7;
+  --warning-soft-text: #b45309;
+
+  --shadow-color: 44 30 49;
+  --shadow-color-strong: 44 30 49;
+  --scrim: rgba(44, 30, 49, 0.5);
+
+  --focus-ring: #ba6156;
+  --favorite: #dc2626;
+}
+
 [data-theme='light-clay'] {
   color-scheme: light;
 
@@ -74,120 +131,6 @@
   // ── Misc ───────────────────────────────────────────────────
   --focus-ring: #c2410c;
   --favorite: #dc2626; // filled heart color
-}
-
-// ── Light: Cool Slate ────────────────────────────────────────
-[data-theme='light-slate'] {
-  color-scheme: light;
-
-  --surface-page: #f8fafc;
-  --surface-raised: #ffffff;
-  --surface-overlay: #ffffff;
-  --surface-sunken: #f1f5f9;
-  --surface-hover: #f1f5f9;
-  --surface-inset: #f1f5f9;
-  --surface-accent-soft: #eff6ff;
-
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-disabled: #94a3b8;
-  --text-on-accent: #ffffff;
-  --text-on-danger: #ffffff;
-  --text-on-scrim: #ffffff;
-  --text-on-raised: #0f172a;
-  --text-link: #1d4ed8;
-
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-active: #1e40af;
-  --accent-soft-bg: #dbeafe;
-  --accent-soft-text: #1d4ed8;
-  --accent-border: #60a5fa;
-
-  --border-subtle: #f1f5f9;
-  --border-default: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --border-accent: #60a5fa;
-
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --danger-soft-bg: #fee2e2;
-  --danger-soft-text: #b91c1c;
-
-  --success: #059669;
-  --success-hover: #047857;
-  --success-soft-bg: #d1fae5;
-  --success-soft-text: #047857;
-
-  --warning: #d97706;
-  --warning-hover: #b45309;
-  --warning-soft-bg: #fef3c7;
-  --warning-soft-text: #b45309;
-
-  --shadow-color: 15 23 42;
-  --shadow-color-strong: 15 23 42;
-  --scrim: rgba(15, 23, 42, 0.5);
-
-  --focus-ring: #2563eb;
-  --favorite: #dc2626;
-}
-
-// ── Light: Sage Green ────────────────────────────────────────
-[data-theme='light-sage'] {
-  color-scheme: light;
-
-  --surface-page: #f7faf7;
-  --surface-raised: #ffffff;
-  --surface-overlay: #ffffff;
-  --surface-sunken: #eef4ef;
-  --surface-hover: #eef4ef;
-  --surface-inset: #eef4ef;
-  --surface-accent-soft: #ecfdf5;
-
-  --text-primary: #14241b;
-  --text-secondary: #3a4a40;
-  --text-muted: #6b7a70;
-  --text-disabled: #9ca89f;
-  --text-on-accent: #ffffff;
-  --text-on-danger: #ffffff;
-  --text-on-scrim: #ffffff;
-  --text-on-raised: #14241b;
-  --text-link: #166534;
-
-  --accent: #16a34a;
-  --accent-hover: #15803d;
-  --accent-active: #14532d;
-  --accent-soft-bg: #dcfce7;
-  --accent-soft-text: #15803d;
-  --accent-border: #4ade80;
-
-  --border-subtle: #eef4ef;
-  --border-default: #e2ebe4;
-  --border-strong: #c6d6c9;
-  --border-accent: #4ade80;
-
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --danger-soft-bg: #fee2e2;
-  --danger-soft-text: #b91c1c;
-
-  --success: #059669;
-  --success-hover: #047857;
-  --success-soft-bg: #d1fae5;
-  --success-soft-text: #047857;
-
-  --warning: #d97706;
-  --warning-hover: #b45309;
-  --warning-soft-bg: #fef3c7;
-  --warning-soft-text: #b45309;
-
-  --shadow-color: 20 36 27;
-  --shadow-color-strong: 20 36 27;
-  --scrim: rgba(20, 36, 27, 0.5);
-
-  --focus-ring: #16a34a;
-  --favorite: #dc2626;
 }
 
 // ── Dark: Warm Ink ───────────────────────────────────────────
@@ -359,120 +302,6 @@
 
   --focus-ring: #60a5fa;
   --favorite: #f87171;
-}
-
-// ── Light: Peach ─────────────────────────────────────────────
-[data-theme='light-peach'] {
-  color-scheme: light;
-
-  --surface-page: #ffecd6;
-  --surface-raised: #fff5eb;
-  --surface-overlay: #fffaf5;
-  --surface-sunken: #fbf2e6;
-  --surface-hover: #fbf2e6;
-  --surface-inset: #fbf2e6;
-  --surface-accent-soft: #fffbf5;
-
-  --text-primary: #0d2b45;
-  --text-secondary: #203c56;
-  --text-muted: #544e68;
-  --text-disabled: #8d697a;
-  --text-on-accent: #ffffff;
-  --text-on-danger: #ffffff;
-  --text-on-scrim: #ffffff;
-  --text-on-raised: #0d2b45;
-  --text-link: #8d431c;
-
-  --accent: #c46a3b;
-  --accent-hover: #8d431c;
-  --accent-active: #54220b;
-  --accent-soft-bg: #ffe9d4;
-  --accent-soft-text: #8d431c;
-  --accent-border: #ffaa5e;
-
-  --border-subtle: #fbf2e6;
-  --border-default: #ffd4a3;
-  --border-strong: #ffaa5e;
-  --border-accent: #ffaa5e;
-
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --danger-soft-bg: #fee2e2;
-  --danger-soft-text: #b91c1c;
-
-  --success: #059669;
-  --success-hover: #047857;
-  --success-soft-bg: #d1fae5;
-  --success-soft-text: #047857;
-
-  --warning: #d97706;
-  --warning-hover: #b45309;
-  --warning-soft-bg: #fef3c7;
-  --warning-soft-text: #b45309;
-
-  --shadow-color: 13 43 69;
-  --shadow-color-strong: 13 43 69;
-  --scrim: rgba(13, 43, 69, 0.5);
-
-  --focus-ring: #c46a3b;
-  --favorite: #dc2626;
-}
-
-// ── Light: Sand ──────────────────────────────────────────────
-[data-theme='light-sand'] {
-  color-scheme: light;
-
-  --surface-page: #f5ebd9;
-  --surface-raised: #faf5e8;
-  --surface-overlay: #fdfbf5;
-  --surface-sunken: #ebdcc8;
-  --surface-hover: #ebdcc8;
-  --surface-inset: #ebdcc8;
-  --surface-accent-soft: #fdfaf5;
-
-  --text-primary: #2c1e31;
-  --text-secondary: #5a3c45;
-  --text-muted: #8a5258;
-  --text-disabled: #ae6b60;
-  --text-on-accent: #ffffff;
-  --text-on-danger: #ffffff;
-  --text-on-scrim: #ffffff;
-  --text-on-raised: #2c1e31;
-  --text-link: #ba6156;
-
-  --accent: #ba6156;
-  --accent-hover: #964253;
-  --accent-active: #57294b;
-  --accent-soft-bg: #f9e6cf;
-  --accent-soft-text: #964253;
-  --accent-border: #d58d6b;
-
-  --border-subtle: #ebdcc8;
-  --border-default: #d89f75;
-  --border-strong: #ae6b60;
-  --border-accent: #ba6156;
-
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --danger-soft-bg: #fee2e2;
-  --danger-soft-text: #b91c1c;
-
-  --success: #059669;
-  --success-hover: #047857;
-  --success-soft-bg: #d1fae5;
-  --success-soft-text: #047857;
-
-  --warning: #d97706;
-  --warning-hover: #b45309;
-  --warning-soft-bg: #fef3c7;
-  --warning-soft-text: #b45309;
-
-  --shadow-color: 44 30 49;
-  --shadow-color-strong: 44 30 49;
-  --scrim: rgba(44, 30, 49, 0.5);
-
-  --focus-ring: #ba6156;
-  --favorite: #dc2626;
 }
 
 // ── Light: Mint ──────────────────────────────────────────────

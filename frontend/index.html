@@ -10,14 +10,14 @@
       // wrong theme (FOUC). Runs synchronously in <head>. Mirrors the logic in
       // src/styles/themes.ts; kept inline and dependency-free on purpose.
       (function () {
+        var defaultTheme = window.matchMedia?.('(prefers-color-scheme: dark)').matches
+          ? 'dark-ink'
+          : 'light-sand';
         try {
           var raw = localStorage.getItem('book-hub-preferences');
           var theme = raw ? JSON.parse(raw).theme || null : null;
           var known = [
             'light-clay',
-            'light-slate',
-            'light-sage',
-            'light-peach',
             'light-sand',
             'light-mint',
             'dark-ink',
@@ -27,13 +27,11 @@
             'dark-amethyst',
           ];
           if (!theme || known.indexOf(theme) === -1) {
-            theme = window.matchMedia('(prefers-color-scheme: dark)').matches
-              ? 'dark-ink'
-              : 'light-clay';
+            theme = defaultTheme;
           }
           document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'light-clay');
+          document.documentElement.setAttribute('data-theme', defaultTheme);
         }
       })();
     </script>

@@ -48,6 +48,10 @@ async function verifyReflowableReader(page: Page, fixture: ReflowableReaderFixtu
   const initialFontSize = await fontSize.inputValue();
   await fontSize.press('ArrowRight');
   await expect(fontSize).not.toHaveValue(initialFontSize);
+  await fontSize.press('End');
+  await expect(fontSize).toHaveValue('60');
+  await expect(settingsPanel).toContainText('60px');
+  await expect(page.locator('article')).toHaveCSS('--fb2-font-size', '60px');
   await settingsPanel.getByRole('button', { name: 'Закрыть' }).click();
 
   await expect

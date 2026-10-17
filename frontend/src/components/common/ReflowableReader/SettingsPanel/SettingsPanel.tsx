@@ -78,7 +78,7 @@ function SettingsPanel(props: {
           <input
             type="range"
             min="14"
-            max="30"
+            max="60"
             value={props.settings.fontSize}
             onPointerDown={captureLayoutAdjust}
             onPointerUp={() => props.onEndAdjustLayout()}
