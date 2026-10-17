@@ -54,27 +54,31 @@
   background: var(--surface-raised);
   box-shadow: $shadow-lg;
   overflow-anchor: none;
+}
 
-  canvas {
-    display: block;
-    background: var(--surface-raised);
-  }
+.tileLayer {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
 
-  .sourceCanvasHidden {
-    display: none;
-  }
+.tile {
+  position: absolute;
+  left: 0;
+  width: 100%;
+}
 
-  .filteredCanvas {
-    position: absolute;
-    inset: 0;
-    display: none;
-    width: 100%;
-    height: 100%;
-  }
+.tileCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface-raised);
+}
 
-  .filteredCanvasVisible {
-    display: block;
-  }
+.tileCanvasHidden {
+  display: none;
 }
 
 .textLayer {
