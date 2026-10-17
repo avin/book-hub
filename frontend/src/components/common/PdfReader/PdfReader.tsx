@@ -328,33 +328,59 @@ function PdfReader(props: {
       return undefined;
     }
 
-    const documentTopAbsolute = documentRef.getBoundingClientRect().top + window.scrollY;
-    const documentScrollTop = window.scrollY - documentTopAbsolute;
     const pageList = pages();
+    const index = lastPageIndexStartingAbove(pageList, 0.5);
+    const page = index >= 0 ? pageList[index] : undefined;
+    const pageElement = page ? pageRefs.get(page.pageNumber) : undefined;
 
-    for (let index = pageList.length - 1; index >= 0; index -= 1) {
-      const page = pageList[index];
-      const pageElement = pageRefs.get(page.pageNumber);
+    if (page && pageElement) {
+      const pageTop = pageElement.getBoundingClientRect().top;
+      const pageHeight = pageElement.offsetHeight;
+      const offsetRatio = pageHeight > 0 ? clamp(-pageTop / pageHeight, 0, 1) : 0;
 
-      if (!pageElement) {
-        continue;
-      }
-
-      const pageTopAbsolute = pageElement.getBoundingClientRect().top + window.scrollY;
-      const pageTopInDocument = pageTopAbsolute - documentTopAbsolute;
-
-      if (pageTopInDocument <= documentScrollTop + 0.5) {
-        const pageHeight = pageElement.offsetHeight;
-        const offsetRatio =
-          pageHeight > 0 ? clamp((documentScrollTop - pageTopInDocument) / pageHeight, 0, 1) : 0;
-
-        return { pageNumber: page.pageNumber, offsetRatio };
-      }
+      return { pageNumber: page.pageNumber, offsetRatio };
     }
 
     const firstPage = pageList[0];
 
     return firstPage ? { pageNumber: firstPage.pageNumber, offsetRatio: 0 } : undefined;
+  };
+
+  // Страницы идут в DOM сверху вниз, поэтому их верхние границы монотонны.
+  const lastPageIndexStartingAbove = (pageList: PdfPageDescriptor[], viewportY: number) => {
+    let low = 0;
+    let high = pageList.length - 1;
+    let result = -1;
+
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      const element = pageRefs.get(pageList[middle].pageNumber);
+
+      if (!element) {
+        return linearLastPageIndexStartingAbove(pageList, viewportY);
+      }
+
+      if (element.getBoundingClientRect().top <= viewportY) {
+        result = middle;
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+
+    return result;
+  };
+
+  const linearLastPageIndexStartingAbove = (pageList: PdfPageDescriptor[], viewportY: number) => {
+    for (let index = pageList.length - 1; index >= 0; index -= 1) {
+      const element = pageRefs.get(pageList[index].pageNumber);
+
+      if (element && element.getBoundingClientRect().top <= viewportY) {
+        return index;
+      }
+    }
+
+    return -1;
   };
 
   const getDocumentLayoutMetrics = () => {
@@ -491,29 +517,26 @@ function PdfReader(props: {
     }
 
     const viewportCenter = window.innerHeight / 2;
-    let closestPage = pageList[0].pageNumber;
+    const index = lastPageIndexStartingAbove(pageList, viewportCenter);
+    let closestPage = pageList[Math.max(0, index)].pageNumber;
     let closestDistance = Number.POSITIVE_INFINITY;
 
-    for (const page of pageList) {
-      const element = pageRefs.get(page.pageNumber);
+    for (const candidate of [pageList[index], pageList[index + 1]]) {
+      const element = candidate ? pageRefs.get(candidate.pageNumber) : undefined;
 
-      if (!element) {
+      if (!candidate || !element) {
         continue;
       }
 
       const rect = element.getBoundingClientRect();
-
-      if (rect.top <= viewportCenter && rect.bottom >= viewportCenter) {
-        closestPage = page.pageNumber;
-        break;
-      }
-
       const distance =
-        viewportCenter < rect.top ? rect.top - viewportCenter : viewportCenter - rect.bottom;
+        viewportCenter < rect.top
+          ? rect.top - viewportCenter
+          : Math.max(0, viewportCenter - rect.bottom);
 
       if (distance < closestDistance) {
         closestDistance = distance;
-        closestPage = page.pageNumber;
+        closestPage = candidate.pageNumber;
       }
     }
 
@@ -1088,12 +1111,16 @@ function PdfReader(props: {
 
       const scale = (displayWidth * ratio) / descriptor.width;
       const viewport = page.getViewport({ scale });
+      // Перерисовка уже показанной страницы идёт во внеэкранный canvas:
+      // смена размеров видимого canvas очищает его, и страница мигает пустой.
+      const hasPreviousFrame = canvas.width > 0 && canvas.height > 0;
+      const renderTarget = hasPreviousFrame ? document.createElement('canvas') : canvas;
 
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
+      renderTarget.width = Math.round(viewport.width);
+      renderTarget.height = Math.round(viewport.height);
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
-      if (filteredCanvas) {
+      if (filteredCanvas && !hasPreviousFrame) {
         resizeFilteredCanvas(
           filteredCanvas,
           canvas.width,
@@ -1103,11 +1130,20 @@ function PdfReader(props: {
         );
       }
 
-      const task = page.render({ canvas, viewport });
+      const task = page.render({ canvas: renderTarget, viewport });
       renderTasks.set(descriptor.pageNumber, task);
 
       try {
         await task.promise;
+
+        if (renderTarget !== canvas) {
+          canvas.width = renderTarget.width;
+          canvas.height = renderTarget.height;
+          canvas.getContext('2d')?.drawImage(renderTarget, 0, 0);
+          renderTarget.width = 0;
+          renderTarget.height = 0;
+        }
+
         renderedKeys.set(descriptor.pageNumber, renderKey);
         filteredKeys.delete(descriptor.pageNumber);
         setFilteredPages((current) => {

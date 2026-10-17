@@ -113,12 +113,6 @@ export type ReflowableReaderSettings = {
   maxTextWidth?: number;
 };
 
-export type RenderedBlock = {
-  block: ReflowableBlock;
-  index: number;
-  height: number;
-};
-
 export type VirtualLayout = {
   offsets: number[];
   heights: number[];

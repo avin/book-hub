@@ -930,25 +930,39 @@ function DjvuReader(props: {
   onMount(() => {
     const syncCurrentPage = () => {
       const viewportCenter = window.innerHeight / 2;
+      const pageList = pages();
       let closestPage = currentPage();
       let closestDistance = Number.POSITIVE_INFINITY;
+      // Страницы идут сверху вниз: ищем последнюю, чей верх выше центра экрана.
+      let lowerBound = 0;
+      let upperBound = pageList.length - 1;
+      let anchorIndex = 0;
 
-      for (const page of pages()) {
-        const rect = pageRefs.get(page.pageNumber)?.getBoundingClientRect();
+      while (lowerBound <= upperBound) {
+        const index = (lowerBound + upperBound) >> 1;
+        const top = pageRefs.get(pageList[index].pageNumber)?.getBoundingClientRect().top;
 
-        if (!rect) {
+        if (top === undefined) break;
+
+        if (top <= viewportCenter) {
+          anchorIndex = index;
+          lowerBound = index + 1;
+        } else {
+          upperBound = index - 1;
+        }
+      }
+
+      for (const page of [pageList[anchorIndex], pageList[anchorIndex + 1]]) {
+        const rect = page ? pageRefs.get(page.pageNumber)?.getBoundingClientRect() : undefined;
+
+        if (!page || !rect) {
           continue;
         }
 
-        if (rect.top <= viewportCenter && rect.bottom >= viewportCenter) {
-          closestPage = page.pageNumber;
-          break;
-        }
-
-        const distance = Math.min(
-          Math.abs(rect.top - viewportCenter),
-          Math.abs(rect.bottom - viewportCenter),
-        );
+        const distance =
+          viewportCenter < rect.top
+            ? rect.top - viewportCenter
+            : Math.max(0, viewportCenter - rect.bottom);
 
         if (distance < closestDistance) {
           closestDistance = distance;

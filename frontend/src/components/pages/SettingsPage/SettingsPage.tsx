@@ -1,4 +1,4 @@
-import { createMemo, createSignal, onMount, Show } from 'solid-js';
+import { createMemo, createSignal, Show } from 'solid-js';
 import { Database, KeyRound, Palette, RotateCcw } from 'lucide-solid';
 import { createResetAllReadingProgressMutation } from '@/api/books';
 import { createChangePasswordMutation, createCurrentUserQuery } from '@/api/user';
@@ -6,8 +6,8 @@ import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import TextInput from '@/components/common/TextInput/TextInput';
 import ThemeSelect from '@/components/common/ThemeSelect/ThemeSelect';
-import AppLayout from '@/components/layouts/AppLayout/AppLayout';
 import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/messages';
 import { getThemePreference } from '@/storage/browserPreferences';
 import { changeTheme } from '@/styles/ThemeSync';
 import { defaultThemeId, type ThemeId } from '@/styles/themes';
@@ -30,21 +30,14 @@ function formatBytes(value: number) {
   return `${nextValue.toFixed(nextValue >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-function errorMessage(error: unknown, fallback: string) {
-  if (
-    error &&
-    typeof error === 'object' &&
-    'message' in error &&
-    typeof error.message === 'string'
-  ) {
-    return error.message;
+function passwordErrorMessage(error: unknown): MessageKey {
+  const code = (error as { code?: unknown } | null)?.code;
+
+  if (code === 'unauthorized') {
+    return 'currentPasswordIncorrect';
   }
 
-  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
-    return error.code;
-  }
-
-  return fallback;
+  return code === 'validation_error' ? 'passwordRequirementsNotMet' : 'requestFailedTryAgain';
 }
 
 function SettingsPage() {
@@ -59,12 +52,10 @@ function SettingsPage() {
   const [passwordSaved, setPasswordSaved] = createSignal(false);
   const [progressResetError, setProgressResetError] = createSignal('');
   const [progressResetDone, setProgressResetDone] = createSignal(false);
-  const [activeTheme, setActiveTheme] = createSignal<ThemeId>(defaultThemeId());
+  const [activeTheme, setActiveTheme] = createSignal<ThemeId>(
+    getThemePreference() ?? defaultThemeId(),
+  );
   const user = createMemo(() => currentUserQuery.data);
-
-  onMount(() => {
-    setActiveTheme(getThemePreference() ?? defaultThemeId());
-  });
 
   const handleChangeTheme = (themeId: ThemeId) => {
     setActiveTheme(themeId);
@@ -125,133 +116,127 @@ function SettingsPage() {
           setRepeatPassword('');
           setPasswordSaved(true);
         },
-        onError: (nextError) =>
-          setPasswordError(errorMessage(nextError, t('requestFailedTryAgain'))),
+        onError: (nextError) => setPasswordError(t(passwordErrorMessage(nextError))),
       },
     );
   };
 
   return (
-    <AppLayout>
-      <section class={styles.settingsPage}>
-        <header class={styles.header}>
-          <p class={styles.kicker}>{t('settings')}</p>
-          <h1>
-            {t('accountSettings')}
-            <Show when={user()}>
-              {(currentUser) => <span class={styles.accountName}> {currentUser().login}</span>}
-            </Show>
-          </h1>
+    <section class={styles.settingsPage}>
+      <header class={styles.header}>
+        <p class={styles.kicker}>{t('settings')}</p>
+        <h1>
+          {t('accountSettings')}
+          <Show when={user()}>
+            {(currentUser) => <span class={styles.accountName}> {currentUser().login}</span>}
+          </Show>
+        </h1>
+      </header>
+
+      <div class={styles.grid}>
+        <form class={styles.panel} onSubmit={handleChangePassword}>
+          <header class={styles.panelHeader}>
+            <KeyRound />
+            <h2>{t('changePassword')}</h2>
+          </header>
+
+          <InputContainer label={t('currentPassword')}>
+            <TextInput
+              type="password"
+              value={currentPassword()}
+              onInput={(event) =>
+                updatePasswordField(setCurrentPassword, event.currentTarget.value)
+              }
+            />
+          </InputContainer>
+          <InputContainer label={t('newPassword')}>
+            <TextInput
+              type="password"
+              value={newPassword()}
+              onInput={(event) => updatePasswordField(setNewPassword, event.currentTarget.value)}
+            />
+          </InputContainer>
+          <InputContainer label={t('repeatPassword')}>
+            <TextInput
+              type="password"
+              value={repeatPassword()}
+              onInput={(event) => updatePasswordField(setRepeatPassword, event.currentTarget.value)}
+            />
+          </InputContainer>
+
+          <Show when={passwordError()}>
+            <p class={styles.error}>{passwordError()}</p>
+          </Show>
+          <Show when={passwordSaved()}>
+            <p class={styles.success}>{t('passwordChanged')}</p>
+          </Show>
+
+          <footer class={styles.panelActions}>
+            <Button type="submit" loading={changePasswordMutation.isPending}>
+              {t('savePassword')}
+            </Button>
+          </footer>
+        </form>
+
+        <section class={styles.panel}>
+          <header class={styles.panelHeader}>
+            <Database />
+            <h2>{t('storage')}</h2>
+          </header>
+
+          <Show when={user()}>
+            {(currentUser) => (
+              <>
+                <div class={styles.storageBar}>
+                  <span style={{ width: `${usedPercent()}%` }} />
+                </div>
+                <p class={styles.storageText}>
+                  {formatBytes(currentUser().used_bytes)} / {formatBytes(currentUser().quota_bytes)}
+                </p>
+              </>
+            )}
+          </Show>
+        </section>
+      </div>
+
+      <section class={styles.panel}>
+        <header class={styles.panelHeader}>
+          <Palette />
+          <h2>{t('appearance')}</h2>
         </header>
 
-        <div class={styles.grid}>
-          <form class={styles.panel} onSubmit={handleChangePassword}>
-            <header class={styles.panelHeader}>
-              <KeyRound />
-              <h2>{t('changePassword')}</h2>
-            </header>
-
-            <InputContainer label={t('currentPassword')}>
-              <TextInput
-                type="password"
-                value={currentPassword()}
-                onInput={(event) =>
-                  updatePasswordField(setCurrentPassword, event.currentTarget.value)
-                }
-              />
-            </InputContainer>
-            <InputContainer label={t('newPassword')}>
-              <TextInput
-                type="password"
-                value={newPassword()}
-                onInput={(event) => updatePasswordField(setNewPassword, event.currentTarget.value)}
-              />
-            </InputContainer>
-            <InputContainer label={t('repeatPassword')}>
-              <TextInput
-                type="password"
-                value={repeatPassword()}
-                onInput={(event) =>
-                  updatePasswordField(setRepeatPassword, event.currentTarget.value)
-                }
-              />
-            </InputContainer>
-
-            <Show when={passwordError()}>
-              <p class={styles.error}>{passwordError()}</p>
-            </Show>
-            <Show when={passwordSaved()}>
-              <p class={styles.success}>{t('passwordChanged')}</p>
-            </Show>
-
-            <footer class={styles.panelActions}>
-              <Button type="submit" loading={changePasswordMutation.isPending}>
-                {t('savePassword')}
-              </Button>
-            </footer>
-          </form>
-
-          <section class={styles.panel}>
-            <header class={styles.panelHeader}>
-              <Database />
-              <h2>{t('storage')}</h2>
-            </header>
-
-            <Show when={user()}>
-              {(currentUser) => (
-                <>
-                  <div class={styles.storageBar}>
-                    <span style={{ width: `${usedPercent()}%` }} />
-                  </div>
-                  <p class={styles.storageText}>
-                    {formatBytes(currentUser().used_bytes)} /{' '}
-                    {formatBytes(currentUser().quota_bytes)}
-                  </p>
-                </>
-              )}
-            </Show>
-          </section>
-        </div>
-
-        <section class={styles.panel}>
-          <header class={styles.panelHeader}>
-            <Palette />
-            <h2>{t('appearance')}</h2>
-          </header>
-
-          <ThemeSelect value={activeTheme()} onChange={handleChangeTheme} />
-        </section>
-
-        <section class={styles.panel}>
-          <header class={styles.panelHeader}>
-            <RotateCcw />
-            <h2>{t('data')}</h2>
-          </header>
-
-          <div class={styles.dangerRow}>
-            <div class={styles.dangerText}>
-              <p class={styles.dangerTitle}>{t('resetAllProgress')}</p>
-              <p class={styles.dangerHint}>{t('resetAllProgressDescription')}</p>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              destructive
-              loading={resetAllProgressMutation.isPending}
-              onClick={handleResetAllProgress}
-            >
-              {t('resetAllProgress')}
-            </Button>
-          </div>
-          <Show when={progressResetError()}>
-            <p class={styles.error}>{progressResetError()}</p>
-          </Show>
-          <Show when={progressResetDone()}>
-            <p class={styles.success}>{t('resetAllProgressDone')}</p>
-          </Show>
-        </section>
+        <ThemeSelect value={activeTheme()} onChange={handleChangeTheme} />
       </section>
-    </AppLayout>
+
+      <section class={styles.panel}>
+        <header class={styles.panelHeader}>
+          <RotateCcw />
+          <h2>{t('data')}</h2>
+        </header>
+
+        <div class={styles.dangerRow}>
+          <div class={styles.dangerText}>
+            <p class={styles.dangerTitle}>{t('resetAllProgress')}</p>
+            <p class={styles.dangerHint}>{t('resetAllProgressDescription')}</p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            destructive
+            loading={resetAllProgressMutation.isPending}
+            onClick={handleResetAllProgress}
+          >
+            {t('resetAllProgress')}
+          </Button>
+        </div>
+        <Show when={progressResetError()}>
+          <p class={styles.error}>{progressResetError()}</p>
+        </Show>
+        <Show when={progressResetDone()}>
+          <p class={styles.success}>{t('resetAllProgressDone')}</p>
+        </Show>
+      </section>
+    </section>
   );
 }
 

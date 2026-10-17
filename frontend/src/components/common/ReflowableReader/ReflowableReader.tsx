@@ -4,6 +4,7 @@ import {
   createSignal,
   For,
   type JSX,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -21,6 +22,7 @@ import {
   findReflowableSearchMatches,
   normalizeSearchQuery,
   type ReflowableSearchMatch,
+  type ReflowableSearchRange,
 } from './reflowableSearch';
 import type {
   ReflowableBlock,
@@ -29,7 +31,6 @@ import type {
   ReflowableInline,
   ReflowableNote,
   ReflowableReaderSettings,
-  RenderedBlock,
   VirtualLayout,
 } from './reflowableTypes';
 import ReaderChrome from './ReaderChrome/ReaderChrome';
@@ -58,6 +59,7 @@ type ReaderPanel = 'none' | 'settings' | 'toc';
 
 const layoutWidthDebounceMs = 120;
 const viewportResizeEndMs = 150;
+const settingsPersistDebounceMs = 300;
 
 function visualViewportHeight() {
   return window.visualViewport?.height ?? window.innerHeight;
@@ -169,6 +171,7 @@ function ReflowableReader(props: {
   let executedSearchQuery: string | undefined;
   let searchScrollFrame: number | undefined;
   let lastMeasuredReaderWidth = 0;
+  let settingsPersistTimeout: number | undefined;
   let disposed = false;
   const [settings, setSettings] = createSignal<ReflowableReaderSettings>({
     ...defaultSettings,
@@ -298,8 +301,23 @@ function ReflowableReader(props: {
 
     return lastMeasuredLayout;
   });
-  const imageSrc = (id: string | undefined) =>
-    binaryToDataUrl(id ? parsed().binaries.get(id) : undefined);
+  const imageSrcCache = createMemo(() => {
+    void parsed();
+    return new Map<string, string | undefined>();
+  });
+  const imageSrc = (id: string | undefined) => {
+    if (!id) {
+      return undefined;
+    }
+
+    const cache = imageSrcCache();
+
+    if (!cache.has(id)) {
+      cache.set(id, binaryToDataUrl(parsed().binaries.get(id)));
+    }
+
+    return cache.get(id);
+  };
   const cssVars = createMemo<ReflowableCssVars>(() => ({
     '--fb2-bg': settings().backgroundColor,
     '--fb2-text': settings().textColor,
@@ -312,37 +330,48 @@ function ReflowableReader(props: {
   const markerStyles = createMemo<{ left: JSX.CSSProperties; right: JSX.CSSProperties }>(() =>
     computeWidthRulerMarkers(rulerElement(), effectiveMaxTextWidth(), availableTextWidth()),
   );
-  const visibleBlocks = createMemo<RenderedBlock[]>(() => {
-    const currentLayout = layout();
-    const blocks = parsed().blocks;
-    const overscan = 1000;
-    const start = findBlockIndex(currentLayout.offsets, Math.max(0, scrollTop() - overscan));
-    const endLimit = scrollTop() + viewportHeight() + overscan;
-    let end = start;
+  const visibleRange = createMemo(
+    () => {
+      const currentLayout = layout();
+      const blockCount = parsed().blocks.length;
+      const overscan = 1000;
+      const start = findBlockIndex(currentLayout.offsets, Math.max(0, scrollTop() - overscan));
+      const endLimit = scrollTop() + viewportHeight() + overscan;
+      let end = start;
 
-    while (end < blocks.length && currentLayout.offsets[end] < endLimit) {
-      end += 1;
-    }
+      while (end < blockCount && currentLayout.offsets[end] < endLimit) {
+        end += 1;
+      }
 
-    return blocks.slice(start, end).map((block, offset) => {
-      const index = start + offset;
+      return { start, end };
+    },
+    { start: 0, end: 0 },
+    { equals: (previous, next) => previous.start === next.start && previous.end === next.end },
+  );
+  const visibleBlockIndexes = createMemo(() => {
+    const { start, end } = visibleRange();
 
-      return { block, index, height: currentLayout.heights[index] ?? 0 };
-    });
+    return Array.from({ length: end - start }, (_, offset) => start + offset);
   });
-  const topSpacer = createMemo(() => {
-    const first = visibleBlocks()[0];
-
-    return first ? layout().offsets[first.index] : 0;
-  });
+  const topSpacer = createMemo(() =>
+    visibleRange().end > visibleRange().start ? (layout().offsets[visibleRange().start] ?? 0) : 0,
+  );
   const bottomSpacer = createMemo(() => {
-    const last = visibleBlocks()[visibleBlocks().length - 1];
+    const { start, end } = visibleRange();
+    const currentLayout = layout();
 
-    if (!last) {
-      return layout().totalHeight;
+    if (end <= start) {
+      return currentLayout.totalHeight;
     }
 
-    return Math.max(0, layout().totalHeight - layout().offsets[last.index] - last.height);
+    const last = end - 1;
+
+    return Math.max(
+      0,
+      currentLayout.totalHeight -
+        (currentLayout.offsets[last] ?? 0) -
+        (currentLayout.heights[last] ?? 0),
+    );
   });
   const documentTitle = createMemo(() => {
     const authors = parsed().authors.join(', ');
@@ -629,17 +658,19 @@ function ReflowableReader(props: {
     scrollToSearchMatch(matches[nextIndex]);
   };
 
-  const searchRangesForBlock = (blockIndex: number) => {
+  const searchRangesByBlock = createMemo(() => {
     const activeIndex = activeSearchIndex();
+    const rangesByBlock = new Map<number, ReflowableSearchRange[]>();
 
-    return searchMatches()
-      .map((match, index) => ({
-        match,
-        index,
-      }))
-      .filter(({ match }) => match.blockIndex === blockIndex)
-      .map(({ match, index }) => ({ ...match, active: index === activeIndex }));
-  };
+    searchMatches().forEach((match, index) => {
+      const ranges = rangesByBlock.get(match.blockIndex) ?? [];
+
+      ranges.push({ ...match, active: index === activeIndex });
+      rangesByBlock.set(match.blockIndex, ranges);
+    });
+
+    return rangesByBlock;
+  });
 
   const onTocSelect = (_entry: TocEntry, path: number[]) => {
     let nodes = parsed().outline;
@@ -868,9 +899,27 @@ function ReflowableReader(props: {
     flushLayoutTextWidth();
   });
 
-  createEffect(() => {
-    setReflowableReaderSettingsPreference(settings());
-  });
+  const flushSettingsPersist = () => {
+    if (settingsPersistTimeout !== undefined) {
+      window.clearTimeout(settingsPersistTimeout);
+      settingsPersistTimeout = undefined;
+      setReflowableReaderSettingsPreference(untrack(settings));
+    }
+  };
+
+  createEffect(
+    on(
+      settings,
+      () => {
+        if (settingsPersistTimeout !== undefined) {
+          window.clearTimeout(settingsPersistTimeout);
+        }
+
+        settingsPersistTimeout = window.setTimeout(flushSettingsPersist, settingsPersistDebounceMs);
+      },
+      { defer: true },
+    ),
+  );
 
   createEffect(() => {
     const currentSettings = settings();
@@ -1007,6 +1056,7 @@ function ReflowableReader(props: {
 
   onCleanup(() => {
     disposed = true;
+    flushSettingsPersist();
 
     if (scrollAnchorFrame !== undefined) {
       cancelAnimationFrame(scrollAnchorFrame);
@@ -1132,16 +1182,16 @@ function ReflowableReader(props: {
       >
         <article ref={documentRef} class={styles.document} style={{ width: `${textWidth()}px` }}>
           <div style={{ height: `${topSpacer()}px` }} aria-hidden="true" />
-          <For each={visibleBlocks()}>
-            {(item) => (
-              <div class={styles.blockSlot} style={{ height: `${item.height}px` }}>
+          <For each={visibleBlockIndexes()}>
+            {(index) => (
+              <div class={styles.blockSlot} style={{ height: `${layout().heights[index] ?? 0}px` }}>
                 <BlockView
-                  block={item.block}
+                  block={parsed().blocks[index]}
                   imageSrc={imageSrc}
                   onInternalLink={onInternalLink}
                   onFootnoteLink={onFootnoteLink}
                   isFootnoteTarget={isFootnoteTarget}
-                  searchRanges={searchRangesForBlock(item.index)}
+                  searchRanges={searchRangesByBlock().get(index)}
                 />
               </div>
             )}

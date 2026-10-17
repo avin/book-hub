@@ -1,7 +1,7 @@
 import { useNavigate } from '@solidjs/router';
 import { createInfiniteQuery } from '@tanstack/solid-query';
-import { createEffect, createMemo, createSignal, Index, onCleanup, onMount, Show } from 'solid-js';
-import { LayoutGrid, Library, List, Upload, X } from 'lucide-solid';
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { LayoutGrid, Library, List, SearchX, Upload, X } from 'lucide-solid';
 import {
   type Book,
   type BookListResponse,
@@ -20,7 +20,6 @@ import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
 import TextInput from '@/components/common/TextInput/TextInput';
-import AppLayout from '@/components/layouts/AppLayout/AppLayout';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
   type LibraryView,
@@ -86,14 +85,21 @@ function LibraryPage() {
   });
 
   createEffect(() => {
-    const state = {
+    rememberLibraryListState({
       search: search(),
       sort: sort(),
       favoriteFilter: favoriteFilter(),
       tags: selectedTags(),
-    };
+    });
+  });
 
-    rememberLibraryListState(state);
+  createEffect(() => {
+    const state = {
+      search: debouncedSearch(),
+      sort: sort(),
+      favoriteFilter: favoriteFilter(),
+      tags: selectedTags(),
+    };
 
     const nextUrl = buildLibraryListStateUrl(state, {
       pathname: libraryRoutePath,
@@ -143,6 +149,11 @@ function LibraryPage() {
     };
   });
   const books = createMemo(() => booksQuery.data?.pages.flatMap((page) => page.items) ?? []);
+  const bookIds = createMemo(() => books().map((book) => book.id), [], {
+    equals: (previous, next) =>
+      previous.length === next.length && previous.every((id, index) => id === next[index]),
+  });
+  const booksById = createMemo(() => new Map(books().map((book) => [book.id, book])));
   const tagOptions = createMemo(() =>
     mergeTagOptions(bookTagsQuery.data?.items ?? [], selectedTags()),
   );
@@ -249,153 +260,182 @@ function LibraryPage() {
   };
 
   return (
-    <AppLayout>
-      <section class={styles.library}>
-        <header class={styles.header}>
-          <div>
-            <p class={styles.kicker}>{t('library')}</p>
-            <h1>
-              {t('yourBooks')}
-              <Show when={booksTotal() !== undefined}>
-                <span
-                  class={styles.booksTotal}
-                  classList={{ [styles.booksTotalFiltered]: hasActiveFilters() }}
-                >
-                  {' - '}
-                  {booksTotal()} {hasActiveFilters() ? t('filtered') : t('total')}
-                </span>
-                <Show when={hasActiveFilters()}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    destructive
-                    iconOnly
-                    class={styles.resetFilters}
-                    iconStart={<X />}
-                    aria-label={t('resetFilters')}
-                    title={t('resetFilters')}
-                    onClick={resetFilters}
-                  />
-                </Show>
-              </Show>
-            </h1>
-          </div>
-          <Button href="/upload" class={styles.headerUpload} iconStart={<Upload />}>
-            {t('uploadBook')}
-          </Button>
-        </header>
-
-        <section class={styles.toolbar}>
-          <InputContainer label={t('searchBooks')}>
-            <div
-              class={styles.searchField}
-              classList={{ [styles.searchFieldActive]: search() !== '' }}
-            >
-              <TextInput
-                value={search()}
-                placeholder={t('findByTitle')}
-                onInput={(event) => {
-                  setSearch(event.currentTarget.value);
-                }}
-              />
-              <Show when={search() !== ''}>
-                <button
+    <section class={styles.library}>
+      <header class={styles.header}>
+        <div>
+          <p class={styles.kicker}>{t('library')}</p>
+          <h1>
+            {t('yourBooks')}
+            <Show when={booksTotal() !== undefined}>
+              <span
+                class={styles.booksTotal}
+                classList={{ [styles.booksTotalFiltered]: hasActiveFilters() }}
+              >
+                {' - '}
+                {booksTotal()} {hasActiveFilters() ? t('filtered') : t('total')}
+              </span>
+              <Show when={hasActiveFilters()}>
+                <Button
                   type="button"
-                  class={styles.searchClear}
-                  aria-label={t('clearSearch')}
-                  title={t('clearSearch')}
-                  onClick={() => {
-                    setSearch('');
-                    setDebouncedSearch('');
-                  }}
-                >
-                  <X />
-                </button>
+                  variant="ghost"
+                  size="sm"
+                  destructive
+                  iconOnly
+                  class={styles.resetFilters}
+                  iconStart={<X />}
+                  aria-label={t('resetFilters')}
+                  title={t('resetFilters')}
+                  onClick={resetFilters}
+                />
               </Show>
-            </div>
+            </Show>
+          </h1>
+        </div>
+        <Button href="/upload" class={styles.headerUpload} iconStart={<Upload />}>
+          {t('uploadBook')}
+        </Button>
+      </header>
+
+      <section class={styles.toolbar}>
+        <InputContainer label={t('searchBooks')}>
+          <div
+            class={styles.searchField}
+            classList={{ [styles.searchFieldActive]: search() !== '' }}
+          >
+            <TextInput
+              value={search()}
+              placeholder={t('findByTitle')}
+              onInput={(event) => {
+                setSearch(event.currentTarget.value);
+              }}
+            />
+            <Show when={search() !== ''}>
+              <button
+                type="button"
+                class={styles.searchClear}
+                aria-label={t('clearSearch')}
+                title={t('clearSearch')}
+                onClick={() => {
+                  setSearch('');
+                  setDebouncedSearch('');
+                }}
+              >
+                <X />
+              </button>
+            </Show>
+          </div>
+        </InputContainer>
+
+        <div class={styles.secondaryFilters}>
+          <InputContainer label={t('tags')}>
+            <TagsSelect
+              value={selectedTags()}
+              options={tagOptions()}
+              placeholder={t('findByTag')}
+              onChange={(nextTags) => {
+                setSelectedTags(nextTags);
+              }}
+            />
           </InputContainer>
 
-          <div class={styles.secondaryFilters}>
-            <InputContainer label={t('tags')}>
-              <TagsSelect
-                value={selectedTags()}
-                options={tagOptions()}
-                placeholder={t('findByTag')}
-                onChange={(nextTags) => {
-                  setSelectedTags(nextTags);
+          <div class={styles.filtersField}>
+            <InputContainer label="">
+              <LibraryFiltersDropdown
+                sort={sort()}
+                favoriteFilter={favoriteFilter()}
+                onSortChange={(nextSort) => {
+                  setSort(nextSort);
+                }}
+                onFavoriteFilterChange={(nextFavoriteFilter) => {
+                  setFavoriteFilter(nextFavoriteFilter);
                 }}
               />
             </InputContainer>
 
-            <div class={styles.filtersField}>
-              <InputContainer label="">
-                <LibraryFiltersDropdown
-                  sort={sort()}
-                  favoriteFilter={favoriteFilter()}
-                  onSortChange={(nextSort) => {
-                    setSort(nextSort);
-                  }}
-                  onFavoriteFilterChange={(nextFavoriteFilter) => {
-                    setFavoriteFilter(nextFavoriteFilter);
-                  }}
-                />
-              </InputContainer>
-
-              <div class={styles.viewToggle} role="group" aria-label={t('bookActions')}>
-                <Button
-                  type="button"
-                  variant={view() === 'list' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  iconOnly
-                  aria-label={t('viewList')}
-                  title={t('viewList')}
-                  aria-pressed={view() === 'list'}
-                  onClick={() => {
-                    setView('list');
-                    setLibraryViewPreference('list');
-                  }}
-                  iconStart={<List />}
-                />
-                <Button
-                  type="button"
-                  variant={view() === 'grid' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  iconOnly
-                  aria-label={t('viewGrid')}
-                  title={t('viewGrid')}
-                  aria-pressed={view() === 'grid'}
-                  onClick={() => {
-                    setView('grid');
-                    setLibraryViewPreference('grid');
-                  }}
-                  iconStart={<LayoutGrid />}
-                />
-              </div>
+            <div class={styles.viewToggle} role="group" aria-label={t('bookActions')}>
+              <Button
+                type="button"
+                variant={view() === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                iconOnly
+                aria-label={t('viewList')}
+                title={t('viewList')}
+                aria-pressed={view() === 'list'}
+                onClick={() => {
+                  setView('list');
+                  setLibraryViewPreference('list');
+                }}
+                iconStart={<List />}
+              />
+              <Button
+                type="button"
+                variant={view() === 'grid' ? 'secondary' : 'ghost'}
+                size="sm"
+                iconOnly
+                aria-label={t('viewGrid')}
+                title={t('viewGrid')}
+                aria-pressed={view() === 'grid'}
+                onClick={() => {
+                  setView('grid');
+                  setLibraryViewPreference('grid');
+                }}
+                iconStart={<LayoutGrid />}
+              />
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <Show when={showInitialLoading()}>
-          <LoadingScreen label={t('loading')} />
-        </Show>
+      <Show when={showInitialLoading()}>
+        <LoadingScreen class={styles.listLoading} label={t('loading')} />
+      </Show>
 
-        <Show when={booksQuery.isError}>
-          <div class={styles.state}>{t('requestFailedTryAgain')}</div>
-        </Show>
+      <Show when={booksQuery.isError && books().length === 0}>
+        <div class={styles.state}>
+          <p>{t('requestFailedTryAgain')}</p>
+          <Button type="button" variant="secondary" onClick={() => void booksQuery.refetch()}>
+            {t('tryAgain')}
+          </Button>
+        </div>
+      </Show>
 
-        <Show when={!showInitialLoading() && !booksQuery.isError && books().length === 0}>
+      <Show when={!showInitialLoading() && !booksQuery.isError && books().length === 0}>
+        <Show
+          when={hasActiveFilters()}
+          fallback={
+            <div class={styles.emptyState}>
+              <Library />
+              <h2>{t('libraryEmpty')}</h2>
+              <Button href="/upload">{t('uploadBook')}</Button>
+            </div>
+          }
+        >
           <div class={styles.emptyState}>
-            <Library />
-            <h2>{t('libraryEmpty')}</h2>
-            <Button href="/upload">{t('uploadBook')}</Button>
+            <SearchX />
+            <h2>{t('noBooksMatchFilters')}</h2>
+            <Button type="button" variant="secondary" onClick={resetFilters}>
+              {t('resetFilters')}
+            </Button>
           </div>
         </Show>
+      </Show>
 
-        <Show when={books().length > 0}>
-          <div class={styles.bookList} classList={{ [styles.bookListGrid]: view() === 'grid' }}>
-            <Index each={books()}>
-              {(book) => (
+      <Show when={books().length > 0}>
+        <div
+          class={styles.bookList}
+          classList={{
+            [styles.bookListGrid]: view() === 'grid',
+            [styles.bookListStale]: booksQuery.isPlaceholderData,
+          }}
+        >
+          <For each={bookIds()}>
+            {(bookId) => {
+              const book = createMemo<Book>(
+                (previous) => booksById().get(bookId) ?? previous,
+                booksById().get(bookId)!,
+              );
+
+              return (
                 <Show
                   when={view() === 'grid'}
                   fallback={
@@ -416,30 +456,30 @@ function LibraryPage() {
                     onResetProgress={handleResetProgress}
                   />
                 </Show>
-              )}
-            </Index>
-          </div>
-        </Show>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
 
-        <div ref={loadMoreRef} class={styles.loadMoreSentinel} aria-hidden="true" />
+      <div ref={loadMoreRef} class={styles.loadMoreSentinel} aria-hidden="true" />
 
-        <Show when={booksQuery.isFetchingNextPage}>
-          <div class={styles.loadingMore} role="status" aria-label={t('loading')}>
-            <span class={styles.loadingMoreSpinner} aria-hidden="true" />
-          </div>
-        </Show>
+      <Show when={booksQuery.isFetchingNextPage}>
+        <div class={styles.loadingMore} role="status" aria-label={t('loading')}>
+          <span class={styles.loadingMoreSpinner} aria-hidden="true" />
+        </div>
+      </Show>
 
-        <Show when={editingBook()}>
-          {(book) => (
-            <EditBookDialog
-              book={book()}
-              tagOptions={tagOptions()}
-              onClose={() => setEditingBook(undefined)}
-            />
-          )}
-        </Show>
-      </section>
-    </AppLayout>
+      <Show when={editingBook()}>
+        {(book) => (
+          <EditBookDialog
+            book={book()}
+            tagOptions={tagOptions()}
+            onClose={() => setEditingBook(undefined)}
+          />
+        )}
+      </Show>
+    </section>
   );
 }
 

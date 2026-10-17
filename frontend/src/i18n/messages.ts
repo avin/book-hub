@@ -73,6 +73,38 @@ export const messages = {
     ru: 'Запрос не выполнен. Проверьте данные и попробуйте ещё раз.',
     en: 'The request failed. Check the data and try again.',
   },
+  invalidLoginOrPassword: {
+    ru: 'Неверный логин или пароль.',
+    en: 'Invalid login or password.',
+  },
+  registrationDisabled: {
+    ru: 'Регистрация отключена администратором.',
+    en: 'Registration is disabled by the administrator.',
+  },
+  currentPasswordIncorrect: {
+    ru: 'Текущий пароль указан неверно.',
+    en: 'The current password is incorrect.',
+  },
+  passwordRequirementsNotMet: {
+    ru: 'Новый пароль не соответствует требованиям.',
+    en: 'The new password does not meet the requirements.',
+  },
+  pageFailedToLoad: {
+    ru: 'Не удалось загрузить страницу.',
+    en: 'The page failed to load.',
+  },
+  tryAgain: {
+    ru: 'Повторить',
+    en: 'Try again',
+  },
+  bookNotFound: {
+    ru: 'Книга не найдена.',
+    en: 'Book not found.',
+  },
+  backToLibrary: {
+    ru: 'Вернуться в библиотеку',
+    en: 'Back to library',
+  },
   requestCreatedWaitActivation: {
     ru: 'Заявка создана. Дождитесь активации аккаунта.',
     en: 'The request was created. Wait for account activation.',
@@ -388,6 +420,10 @@ export const messages = {
   libraryEmpty: {
     ru: 'Библиотека пуста',
     en: 'Library is empty',
+  },
+  noBooksMatchFilters: {
+    ru: 'Ничего не найдено',
+    en: 'No books match the filters',
   },
   read: {
     ru: 'Читать',

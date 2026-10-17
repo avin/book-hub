@@ -1,4 +1,4 @@
-import { createMemo, createSignal, Index, onCleanup, Show } from 'solid-js';
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { FileUp, ImagePlus, ScanText, Trash2, Upload } from 'lucide-solid';
 import { createBookTagsQuery } from '@/api/books';
 import Button from '@/components/common/Button/Button';
@@ -7,7 +7,6 @@ import usePageLocker from '@/components/common/PageLockerProvider/usePageLocker'
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
 import TextInput from '@/components/common/TextInput/TextInput';
-import AppLayout from '@/components/layouts/AppLayout/AppLayout';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
   applyBulkTags as applyBulkTagsToDrafts,
@@ -81,6 +80,11 @@ function UploadPage() {
   );
   const canSubmit = createMemo(() => drafts().length > 0 && !uploading());
   const hasMultipleDrafts = createMemo(() => drafts().length > 1);
+  const draftIds = createMemo(() => drafts().map((draft) => draft.id), [], {
+    equals: (previous, next) =>
+      previous.length === next.length && previous.every((id, index) => id === next[index]),
+  });
+  const draftsById = createMemo(() => new Map(drafts().map((draft) => [draft.id, draft])));
 
   const updateDraft = (id: string, updater: (draft: BookDraft) => BookDraft) => {
     if (!isPageActive || !activeDraftIds.has(id)) {
@@ -232,6 +236,22 @@ function UploadPage() {
     },
   });
 
+  onMount(() => {
+    // Dropping a file outside the drop zone must not navigate away from the app.
+    const preventFileNavigation = (event: DragEvent) => {
+      if (event.dataTransfer?.types.includes('Files')) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('dragover', preventFileNavigation);
+    window.addEventListener('drop', preventFileNavigation);
+    onCleanup(() => {
+      window.removeEventListener('dragover', preventFileNavigation);
+      window.removeEventListener('drop', preventFileNavigation);
+    });
+  });
+
   onCleanup(() => {
     isPageActive = false;
     preparationGeneration += 1;
@@ -247,75 +267,84 @@ function UploadPage() {
   });
 
   return (
-    <AppLayout>
-      <section class={styles.uploadPage}>
-        <header class={styles.header}>
-          <div>
-            <p class={styles.kicker}>{t('upload')}</p>
-            <h1>{t('addBooks')}</h1>
-          </div>
-        </header>
+    <section class={styles.uploadPage}>
+      <header class={styles.header}>
+        <div>
+          <p class={styles.kicker}>{t('upload')}</p>
+          <h1>{t('addBooks')}</h1>
+        </div>
+      </header>
 
-        <form class={styles.form} onSubmit={uploadBatch.handleSubmit}>
-          <button
-            type="button"
-            class={styles.dropzone}
-            classList={{ [styles.dragActive]: dragActive() }}
-            disabled={uploading()}
-            onClick={() => fileInputEl?.click()}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragActive(true);
-            }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={(event) => {
-              event.preventDefault();
+      <form class={styles.form} onSubmit={uploadBatch.handleSubmit}>
+        <button
+          type="button"
+          class={styles.dropzone}
+          classList={{ [styles.dragActive]: dragActive() }}
+          disabled={uploading()}
+          onClick={() => fileInputEl?.click()}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
               setDragActive(false);
-              addFiles(event.dataTransfer?.files ?? []);
-            }}
-          >
-            <FileUp />
-            <span>{selectedBooksText()}</span>
-            <small>{t('supportedBookFormats')}</small>
-          </button>
+            }
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+            addFiles(event.dataTransfer?.files ?? []);
+          }}
+        >
+          <FileUp />
+          <span>{selectedBooksText()}</span>
+          <small>{t('supportedBookFormats')}</small>
+        </button>
 
-          <input
-            ref={fileInputEl}
-            class={styles.fileInput}
-            type="file"
-            accept=".djvu,.djv,.epub,.pdf,.fb2"
-            multiple
-            onChange={(event) => {
-              addFiles(event.currentTarget.files ?? []);
-              event.currentTarget.value = '';
-            }}
-          />
+        <input
+          ref={fileInputEl}
+          class={styles.fileInput}
+          type="file"
+          accept=".djvu,.djv,.epub,.pdf,.fb2"
+          multiple
+          onChange={(event) => {
+            addFiles(event.currentTarget.files ?? []);
+            event.currentTarget.value = '';
+          }}
+        />
 
-          <Show when={drafts().length > 0}>
-            <Show when={hasMultipleDrafts()}>
-              <section class={styles.bulkTags}>
-                <InputContainer label={t('tagsForAll')}>
-                  <TagsSelect
-                    value={bulkTags()}
-                    options={tagOptions()}
-                    onChange={setBulkTags}
-                    disabled={uploading()}
-                  />
-                </InputContainer>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={uploading() || bulkTags().length === 0}
-                  onClick={applyBulkTags}
-                >
-                  {t('applyTagsToAll')}
-                </Button>
-              </section>
-            </Show>
+        <Show when={drafts().length > 0}>
+          <Show when={hasMultipleDrafts()}>
+            <section class={styles.bulkTags}>
+              <InputContainer label={t('tagsForAll')}>
+                <TagsSelect
+                  value={bulkTags()}
+                  options={tagOptions()}
+                  onChange={setBulkTags}
+                  disabled={uploading()}
+                />
+              </InputContainer>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={uploading() || bulkTags().length === 0}
+                onClick={applyBulkTags}
+              >
+                {t('applyTagsToAll')}
+              </Button>
+            </section>
+          </Show>
 
-            <div class={styles.bookDrafts}>
-              <Index each={drafts()}>
-                {(draft) => (
+          <div class={styles.bookDrafts}>
+            <For each={draftIds()}>
+              {(draftId) => {
+                const draft = createMemo<BookDraft>(
+                  (previous) => draftsById().get(draftId) ?? previous,
+                  draftsById().get(draftId)!,
+                );
+
+                return (
                   <article class={styles.bookDraft}>
                     <div class={styles.coverColumn}>
                       <button
@@ -437,47 +466,47 @@ function UploadPage() {
                       </footer>
                     </div>
                   </article>
-                )}
-              </Index>
-            </div>
-          </Show>
+                );
+              }}
+            </For>
+          </div>
+        </Show>
 
-          <Show when={error()}>
-            <p class={styles.error}>{error()}</p>
-          </Show>
+        <Show when={error()}>
+          <p class={styles.error}>{error()}</p>
+        </Show>
 
-          <footer class={styles.actions}>
-            <Show when={uploadProgress()}>
-              {(progress) => (
+        <footer class={styles.actions}>
+          <Show when={uploadProgress()}>
+            {(progress) => (
+              <div
+                class={styles.uploadProgress}
+                role="progressbar"
+                aria-label={t('uploadProgress')
+                  .replace('{count}', String(progress().completed))
+                  .replace('{total}', String(progress().total))}
+                aria-valuemin="0"
+                aria-valuemax={progress().total}
+                aria-valuenow={progress().completed}
+              >
                 <div
-                  class={styles.uploadProgress}
-                  role="progressbar"
-                  aria-label={t('uploadProgress')
-                    .replace('{count}', String(progress().completed))
-                    .replace('{total}', String(progress().total))}
-                  aria-valuemin="0"
-                  aria-valuemax={progress().total}
-                  aria-valuenow={progress().completed}
-                >
-                  <div
-                    class={styles.uploadProgressBar}
-                    style={{ width: `${(progress().completed / progress().total) * 100}%` }}
-                  />
-                </div>
-              )}
-            </Show>
-            <Button
-              type="submit"
-              loading={uploading()}
-              disabled={!canSubmit()}
-              iconStart={<Upload />}
-            >
-              {t('uploadBooks')}
-            </Button>
-          </footer>
-        </form>
-      </section>
-    </AppLayout>
+                  class={styles.uploadProgressBar}
+                  style={{ width: `${(progress().completed / progress().total) * 100}%` }}
+                />
+              </div>
+            )}
+          </Show>
+          <Button
+            type="submit"
+            loading={uploading()}
+            disabled={!canSubmit()}
+            iconStart={<Upload />}
+          >
+            {t('uploadBooks')}
+          </Button>
+        </footer>
+      </form>
+    </section>
   );
 }
 

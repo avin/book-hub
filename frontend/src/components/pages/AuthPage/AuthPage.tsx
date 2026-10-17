@@ -1,23 +1,39 @@
 import { Eye, EyeOff } from 'lucide-solid';
-import { useNavigate } from '@solidjs/router';
-import { createMemo, createSignal, Show } from 'solid-js';
+import { A, useLocation, useNavigate } from '@solidjs/router';
+import { createEffect, createMemo, createSignal, on, Show } from 'solid-js';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import TextInput from '@/components/common/TextInput/TextInput';
 import AuthLayout from '@/components/layouts/AuthLayout/AuthLayout';
 import { createLoginMutation, createRegisterMutation } from '@/api/auth';
+import { authRedirectTarget } from '@/components/App/AuthGate/AuthGate';
 import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/messages';
 import styles from './AuthPage.module.scss';
 
-type AuthMode = 'login' | 'register';
+function apiErrorCode(error: unknown) {
+  const code = (error as { code?: unknown } | null)?.code;
 
-function isAccountInactiveError(error: unknown) {
-  return error && typeof error === 'object' && 'code' in error && error.code === 'account_inactive';
+  return typeof code === 'string' ? code : undefined;
 }
 
-function AuthPage(props: { mode: AuthMode }) {
+function authErrorMessage(error: unknown, isRegister: boolean): MessageKey {
+  switch (apiErrorCode(error)) {
+    case 'account_inactive':
+      return 'accountNotActivated';
+    case 'unauthorized':
+      return isRegister ? 'requestFailedTryAgain' : 'invalidLoginOrPassword';
+    case 'registration_disabled':
+      return 'registrationDisabled';
+    default:
+      return 'requestFailedTryAgain';
+  }
+}
+
+function AuthPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
   const loginMutation = createLoginMutation();
   const registerMutation = createRegisterMutation();
 
@@ -28,7 +44,18 @@ function AuthPage(props: { mode: AuthMode }) {
   const [formError, setFormError] = createSignal<string | null>(null);
   const [success, setSuccess] = createSignal<string | null>(null);
 
-  const isRegister = createMemo(() => props.mode === 'register');
+  const isRegister = createMemo(() => location.pathname.endsWith('/register'));
+
+  createEffect(
+    on(
+      isRegister,
+      () => {
+        setFormError(null);
+        setSuccess(null);
+      },
+      { defer: true },
+    ),
+  );
   const isPending = createMemo(() => loginMutation.isPending || registerMutation.isPending);
   const loginError = createMemo(() =>
     formError() && !login().trim() ? t('fillField') : undefined,
@@ -82,18 +109,18 @@ function AuthPage(props: { mode: AuthMode }) {
       };
 
       if (isRegister()) {
-        await registerMutation.mutateAsync(credentials);
-        setSuccess(t('requestCreatedWaitActivation'));
-      } else {
-        await loginMutation.mutateAsync(credentials);
-        navigate('/library', { replace: true });
+        const registration = await registerMutation.mutateAsync(credentials);
+
+        if (!registration.is_active) {
+          setSuccess(t('requestCreatedWaitActivation'));
+          return;
+        }
       }
+
+      await loginMutation.mutateAsync(credentials);
+      navigate(authRedirectTarget(location.state, '/library'), { replace: true });
     } catch (error) {
-      setFormError(
-        !isRegister() && isAccountInactiveError(error)
-          ? t('accountNotActivated')
-          : t('requestFailedTryAgain'),
-      );
+      setFormError(t(authErrorMessage(error, isRegister())));
     }
   };
 
@@ -105,12 +132,26 @@ function AuthPage(props: { mode: AuthMode }) {
         </header>
 
         <div class={styles.tabs} role="tablist" aria-label={t('bookHub')}>
-          <a classList={{ [styles.active]: props.mode === 'login' }} href="/login" role="tab">
+          <A
+            classList={{ [styles.active]: !isRegister() }}
+            href="/login"
+            state={location.state}
+            replace
+            role="tab"
+            aria-selected={!isRegister()}
+          >
             {t('signIn')}
-          </a>
-          <a classList={{ [styles.active]: props.mode === 'register' }} href="/register" role="tab">
+          </A>
+          <A
+            classList={{ [styles.active]: isRegister() }}
+            href="/register"
+            state={location.state}
+            replace
+            role="tab"
+            aria-selected={isRegister()}
+          >
             {t('register')}
-          </a>
+          </A>
         </div>
 
         <form class={styles.form} onSubmit={submit}>

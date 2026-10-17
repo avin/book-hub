@@ -1,5 +1,14 @@
 import { useParams } from '@solidjs/router';
-import { createEffect, createMemo, createSignal, lazy, onCleanup, Show, Suspense } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  lazy,
+  onCleanup,
+  Show,
+  Suspense,
+  untrack,
+} from 'solid-js';
 import { ArrowLeft, Heart } from 'lucide-solid';
 import {
   createBookFileTextQuery,
@@ -21,6 +30,9 @@ const PdfReader = lazy(() => import('@/components/common/PdfReader/PdfReader'));
 const DjvuReader = lazy(() => import('@/components/common/DjvuReader/DjvuReader'));
 
 const progressSaveDelayMs = 1000;
+const restoreStableFrames = 6;
+const restoreMaxWaitMs = 1500;
+const restoreConfirmDelayMs = 600;
 
 function scrollProgressPercent() {
   const root = document.documentElement;
@@ -53,10 +65,12 @@ function ReaderPage() {
   const [pdfReady, setPdfReady] = createSignal(false);
   const [djvuReady, setDjvuReady] = createSignal(false);
   const [epubReady, setEpubReady] = createSignal(false);
+  const [restoreState, setRestoreState] = createSignal<'pending' | 'restoring' | 'done'>('pending');
   let saveTimeout: number | undefined;
   let restoreTimeoutIds: number[] = [];
+  let restoreFrame: number | undefined;
+  let restoreCleanup: (() => void) | undefined;
   let activeBookId = bookId();
-  let restoredBookId: string | undefined;
 
   const book = createMemo(() => bookQuery.data);
   const isFb2 = createMemo(() => book()?.format === 'fb2');
@@ -65,7 +79,11 @@ function ReaderPage() {
   const isEpub = createMemo(() => book()?.format === 'epub');
   const canTrackProgress = createMemo(
     () =>
-      isFb2() || (isEpub() && epubReady()) || (isPdf() && pdfReady()) || (isDjvu() && djvuReady()),
+      restoreState() === 'done' &&
+      (isFb2() ||
+        (isEpub() && epubReady()) ||
+        (isPdf() && pdfReady()) ||
+        (isDjvu() && djvuReady())),
   );
   const canRestoreProgress = createMemo(
     () =>
@@ -90,6 +108,14 @@ function ReaderPage() {
     }
 
     restoreTimeoutIds = [];
+
+    if (restoreFrame !== undefined) {
+      cancelAnimationFrame(restoreFrame);
+      restoreFrame = undefined;
+    }
+
+    restoreCleanup?.();
+    restoreCleanup = undefined;
   };
 
   createEffect(() => {
@@ -102,7 +128,7 @@ function ReaderPage() {
     clearScheduledProgressSave();
     clearScheduledProgressRestore();
     activeBookId = currentBookId;
-    restoredBookId = undefined;
+    setRestoreState('pending');
     setPdfReady(false);
     setDjvuReady(false);
     setEpubReady(false);
@@ -197,45 +223,127 @@ function ReaderPage() {
   });
 
   createEffect(() => {
-    const currentBookId = bookId();
     const progress = progressQuery.data;
 
-    if (restoredBookId === currentBookId || !canRestoreProgress() || !progress) {
+    if (restoreState() !== 'pending' || !canRestoreProgress()) {
       return;
     }
 
-    clearScheduledProgressRestore();
-    restoredBookId = currentBookId;
-    const restoreDelayMs = isPdf() || isDjvu() ? 80 : 350;
-    const confirmRestoreDelayMs = isPdf() || isDjvu() ? 260 : 900;
-    const progressPercent = progress.progress_percent;
+    if (!progress) {
+      if (progressQuery.isError) {
+        setRestoreState('done');
+      }
 
-    restoreTimeoutIds = [
-      window.setTimeout(() => {
-        if (window.scrollY <= 80) restoreScrollProgress(progressPercent);
-      }, restoreDelayMs),
-      window.setTimeout(() => {
-        if (window.scrollY <= 80) restoreScrollProgress(progressPercent);
-      }, confirmRestoreDelayMs),
-    ];
+      return;
+    }
+
+    if (progress.progress_percent <= 0) {
+      setRestoreState('done');
+      return;
+    }
+
+    setRestoreState('restoring');
+    untrack(() => restoreProgressWhenLayoutSettles(progress.progress_percent));
   });
+
+  const restoreProgressWhenLayoutSettles = (progressPercent: number) => {
+    const deadline = performance.now() + restoreMaxWaitMs;
+    let lastScrollHeight = -1;
+    let stableFrames = 0;
+
+    const finish = () => {
+      restoreCleanup = undefined;
+      setRestoreState('done');
+      window.removeEventListener('wheel', cancelOnUserInput);
+      window.removeEventListener('touchstart', cancelOnUserInput);
+      window.removeEventListener('keydown', cancelOnUserInput);
+    };
+    const cancelOnUserInput = () => {
+      clearScheduledProgressRestore();
+      finish();
+    };
+    const step = () => {
+      const scrollHeight = document.documentElement.scrollHeight;
+
+      stableFrames = scrollHeight === lastScrollHeight ? stableFrames + 1 : 0;
+      lastScrollHeight = scrollHeight;
+
+      if (stableFrames < restoreStableFrames && performance.now() < deadline) {
+        restoreFrame = requestAnimationFrame(step);
+        return;
+      }
+
+      restoreFrame = undefined;
+      restoreScrollProgress(progressPercent);
+      finish();
+      // Читалки могут ещё раз пересчитать раскладку после загрузки шрифтов
+      // и сбросить позицию в начало; повторяем восстановление в этом случае.
+      restoreTimeoutIds = [
+        window.setTimeout(() => {
+          if (window.scrollY <= 80) restoreScrollProgress(progressPercent);
+        }, restoreConfirmDelayMs),
+      ];
+    };
+
+    window.addEventListener('wheel', cancelOnUserInput, { passive: true });
+    window.addEventListener('touchstart', cancelOnUserInput, { passive: true });
+    window.addEventListener('keydown', cancelOnUserInput);
+    restoreCleanup = finish;
+    restoreFrame = requestAnimationFrame(step);
+  };
 
   onCleanup(() => {
     clearScheduledProgressSave();
     clearScheduledProgressRestore();
   });
 
+  const loadError = createMemo(() => {
+    if (bookQuery.isError) {
+      return bookQuery.error;
+    }
+
+    if (isFb2() && fb2FileQuery.isError) {
+      return fb2FileQuery.error;
+    }
+
+    return isEpub() && epubFileQuery.isError ? epubFileQuery.error : undefined;
+  });
+  const showLoadingOverlay = () =>
+    bookQuery.isLoading ||
+    restoreState() === 'restoring' ||
+    (restoreState() === 'pending' && Boolean(canRestoreProgress()) && progressQuery.isLoading);
+  const loadErrorIsNotFound = () =>
+    (loadError() as { code?: unknown } | undefined)?.code === 'not_found';
+
   return (
     <div class={styles.readerPage}>
-      <Show when={bookQuery.isError}>
-        <div class={styles.state}>{t('requestFailedTryAgain')}</div>
+      <Show when={loadError()}>
+        <div class={styles.state}>
+          <p>{loadErrorIsNotFound() ? t('bookNotFound') : t('requestFailedTryAgain')}</p>
+          <div class={styles.stateActions}>
+            <Show when={!loadErrorIsNotFound()}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  void bookQuery.refetch();
+                  if (isFb2()) void fb2FileQuery.refetch();
+                  if (isEpub()) void epubFileQuery.refetch();
+                }}
+              >
+                {t('tryAgain')}
+              </Button>
+            </Show>
+            <Button href="/library">{t('backToLibrary')}</Button>
+          </div>
+        </div>
       </Show>
 
-      <Show when={bookQuery.isLoading}>
-        <LoadingScreen label={t('loading')} />
+      <Show when={showLoadingOverlay()}>
+        <LoadingScreen class={styles.loadingOverlay} label={t('loading')} />
       </Show>
 
-      <Show when={isFb2()}>
+      <Show when={isFb2() && !fb2FileQuery.isError}>
         <Show when={fb2FileQuery.data} fallback={<LoadingScreen label={t('loading')} />}>
           {(fb2) => (
             <Suspense fallback={<LoadingScreen label={t('loading')} />}>
@@ -274,7 +382,7 @@ function ReaderPage() {
         </Suspense>
       </Show>
 
-      <Show when={isEpub()}>
+      <Show when={isEpub() && !epubFileQuery.isError}>
         <Show when={epubFileQuery.data} fallback={<LoadingScreen label={t('loading')} />}>
           {(epub) => (
             <Suspense fallback={<LoadingScreen label={t('loading')} />}>

@@ -142,6 +142,20 @@
   color: var(--text-muted);
 }
 
+.state {
+  align-content: center;
+  gap: 14px;
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+}
+
+.listLoading {
+  min-height: 260px;
+}
+
 .emptyState {
   align-content: center;
   gap: 14px;
@@ -165,6 +179,11 @@
 .bookList {
   display: grid;
   gap: 12px;
+  transition: opacity 160ms ease;
+}
+
+.bookListStale {
+  opacity: 0.6;
 }
 
 // Grid view: covers-only, responsive columns. Each card keeps a 2:3 aspect

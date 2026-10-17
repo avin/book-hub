@@ -77,6 +77,7 @@ function Dropdown(props: {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         props.onOpenChange(false);
       }
     };

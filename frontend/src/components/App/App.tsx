@@ -1,106 +1,72 @@
-import { Navigate, Route, Router } from '@solidjs/router';
-import { lazy, Suspense } from 'solid-js';
-import type { JSX } from 'solid-js';
-import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
-import { useI18n } from '@/i18n/I18nProvider';
+import { Navigate, Route, Router, type RouteSectionProps } from '@solidjs/router';
+import { lazy } from 'solid-js';
+import AppLayout from '@/components/layouts/AppLayout/AppLayout';
+import PageBoundary from './PageBoundary/PageBoundary';
 import PrivateRoute from './PrivateRoute/PrivateRoute';
 import PublicOnlyRoute from './PublicOnlyRoute/PublicOnlyRoute';
 
-const AuthPage = lazy(() => import('@/components/pages/AuthPage/AuthPage'));
-const LibraryPage = lazy(() => import('@/components/pages/LibraryPage/LibraryPage'));
-const ReaderPage = lazy(() => import('@/components/pages/ReaderPage/ReaderPage'));
-const SettingsPage = lazy(() => import('@/components/pages/SettingsPage/SettingsPage'));
-const UploadPage = lazy(() => import('@/components/pages/UploadPage/UploadPage'));
+const loadAuthPage = () => import('@/components/pages/AuthPage/AuthPage');
+const loadLibraryPage = () => import('@/components/pages/LibraryPage/LibraryPage');
+const loadReaderPage = () => import('@/components/pages/ReaderPage/ReaderPage');
+const loadSettingsPage = () => import('@/components/pages/SettingsPage/SettingsPage');
+const loadUploadPage = () => import('@/components/pages/UploadPage/UploadPage');
 
-function PageFallback() {
-  const { t } = useI18n();
+const AuthPage = lazy(loadAuthPage);
+const LibraryPage = lazy(loadLibraryPage);
+const ReaderPage = lazy(loadReaderPage);
+const SettingsPage = lazy(loadSettingsPage);
+const UploadPage = lazy(loadUploadPage);
 
-  return <LoadingScreen label={t('loading')} />;
+const routerBase = import.meta.env.BASE_URL.replace(/\/+$/, '');
+
+function preloadPrivatePages() {
+  void loadLibraryPage();
+  void loadReaderPage();
+  void loadSettingsPage();
+  void loadUploadPage();
 }
 
-function LazyPage(props: { children: JSX.Element }) {
-  return <Suspense fallback={<PageFallback />}>{props.children}</Suspense>;
+function PublicShell(props: RouteSectionProps) {
+  return (
+    <PublicOnlyRoute>
+      <PageBoundary>{props.children}</PageBoundary>
+    </PublicOnlyRoute>
+  );
+}
+
+function AppShell(props: RouteSectionProps) {
+  return (
+    <PrivateRoute onReady={preloadPrivatePages}>
+      <AppLayout>
+        <PageBoundary>{props.children}</PageBoundary>
+      </AppLayout>
+    </PrivateRoute>
+  );
+}
+
+function ReaderShell(props: RouteSectionProps) {
+  return (
+    <PrivateRoute>
+      <PageBoundary>{props.children}</PageBoundary>
+    </PrivateRoute>
+  );
 }
 
 function App() {
   return (
-    <Router>
-      <Route
-        path="/"
-        component={() => (
-          <PrivateRoute>
-            <Navigate href="/library" />
-          </PrivateRoute>
-        )}
-      />
-      <Route
-        path="/login"
-        component={() => (
-          <PublicOnlyRoute>
-            <LazyPage>
-              <AuthPage mode="login" />
-            </LazyPage>
-          </PublicOnlyRoute>
-        )}
-      />
-      <Route
-        path="/register"
-        component={() => (
-          <PublicOnlyRoute>
-            <LazyPage>
-              <AuthPage mode="register" />
-            </LazyPage>
-          </PublicOnlyRoute>
-        )}
-      />
-      <Route
-        path="/library"
-        component={() => (
-          <PrivateRoute>
-            <LazyPage>
-              <LibraryPage />
-            </LazyPage>
-          </PrivateRoute>
-        )}
-      />
-      <Route
-        path="/upload"
-        component={() => (
-          <PrivateRoute>
-            <LazyPage>
-              <UploadPage />
-            </LazyPage>
-          </PrivateRoute>
-        )}
-      />
-      <Route
-        path="/settings"
-        component={() => (
-          <PrivateRoute>
-            <LazyPage>
-              <SettingsPage />
-            </LazyPage>
-          </PrivateRoute>
-        )}
-      />
-      <Route
-        path="/reader/:bookId"
-        component={() => (
-          <PrivateRoute>
-            <LazyPage>
-              <ReaderPage />
-            </LazyPage>
-          </PrivateRoute>
-        )}
-      />
-      <Route
-        path="*404"
-        component={() => (
-          <PrivateRoute>
-            <Navigate href="/library" />
-          </PrivateRoute>
-        )}
-      />
+    <Router base={routerBase}>
+      <Route component={PublicShell}>
+        <Route path={['/login', '/register']} component={AuthPage} />
+      </Route>
+      <Route component={AppShell}>
+        <Route path="/library" component={LibraryPage} />
+        <Route path="/upload" component={UploadPage} />
+        <Route path="/settings" component={SettingsPage} />
+      </Route>
+      <Route component={ReaderShell}>
+        <Route path="/reader/:bookId" component={ReaderPage} />
+      </Route>
+      <Route path="*404" component={() => <Navigate href="/library" />} />
     </Router>
   );
 }
