@@ -66,33 +66,38 @@ help:
 	@echo "  test                   Run backend and frontend tests, then build frontend"
 	@echo ""
 	@echo "Docker:"
-	@echo "  docker-up              Build and start the full stack"
+	@echo "  docker-build           Build images without starting services"
+	@echo "  docker-up              Build and start the full stack without applying migrations"
 	@echo "  docker-down            Stop and remove containers"
+	@echo "  docker-stop            Stop services without removing containers"
+	@echo "  docker-restart         Restart services without rebuilding or applying migrations"
 	@echo "  local-deploy           Build local images, apply migrations, and start services"
 	@echo "  ghcr-deploy            Pull a GHCR image tag, apply migrations, and start services"
 	@echo "  ghcr-migrate           Run migration command with a GHCR image tag"
 	@echo "  ghcr-admin             Open admin CLI with a GHCR image tag"
 	@echo ""
 	@echo "Operations and debug:"
+	@echo "  migrate MIGRATE_ARGS=... Run migration command (default: up)"
 	@echo "  migrate-up             Apply migrations"
 	@echo "  migrate-down           Roll back one migration"
+	@echo "  migrate-version        Show current migration version"
 	@echo "  admin                  Open admin CLI"
 	@echo "  logs [SERVICE=name]    Follow logs for all services or one service"
 	@echo "  ps                     Show compose service status"
 	@echo "  db-shell               Open psql in the PostgreSQL container"
 	@echo "  backend-shell          Open shell in the backend container"
-	@echo "  backup                 Save a complete database and storage backup"
-	@echo "  restore BACKUP=path    Restore database and storage from a backup"
+	@echo "  health-http            Check readiness through the published HTTP port"
+	@echo "  backup                 Stop app, back up DB/storage, then start app on success"
+	@echo "  restore BACKUP=path    Stop app, restore DB/storage, then start app on success"
 
 # Создает .env из примера, но не перезаписывает существующий файл.
 env:
 	@test -f .env || cp .env.example .env
 
-# Запускает PostgreSQL в Docker, применяет миграции и освобождает порт frontend.
+# Запускает PostgreSQL в Docker и применяет миграции.
 dev-db:
 	$(COMPOSE) up -d postgres
 	$(COMPOSE) run --rm migrate up
-	$(COMPOSE) stop frontend
 
 # Запускает Go backend локально; URL базы меняется с docker-host postgres на localhost.
 dev-backend:
