@@ -164,9 +164,9 @@ docker-restart:
 
 # Запуск из локального исходного кода: сборка, миграции, старт сервисов.
 local-deploy:
-	$(COMPOSE) build
-	$(COMPOSE) run --rm migrate up
-	$(COMPOSE) up -d
+	$(COMPOSE) -f docker-compose.yml build
+	$(COMPOSE) -f docker-compose.yml run --rm migrate up
+	$(COMPOSE) -f docker-compose.yml up -d
 
 # Проверяет, что перед запуском готовых образов указан их тег.
 ghcr-require-image-tag:

@@ -32,6 +32,8 @@ make env
 make local-deploy
 ```
 
+Команда использует только `docker-compose.yml`; локальный `docker-compose.override.yml` не применяется.
+
 Проверьте готовность:
 
 ```bash
