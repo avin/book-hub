@@ -1,7 +1,5 @@
 import { createMutation, type QueryClient, useQueryClient } from '@tanstack/solid-query';
-import { booksQueryKey } from './books';
 import { apiClient, getCsrfToken } from './client';
-import { settingsQueryKey } from './settings';
 import { currentUserQueryKey } from './user';
 
 type Credentials = {
@@ -10,11 +8,9 @@ type Credentials = {
 };
 
 function removePrivateQueries(queryClient: QueryClient) {
-  queryClient.removeQueries({ queryKey: booksQueryKey });
-  queryClient.removeQueries({ queryKey: ['book'] });
-  queryClient.removeQueries({ queryKey: ['book-file-text'] });
-  queryClient.removeQueries({ queryKey: ['book-progress'] });
-  queryClient.removeQueries({ queryKey: settingsQueryKey });
+  queryClient.removeQueries({
+    predicate: (query) => query.queryKey[0] !== currentUserQueryKey[0],
+  });
 }
 
 export function createLoginMutation() {

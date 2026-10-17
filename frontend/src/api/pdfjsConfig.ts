@@ -1,3 +1,5 @@
+import pdfjsWorkerUrl from './pdfjsWorker.ts?worker&url';
+
 function basePrefix() {
   const base = import.meta.env.BASE_URL;
   if (!base || base === '/') {
@@ -8,7 +10,7 @@ function basePrefix() {
 
 const assetsBase = `${basePrefix()}pdfjs-assets/`;
 
-export const pdfjsWorkerSrc = `${assetsBase}pdf.worker.mjs`;
+export const pdfjsWorkerSrc = pdfjsWorkerUrl;
 
 export const pdfjsDocumentParams = {
   cMapUrl: `${assetsBase}cmaps/`,

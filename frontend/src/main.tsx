@@ -1,5 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
+import './polyfills/esnext';
+import { QueryClientProvider } from '@tanstack/solid-query';
 import { render } from 'solid-js/web';
+import { createAppQueryClient } from './api/queryClient';
 import App from './components/App/App';
 import PageLockerProvider from './components/common/PageLockerProvider/PageLockerProvider';
 import { I18nProvider } from './i18n/I18nProvider';
@@ -13,7 +15,7 @@ if (!root) {
   throw new Error('Root element not found');
 }
 
-const queryClient = new QueryClient();
+const queryClient = createAppQueryClient();
 
 render(
   () => (

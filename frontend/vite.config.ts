@@ -14,6 +14,9 @@ function normalizeBasePath(value: string | undefined) {
 export default defineConfig({
   base: normalizeBasePath(process.env.VITE_BASE_PATH),
   plugins: [solid({ hot: process.env.VITEST ? false : undefined })],
+  worker: {
+    format: 'es',
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
