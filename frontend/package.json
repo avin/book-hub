@@ -32,7 +32,7 @@
     "**/*": "prettier --write --ignore-unknown"
   },
   "dependencies": {
-    "@chenglou/pretext": "^0.0.8",
+    "@chenglou/pretext": "^1.0.0",
     "@floating-ui/dom": "^1.7.6",
     "@solidjs/router": "^0.16.1",
     "@tanstack/solid-query": "^5.101.2",
