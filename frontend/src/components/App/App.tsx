@@ -20,10 +20,12 @@ const UploadPage = lazy(loadUploadPage);
 const routerBase = import.meta.env.BASE_URL.replace(/\/+$/, '');
 
 function preloadPrivatePages() {
-  void loadLibraryPage();
-  void loadReaderPage();
-  void loadSettingsPage();
-  void loadUploadPage();
+  void Promise.allSettled([
+    loadLibraryPage(),
+    loadReaderPage(),
+    loadSettingsPage(),
+    loadUploadPage(),
+  ]);
 }
 
 function PublicShell(props: RouteSectionProps) {
