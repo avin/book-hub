@@ -214,7 +214,7 @@ function FixedLayoutFilterPanel(props: {
       fallbackOnBody: true,
       fallbackTolerance: 4,
       ghostClass: styles.filterPlaceholder,
-      onEnd: ({ item, oldIndex, newIndex }) => {
+      onEnd: ({ item, from, oldIndex, newIndex }) => {
         const filterId = item.getAttribute('data-filter-id');
         if (
           oldIndex === undefined ||
@@ -225,6 +225,9 @@ function FixedLayoutFilterPanel(props: {
           return;
         }
 
+        // Restore the DOM expected by Solid before its keyed list applies the new order.
+        from.removeChild(item);
+        from.insertBefore(item, from.children[oldIndex] ?? null);
         props.onMoveFilter(filterId, newIndex);
       },
     });
