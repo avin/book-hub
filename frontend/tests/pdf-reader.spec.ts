@@ -14,6 +14,63 @@ test('читатель PDF отрисовывает страницу в брау
   await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
 });
 
+for (const deviceScaleFactor of [1, 1.25, 2]) {
+  test.describe(`PDF при плотности экрана ${deviceScaleFactor}`, () => {
+    test.use({ deviceScaleFactor });
+
+    test('не растягивает готовые canvas при изменении ширины и включении фильтра', async ({
+      page,
+    }) => {
+      await login(page);
+      await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+      const canvases = page.locator('[data-page-number="1"] canvas');
+
+      const expectNativeCanvasSize = async () => {
+        await expect
+          .poll(() =>
+            canvases.evaluateAll((elements) => {
+              const visible = elements.filter(
+                (canvas) => getComputedStyle(canvas).display !== 'none',
+              );
+              const ratio = Math.min(2, window.devicePixelRatio);
+
+              return (
+                visible.length > 0 &&
+                visible.every((element) => {
+                  const canvas = element as HTMLCanvasElement;
+                  const rect = canvas.getBoundingClientRect();
+                  const page = canvas.closest('[data-page-number]')!;
+
+                  return (
+                    canvas.width === Math.round(page.clientWidth * ratio) &&
+                    canvas.height > 0 &&
+                    Math.abs(rect.width - canvas.width / ratio) < 0.02 &&
+                    Math.abs(rect.height - canvas.height / ratio) < 0.02
+                  );
+                })
+              );
+            }),
+          )
+          .toBe(true);
+      };
+
+      for (const width of [1100, 1101]) {
+        await page.setViewportSize({ width, height: 900 });
+        await expectNativeCanvasSize();
+      }
+
+      await showReaderChrome(page);
+      await page.getByRole('button', { name: 'Внешний вид' }).click();
+      await page.getByRole('slider', { name: 'Увеличение ширины' }).fill('80');
+      await expect.poll(() => canvases.count()).toBeGreaterThan(1);
+      await expectNativeCanvasSize();
+      await page.getByRole('checkbox', { name: 'Инверсия', exact: true }).check();
+      await expect.poll(() => canvases.count()).toBeGreaterThan(2);
+      await expectNativeCanvasSize();
+    });
+  });
+}
+
 test('читатель PDF сохраняет поиск, оглавление, историю и fixed-layout настройки', async ({
   page,
 }) => {

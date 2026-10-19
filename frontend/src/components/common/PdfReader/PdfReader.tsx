@@ -1120,9 +1120,16 @@ function PdfReader(props: {
     return tile;
   };
 
-  const positionTile = (tile: PdfTile, bounds: PdfTileBounds, pageDeviceHeight: number) => {
-    tile.element.style.top = `${(bounds.deviceTop / pageDeviceHeight) * 100}%`;
-    tile.element.style.height = `${(bounds.deviceHeight / pageDeviceHeight) * 100}%`;
+  const positionTile = (
+    tile: PdfTile,
+    bounds: PdfTileBounds,
+    geometry: NonNullable<ReturnType<typeof pageRenderGeometry>>,
+  ) => {
+    // Проценты от высоты страницы растягивают уже растеризованный canvas:
+    // CSS aspect-ratio и округлённая высота bitmap могут не совпадать.
+    tile.element.style.top = `${bounds.deviceTop / geometry.ratio}px`;
+    tile.element.style.width = `${geometry.deviceWidth / geometry.ratio}px`;
+    tile.element.style.height = `${bounds.deviceHeight / geometry.ratio}px`;
   };
 
   const applyTileFilter = async (tile: PdfTile) => {
@@ -1244,7 +1251,7 @@ function PdfReader(props: {
     renderTarget.height = bounds.deviceHeight;
 
     if (!hasPreviousFrame) {
-      positionTile(tile, bounds, geometry.deviceHeight);
+      positionTile(tile, bounds, geometry);
     }
 
     const task = page.render({ canvas: renderTarget, viewport });
@@ -1273,7 +1280,7 @@ function PdfReader(props: {
       canvas.getContext('2d')?.drawImage(renderTarget, 0, 0);
       renderTarget.width = 0;
       renderTarget.height = 0;
-      positionTile(tile, bounds, geometry.deviceHeight);
+      positionTile(tile, bounds, geometry);
     }
 
     tile.renderKey = geometry.renderKey;
