@@ -19,15 +19,6 @@ const UploadPage = lazy(loadUploadPage);
 
 const routerBase = import.meta.env.BASE_URL.replace(/\/+$/, '');
 
-function preloadPrivatePages() {
-  void Promise.allSettled([
-    loadLibraryPage(),
-    loadReaderPage(),
-    loadSettingsPage(),
-    loadUploadPage(),
-  ]);
-}
-
 function PublicShell(props: RouteSectionProps) {
   return (
     <PublicOnlyRoute>
@@ -38,7 +29,7 @@ function PublicShell(props: RouteSectionProps) {
 
 function AppShell(props: RouteSectionProps) {
   return (
-    <PrivateRoute onReady={preloadPrivatePages}>
+    <PrivateRoute>
       <AppLayout>
         <PageBoundary>{props.children}</PageBoundary>
       </AppLayout>

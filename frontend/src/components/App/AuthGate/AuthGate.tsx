@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from '@solidjs/router';
-import { createEffect, type JSX, Show } from 'solid-js';
+import { type JSX, Show } from 'solid-js';
 import { createCurrentUserQuery } from '@/api/user';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 
@@ -13,22 +13,11 @@ export function authRedirectTarget(state: unknown, fallback: string) {
   return typeof from === 'string' && from.startsWith('/') ? from : fallback;
 }
 
-function AuthGate(props: {
-  children: JSX.Element;
-  fallbackHref: string;
-  requireAuth: boolean;
-  onReady?: () => void;
-}) {
+function AuthGate(props: { children: JSX.Element; fallbackHref: string; requireAuth: boolean }) {
   const location = useLocation();
   const currentUserQuery = createCurrentUserQuery();
   const isAuthenticated = () => Boolean(currentUserQuery.data) && !currentUserQuery.isError;
   const allowed = () => !currentUserQuery.isPending && isAuthenticated() === props.requireAuth;
-
-  createEffect(() => {
-    if (allowed()) {
-      props.onReady?.();
-    }
-  });
 
   const redirect = () =>
     props.requireAuth ? (

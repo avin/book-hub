@@ -29,14 +29,8 @@ export function createBookQuery(bookId: () => string) {
   }));
 }
 
-const bookFileQueryOptions = {
-  staleTime: Number.POSITIVE_INFINITY,
-  gcTime: 60_000,
-} as const;
-
 export function createBookFileTextQuery(bookId: () => string, enabled: () => boolean) {
   return createQuery(() => ({
-    ...bookFileQueryOptions,
     queryKey: bookFileTextQueryKey(bookId()),
     queryFn: () => fetchBookFileText(bookId()),
     enabled: enabled() && Boolean(bookId()),
@@ -45,7 +39,6 @@ export function createBookFileTextQuery(bookId: () => string, enabled: () => boo
 
 export function createBookFileBlobQuery(bookId: () => string, enabled: () => boolean) {
   return createQuery(() => ({
-    ...bookFileQueryOptions,
     queryKey: bookFileBlobQueryKey(bookId()),
     queryFn: () => fetchBookFileBlob(bookId()),
     enabled: enabled() && Boolean(bookId()),
