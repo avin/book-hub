@@ -1,3 +1,4 @@
+import { loadModule } from '@/loadModule';
 import {
   isDjvuBookFile,
   isEpubBookFile,
@@ -16,7 +17,7 @@ type Messages = {
 let coverExtractionModule: Promise<typeof import('./coverExtraction')> | undefined;
 
 function loadCoverExtraction() {
-  coverExtractionModule ??= import('./coverExtraction');
+  coverExtractionModule ??= loadModule(() => import('./coverExtraction'));
 
   return coverExtractionModule;
 }

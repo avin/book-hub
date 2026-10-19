@@ -1,15 +1,18 @@
 import { Navigate, Route, Router, type RouteSectionProps } from '@solidjs/router';
 import { lazy } from 'solid-js';
+import { loadModule } from '@/loadModule';
 import AppLayout from '@/components/layouts/AppLayout/AppLayout';
 import PageBoundary from './PageBoundary/PageBoundary';
 import PrivateRoute from './PrivateRoute/PrivateRoute';
 import PublicOnlyRoute from './PublicOnlyRoute/PublicOnlyRoute';
 
-const loadAuthPage = () => import('@/components/pages/AuthPage/AuthPage');
-const loadLibraryPage = () => import('@/components/pages/LibraryPage/LibraryPage');
-const loadReaderPage = () => import('@/components/pages/ReaderPage/ReaderPage');
-const loadSettingsPage = () => import('@/components/pages/SettingsPage/SettingsPage');
-const loadUploadPage = () => import('@/components/pages/UploadPage/UploadPage');
+const loadAuthPage = () => loadModule(() => import('@/components/pages/AuthPage/AuthPage'));
+const loadLibraryPage = () =>
+  loadModule(() => import('@/components/pages/LibraryPage/LibraryPage'));
+const loadReaderPage = () => loadModule(() => import('@/components/pages/ReaderPage/ReaderPage'));
+const loadSettingsPage = () =>
+  loadModule(() => import('@/components/pages/SettingsPage/SettingsPage'));
+const loadUploadPage = () => loadModule(() => import('@/components/pages/UploadPage/UploadPage'));
 
 const AuthPage = lazy(loadAuthPage);
 const LibraryPage = lazy(loadLibraryPage);

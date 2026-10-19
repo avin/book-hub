@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/solid-query';
+import { loadModule } from '@/loadModule';
 import { createMemo, createSignal, onCleanup, Show, untrack } from 'solid-js';
 import { ImagePlus, RefreshCw, X } from 'lucide-solid';
 import {
@@ -24,7 +25,9 @@ let coverExtractionModule:
   Promise<typeof import('@/components/pages/UploadPage/coverExtraction')> | undefined;
 
 function loadCoverExtraction() {
-  coverExtractionModule ??= import('@/components/pages/UploadPage/coverExtraction');
+  coverExtractionModule ??= loadModule(
+    () => import('@/components/pages/UploadPage/coverExtraction'),
+  );
   return coverExtractionModule;
 }
 

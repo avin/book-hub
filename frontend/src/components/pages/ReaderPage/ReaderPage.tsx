@@ -10,6 +10,7 @@ import {
   untrack,
 } from 'solid-js';
 import { ArrowLeft, Heart } from 'lucide-solid';
+import { loadModule } from '@/loadModule';
 import {
   createBookFileTextQuery,
   createBookFileBlobQuery,
@@ -24,10 +25,14 @@ import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import { useI18n } from '@/i18n/I18nProvider';
 import styles from './ReaderPage.module.scss';
 
-const Fb2Reader = lazy(() => import('@/components/common/Fb2Reader/Fb2Reader'));
-const EpubReader = lazy(() => import('@/components/common/EpubReader/EpubReader'));
-const PdfReader = lazy(() => import('@/components/common/PdfReader/PdfReader'));
-const DjvuReader = lazy(() => import('@/components/common/DjvuReader/DjvuReader'));
+const Fb2Reader = lazy(() => loadModule(() => import('@/components/common/Fb2Reader/Fb2Reader')));
+const EpubReader = lazy(() =>
+  loadModule(() => import('@/components/common/EpubReader/EpubReader')),
+);
+const PdfReader = lazy(() => loadModule(() => import('@/components/common/PdfReader/PdfReader')));
+const DjvuReader = lazy(() =>
+  loadModule(() => import('@/components/common/DjvuReader/DjvuReader')),
+);
 
 const progressSaveDelayMs = 1000;
 const restoreStableFrames = 6;

@@ -15,7 +15,21 @@ server {
         proxy_set_header X-Forwarded-Prefix __FORWARDED_PREFIX__;
     }
 
+    location ^~ /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        error_page 404 = @missing_asset;
+    }
+
+    location @missing_asset {
+        add_header Cache-Control "no-store" always;
+        return 404;
+    }
+
     location / {
+        add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+        etag off;
+        if_modified_since off;
         try_files $uri $uri/ /index.html;
     }
 }
