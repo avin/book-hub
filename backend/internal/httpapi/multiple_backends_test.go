@@ -549,7 +549,6 @@ type multipleOriginals struct {
 	puts      int
 	open      func(context.Context, int, string) (io.ReadCloser, error)
 	put       func(context.Context, string, string, string) (string, error)
-	remove    func(context.Context, string) error
 }
 
 func (s *multipleOriginals) setOffline(value bool) { s.mu.Lock(); s.offline = value; s.mu.Unlock() }
@@ -589,12 +588,6 @@ func (s *multipleOriginalClient) MoveBook(ctx context.Context, input, hash, form
 }
 
 func (s *multipleOriginalClient) Delete(ctx context.Context, location string) error {
-	s.shared.mu.Lock()
-	remove := s.shared.remove
-	s.shared.mu.Unlock()
-	if remove != nil {
-		return remove(ctx, location)
-	}
 	return s.shared.directory.Delete(ctx, location)
 }
 

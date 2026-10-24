@@ -154,13 +154,15 @@ SQLite-файл должен лежать на локальном диске; с
 Миграции PostgreSQL сохраняются в `backend/migrations/`, SQLite — в `backend/migrations/sqlite/`.
 Оба набора встроены в CLI. Запуск server/admin проверяет точную версию схемы и отсутствие dirty-состояния.
 
-## Документация
+## Проверка нескольких backend
 
 `BOOK_HUB_TEST_DATABASE_URL` включает реальные PostgreSQL-проверки нескольких backend:
 `go test -race ./internal/httpapi -run TestMultipleBackends` из `backend/`.
 Тесты создают изолированные схемы и два HTTP-сервера с независимыми соединениями, рабочими каталогами и кэшами,
 но общими оригиналами и изображениями. Конкурентный доступ синхронизируется событиями источника и наблюдаемым
 состоянием блокировок PostgreSQL; сервисы FTP/FTPS/S3 для этих сценариев не требуются.
+
+## Документация
 
 - [docs/APP.md](docs/APP.md) — поведение приложения;
 - [api/openapi.yaml](api/openapi.yaml) — API-контракт;
