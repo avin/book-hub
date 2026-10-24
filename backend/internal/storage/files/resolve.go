@@ -27,6 +27,10 @@ func (l *BookLease) Close() error {
 }
 
 func (s Store) OpenBook(ctx context.Context, book domain.Book) (*BookLease, error) {
+	return s.reads.open(ctx, book, s.fetchBook, s.cache)
+}
+
+func (s Store) fetchBook(ctx context.Context, book domain.Book) (*BookLease, error) {
 	if s.cache != nil {
 		lease, handled, err := s.cache.open(ctx, book, func() (io.ReadCloser, error) {
 			return s.Books.Open(ctx, book.StoragePath)
