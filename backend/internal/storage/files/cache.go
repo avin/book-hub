@@ -121,6 +121,17 @@ func (c *bookCache) restore() error {
 
 var errCacheFull = errors.New("cache budget occupied")
 
+func (c *bookCache) touch(hash string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if entry := c.entries[hash]; entry != nil {
+		entry.used = c.nextUse()
+		if err := os.Chtimes(c.path(hash), entry.used, entry.used); err != nil {
+			c.warning(err)
+		}
+	}
+}
+
 // makeRoom never evicts pinned responses or an in-progress receive.
 func (c *bookCache) makeRoom(size int64) error {
 	if size > c.limit {

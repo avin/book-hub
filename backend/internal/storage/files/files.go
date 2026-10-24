@@ -32,6 +32,7 @@ type Store struct {
 	Work   Workspace
 	root   string
 	cache  *bookCache
+	reads  *bookReads
 }
 
 func New(root string) Store {
@@ -99,6 +100,7 @@ func newStore(root, books, images, workPath string, limit int64) Store {
 		Images: Images{root: images, work: work},
 		Work:   work,
 		root:   root,
+		reads:  &bookReads{flights: make(map[string]*bookFlight)},
 	}
 }
 
