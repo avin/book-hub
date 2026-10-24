@@ -32,6 +32,7 @@ type Config struct {
 	FTPUser                  string
 	FTPPassword              string
 	FTPRoot                  string
+	FTPCAFile                string
 	S3Endpoint               string
 	S3Region                 string
 	S3Bucket                 string
@@ -62,6 +63,7 @@ func LoadFileStorage() (Config, error) {
 		FTPUser:           os.Getenv("BOOK_HUB_FTP_USER"),
 		FTPPassword:       os.Getenv("BOOK_HUB_FTP_PASSWORD"),
 		FTPRoot:           envString("BOOK_HUB_FTP_ROOT", "/books"),
+		FTPCAFile:         os.Getenv("BOOK_HUB_FTP_CA_FILE"),
 		S3Endpoint:        os.Getenv("BOOK_HUB_S3_ENDPOINT"),
 		S3Region:          os.Getenv("BOOK_HUB_S3_REGION"),
 		S3Bucket:          os.Getenv("BOOK_HUB_S3_BUCKET"),
@@ -128,10 +130,10 @@ func (c Config) FilePaths() (books, images, work string) {
 }
 
 func (c Config) ValidateFileStorage() error {
-	if c.BookStorage != "" && c.BookStorage != "directory" && c.BookStorage != "ftp" && c.BookStorage != "s3" {
-		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory, ftp or s3")
+	if c.BookStorage != "" && c.BookStorage != "directory" && c.BookStorage != "ftp" && c.BookStorage != "s3" && c.BookStorage != "ftps-explicit" && c.BookStorage != "ftps-implicit" {
+		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory, ftp, ftps-explicit, ftps-implicit or s3")
 	}
-	if c.BookStorage == "ftp" {
+	if c.BookStorage == "ftp" || c.BookStorage == "ftps-explicit" || c.BookStorage == "ftps-implicit" {
 		host, port, err := net.SplitHostPort(c.FTPAddr)
 		number, portErr := strconv.Atoi(port)
 		if err != nil || host == "" || strings.ContainsAny(host, " \t\r\n\x00") || portErr != nil || number < 1 || number > 65535 {
@@ -170,7 +172,7 @@ func (c Config) ValidateFileStorage() error {
 	}
 	books, images, work := c.FilePaths()
 	paths := []string{books, images, work}
-	if c.BookStorage == "ftp" || c.BookStorage == "s3" {
+	if c.BookStorage == "ftp" || c.BookStorage == "ftps-explicit" || c.BookStorage == "ftps-implicit" || c.BookStorage == "s3" {
 		paths = []string{images, work}
 	}
 	if c.CacheDir != "" || c.CacheMaxBytes != 0 {

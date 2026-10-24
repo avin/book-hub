@@ -25,3 +25,34 @@ func TestFTPConfigurationRejectsInvalidConnectionAndNamespace(t *testing.T) {
 		}
 	}
 }
+func TestFTPSModesAreExplicitConfiguration(t *testing.T) {
+	for _, mode := range []string{"ftps-explicit", "ftps-implicit"} {
+		cfg := config.Config{BookStorage: mode, FTPAddr: "localhost:21", FTPUser: "reader", FTPRoot: "/book-hub", StorageDir: t.TempDir()}
+		if err := cfg.ValidateFileStorage(); err != nil {
+			t.Errorf("%s: %v", mode, err)
+		}
+	}
+}
+
+func TestFTPSSettingsAreSharedByServerAndAdministrativeLoader(t *testing.T) {
+	t.Setenv("BOOK_HUB_SESSION_SECRET", "01234567890123456789012345678901")
+	t.Setenv("BOOK_HUB_STORAGE_DIR", t.TempDir())
+	t.Setenv("BOOK_HUB_BOOK_STORAGE", "ftps-implicit")
+	t.Setenv("BOOK_HUB_FTP_ADDR", "offline.example:990")
+	t.Setenv("BOOK_HUB_FTP_USER", "reader")
+	t.Setenv("BOOK_HUB_FTP_PASSWORD", "password")
+	t.Setenv("BOOK_HUB_FTP_ROOT", "/book-hub")
+	t.Setenv("BOOK_HUB_FTP_CA_FILE", "/configured/trusted.pem")
+	server, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BOOK_HUB_SESSION_SECRET", "")
+	administrative, err := config.LoadFileStorage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if administrative.BookStorage != server.BookStorage || administrative.FTPCAFile != "/configured/trusted.pem" || administrative.FTPCAFile != server.FTPCAFile || administrative.FTPAddr != server.FTPAddr {
+		t.Fatalf("FTPS configuration differs: server=%#v administrative=%#v", server, administrative)
+	}
+}
