@@ -31,6 +31,7 @@ func New(cfg config.Config, store storage.Store, fileStore files.Store, logger *
 	if logger == nil {
 		logger = slog.Default()
 	}
+	fileStore.SetLogger(logger)
 	server := &Server{
 		cfg:    cfg,
 		store:  store,

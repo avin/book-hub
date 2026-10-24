@@ -135,6 +135,7 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.files.SeedBook(r.Context(), book, temp)
 	s.writeJSON(w, http.StatusCreated, bookDTO(book))
 }
 
