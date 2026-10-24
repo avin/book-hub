@@ -2,9 +2,9 @@ package httpapi
 
 import (
 	"context"
+	"fmt"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -77,34 +77,23 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxUploadBytes+10*1024)
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		s.writeError(w, r, domain.ErrValidation)
-		return
-	}
-	file, header, err := r.FormFile("file")
+	temp, filename, form, err := s.readBookUpload(w, r)
 	if err != nil {
-		s.writeError(w, r, domain.ErrValidation)
+		s.writeError(w, r, err)
 		return
 	}
-	defer file.Close()
+	defer temp.Release()
 
-	format, err := domain.NormalizeBookFormat(header.Filename)
+	format, err := domain.NormalizeBookFormat(filename)
 	if err != nil {
 		s.writeError(w, r, err)
 		return
 	}
-	title := firstFormValue(r, "title")
+	title := form.Get("title")
 	if title == "" {
-		title = domain.TitleFromFilename(header.Filename)
+		title = domain.TitleFromFilename(filename)
 	}
-	favorite, _ := strconv.ParseBool(firstFormValue(r, "favorite"))
-	temp, err := s.files.Work.SaveTemp(file, s.cfg.MaxUploadBytes)
-	if err != nil {
-		s.writeError(w, r, err)
-		return
-	}
-	defer os.Remove(temp.Path)
+	favorite, _ := strconv.ParseBool(form.Get("favorite"))
 
 	existing, err := s.store.GetBookFileByHash(r.Context(), temp.SHA256)
 	if err != nil {
@@ -132,9 +121,13 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 	}
 	book, err := s.store.CreateBookWithOriginal(r.Context(), user.ID,
 		domain.BookFileInput{SHA256: temp.SHA256, SizeBytes: temp.Size, Format: format},
-		domain.BookInput{Title: title, Tags: r.MultipartForm.Value["tags"], Favorite: favorite},
+		domain.BookInput{Title: title, Tags: form["tags"], Favorite: favorite},
 		func(ctx context.Context) (string, error) {
-			return s.files.Books.MoveBook(ctx, temp.Path, temp.SHA256, format)
+			location, err := s.files.Books.MoveBook(ctx, temp.Path, temp.SHA256, format)
+			if err != nil {
+				return "", fmt.Errorf("save original: %w: %w", storage.ErrUnavailable, err)
+			}
+			return location, nil
 		},
 	)
 	if err != nil {
@@ -220,26 +213,16 @@ func (s *Server) handleDownloadBook(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("download") == "1" {
 		disposition = "attachment"
 	}
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", bookFileContentDisposition(disposition, book.Title, book.Format))
-	original, err := s.files.Books.Open(r.Context(), book.StoragePath)
+	original, err := s.files.OpenBook(r.Context(), book)
 	if err != nil {
-		if os.IsNotExist(err) {
-			http.NotFound(w, r)
-		} else if os.IsPermission(err) {
-			http.Error(w, "403 Forbidden", http.StatusForbidden)
-		} else {
-			http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-		}
+		s.writeError(w, r, err)
 		return
 	}
 	defer original.Close()
-	info, err := original.Stat()
-	if err != nil {
-		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	http.ServeContent(w, r, info.Name(), info.ModTime(), original)
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", bookFileContentDisposition(disposition, book.Title, book.Format))
+	w.Header().Set("ETag", `"`+book.SHA256+`"`)
+	http.ServeContent(w, r, book.Title+"."+book.Format, book.CreatedAt, original)
 }
 
 func (s *Server) handleUploadCover(w http.ResponseWriter, r *http.Request) {

@@ -37,7 +37,10 @@ func run() error {
 	}
 	defer store.Close()
 
-	fileStore := files.New(cfg.StorageDir)
+	fileStore, err := files.NewConfigured(cfg)
+	if err != nil {
+		return err
+	}
 	if err := fileStore.Ensure(); err != nil {
 		return err
 	}

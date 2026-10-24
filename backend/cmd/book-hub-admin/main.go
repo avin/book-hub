@@ -38,7 +38,10 @@ func run() error {
 		return err
 	}
 	defer store.Close()
-	fileStore := files.New(cfg.StorageDir)
+	fileStore, err := files.NewConfigured(cfg)
+	if err != nil {
+		return err
+	}
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Book Hub admin CLI")
 	for {

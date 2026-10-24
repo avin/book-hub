@@ -110,9 +110,11 @@ func TestMoveBookDeduplicatesExistingPhysicalFile(t *testing.T) {
 	if secondPath != path {
 		t.Fatalf("expected same final path, got %q and %q", path, secondPath)
 	}
-	if _, err := os.Stat(second.Path); !os.IsNotExist(err) {
-		t.Fatalf("expected duplicate temp to be removed, got %v", err)
+	if _, err := os.Stat(second.Path); err != nil {
+		t.Fatalf("accepted file must remain available for cache population: %v", err)
 	}
+	first.Release()
+	second.Release()
 	if filepath.Base(path) != first.SHA256+".pdf" {
 		t.Fatalf("unexpected final path: %s", path)
 	}

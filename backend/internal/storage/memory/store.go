@@ -355,6 +355,7 @@ func (s *Store) CreateBookWithOriginal(ctx context.Context, userID uuid.UUID, fi
 		SizeBytes:       file.SizeBytes,
 		ProgressPercent: 0,
 		StoragePath:     file.StoragePath,
+		SHA256:          file.SHA256,
 		CreatedAt:       now,
 		LastOpenedAt:    now,
 		UpdatedAt:       now,
