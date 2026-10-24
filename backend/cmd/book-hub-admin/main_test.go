@@ -51,11 +51,17 @@ func TestDeleteUserPreservesOriginalUntilLastOwner(t *testing.T) {
 	}
 	for index, login := range []string{"first", "second"} {
 		scanner := bufio.NewScanner(strings.NewReader(login + "\ny\n"))
-		if err := deleteUser(ctx, scanner, store, local.Books); err != nil {
+		if err := deleteUser(ctx, scanner, store); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := os.Stat(filepath.Join(local.Root(), login+".png")); !os.IsNotExist(err) {
 			t.Fatalf("deleted user's cover remains: %v", err)
+		}
+		if _, err := os.Stat(location); err != nil {
+			t.Fatalf("admin must leave durable work for a stopped backend: %v", err)
+		}
+		if err := store.ProcessOriginalDeletions(ctx, local.Books.Delete); err != nil {
+			t.Fatal(err)
 		}
 		_, err := os.Stat(location)
 		if index == 0 && err != nil {
