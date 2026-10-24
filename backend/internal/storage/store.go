@@ -36,6 +36,9 @@ type Books interface {
 	GetBookFileByHash(ctx context.Context, sha256 string) (*domain.BookFile, error)
 	UserHasBookFile(ctx context.Context, userID, bookFileID uuid.UUID) (bool, error)
 	CreateBook(ctx context.Context, userID uuid.UUID, file domain.BookFileInput, book domain.BookInput) (domain.Book, error)
+	// CreateBookWithOriginal serializes publishing an original and adding its owner
+	// against other uploads and delayed deletion. persist is called only for a new original.
+	CreateBookWithOriginal(ctx context.Context, userID uuid.UUID, file domain.BookFileInput, book domain.BookInput, persist func(context.Context) (string, error)) (domain.Book, error)
 	QueryBooks(ctx context.Context, userID uuid.UUID, query domain.BookQuery) (domain.BookPage, error)
 	ListBookTags(ctx context.Context, userID uuid.UUID) ([]string, error)
 	GetBook(ctx context.Context, userID, bookID uuid.UUID) (domain.Book, error)
@@ -50,12 +53,19 @@ type Books interface {
 	DeleteAllProgress(ctx context.Context, userID uuid.UUID) error
 }
 
+// OriginalDeletions retries removal only while the original has no owners.
+// The callback runs under the same database protection used when adding owners.
+type OriginalDeletions interface {
+	ProcessOriginalDeletions(ctx context.Context, remove func(context.Context, string) error) error
+}
+
 // Store remains the HTTP composition root compatibility interface.
 type Store interface {
 	Users
 	Sessions
 	Settings
 	Books
+	OriginalDeletions
 
 	Ping(ctx context.Context) error
 	Close()

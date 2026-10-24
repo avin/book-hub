@@ -30,6 +30,17 @@ func TestStoreContract(t *testing.T) {
 	})
 }
 
+func TestOriginalPersistenceAndIndependentConnections(t *testing.T) {
+	contract.RunOriginalPersistence(t, func(t *testing.T) func() storage.Store {
+		rawURL := migratedDatabase(t)
+		return func() storage.Store {
+			store := openStore(t, rawURL)
+			t.Cleanup(store.Close)
+			return store
+		}
+	})
+}
+
 func TestOpenDoesNotCreateMissingDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing.sqlite")
 	store, err := sqlite.Open(context.Background(), fileURL(path))

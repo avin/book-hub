@@ -187,7 +187,9 @@ func (s *Store) DeleteUser(ctx context.Context, userID uuid.UUID) ([]domain.Dele
 			files.CoverThumbPath = *item.thumbPath
 		}
 		if refs == 0 {
-			if _, err := tx.Exec(ctx, `delete from book_files where id = ?1`, item.fileID); err != nil {
+			if _, err := tx.Exec(ctx, `insert into original_deletions (sha256, storage_path)
+                select sha256, storage_path from book_files where id = ?1
+                on conflict (sha256) do nothing`, item.fileID); err != nil {
 				return nil, err
 			}
 			files.BookPath = item.bookPath
@@ -312,25 +314,55 @@ func (s *Store) UserHasBookFile(ctx context.Context, userID, bookFileID uuid.UUI
 }
 
 func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, file domain.BookFileInput, book domain.BookInput) (domain.Book, error) {
+	return s.CreateBookWithOriginal(ctx, userID, file, book, nil)
+}
+
+func (s *Store) CreateBookWithOriginal(ctx context.Context, userID uuid.UUID, file domain.BookFileInput, book domain.BookInput, persist func(context.Context) (string, error)) (domain.Book, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return domain.Book{}, err
 	}
 	defer tx.Rollback(ctx)
-
-	fileID := file.ID
-	if fileID == uuid.Nil {
-		fileID = uuid.New()
-		_, err := tx.Exec(ctx, `
-			insert into book_files (id, sha256, storage_path, size_bytes, format)
-			values (?1, ?2, ?3, ?4, ?5)
-		`, fileID, file.SHA256, file.StoragePath, file.SizeBytes, file.Format)
-		if err != nil {
-			if strings.Contains(err.Error(), "book_files.sha256") {
-				return domain.Book{}, domain.ErrDuplicateBook
+	var ownerID uuid.UUID
+	if err := tx.QueryRow(ctx, `select id from users where id = ?1`, userID).Scan(&ownerID); errors.Is(err, sql.ErrNoRows) {
+		return domain.Book{}, domain.ErrNotFound
+	} else if err != nil {
+		return domain.Book{}, err
+	}
+	var fileID uuid.UUID
+	var existingFormat string
+	var pending bool
+	err = tx.QueryRow(ctx, `select bf.id, bf.format,
+		exists(select 1 from original_deletions d where d.sha256 = bf.sha256)
+		from book_files bf where bf.sha256 = ?1`, file.SHA256).Scan(&fileID, &existingFormat, &pending)
+	if err == nil {
+		if existingFormat != file.Format {
+			return domain.Book{}, domain.ErrUnsupportedFormat
+		}
+		// A delete may have removed the object before losing its acknowledgement.
+		// Repair that ambiguity before the original gains a new owner.
+		if pending && persist != nil {
+			location, err := persist(ctx)
+			if err != nil {
+				return domain.Book{}, err
 			}
+			if _, err := tx.Exec(ctx, `update book_files set storage_path = ?2 where id = ?1`, fileID, location); err != nil {
+				return domain.Book{}, err
+			}
+		}
+	} else if errors.Is(err, sql.ErrNoRows) {
+		fileID = uuid.New()
+		if persist != nil {
+			file.StoragePath, err = persist(ctx)
+			if err != nil {
+				return domain.Book{}, err
+			}
+		}
+		if _, err := tx.Exec(ctx, `insert into book_files (id, sha256, storage_path, size_bytes, format) values (?1, ?2, ?3, ?4, ?5)`, fileID, file.SHA256, file.StoragePath, file.SizeBytes, file.Format); err != nil {
 			return domain.Book{}, err
 		}
+	} else {
+		return domain.Book{}, err
 	}
 
 	bookID := uuid.New()
@@ -349,6 +381,9 @@ func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, file domain.Bo
 	}
 	created, err := scanBook(ctx, tx, userID, bookID)
 	if err != nil {
+		return domain.Book{}, err
+	}
+	if _, err := tx.Exec(ctx, `delete from original_deletions where sha256 = ?1`, file.SHA256); err != nil {
 		return domain.Book{}, err
 	}
 	return created, tx.Commit(ctx)
@@ -498,7 +533,9 @@ func (s *Store) DeleteBook(ctx context.Context, userID, bookID uuid.UUID) (domai
 		files.CoverThumbPath = *thumbPath
 	}
 	if refs == 0 {
-		if _, err := tx.Exec(ctx, `delete from book_files where id = ?1`, fileID); err != nil {
+		if _, err := tx.Exec(ctx, `insert into original_deletions (sha256, storage_path)
+                select sha256, storage_path from book_files where id = ?1
+                on conflict (sha256) do nothing`, fileID); err != nil {
 			return domain.DeletedBookFiles{}, err
 		}
 		files.BookPath = bookPath

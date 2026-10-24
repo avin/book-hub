@@ -106,22 +106,22 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.Remove(temp.Path)
 
-	existingFile, err := s.store.GetBookFileByHash(r.Context(), temp.SHA256)
+	existing, err := s.store.GetBookFileByHash(r.Context(), temp.SHA256)
 	if err != nil {
 		s.writeError(w, r, err)
 		return
 	}
-	if existingFile != nil && existingFile.Format != format {
-		s.writeError(w, r, domain.ErrUnsupportedFormat)
-		return
-	}
-	if existingFile != nil {
-		exists, err := s.store.UserHasBookFile(r.Context(), user.ID, existingFile.ID)
+	if existing != nil {
+		if existing.Format != format {
+			s.writeError(w, r, domain.ErrUnsupportedFormat)
+			return
+		}
+		duplicate, err := s.store.UserHasBookFile(r.Context(), user.ID, existing.ID)
 		if err != nil {
 			s.writeError(w, r, err)
 			return
 		}
-		if exists {
+		if duplicate {
 			s.writeError(w, r, domain.ErrDuplicateBook)
 			return
 		}
@@ -130,33 +130,18 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, domain.ErrQuotaExceeded)
 		return
 	}
-
-	fileInput := domain.BookFileInput{SHA256: temp.SHA256, SizeBytes: temp.Size, Format: format}
-	movedNewFile := false
-	if existingFile != nil {
-		fileInput.ID = existingFile.ID
-		fileInput.StoragePath = existingFile.StoragePath
-	} else {
-		finalPath, err := s.files.Books.MoveBook(r.Context(), temp.Path, temp.SHA256, format)
-		if err != nil {
-			s.writeError(w, r, err)
-			return
-		}
-		movedNewFile = true
-		fileInput.StoragePath = finalPath
-	}
-	book, err := s.store.CreateBook(r.Context(), user.ID, fileInput, domain.BookInput{
-		Title:    title,
-		Tags:     r.MultipartForm.Value["tags"],
-		Favorite: favorite,
-	})
+	book, err := s.store.CreateBookWithOriginal(r.Context(), user.ID,
+		domain.BookFileInput{SHA256: temp.SHA256, SizeBytes: temp.Size, Format: format},
+		domain.BookInput{Title: title, Tags: r.MultipartForm.Value["tags"], Favorite: favorite},
+		func(ctx context.Context) (string, error) {
+			return s.files.Books.MoveBook(ctx, temp.Path, temp.SHA256, format)
+		},
+	)
 	if err != nil {
-		if movedNewFile {
-			_ = s.files.Books.Delete(context.WithoutCancel(r.Context()), fileInput.StoragePath)
-		}
 		s.writeError(w, r, err)
 		return
 	}
+
 	s.writeJSON(w, http.StatusCreated, bookDTO(book))
 }
 
@@ -213,7 +198,6 @@ func (s *Server) handleDeleteBook(w http.ResponseWriter, r *http.Request) {
 	}
 	files.DeleteBestEffort(deleted.CoverPath)
 	files.DeleteBestEffort(deleted.CoverThumbPath)
-	_ = s.files.Books.Delete(context.WithoutCancel(r.Context()), deleted.BookPath)
 	w.WriteHeader(http.StatusNoContent)
 }
 
