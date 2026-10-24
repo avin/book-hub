@@ -3,7 +3,9 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -23,6 +25,10 @@ type Config struct {
 	ImagesDir                string
 	WorkDir                  string
 	WorkMaxBytes             int64
+	FTPAddr                  string
+	FTPUser                  string
+	FTPPassword              string
+	FTPRoot                  string
 	DefaultQuotaBytes        int64
 	RegistrationEnabled      bool
 	RegistrationAutoActivate bool
@@ -42,6 +48,10 @@ func LoadFileStorage() (Config, error) {
 		BooksDir:    os.Getenv("BOOK_HUB_BOOKS_DIR"),
 		ImagesDir:   os.Getenv("BOOK_HUB_IMAGES_DIR"),
 		WorkDir:     os.Getenv("BOOK_HUB_WORK_DIR"),
+		FTPAddr:     os.Getenv("BOOK_HUB_FTP_ADDR"),
+		FTPUser:     os.Getenv("BOOK_HUB_FTP_USER"),
+		FTPPassword: os.Getenv("BOOK_HUB_FTP_PASSWORD"),
+		FTPRoot:     envString("BOOK_HUB_FTP_ROOT", "/books"),
 	}
 	var err error
 	cfg.WorkMaxBytes, err = strictPositiveBytes("BOOK_HUB_WORK_MAX_BYTES", 1<<30)
@@ -96,14 +106,34 @@ func (c Config) FilePaths() (books, images, work string) {
 }
 
 func (c Config) ValidateFileStorage() error {
-	if c.BookStorage != "" && c.BookStorage != "directory" {
-		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory")
+	if c.BookStorage != "" && c.BookStorage != "directory" && c.BookStorage != "ftp" {
+		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory or ftp")
+	}
+	if c.BookStorage == "ftp" {
+		host, port, err := net.SplitHostPort(c.FTPAddr)
+		number, portErr := strconv.Atoi(port)
+		if err != nil || host == "" || strings.ContainsAny(host, " \t\r\n\x00") || portErr != nil || number < 1 || number > 65535 {
+			return fmt.Errorf("BOOK_HUB_FTP_ADDR must be host:port")
+		}
+		if c.FTPUser == "" || strings.ContainsAny(c.FTPUser+c.FTPPassword, "\r\n\x00") {
+			return fmt.Errorf("BOOK_HUB_FTP_USER and PASSWORD must contain valid FTP credentials")
+		}
+		root := c.FTPRoot
+		if root == "" {
+			root = "/books"
+		}
+		if root == "/" || !strings.HasPrefix(root, "/") || path.Clean(root) != root || strings.ContainsAny(root, "\\\r\n\x00") {
+			return fmt.Errorf("BOOK_HUB_FTP_ROOT must be a clean absolute dedicated directory below /")
+		}
 	}
 	if c.WorkMaxBytes < 0 {
 		return fmt.Errorf("BOOK_HUB_WORK_MAX_BYTES must be positive")
 	}
 	books, images, work := c.FilePaths()
 	paths := []string{books, images, work}
+	if c.BookStorage == "ftp" {
+		paths = []string{images, work}
+	}
 	for i, path := range paths {
 		absolute, err := filepath.Abs(path)
 		if err != nil {

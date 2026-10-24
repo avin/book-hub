@@ -46,6 +46,7 @@ func NewConfigured(cfg config.Config) (Store, error) {
 	if limit == 0 {
 		limit = 1 << 30
 	}
+
 	store := newStore(cfg.StorageDir, books, images, work, limit)
 	store.Books = originals
 	return store, nil
@@ -56,6 +57,13 @@ func NewConfigured(cfg config.Config) (Store, error) {
 func NewOriginals(cfg config.Config) (Originals, error) {
 	if err := cfg.ValidateFileStorage(); err != nil {
 		return nil, err
+	}
+	if cfg.BookStorage == "ftp" {
+		root := cfg.FTPRoot
+		if root == "" {
+			root = "/books"
+		}
+		return &ftpOriginals{address: cfg.FTPAddr, user: cfg.FTPUser, password: cfg.FTPPassword, root: root}, nil
 	}
 	books, _, _ := cfg.FilePaths()
 	return NewDirectory(books), nil
