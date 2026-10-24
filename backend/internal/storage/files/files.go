@@ -4,6 +4,7 @@ package files
 import (
 	"context"
 	"io"
+	"log/slog"
 	"path/filepath"
 
 	"book-hub/internal/config"
@@ -30,6 +31,7 @@ type Store struct {
 	Images Images
 	Work   Workspace
 	root   string
+	cache  *bookCache
 }
 
 func New(root string) Store {
@@ -46,10 +48,24 @@ func NewConfigured(cfg config.Config) (Store, error) {
 	if limit == 0 {
 		limit = 1 << 30
 	}
-
 	store := newStore(cfg.StorageDir, books, images, work, limit)
 	store.Books = originals
+	if cfg.CacheDir != "" {
+		store.cache = newBookCache(cfg.CacheDir, cfg.CacheMaxBytes)
+	}
 	return store, nil
+}
+
+// SetLogger connects optional cache failures to the server's logger.
+func (s Store) SetLogger(logger *slog.Logger) {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	if s.cache != nil {
+		s.cache.mu.Lock()
+		s.cache.logger = logger
+		s.cache.mu.Unlock()
+	}
 }
 
 // NewOriginals constructs only the persistent source. Administrative processes
@@ -57,6 +73,9 @@ func NewConfigured(cfg config.Config) (Store, error) {
 func NewOriginals(cfg config.Config) (Originals, error) {
 	if err := cfg.ValidateFileStorage(); err != nil {
 		return nil, err
+	}
+	if cfg.BookStorage == "s3" {
+		return newS3Originals(cfg), nil
 	}
 	if cfg.BookStorage == "ftp" || cfg.BookStorage == "ftps-explicit" || cfg.BookStorage == "ftps-implicit" {
 		root := cfg.FTPRoot
@@ -86,6 +105,9 @@ func newStore(root, books, images, workPath string, limit int64) Store {
 func (s Store) Root() string { return s.root }
 
 func (s Store) Ensure() error {
+	if s.cache != nil {
+		s.cache.ensure()
+	}
 	if err := s.Work.Ensure(); err != nil {
 		return err
 	}
