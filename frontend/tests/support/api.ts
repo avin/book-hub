@@ -46,7 +46,9 @@ export function createApiMocks(page: Page) {
       if (path === auth.req.csrf.path && method === auth.req.csrf.method)
         return json(route, auth.csrf);
       if (path === auth.req.currentUser.path && method === auth.req.currentUser.method) {
-        return json(route, state.authenticated ? auth.user : null);
+        return state.authenticated
+          ? json(route, auth.user)
+          : json(route, { code: 'unauthorized', message: 'unauthorized', request_id: 'test' }, 401);
       }
       if (path === auth.req.login.path && method === auth.req.login.method) {
         state.authenticated = true;

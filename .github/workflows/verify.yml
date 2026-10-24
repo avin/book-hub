@@ -49,6 +49,37 @@ jobs:
           BOOK_HUB_TEST_DATABASE_URL: postgresql://book_hub:book_hub@localhost:5432/book_hub_test?sslmode=disable
         run: make storage-contract-test
 
+      - name: Build all backend commands without CGO
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          for command in book-hub-server book-hub-admin book-hub-migrate book-hub-backup; do
+            go -C backend build -o "$RUNNER_TEMP/$command" "./cmd/$command"
+          done
+
+      - name: Build backend Docker image
+        run: docker build -f backend/Dockerfile -t book-hub-backend:verify .
+
+      - name: Run backup compatibility tests with the bundled PostgreSQL client
+        env:
+          CGO_ENABLED: "0"
+          BOOK_HUB_TEST_DATABASE_URL: postgresql://book_hub:book_hub@localhost:5432/book_hub_test?sslmode=disable
+        run: |
+          go -C backend test -c -o "$RUNNER_TEMP/backup.test" ./internal/backup
+          docker run --rm --network host -e BOOK_HUB_TEST_DATABASE_URL -v "$RUNNER_TEMP/backup.test:/tmp/backup.test:ro" --entrypoint /tmp/backup.test book-hub-backend:verify -test.v
+
+      - name: Validate PostgreSQL and SQLite Compose stacks
+        run: |
+          temp=$(mktemp -d)
+          cp docker-compose*.yml "$temp/"
+          cp .env.example "$temp/.env"
+          docker compose --project-directory "$temp" -f "$temp/docker-compose.yml" config --quiet
+          BOOK_HUB_IMAGE_TAG=verify docker compose --project-directory "$temp" -f "$temp/docker-compose.yml" -f "$temp/docker-compose.ghcr.yml" config --quiet
+          printf '%s\n' 'BOOK_HUB_DATABASE_URL=sqlite:///data/db/book-hub.sqlite' 'BOOK_HUB_STORAGE_DIR=/data/books' 'BOOK_HUB_SESSION_SECRET=ci-only-session-secret' > "$temp/.env"
+          docker compose --project-directory "$temp" -f "$temp/docker-compose.sqlite.yml" config --quiet
+          BOOK_HUB_IMAGE_TAG=verify docker compose --project-directory "$temp" -f "$temp/docker-compose.sqlite.yml" -f "$temp/docker-compose.ghcr.yml" config --quiet
+          rm -rf "$temp"
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

@@ -86,6 +86,21 @@ services:
     tty: true
     profiles: ["tools"]
 
+  backup:
+    image: book-hub-backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - book_storage:/data/books
+    entrypoint: ["book-hub-backup"]
+    profiles: ["tools"]
+
 volumes:
   postgres_data:
   book_storage:

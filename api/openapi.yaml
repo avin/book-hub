@@ -72,6 +72,8 @@ paths:
             schema:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "201":
           description: User registered.
           headers:
@@ -103,6 +105,8 @@ paths:
             schema:
               $ref: "#/components/schemas/LoginRequest"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: User logged in.
           headers:
@@ -129,12 +133,14 @@ paths:
         - Auth
       operationId: logoutUser
       summary: Logout current session
-      description: Idempotent. Returns 204 even when no active session exists.
+      description: Idempotent. Returns 204 even when no active session exists. Temporary storage failures return 503 and preserve the session cookie.
       security:
         - csrfHeader: []
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "204":
           description: Session cleared.
           headers:
@@ -156,6 +162,8 @@ paths:
       security:
         - cookieAuth: []
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Current user.
           headers:
@@ -187,6 +195,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ChangePasswordRequest"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "204":
           description: Password changed.
           headers:
@@ -208,6 +218,8 @@ paths:
       security:
         - cookieAuth: []
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Opaque frontend settings object. Empty object if not saved yet.
           headers:
@@ -237,6 +249,8 @@ paths:
             schema:
               $ref: "#/components/schemas/Settings"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Saved settings object.
           headers:
@@ -271,6 +285,8 @@ paths:
             schema:
               $ref: "#/components/schemas/BookQueryRequest"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Books page.
           headers:
@@ -297,6 +313,8 @@ paths:
       security:
         - cookieAuth: []
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Current user's book tags.
           headers:
@@ -330,6 +348,8 @@ paths:
             schema:
               $ref: "#/components/schemas/BookUploadRequest"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "201":
           description: Book uploaded.
           headers:
@@ -361,6 +381,8 @@ paths:
       security:
         - cookieAuth: []
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Book metadata.
           headers:
@@ -391,6 +413,8 @@ paths:
             schema:
               $ref: "#/components/schemas/BookPatchRequest"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Updated book metadata.
           headers:
@@ -419,6 +443,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "204":
           description: Book deleted.
           headers:
@@ -443,6 +469,8 @@ paths:
       security:
         - cookieAuth: []
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Book file.
           headers:
@@ -502,6 +530,8 @@ paths:
             schema:
               $ref: "#/components/schemas/CoverUploadRequest"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "204":
           description: Cover uploaded.
           headers:
@@ -527,6 +557,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/CoverVariant"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Book cover.
           headers:
@@ -565,6 +597,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "204":
           description: Cover deleted.
           headers:
@@ -588,6 +622,8 @@ paths:
       security:
         - cookieAuth: []
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Reading progress.
           headers:
@@ -618,6 +654,8 @@ paths:
             schema:
               $ref: "#/components/schemas/ReadingProgressUpdateRequest"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "200":
           description: Saved reading progress.
           headers:
@@ -647,6 +685,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "204":
           description: Reading progress reset.
           headers:
@@ -672,6 +712,8 @@ paths:
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       responses:
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
         "204":
           description: All reading progress reset.
           headers:
@@ -705,7 +747,7 @@ paths:
         - Health
       operationId: getReadiness
       summary: Readiness check
-      description: Checks PostgreSQL connectivity and storage path availability.
+      description: Checks configured database connectivity and storage path availability.
       responses:
         "200":
           description: Service is ready.
@@ -780,6 +822,15 @@ components:
         minLength: 1
 
   responses:
+    ServiceUnavailable:
+      description: Temporary storage unavailability, including an exhausted database lock wait. Session cookies are preserved. Mutating requests are not automatically retried.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     BadRequest:
       description: Invalid request.
       headers:
@@ -973,6 +1024,7 @@ components:
           $ref: "#/components/schemas/BookSort"
         tags:
           type: array
+          description: Matches all selected tags exactly after trimming whitespace and converting to lowercase.
           items:
             type: string
         favorite:
@@ -980,9 +1032,11 @@ components:
           nullable: true
         q:
           type: string
+          description: Case-insensitive literal title substring, including Cyrillic and Latin. Leading and trailing whitespace is trimmed. Percent, underscore and backslash are ordinary characters; Cyrillic е and ё remain distinct.
 
     BookSort:
       type: string
+      description: Equal primary keys use book ID descending. Relevance uses last_opened_at, created_at and ID descending. Alphabetical ordering of individual characters may depend on the configured database.
       default: relevance
       enum:
         - relevance
@@ -1216,3 +1270,5 @@ components:
         - account_inactive
         - registration_disabled
         - csrf_invalid
+        - service_unavailable
+        - internal_error

@@ -17,8 +17,16 @@ cd book-hub
 make env
 ```
 
-Откройте `.env` и обязательно замените `POSTGRES_PASSWORD`, пароль в `BOOK_HUB_DATABASE_URL` и
-`BOOK_HUB_SESSION_SECRET`. Пароль базы в первых двух настройках должен совпадать. При необходимости до запуска измените
+Откройте `.env`, задайте обязательный `BOOK_HUB_DATABASE_URL` и замените `BOOK_HUB_SESSION_SECRET`.
+Выберите одну из СУБД:
+
+- PostgreSQL: оставьте пример URL, замените `POSTGRES_PASSWORD` и пароль в URL одинаковым значением.
+- SQLite: установите `BOOK_HUB_DATABASE_URL=sqlite:///data/db/book-hub.sqlite`. Переменные `POSTGRES_*` можно удалить;
+  контейнер PostgreSQL не запускается. База хранится в отдельном постоянном volume `sqlite_data`.
+
+SQLite поддерживает одного работающего backend на локальном диске сервера и несколько одновременно работающих
+пользователей. Для нескольких экземпляров backend используйте PostgreSQL. Переход между СУБД не переносит данные.
+При необходимости до запуска измените
 `BOOK_HUB_PUBLIC_PORT`. `BOOK_HUB_HTTP_ADDR` — внутренний адрес backend; в Docker он должен быть в формате
 `:порт` (например, `:38080`).
 
@@ -32,7 +40,9 @@ make env
 make local-deploy
 ```
 
-Команда использует только `docker-compose.yml`; локальный `docker-compose.override.yml` не применяется.
+Make выбирает `docker-compose.yml` для PostgreSQL или `docker-compose.sqlite.yml` для SQLite по URL подключения;
+локальный `docker-compose.override.yml` при развёртывании не применяется. Перед миграциями приложение останавливается,
+после успешного обновления запускается. При ошибке миграций оно остаётся остановленным.
 
 Проверьте готовность:
 
@@ -51,9 +61,22 @@ make health-http
 make ghcr-deploy BOOK_HUB_IMAGE_TAG=latest
 ```
 
-`docker-compose.ghcr.yml` заменяет локальную сборку готовыми образами, сохраняя остальные настройки из
-`docker-compose.yml`. Образ frontend сейчас собран с `BOOK_HUB_BASE_PATH=/`; не меняйте этот параметр при запуске
+`docker-compose.ghcr.yml` заменяет локальную сборку готовыми образами поверх выбранного файла стека.
+Образ frontend сейчас собран с `BOOK_HUB_BASE_PATH=/`; не меняйте этот параметр при запуске
 готового образа.
+
+При прямом запуске Compose указывайте нужные файлы. Пример SQLite с локальной сборкой:
+
+```bash
+docker compose -f docker-compose.sqlite.yml build
+docker compose -f docker-compose.sqlite.yml stop backend frontend
+docker compose -f docker-compose.sqlite.yml run --rm migrate up
+docker compose -f docker-compose.sqlite.yml up -d
+```
+
+Для PostgreSQL используйте `docker-compose.yml` (обычный `docker compose up` также сохраняется).
+Для GHCR добавьте `-f docker-compose.ghcr.yml` и задайте `BOOK_HUB_IMAGE_TAG`. Миграции не выполняются автоматически
+при старте сервера. Сервер и admin CLI требуют актуальную завершённую схему; SQLite-файл создаётся только мигратором.
 
 ## Нехватка памяти при локальной сборке
 
@@ -135,6 +158,7 @@ password: надёжный-пароль
 make backup
 ```
 
+Для установки из GHCR добавляйте `BOOK_HUB_IMAGE_TAG` с используемым тегом к командам backup и restore.
 Команда выведет каталог созданной копии, например `./backups/20260712-120000`. Скопируйте этот каталог с сервера в
 надёжное место.
 
@@ -143,3 +167,16 @@ make backup
 ```bash
 make restore BACKUP=./backups/20260712-120000
 ```
+
+Копия содержит `manifest.json` (версия формата, СУБД и версия схемы), `database.sql` для PostgreSQL или
+`database.sqlite` для SQLite, а также `storage.tar.gz` с книгами и обложками. SQLite-снимок включает подтверждённые
+данные из WAL. Старый набор `database.sql` + `storage.tar.gz` без manifest продолжает восстанавливаться в PostgreSQL.
+Восстановление в другую СУБД отклоняется до изменения данных. Архив файлов проверяется до восстановления.
+Каталог резервных копий и файловое хранилище не должны содержать друг друга; SQLite-файл должен находиться
+за пределами обоих каталогов. Небезопасное размещение отклоняется до изменения данных.
+Для PostgreSQL используются утилиты той же основной версии, что и сервер; Docker-образ включает клиенты 16 и 17.
+
+Обе команды останавливают backend и frontend и запускают их после успеха. При ошибке после остановки приложение
+остаётся выключенным: проверьте диагностику и состояние данных перед запуском. Если схема копии старее запущенной
+версии, примените миграции перед запуском сервера. На время миграций, backup и restore не запускайте другие операции
+записи через admin CLI или второй мигратор. Volumes сохраняются после `make docker-down`; не удаляйте их через `down -v`.

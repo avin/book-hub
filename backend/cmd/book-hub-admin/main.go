@@ -12,8 +12,8 @@ import (
 	"book-hub/internal/config"
 	"book-hub/internal/domain"
 	"book-hub/internal/storage"
-	"book-hub/internal/storage/db"
 	"book-hub/internal/storage/files"
+	"book-hub/internal/storage/sqlstore"
 	"github.com/google/uuid"
 )
 
@@ -33,7 +33,7 @@ func run() error {
 		return fmt.Errorf("BOOK_HUB_DATABASE_URL is required")
 	}
 	ctx := context.Background()
-	store, err := db.Open(ctx, cfg.DatabaseURL)
+	store, err := sqlstore.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}

@@ -340,6 +340,7 @@ func (s *Store) CreateBook(_ context.Context, userID uuid.UUID, fileInput domain
 }
 
 func (s *Store) QueryBooks(_ context.Context, userID uuid.UUID, query domain.BookQuery) (domain.BookPage, error) {
+	query.Tags = domain.NormalizeTags(query.Tags)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	items := make([]domain.Book, 0)
@@ -562,7 +563,7 @@ func matchesQuery(book domain.Book, query domain.BookQuery) bool {
 	for _, tag := range query.Tags {
 		found := false
 		for _, bookTag := range book.Tags {
-			if strings.EqualFold(tag, bookTag) {
+			if tag == bookTag {
 				found = true
 				break
 			}
@@ -579,27 +580,39 @@ func sortBooks(items []domain.Book, sortName string) {
 		a := items[i]
 		b := items[j]
 		switch sortName {
-		case "relevance":
+		case "created_at_asc":
+			if !a.CreatedAt.Equal(b.CreatedAt) {
+				return a.CreatedAt.Before(b.CreatedAt)
+			}
+		case "created_at_desc":
+			if !a.CreatedAt.Equal(b.CreatedAt) {
+				return a.CreatedAt.After(b.CreatedAt)
+			}
+		case "title_asc":
+			if aTitle, bTitle := strings.ToLower(a.Title), strings.ToLower(b.Title); aTitle != bTitle {
+				return aTitle < bTitle
+			}
+		case "title_desc":
+			if aTitle, bTitle := strings.ToLower(a.Title), strings.ToLower(b.Title); aTitle != bTitle {
+				return aTitle > bTitle
+			}
+		case "updated_at_asc":
+			if !a.UpdatedAt.Equal(b.UpdatedAt) {
+				return a.UpdatedAt.Before(b.UpdatedAt)
+			}
+		case "updated_at_desc":
+			if !a.UpdatedAt.Equal(b.UpdatedAt) {
+				return a.UpdatedAt.After(b.UpdatedAt)
+			}
+		default:
 			if !a.LastOpenedAt.Equal(b.LastOpenedAt) {
 				return a.LastOpenedAt.After(b.LastOpenedAt)
 			}
 			if !a.CreatedAt.Equal(b.CreatedAt) {
 				return a.CreatedAt.After(b.CreatedAt)
 			}
-			return a.ID.String() > b.ID.String()
-		case "created_at_asc":
-			return a.CreatedAt.Before(b.CreatedAt)
-		case "title_asc":
-			return strings.ToLower(a.Title) < strings.ToLower(b.Title)
-		case "title_desc":
-			return strings.ToLower(a.Title) > strings.ToLower(b.Title)
-		case "updated_at_asc":
-			return a.UpdatedAt.Before(b.UpdatedAt)
-		case "updated_at_desc":
-			return a.UpdatedAt.After(b.UpdatedAt)
-		default:
-			return a.LastOpenedAt.After(b.LastOpenedAt)
 		}
+		return a.ID.String() > b.ID.String()
 	})
 }
 

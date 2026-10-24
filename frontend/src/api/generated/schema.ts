@@ -70,7 +70,7 @@ export interface paths {
         put?: never;
         /**
          * Logout current session
-         * @description Idempotent. Returns 204 even when no active session exists.
+         * @description Idempotent. Returns 204 even when no active session exists. Temporary storage failures return 503 and preserve the session cookie.
          */
         post: operations["logoutUser"];
         delete?: never;
@@ -343,7 +343,7 @@ export interface paths {
         };
         /**
          * Readiness check
-         * @description Checks PostgreSQL connectivity and storage path availability.
+         * @description Checks configured database connectivity and storage path availability.
          */
         get: operations["getReadiness"];
         put?: never;
@@ -419,11 +419,14 @@ export interface components {
              */
             offset: number;
             sort?: components["schemas"]["BookSort"];
+            /** @description Matches all selected tags exactly after trimming whitespace and converting to lowercase. */
             tags?: string[];
             favorite?: boolean | null;
+            /** @description Case-insensitive literal title substring, including Cyrillic and Latin. Leading and trailing whitespace is trimmed. Percent, underscore and backslash are ordinary characters; Cyrillic е and ё remain distinct. */
             q?: string;
         };
         /**
+         * @description Equal primary keys use book ID descending. Relevance uses last_opened_at, created_at and ID descending. Alphabetical ordering of individual characters may depend on the configured database.
          * @default relevance
          * @enum {string}
          */
@@ -513,9 +516,19 @@ export interface components {
             request_id: string;
         };
         /** @enum {string} */
-        ErrorCode: "validation_error" | "unauthorized" | "forbidden" | "not_found" | "quota_exceeded" | "unsupported_format" | "duplicate_book" | "account_inactive" | "registration_disabled" | "csrf_invalid";
+        ErrorCode: "validation_error" | "unauthorized" | "forbidden" | "not_found" | "quota_exceeded" | "unsupported_format" | "duplicate_book" | "account_inactive" | "registration_disabled" | "csrf_invalid" | "service_unavailable" | "internal_error";
     };
     responses: {
+        /** @description Temporary storage unavailability, including an exhausted database lock wait. Session cookies are preserved. Mutating requests are not automatically retried. */
+        ServiceUnavailable: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description Invalid request. */
         BadRequest: {
             headers: {
@@ -647,6 +660,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     loginUser: {
@@ -680,6 +694,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     logoutUser: {
@@ -705,6 +720,7 @@ export interface operations {
                 content?: never;
             };
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getCurrentUser: {
@@ -727,6 +743,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     changeCurrentUserPassword: {
@@ -756,6 +773,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getCurrentUserSettings: {
@@ -778,6 +796,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateCurrentUserSettings: {
@@ -809,6 +828,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     queryBooks: {
@@ -840,6 +860,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listBookTags: {
@@ -862,6 +883,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     uploadBook: {
@@ -895,6 +917,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             413: components["responses"]["PayloadTooLarge"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getBook: {
@@ -921,6 +944,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteBook: {
@@ -949,6 +973,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateBook: {
@@ -984,6 +1009,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     downloadBookFile: {
@@ -1021,6 +1047,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getBookCover: {
@@ -1054,6 +1081,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     uploadBookCover: {
@@ -1088,6 +1116,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             413: components["responses"]["PayloadTooLarge"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteBookCover: {
@@ -1116,6 +1145,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getReadingProgress: {
@@ -1142,6 +1172,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     updateReadingProgress: {
@@ -1177,6 +1208,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteReadingProgress: {
@@ -1205,6 +1237,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     deleteAllReadingProgress: {
@@ -1229,6 +1262,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getHealth: {

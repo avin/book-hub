@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -72,7 +73,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, err := s.store.GetUserByLogin(r.Context(), login)
-	if err != nil || !auth.VerifyPassword(req.Password, user.PasswordHash) {
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			err = domain.ErrInvalidCredentials
+		}
+		s.writeError(w, r, err)
+		return
+	}
+	if !auth.VerifyPassword(req.Password, user.PasswordHash) {
 		s.writeError(w, r, domain.ErrInvalidCredentials)
 		return
 	}
@@ -99,7 +107,10 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if cookie, err := r.Cookie(sessionCookieName); err == nil && cookie.Value != "" {
-		_ = s.store.RevokeSession(r.Context(), auth.HashSessionToken(cookie.Value))
+		if err := s.store.RevokeSession(r.Context(), auth.HashSessionToken(cookie.Value)); err != nil {
+			s.writeError(w, r, err)
+			return
+		}
 	}
 	s.expireSessionCookie(w)
 	w.WriteHeader(http.StatusNoContent)

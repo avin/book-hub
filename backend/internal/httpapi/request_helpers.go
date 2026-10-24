@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -44,7 +45,10 @@ func (s *Server) requireUserID(r *http.Request) (uuid.UUID, error) {
 	}
 	userID, err := s.store.GetSession(r.Context(), tokenHash)
 	if err != nil {
-		return uuid.Nil, domain.ErrUnauthorized
+		if errors.Is(err, domain.ErrNotFound) {
+			return uuid.Nil, domain.ErrUnauthorized
+		}
+		return uuid.Nil, err
 	}
 	return userID, nil
 }

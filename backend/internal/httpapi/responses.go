@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"book-hub/internal/domain"
+	"book-hub/internal/storage"
 )
 
 func (s *Server) writeJSON(w http.ResponseWriter, status int, value any) {
@@ -35,6 +36,8 @@ func (s *Server) writeErrorStatus(w http.ResponseWriter, r *http.Request, status
 
 func errorStatus(err error) (int, string, string) {
 	switch {
+	case errors.Is(err, storage.ErrUnavailable):
+		return http.StatusServiceUnavailable, "service_unavailable", "storage temporarily unavailable"
 	case errors.Is(err, domain.ErrValidation):
 		return http.StatusBadRequest, "validation_error", "invalid request"
 	case errors.Is(err, domain.ErrUnauthorized), errors.Is(err, domain.ErrInvalidCredentials):

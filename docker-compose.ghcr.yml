@@ -15,3 +15,7 @@ services:
   admin:
     image: ghcr.io/avin/book-hub-backend:${BOOK_HUB_IMAGE_TAG:?BOOK_HUB_IMAGE_TAG is required}
     build: !reset null
+
+  backup:
+    image: ghcr.io/avin/book-hub-backend:${BOOK_HUB_IMAGE_TAG:?BOOK_HUB_IMAGE_TAG is required}
+    build: !reset null

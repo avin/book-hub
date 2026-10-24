@@ -9,12 +9,12 @@ async function showReaderChrome(page: Page) {
 
 test('перемещение первого PDF-фильтра в конец не ломает читалку', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1200 });
+  await login(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await login(page);
   await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
   await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
   await showReaderChrome(page);

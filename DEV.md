@@ -7,7 +7,8 @@
 - `backend/` — Go API, миграции и admin CLI;
 - `frontend/` — SolidJS, Vite и TypeScript;
 - `api/openapi.yaml` — контракт API;
-- `docker-compose.yml` — production-стек: PostgreSQL, backend, frontend, мигратор и admin CLI.
+- `docker-compose.yml` — стек PostgreSQL; `docker-compose.sqlite.yml` — самостоятельный стек SQLite;
+  в обоих есть backend, frontend, мигратор, admin и backup CLI.
 
 Для локальной работы нужны Docker Engine с Docker Compose v2, GNU Make, Go 1.26.4, Node.js 24 и npm 11.
 
@@ -18,7 +19,8 @@ make env
 npm --prefix frontend install
 ```
 
-Установка npm-пакетов нужна один раз и после изменения зависимостей. Заполните `.env`. Для доступа к PostgreSQL с хоста создайте `docker-compose.override.yml`:
+Установка npm-пакетов нужна один раз и после изменения зависимостей. Заполните `.env`.
+Для PostgreSQL и доступа с хоста создайте `docker-compose.override.yml`:
 
 ```yaml
 services:
@@ -27,7 +29,13 @@ services:
       - "5432:5432"
 ```
 
-`BOOK_HUB_DATABASE_URL` в `.env` рассчитан на Docker и использует хост `postgres`. Цели `make dev-backend` автоматически заменяют его на `localhost`. Локальное файловое хранилище: `./data/books`.
+В PostgreSQL-режиме `BOOK_HUB_DATABASE_URL` в `.env` рассчитан на Docker и использует хост `postgres`.
+Цели `make dev-db` и `make dev-backend` автоматически заменяют его на `localhost`.
+В SQLite-режиме задайте в `.env` `BOOK_HUB_DATABASE_URL=sqlite:///data/db/book-hub.sqlite`;
+Make использует отдельный абсолютный путь хоста `./data/db/book-hub.sqlite` для локальной разработки.
+`POSTGRES_*` и Docker для такой базы не нужны. Путь можно переопределить через `DEV_DATABASE_URL=sqlite:///абсолютный/путь`;
+в Windows формат — `sqlite:///C:/book-hub/data/book-hub.sqlite`. Локальные книги и обложки: `./data/books`.
+Для обоих режимов `make dev-db` запускает Go-мигратор на хосте; перед повторными миграциями остановите локальный backend.
 
 ## Локальный запуск
 
@@ -63,11 +71,22 @@ make test
 
 `make frontend-generate` запускайте после изменений в `api/openapi.yaml`.
 
-`make storage-contract-test` выполняет общую contract-suite PostgreSQL adapter на реально применённых миграциях. URL должен указывать на отдельную тестовую базу, где пользователь может создавать schema; suite создаёт случайную schema через `search_path` и удаляет её после завершения. Не передавайте URL production-базы.
+`make backend-test` включает SQLite contract-suite на временных файлах без внешнего сервиса.
+`make storage-contract-test` запускает SQLite и PostgreSQL contract-suite на реально применённых миграциях.
+URL должен указывать на отдельную тестовую PostgreSQL-базу, где пользователь может создавать schema;
+suite создаёт случайную schema через `search_path` и удаляет её после завершения. Не передавайте URL production-базы.
+Проверки PostgreSQL backup/restore в `internal/backup` при наличии `BOOK_HUB_TEST_DATABASE_URL` требуют
+`pg_dump`, `psql` и права создавать отдельную временную БД. Они проверяют новый и старый формат копий.
+Для запуска backup CLI на хосте нужны `pg_dump` и `psql` той же основной версии, что и PostgreSQL-сервер.
+Docker-образ содержит клиенты PostgreSQL 16 и 17 и выбирает нужную версию автоматически.
 
 ## CI
 
-Workflow `.github/workflows/verify.yml` запускается для каждого push и pull request. Он отдельно проверяет Go-тесты и PostgreSQL contract-suite, frontend lint/unit/typecheck/build и Playwright; при сбое Playwright сохраняет его артефакты. Отдельная job генерирует API-типы и проверяет отсутствие незакоммиченного diff. Workflow не публикует образы.
+Workflow `.github/workflows/verify.yml` запускается для каждого push и pull request. Он проверяет Go-тесты,
+SQLite и PostgreSQL contract-suite, backup/restore, сборку четырёх CLI без CGO, Docker-образ backend и четыре
+Compose-набора (обе СУБД, локальная сборка и GHCR). Также проверяются frontend lint/unit/typecheck/build и Playwright;
+при сбое Playwright сохраняются его артефакты. Отдельная job генерирует API-типы и проверяет отсутствие diff.
+Workflow не публикует образы.
 
 ## Docker и диагностика
 
@@ -84,18 +103,29 @@ make db-shell
 
 `make help` выводит полный список целей. Для диагностики сервисов используйте `make ps` и `make logs`, при необходимости ограничив журнал: `make logs SERVICE=backend`.
 
-Миграции не запускаются при старте backend автоматически. `make docker-up` собирает и запускает стек без миграций; `make docker-restart` только перезапускает контейнеры. Для развёртывания с применением миграций используйте `make local-deploy`, для отдельного запуска миграций — `make migrate-up`.
+Make выбирает файл стека по `BOOK_HUB_DATABASE_URL`; production-цели используют явный файл и не подключают
+`docker-compose.override.yml`. `make dev-db` для PostgreSQL подключает override с портом хоста.
+Миграции не запускаются при старте backend автоматически. `make docker-up` собирает и запускает стек без миграций;
+`make docker-restart` только перезапускает контейнеры. Для развёртывания с миграциями используйте `make local-deploy`.
+`make migrate`, `make migrate-up`, `make migrate-down` и `make ghcr-migrate` останавливают приложение и оставляют
+его выключенным; запускайте его после проверки результата. `make migrate-version` только читает версию.
 
 `make backup` и `make restore BACKUP=...` останавливают backend и frontend и запускают их после успешного завершения, даже если до команды сервисы были выключены. При ошибке после остановки они остаются выключенными; перед повторным запуском проверьте причину сбоя и состояние данных.
 
 ## Файловое хранилище
 
-По умолчанию книги и обложки хранятся в Docker volume `book_storage`, подключённом к `/data/books` сервисов `backend`, `migrate` и `admin`. Чтобы использовать серверный каталог, замените volume у всех трёх сервисов, например:
+По умолчанию книги и обложки хранятся в Docker volume `book_storage`, подключённом к `/data/books` сервисов
+`backend`, `migrate`, `admin` и `backup`. Чтобы использовать серверный каталог, замените volume у всех четырёх сервисов, например:
 
 ```yaml
 volumes:
   - /srv/book-hub/books:/data/books
 ```
+
+В SQLite-стеке у этих же четырёх сервисов есть отдельный volume `sqlite_data:/data/db`.
+SQLite-файл должен лежать на локальном диске; сетевое файловое хранилище и несколько backend не поддерживаются.
+Миграции PostgreSQL сохраняются в `backend/migrations/`, SQLite — в `backend/migrations/sqlite/`.
+Оба набора встроены в CLI. Запуск server/admin проверяет точную версию схемы и отсутствие dirty-состояния.
 
 ## Документация
 

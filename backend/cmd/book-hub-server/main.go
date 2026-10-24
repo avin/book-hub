@@ -8,8 +8,8 @@ import (
 
 	"book-hub/internal/config"
 	"book-hub/internal/httpapi"
-	"book-hub/internal/storage/db"
 	"book-hub/internal/storage/files"
+	"book-hub/internal/storage/sqlstore"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	store, err := db.Open(ctx, cfg.DatabaseURL)
+	store, err := sqlstore.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}

@@ -93,6 +93,10 @@ export const messages = {
     ru: 'Не удалось загрузить страницу.',
     en: 'The page failed to load.',
   },
+  serverTemporarilyUnavailable: {
+    ru: 'Сервер временно недоступен. Попробуйте ещё раз.',
+    en: 'The server is temporarily unavailable. Please try again.',
+  },
   tryAgain: {
     ru: 'Повторить',
     en: 'Try again',

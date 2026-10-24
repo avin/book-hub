@@ -351,13 +351,15 @@ func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, file domain.Bo
 }
 
 func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.BookQuery) (domain.BookPage, error) {
+	query.Tags = domain.NormalizeTags(query.Tags)
 	orderBy := map[string]string{
 		"relevance":       "ub.last_opened_at desc, ub.created_at desc, ub.id desc",
-		"created_at_asc":  "ub.created_at asc",
-		"title_asc":       "lower(ub.title) asc",
-		"title_desc":      "lower(ub.title) desc",
-		"updated_at_asc":  "ub.updated_at asc",
-		"updated_at_desc": "ub.updated_at desc",
+		"created_at_desc": "ub.created_at desc, ub.id desc",
+		"created_at_asc":  "ub.created_at asc, ub.id desc",
+		"title_asc":       "lower(ub.title) asc, ub.id desc",
+		"title_desc":      "lower(ub.title) desc, ub.id desc",
+		"updated_at_asc":  "ub.updated_at asc, ub.id desc",
+		"updated_at_desc": "ub.updated_at desc, ub.id desc",
 	}[query.Sort]
 	if orderBy == "" {
 		orderBy = "ub.last_opened_at desc, ub.created_at desc, ub.id desc"
@@ -365,7 +367,7 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 
 	where := `
 		ub.user_id = $1
-		and ($2::text = '' or lower(ub.title) like '%' || lower($2) || '%')
+		and ($2::text = '' or strpos(lower(ub.title), lower($2)) > 0)
 		and ($3::bool is null or ub.favorite = $3)
 		and not exists (
 			select 1 from unnest($4::text[]) qtag

@@ -3,7 +3,11 @@
 
 # Базовые настройки путей и инструментов. Значения можно переопределять при запуске make.
 COMPOSE ?= docker compose
-COMPOSE_GHCR = $(COMPOSE) -f docker-compose.yml -f docker-compose.ghcr.yml
+COMPOSE_FILE_SELECTED = $(if $(filter sqlite://%,$(BOOK_HUB_DATABASE_URL)),docker-compose.sqlite.yml,docker-compose.yml)
+COMPOSE_STACK = $(COMPOSE) -f $(COMPOSE_FILE_SELECTED)
+COMPOSE_DEV = $(COMPOSE_STACK) $(if $(wildcard docker-compose.override.yml),-f docker-compose.override.yml)
+COMPOSE_GHCR = $(COMPOSE_STACK) -f docker-compose.ghcr.yml
+COMPOSE_OPERATIONS = $(if $(BOOK_HUB_IMAGE_TAG),$(COMPOSE_GHCR_TAGGED),$(COMPOSE_STACK))
 COMPOSE_GHCR_TAGGED = BOOK_HUB_IMAGE_TAG="$(BOOK_HUB_IMAGE_TAG)" $(COMPOSE_GHCR)
 BACKEND_DIR ?= backend
 FRONTEND_DIR ?= frontend
@@ -13,18 +17,17 @@ SERVICE ?=
 MIGRATE_ARGS ?= up
 BOOK_HUB_IMAGE_TAG ?=
 COMPOSE_PROJECT_NAME ?= book-hub
-STORAGE_VOLUME ?= $(COMPOSE_PROJECT_NAME)_book_storage
 
 # Если .env уже создан, подключаем его, чтобы команды использовали реальные настройки проекта.
 ifneq (,$(wildcard .env))
 include .env
 export
-DEV_DATABASE_URL ?= $(subst @postgres:5432,@localhost:5432,$(BOOK_HUB_DATABASE_URL))
-DEV_STORAGE_DIR ?= ./data/books
-else
-DEV_DATABASE_URL ?=
-DEV_STORAGE_DIR ?= ./data/books
 endif
+
+# SQLite development uses a host path, independent of the Docker volume path.
+DEV_SQLITE_PATH := $(subst \,/,$(abspath ./data/db/book-hub.sqlite))
+DEV_DATABASE_URL ?= $(if $(filter sqlite://%,$(BOOK_HUB_DATABASE_URL)),sqlite://$(if $(filter /%,$(DEV_SQLITE_PATH)),,/)$(DEV_SQLITE_PATH),$(subst @postgres:5432,@localhost:5432,$(BOOK_HUB_DATABASE_URL)))
+DEV_STORAGE_DIR ?= $(abspath ./data/books)
 
 # Настройки HTTP-проверки готовности приложения.
 BOOK_HUB_PUBLIC_PORT ?= 8080
@@ -34,7 +37,7 @@ HEALTH_BASE_PATH := $(patsubst %/,%,$(BOOK_HUB_BASE_PATH))
 HEALTH_PATH ?= $(if $(HEALTH_BASE_PATH),$(HEALTH_BASE_PATH)/api/readyz,/api/readyz)
 
 .PHONY: help env \
-	dev-db dev-backend dev-frontend dev-storybook \
+	require-database dev-db dev-backend dev-frontend dev-storybook \
 	backend-test storage-contract-test frontend-unit-test frontend-e2e-test frontend-test frontend-generate frontend-build test \
 	docker-build docker-up docker-down docker-stop docker-restart \
 	local-deploy ghcr-require-image-tag ghcr-deploy ghcr-migrate ghcr-admin \
@@ -50,14 +53,14 @@ help:
 	@echo "  env                    Create .env from .env.example if it does not exist"
 	@echo ""
 	@echo "Local development:"
-	@echo "  dev-db                 Start PostgreSQL and apply migrations"
+	@echo "  dev-db                 Prepare selected development database and apply migrations"
 	@echo "  dev-backend            Start backend locally with .env settings"
 	@echo "  dev-frontend           Start Vite dev server"
 	@echo "  dev-storybook          Start Storybook"
 	@echo ""
 	@echo "Checks and generation:"
 	@echo "  backend-test           Run Go tests"
-	@echo "  storage-contract-test  Run PostgreSQL storage contract suite"
+	@echo "  storage-contract-test  Run SQLite and PostgreSQL storage contract suites"
 	@echo "  frontend-unit-test     Run frontend unit tests"
 	@echo "  frontend-e2e-test      Run frontend end-to-end tests (Playwright)"
 	@echo "  frontend-test          Run all frontend tests"
@@ -94,10 +97,18 @@ help:
 env:
 	@test -f .env || cp .env.example .env
 
-# Запускает PostgreSQL в Docker и применяет миграции.
-dev-db:
-	$(COMPOSE) up -d postgres
-	$(COMPOSE) run --rm migrate up
+# Validate before Compose interpolates PostgreSQL-only variables.
+require-database:
+	@case "$(BOOK_HUB_DATABASE_URL)" in sqlite://*|postgres://*|postgresql://*) ;; *) echo "BOOK_HUB_DATABASE_URL must use sqlite://, postgres:// or postgresql://" >&2; exit 1 ;; esac
+
+# Stop the host backend before rerunning this target after initial setup.
+dev-db: require-database
+ifeq ($(filter sqlite://%,$(BOOK_HUB_DATABASE_URL)),)
+	$(COMPOSE_DEV) up -d postgres
+else
+	mkdir -p ./data/db
+endif
+	BOOK_HUB_DATABASE_URL="$(DEV_DATABASE_URL)" go -C $(BACKEND_DIR) run ./cmd/book-hub-migrate up
 
 # Запускает Go backend локально; URL базы меняется с docker-host postgres на localhost.
 dev-backend:
@@ -117,6 +128,7 @@ backend-test:
 
 # Запускает contract-suite на изолированной schema в указанной PostgreSQL базе.
 storage-contract-test:
+	go -C $(BACKEND_DIR) test ./internal/storage/sqlite -run TestStoreContract -count=1
 	@test -n "$(BOOK_HUB_TEST_DATABASE_URL)" || { echo "BOOK_HUB_TEST_DATABASE_URL is required" >&2; exit 1; }
 	go -C $(BACKEND_DIR) test ./internal/storage/db -run TestStoreContract -count=1
 
@@ -144,42 +156,45 @@ test: backend-test frontend-test frontend-build
 
 # Собирает Docker-образы без запуска сервисов.
 docker-build:
-	$(COMPOSE) build
+	$(COMPOSE_STACK) build
 
 # Собирает и запускает полный Docker-стек в фоне.
 docker-up:
-	$(COMPOSE) up -d --build
+	$(COMPOSE_STACK) up -d --build
 
 # Останавливает и удаляет compose-контейнеры, сохраняя volumes.
 docker-down:
-	$(COMPOSE) down
+	$(COMPOSE_STACK) down
 
 # Останавливает compose-сервисы без удаления контейнеров.
 docker-stop:
-	$(COMPOSE) stop
+	$(COMPOSE_STACK) stop
 
 # Перезапускает текущие compose-сервисы.
 docker-restart:
-	$(COMPOSE) restart
+	$(COMPOSE_STACK) restart
 
 # Запуск из локального исходного кода: сборка, миграции, старт сервисов.
-local-deploy:
-	$(COMPOSE) -f docker-compose.yml build
-	$(COMPOSE) -f docker-compose.yml run --rm migrate up
-	$(COMPOSE) -f docker-compose.yml up -d
+local-deploy: require-database
+	$(COMPOSE_STACK) build
+	$(COMPOSE_STACK) stop backend frontend
+	$(COMPOSE_STACK) run --rm migrate up
+	$(COMPOSE_STACK) up -d --wait --remove-orphans || { $(COMPOSE_STACK) stop backend frontend; exit 1; }
 
 # Проверяет, что перед запуском готовых образов указан их тег.
 ghcr-require-image-tag:
 	@test -n "$(BOOK_HUB_IMAGE_TAG)" || { echo "Specify BOOK_HUB_IMAGE_TAG, for example: make ghcr-deploy BOOK_HUB_IMAGE_TAG=sha-abc1234" >&2; exit 1; }
 
 # Запускает готовые GHCR-образы с указанным неизменяемым тегом, без локальной сборки.
-ghcr-deploy: ghcr-require-image-tag
+ghcr-deploy: ghcr-require-image-tag require-database
 	$(COMPOSE_GHCR_TAGGED) pull
+	$(COMPOSE_GHCR_TAGGED) stop backend frontend
 	$(COMPOSE_GHCR_TAGGED) run --rm migrate up
-	$(COMPOSE_GHCR_TAGGED) up -d --remove-orphans
+	$(COMPOSE_GHCR_TAGGED) up -d --wait --remove-orphans || { $(COMPOSE_GHCR_TAGGED) stop backend frontend; exit 1; }
 
 # Запускает мигратор из готового GHCR-образа; MIGRATE_ARGS по умолчанию равен up.
-ghcr-migrate: ghcr-require-image-tag
+ghcr-migrate: ghcr-require-image-tag require-database
+	$(COMPOSE_GHCR_TAGGED) stop backend frontend
 	$(COMPOSE_GHCR_TAGGED) run --rm migrate $(MIGRATE_ARGS)
 
 # Открывает admin CLI из готового GHCR-образа.
@@ -187,66 +202,67 @@ ghcr-admin: ghcr-require-image-tag
 	$(COMPOSE_GHCR_TAGGED) run --rm admin
 
 # Универсальный запуск мигратора; аргументы передаются через MIGRATE_ARGS, например make migrate MIGRATE_ARGS=version.
-migrate:
-	$(COMPOSE) run --rm migrate $(MIGRATE_ARGS)
+migrate: require-database
+	$(COMPOSE_STACK) stop backend frontend
+	$(COMPOSE_STACK) run --rm migrate $(MIGRATE_ARGS)
 
 # Применяет все новые миграции базы данных.
-migrate-up:
-	$(COMPOSE) run --rm migrate up
+migrate-up: require-database
+	$(COMPOSE_STACK) stop backend frontend
+	$(COMPOSE_STACK) run --rm migrate up
 
 # Откатывает одну миграцию базы данных.
-migrate-down:
-	$(COMPOSE) run --rm migrate down
+migrate-down: require-database
+	$(COMPOSE_STACK) stop backend frontend
+	$(COMPOSE_STACK) run --rm migrate down
 
 # Показывает текущую версию миграций базы данных.
 migrate-version:
-	$(COMPOSE) run --rm migrate version
+	$(COMPOSE_STACK) run --rm migrate version
 
 # Открывает интерактивный admin CLI внутри Docker.
 admin:
-	$(COMPOSE) run --rm admin
+	$(COMPOSE_STACK) run --rm admin
 
 # Показывает состояние compose-сервисов.
 ps:
-	$(COMPOSE) ps
+	$(COMPOSE_STACK) ps
 
 # Показывает последние логи и продолжает следить за ними; SERVICE ограничивает вывод одним сервисом.
 logs:
-	$(COMPOSE) logs -f --tail=200 $(SERVICE)
+	$(COMPOSE_STACK) logs -f --tail=200 $(SERVICE)
 
 # Открывает shell внутри запущенного backend-контейнера.
 backend-shell:
-	$(COMPOSE) exec backend sh
+	$(COMPOSE_STACK) exec backend sh
 
 # Открывает psql внутри PostgreSQL-контейнера с настройками из окружения контейнера.
-db-shell:
-	$(COMPOSE) exec postgres sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
+db-shell: require-database
+	@test "$(filter sqlite://%,$(BOOK_HUB_DATABASE_URL))" = "" || { echo "db-shell is available only for PostgreSQL" >&2; exit 1; }
+	$(COMPOSE_STACK) exec postgres sh -c 'psql -U "$$POSTGRES_USER" "$$POSTGRES_DB"'
 
 # Проверяет HTTP readiness endpoint через опубликованный frontend/nginx порт.
 health-http:
 	curl -fsS "http://localhost:$(PUBLIC_PORT)$(HEALTH_PATH)"
 
-# Создает согласованный backup PostgreSQL и файлового хранилища в одной директории.
-backup:
+# Root can read both host backup files and application volumes; ownership is restored afterwards.
+# Never run concurrent admin/migration writers during backup or restore.
+backup: require-database
 	@set -eu; \
 	backup_path="$(BACKUP_DIR)/$$(date +%Y%m%d-%H%M%S)"; \
 	mkdir -p "$(BACKUP_DIR)"; \
-	mkdir "$$backup_path"; \
+	(umask 077; mkdir "$$backup_path"); \
 	backup_path="$$(cd "$$backup_path" && pwd)"; \
-	$(COMPOSE) stop backend frontend; \
-	$(COMPOSE) exec -T postgres sh -c 'pg_dump --clean --if-exists --no-owner -U "$$POSTGRES_USER" "$$POSTGRES_DB"' > "$$backup_path/database.sql"; \
-	docker run --rm -v $(STORAGE_VOLUME):/data/books:ro alpine tar -czf - -C /data/books . > "$$backup_path/storage.tar.gz"; \
-	$(COMPOSE) up -d backend frontend; \
+	$(COMPOSE_OPERATIONS) stop backend frontend; \
+	$(COMPOSE_OPERATIONS) run --rm --user 0 -e BACKUP_UID="$$(id -u)" -e BACKUP_GID="$$(id -g)" -v "$$backup_path:/backup" --entrypoint sh backup -c 'book-hub-backup create /backup && chown "$$BACKUP_UID:$$BACKUP_GID" /backup/*'; \
+	if ! $(COMPOSE_OPERATIONS) up -d --wait backend frontend; then $(COMPOSE_OPERATIONS) stop backend frontend; exit 1; fi; \
 	echo "Backup saved to $$backup_path"
 
-# Восстанавливает PostgreSQL и файловое хранилище из BACKUP=путь-к-директории-снимка.
-restore:
+restore: require-database
 	@set -eu; \
-	test -n "$(BACKUP)" || { echo "Specify BACKUP, for example: make restore BACKUP=./backups/20260712-120000" >&2; exit 1; }; \
-	test -f "$(BACKUP)/database.sql" || { echo "Database dump not found: $(BACKUP)/database.sql" >&2; exit 1; }; \
-	test -f "$(BACKUP)/storage.tar.gz" || { echo "Storage archive not found: $(BACKUP)/storage.tar.gz" >&2; exit 1; }; \
+	test -n "$(BACKUP)" || { echo "Specify BACKUP=path-to-backup-directory" >&2; exit 1; }; \
 	backup_path="$$(cd "$(BACKUP)" && pwd)"; \
-	$(COMPOSE) stop backend frontend; \
-	$(COMPOSE) exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" "$$POSTGRES_DB"' < "$$backup_path/database.sql"; \
-	docker run --rm -i -v $(STORAGE_VOLUME):/data/books alpine sh -c 'rm -rf /data/books/* /data/books/.[!.]* /data/books/..?* && tar -xzf - -C /data/books' < "$$backup_path/storage.tar.gz"; \
-	$(COMPOSE) up -d backend frontend
+	$(COMPOSE_OPERATIONS) run --rm --no-deps --user 0 -v "$$backup_path:/backup:ro" backup validate /backup; \
+	$(COMPOSE_OPERATIONS) stop backend frontend; \
+	$(COMPOSE_OPERATIONS) run --rm --user 0 -v "$$backup_path:/backup:ro" --entrypoint sh backup -c 'set -eu; work=$$(mktemp -d); cp /backup/* "$$work/"; chown -R bookhub:bookhub "$$work"; su bookhub -s /bin/sh -c "book-hub-backup restore $$work"'; \
+	if ! $(COMPOSE_OPERATIONS) up -d --wait backend frontend; then $(COMPOSE_OPERATIONS) stop backend frontend; exit 1; fi
