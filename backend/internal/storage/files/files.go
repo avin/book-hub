@@ -37,7 +37,8 @@ func New(root string) Store {
 }
 
 func NewConfigured(cfg config.Config) (Store, error) {
-	if err := cfg.ValidateFileStorage(); err != nil {
+	originals, err := NewOriginals(cfg)
+	if err != nil {
 		return Store{}, err
 	}
 	books, images, work := cfg.FilePaths()
@@ -45,16 +46,14 @@ func NewConfigured(cfg config.Config) (Store, error) {
 	if limit == 0 {
 		limit = 1 << 30
 	}
-	originals, err := NewOriginals(cfg)
-	if err != nil {
-		return Store{}, err
-	}
+
 	store := newStore(cfg.StorageDir, books, images, work, limit)
 	store.Books = originals
 	return store, nil
 }
 
-// NewOriginals constructs the selected source without accessing it or local work/cache files.
+// NewOriginals constructs only the persistent source. Administrative processes
+// must not initialize another backend's cache or temporary workspace.
 func NewOriginals(cfg config.Config) (Originals, error) {
 	if err := cfg.ValidateFileStorage(); err != nil {
 		return nil, err
