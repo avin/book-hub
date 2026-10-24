@@ -15,7 +15,9 @@ import (
 	"strconv"
 	"strings"
 
+	"book-hub/internal/config"
 	"book-hub/internal/database"
+	"book-hub/internal/storage/files"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -24,12 +26,29 @@ const formatVersion = 1
 type Options struct {
 	DatabaseURL string
 	StorageDir  string
+	FileStorage config.Config
+	Originals   files.Originals
 }
 
 type Manifest struct {
 	FormatVersion int    `json:"format_version"`
 	Database      string `json:"database"`
 	SchemaVersion int64  `json:"schema_version"`
+}
+
+func (o Options) fileConfig() config.Config {
+	cfg := o.FileStorage
+	if cfg.StorageDir == "" {
+		cfg.StorageDir = o.StorageDir
+	}
+	return cfg
+}
+
+func (o Options) originals() (files.Originals, error) {
+	if o.Originals != nil {
+		return o.Originals, nil
+	}
+	return files.NewOriginals(o.fileConfig())
 }
 
 func Create(ctx context.Context, options Options, directory string) error {
@@ -59,7 +78,6 @@ func Create(ctx context.Context, options Options, directory string) error {
 		if err != nil {
 			return err
 		}
-		// VACUUM INTO reads the complete database snapshot, including committed WAL data.
 		_, err = db.ExecContext(ctx, "VACUUM INTO ?", filepath.Join(directory, "database.sqlite"))
 		closeErr := db.Close()
 		if err != nil {
@@ -71,135 +89,70 @@ func Create(ctx context.Context, options Options, directory string) error {
 	} else if err := dumpPostgres(ctx, connection.URL, filepath.Join(directory, "database.sql")); err != nil {
 		return err
 	}
-	if err := archiveStorage(options.StorageDir, filepath.Join(directory, "storage.tar.gz")); err != nil {
+	inventory, err := readInventory(ctx, connection.Driver, directory)
+	if err != nil {
+		return err
+	}
+	originals, err := options.originals()
+	if err != nil {
+		return err
+	}
+	if err := archiveLibrary(ctx, options.fileConfig(), originals, inventory, filepath.Join(directory, "storage.tar.gz")); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(Manifest{formatVersion, connection.Driver, version}, "", "  ")
 	if err != nil {
 		return err
 	}
-	// Written last: an incomplete backup is never advertised as a new-format copy.
+	// Written last: an incomplete backup is never advertised as a complete copy.
 	return os.WriteFile(filepath.Join(directory, "manifest.json"), append(data, '\n'), 0600)
 }
 
 func Validate(ctx context.Context, options Options, directory string) error {
-	_, err := validate(ctx, options, directory)
-	return err
-}
-
-func validate(ctx context.Context, options Options, directory string) (Manifest, error) {
-	if err := validateLayout(options, directory); err != nil {
-		return Manifest{}, err
-	}
-	connection, err := database.Parse(options.DatabaseURL)
+	prepared, err := prepareRestore(ctx, options, directory)
 	if err != nil {
-		return Manifest{}, err
+		return err
 	}
-	manifest := Manifest{Database: "postgres"} // Legacy PostgreSQL backups have no manifest.
-	data, err := os.ReadFile(filepath.Join(directory, "manifest.json"))
-	if err == nil {
-		if err := json.Unmarshal(data, &manifest); err != nil {
-			return Manifest{}, fmt.Errorf("invalid backup manifest: %w", err)
-		}
-		if manifest.FormatVersion != formatVersion || manifest.SchemaVersion < 1 {
-			return Manifest{}, fmt.Errorf("unsupported backup format or schema version")
-		}
-	} else if !os.IsNotExist(err) {
-		return Manifest{}, err
-	}
-	if manifest.Database != "postgres" && manifest.Database != "sqlite" {
-		return Manifest{}, fmt.Errorf("unsupported backup database: %q", manifest.Database)
-	}
-	if manifest.Database != connection.Driver {
-		return Manifest{}, fmt.Errorf("cannot restore %s backup into %s; database conversion is not supported", manifest.Database, connection.Driver)
-	}
-	if manifest.FormatVersion != 0 {
-		expected, err := database.ExpectedVersion(connection.Driver)
-		if err != nil {
-			return Manifest{}, err
-		}
-		if manifest.SchemaVersion > int64(expected) {
-			return Manifest{}, fmt.Errorf("backup schema version %d is newer than supported %d", manifest.SchemaVersion, expected)
-		}
-	}
-	name := "database.sql"
-	if manifest.Database == "sqlite" {
-		name = "database.sqlite"
-	}
-	for _, name := range []string{name, "storage.tar.gz"} {
-		info, err := os.Lstat(filepath.Join(directory, name))
-		if err != nil {
-			return Manifest{}, err
-		}
-		if !info.Mode().IsRegular() || info.Size() == 0 {
-			return Manifest{}, fmt.Errorf("backup component must be a nonempty regular file: %s", name)
-		}
-	}
-	if manifest.Database == "sqlite" {
-		// Checking schema and integrity in a temporary copy keeps validation read-only
-		// even when SQLite opens a WAL-mode database.
-		tempDir, err := os.MkdirTemp("", "book-hub-validate-*")
-		if err != nil {
-			return Manifest{}, err
-		}
-		defer os.RemoveAll(tempDir)
-		path := filepath.Join(tempDir, name)
-		if err := copyFile(filepath.Join(directory, name), path); err != nil {
-			return Manifest{}, err
-		}
-		rawURL := sqliteURL(path)
-		version, err := schemaVersion(ctx, rawURL)
-		if err != nil {
-			return Manifest{}, err
-		}
-		if version != manifest.SchemaVersion {
-			return Manifest{}, fmt.Errorf("SQLite schema version does not match backup manifest")
-		}
-		db, err := database.OpenSQLite(ctx, rawURL, false)
-		if err != nil {
-			return Manifest{}, err
-		}
-		defer db.Close()
-		var integrity string
-		if err := db.QueryRowContext(ctx, "PRAGMA integrity_check").Scan(&integrity); err != nil {
-			return Manifest{}, err
-		}
-		if integrity != "ok" {
-			return Manifest{}, fmt.Errorf("SQLite integrity check failed: %s", integrity)
-		}
-	}
-	if err := readArchive(filepath.Join(directory, "storage.tar.gz"), ""); err != nil {
-		return Manifest{}, err
-	}
-	return manifest, nil
+	defer os.RemoveAll(prepared.staging)
+	return requireEmptyOriginals(ctx, options)
 }
 
 func Restore(ctx context.Context, options Options, directory string) error {
-	if err := validateLayout(options, directory); err != nil {
-		return err
-	}
-	manifest, err := validate(ctx, options, directory)
+	prepared, err := prepareRestore(ctx, options, directory)
 	if err != nil {
 		return err
 	}
-	connection, err := database.Parse(options.DatabaseURL)
+	defer os.RemoveAll(prepared.staging)
+	if err := requireEmptyOriginals(ctx, options); err != nil {
+		return err
+	}
+	originals, err := options.originals()
 	if err != nil {
 		return err
 	}
-	storage, err := filepath.Abs(options.StorageDir)
-	if err != nil || options.StorageDir == "" || filepath.Dir(storage) == storage {
-		return fmt.Errorf("storage directory must name a non-root directory")
+	for _, book := range prepared.inventory.Books {
+		source := filepath.Join(prepared.staging, "storage", filepath.FromSlash(book.archiveName()))
+		if _, err := originals.MoveBook(ctx, source, book.Hash, book.Format); err != nil {
+			return fmt.Errorf("restore original: %w", err)
+		}
 	}
-	// Unpack and verify every entry before replacing any current data.
-	tempDir, err := os.MkdirTemp("", "book-hub-restore-*")
-	if err != nil {
+	_, images, _ := options.fileConfig().FilePaths()
+	if _, err := os.Stat(filepath.Join(prepared.staging, "storage", "covers")); err == nil {
+		if err := copyTree(filepath.Join(prepared.staging, "storage", "covers"), images); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
 		return err
 	}
-	defer os.RemoveAll(tempDir)
-	if err := readArchive(filepath.Join(directory, "storage.tar.gz"), tempDir); err != nil {
-		return err
-	}
-	if manifest.Database == "sqlite" {
+	connection, _ := database.Parse(options.DatabaseURL)
+	if connection.Driver == "sqlite" {
+		stagedDB := filepath.Join(prepared.staging, "database.sqlite")
+		if err := database.Migrate(ctx, sqliteURL(stagedDB), "up"); err != nil {
+			return err
+		}
+		if err := rewriteLocations(ctx, sqliteURL(stagedDB), prepared.inventory, originals, images); err != nil {
+			return err
+		}
 		if err := os.MkdirAll(filepath.Dir(connection.SQLitePath), 0700); err != nil {
 			return err
 		}
@@ -210,7 +163,7 @@ func Restore(ctx context.Context, options Options, directory string) error {
 		stagedPath := staged.Name()
 		staged.Close()
 		defer os.Remove(stagedPath)
-		if err := copyFile(filepath.Join(directory, "database.sqlite"), stagedPath); err != nil {
+		if err := copyFile(stagedDB, stagedPath); err != nil {
 			return err
 		}
 		for _, suffix := range []string{"-wal", "-shm", "-journal"} {
@@ -218,48 +171,36 @@ func Restore(ctx context.Context, options Options, directory string) error {
 				return err
 			}
 		}
-		if err := os.Rename(stagedPath, connection.SQLitePath); err != nil {
-			return err
-		}
-	} else {
-		input, err := os.Open(filepath.Join(directory, "database.sql"))
-		if err != nil {
-			return err
-		}
-		defer input.Close()
-		tool, err := postgresTool(ctx, connection.URL, "psql")
-		if err != nil {
-			return err
-		}
-		command := exec.CommandContext(ctx, tool, "--dbname", connection.URL, "--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--single-transaction")
-		command.Stdin = input
-		command.Stdout = io.Discard
-		command.Stderr = os.Stderr
-		if err := command.Run(); err != nil {
-			return fmt.Errorf("restore PostgreSQL: %w", err)
-		}
+		return os.Rename(stagedPath, connection.SQLitePath)
 	}
-	if err := os.MkdirAll(storage, 0700); err != nil {
-		return err
-	}
-	entries, err := os.ReadDir(storage)
+	input, err := os.Open(filepath.Join(directory, "database.sql"))
 	if err != nil {
 		return err
 	}
-	for _, entry := range entries {
-		if err := os.RemoveAll(filepath.Join(storage, entry.Name())); err != nil {
-			return err
-		}
+	defer input.Close()
+	tool, err := postgresTool(ctx, connection.URL, "psql")
+	if err != nil {
+		return err
 	}
-	// Copy rather than rename because staging and storage may be separate volumes.
-	return copyTree(tempDir, storage)
+	command := exec.CommandContext(ctx, tool, "--dbname", connection.URL, "--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--single-transaction")
+	command.Stdin, command.Stdout, command.Stderr = input, io.Discard, os.Stderr
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("restore PostgreSQL: %w", err)
+	}
+	if err := database.Migrate(ctx, connection.URL, "up"); err != nil {
+		return err
+	}
+	return rewriteLocations(ctx, connection.URL, prepared.inventory, originals, images)
 }
-
 func validateLayout(options Options, directory string) error {
-	if options.StorageDir == "" {
+	cfg := options.fileConfig()
+	if err := cfg.ValidateFileStorage(); err != nil {
+		return err
+	}
+	if cfg.StorageDir == "" {
 		return fmt.Errorf("BOOK_HUB_STORAGE_DIR is required")
 	}
-	storagePath, err := resolvePath(options.StorageDir)
+	storagePath, err := resolvePath(cfg.StorageDir)
 	if err != nil {
 		return err
 	}
@@ -273,6 +214,37 @@ func validateLayout(options Options, directory string) error {
 	if containsPath(storagePath, backupPath) || containsPath(backupPath, storagePath) {
 		return fmt.Errorf("backup and storage directories must not contain each other")
 	}
+	books, images, work := cfg.FilePaths()
+	separate := []string{images, work}
+	if cfg.BookStorage == "" || cfg.BookStorage == "directory" {
+		separate = append(separate, books)
+	}
+	for i, name := range separate {
+		resolved, err := resolvePath(name)
+		if err != nil {
+			return err
+		}
+		for _, previous := range separate[:i] {
+			if containsPath(previous, resolved) || containsPath(resolved, previous) {
+				return fmt.Errorf("originals, images and workspace directories must not overlap through symlinks")
+			}
+		}
+		separate[i] = resolved
+	}
+	localPaths := []string{storagePath, images, work}
+	if cfg.BookStorage == "" || cfg.BookStorage == "directory" {
+		localPaths = append(localPaths, books)
+	}
+	for i, path := range localPaths {
+		resolved, err := resolvePath(path)
+		if err != nil {
+			return err
+		}
+		if filepath.Dir(resolved) == resolved || containsPath(resolved, backupPath) || containsPath(backupPath, resolved) {
+			return fmt.Errorf("backup and local storage directories must not contain each other")
+		}
+		localPaths[i] = resolved
+	}
 	connection, err := database.Parse(options.DatabaseURL)
 	if err != nil {
 		return err
@@ -282,8 +254,13 @@ func validateLayout(options Options, directory string) error {
 		if err != nil {
 			return err
 		}
-		if containsPath(storagePath, databasePath) || containsPath(backupPath, databasePath) {
+		if containsPath(backupPath, databasePath) {
 			return fmt.Errorf("SQLite database must be outside storage and backup directories")
+		}
+		for _, path := range localPaths {
+			if containsPath(path, databasePath) {
+				return fmt.Errorf("SQLite database must be outside storage and backup directories")
+			}
 		}
 	}
 	return nil
