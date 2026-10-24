@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"mime"
 	"net/http"
 	"os"
@@ -98,7 +99,7 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 		title = domain.TitleFromFilename(header.Filename)
 	}
 	favorite, _ := strconv.ParseBool(firstFormValue(r, "favorite"))
-	temp, err := s.files.SaveTemp(file, s.cfg.MaxUploadBytes)
+	temp, err := s.files.Work.SaveTemp(file, s.cfg.MaxUploadBytes)
 	if err != nil {
 		s.writeError(w, r, err)
 		return
@@ -136,7 +137,7 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 		fileInput.ID = existingFile.ID
 		fileInput.StoragePath = existingFile.StoragePath
 	} else {
-		finalPath, err := s.files.MoveBook(temp.Path, temp.SHA256, format)
+		finalPath, err := s.files.Books.MoveBook(r.Context(), temp.Path, temp.SHA256, format)
 		if err != nil {
 			s.writeError(w, r, err)
 			return
@@ -151,7 +152,7 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if movedNewFile {
-			files.DeleteBestEffort(fileInput.StoragePath)
+			_ = s.files.Books.Delete(context.WithoutCancel(r.Context()), fileInput.StoragePath)
 		}
 		s.writeError(w, r, err)
 		return
@@ -212,7 +213,7 @@ func (s *Server) handleDeleteBook(w http.ResponseWriter, r *http.Request) {
 	}
 	files.DeleteBestEffort(deleted.CoverPath)
 	files.DeleteBestEffort(deleted.CoverThumbPath)
-	files.DeleteBestEffort(deleted.BookPath)
+	_ = s.files.Books.Delete(context.WithoutCancel(r.Context()), deleted.BookPath)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -237,7 +238,24 @@ func (s *Server) handleDownloadBook(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Disposition", bookFileContentDisposition(disposition, book.Title, book.Format))
-	http.ServeFile(w, r, book.StoragePath)
+	original, err := s.files.Books.Open(r.Context(), book.StoragePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.NotFound(w, r)
+		} else if os.IsPermission(err) {
+			http.Error(w, "403 Forbidden", http.StatusForbidden)
+		} else {
+			http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+	defer original.Close()
+	info, err := original.Stat()
+	if err != nil {
+		http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	http.ServeContent(w, r, info.Name(), info.ModTime(), original)
 }
 
 func (s *Server) handleUploadCover(w http.ResponseWriter, r *http.Request) {
@@ -270,7 +288,7 @@ func (s *Server) handleUploadCover(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	coverFiles, err := s.files.SaveCover(bookID.String(), format, file, s.cfg.MaxCoverUploadBytes)
+	coverFiles, err := s.files.Images.SaveCover(bookID.String(), format, file, s.cfg.MaxCoverUploadBytes)
 	if err != nil {
 		s.writeError(w, r, err)
 		return
