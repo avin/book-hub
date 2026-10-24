@@ -45,7 +45,29 @@ func NewConfigured(cfg config.Config) (Store, error) {
 	if limit == 0 {
 		limit = 1 << 30
 	}
-	return newStore(cfg.StorageDir, books, images, work, limit), nil
+	originals, err := NewOriginals(cfg)
+	if err != nil {
+		return Store{}, err
+	}
+	store := newStore(cfg.StorageDir, books, images, work, limit)
+	store.Books = originals
+	return store, nil
+}
+
+// NewOriginals constructs the selected source without accessing it or local work/cache files.
+func NewOriginals(cfg config.Config) (Originals, error) {
+	if err := cfg.ValidateFileStorage(); err != nil {
+		return nil, err
+	}
+	if cfg.BookStorage == "ftp" {
+		root := cfg.FTPRoot
+		if root == "" {
+			root = "/books"
+		}
+		return &ftpOriginals{address: cfg.FTPAddr, user: cfg.FTPUser, password: cfg.FTPPassword, root: root}, nil
+	}
+	books, _, _ := cfg.FilePaths()
+	return NewDirectory(books), nil
 }
 
 func newStore(root, books, images, workPath string, limit int64) Store {
