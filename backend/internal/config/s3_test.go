@@ -42,3 +42,21 @@ func TestS3ConfigurationRejectsInvalidEndpointAndNamespace(t *testing.T) {
 		}
 	}
 }
+
+func TestS3AdministrativeConfigurationUsesTheSameStorageSettings(t *testing.T) {
+	t.Setenv("BOOK_HUB_SESSION_SECRET", "")
+	t.Setenv("BOOK_HUB_BOOK_STORAGE", "s3")
+	t.Setenv("BOOK_HUB_S3_ENDPOINT", "https://s3.example.org")
+	t.Setenv("BOOK_HUB_S3_REGION", "custom-region")
+	t.Setenv("BOOK_HUB_S3_BUCKET", "book-hub")
+	t.Setenv("BOOK_HUB_S3_PREFIX", "")
+	t.Setenv("BOOK_HUB_S3_ACCESS_KEY_ID", "access")
+	t.Setenv("BOOK_HUB_S3_SECRET_ACCESS_KEY", "secret")
+	cfg, err := config.LoadFileStorage()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.BookStorage != "s3" || cfg.S3Endpoint != "https://s3.example.org" || cfg.S3Region != "custom-region" || cfg.S3Bucket != "book-hub" || cfg.S3Prefix != "books" || cfg.S3AccessKeyID != "access" || cfg.S3SecretAccessKey != "secret" {
+		t.Fatalf("administrative S3 settings differ: %+v", cfg)
+	}
+}
