@@ -39,7 +39,8 @@ func New(root string) Store {
 }
 
 func NewConfigured(cfg config.Config) (Store, error) {
-	if err := cfg.ValidateFileStorage(); err != nil {
+	originals, err := NewOriginals(cfg)
+	if err != nil {
 		return Store{}, err
 	}
 	books, images, work := cfg.FilePaths()
@@ -48,6 +49,7 @@ func NewConfigured(cfg config.Config) (Store, error) {
 		limit = 1 << 30
 	}
 	store := newStore(cfg.StorageDir, books, images, work, limit)
+	store.Books = originals
 	if cfg.CacheDir != "" {
 		store.cache = newBookCache(cfg.CacheDir, cfg.CacheMaxBytes)
 	}
@@ -56,11 +58,31 @@ func NewConfigured(cfg config.Config) (Store, error) {
 
 // SetLogger connects optional cache failures to the server's logger.
 func (s Store) SetLogger(logger *slog.Logger) {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	if s.cache != nil {
 		s.cache.mu.Lock()
 		s.cache.logger = logger
 		s.cache.mu.Unlock()
 	}
+}
+
+// NewOriginals constructs only the persistent source. Administrative processes
+// must not initialize another backend's cache or temporary workspace.
+func NewOriginals(cfg config.Config) (Originals, error) {
+	if err := cfg.ValidateFileStorage(); err != nil {
+		return nil, err
+	}
+	if cfg.BookStorage == "ftp" {
+		root := cfg.FTPRoot
+		if root == "" {
+			root = "/books"
+		}
+		return &ftpOriginals{address: cfg.FTPAddr, user: cfg.FTPUser, password: cfg.FTPPassword, root: root}, nil
+	}
+	books, _, _ := cfg.FilePaths()
+	return NewDirectory(books), nil
 }
 
 func newStore(root, books, images, workPath string, limit int64) Store {

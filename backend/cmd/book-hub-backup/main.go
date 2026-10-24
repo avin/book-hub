@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"book-hub/internal/backup"
+	"book-hub/internal/config"
 )
 
 func main() {
@@ -23,7 +24,11 @@ func run(ctx context.Context, args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("usage: book-hub-backup create|validate|restore DIRECTORY")
 	}
-	options := backup.Options{DatabaseURL: os.Getenv("BOOK_HUB_DATABASE_URL"), StorageDir: os.Getenv("BOOK_HUB_STORAGE_DIR")}
+	cfg, err := config.LoadFileStorage()
+	if err != nil {
+		return err
+	}
+	options := backup.Options{DatabaseURL: cfg.DatabaseURL, FileStorage: cfg}
 	switch args[0] {
 	case "create":
 		return backup.Create(ctx, options, args[1])

@@ -42,3 +42,13 @@ func TestStorageConfigurationPreservesLegacyDefaultsAndRejectsInvalidSettings(t 
 		}
 	})
 }
+
+func TestAdministrativeStorageConfigurationDoesNotRequireSessionSecret(t *testing.T) {
+	t.Setenv("BOOK_HUB_SESSION_SECRET", "")
+	t.Setenv("BOOK_HUB_STORAGE_DIR", t.TempDir())
+	t.Setenv("BOOK_HUB_DATABASE_URL", "postgres://configured/database")
+	cfg, err := config.LoadFileStorage()
+	if err != nil || cfg.DatabaseURL != "postgres://configured/database" || cfg.WorkMaxBytes != 1<<30 {
+		t.Fatalf("administrative file storage config: %#v %v", cfg, err)
+	}
+}

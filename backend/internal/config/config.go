@@ -3,7 +3,9 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,6 +27,10 @@ type Config struct {
 	WorkMaxBytes             int64
 	CacheDir                 string
 	CacheMaxBytes            int64
+	FTPAddr                  string
+	FTPUser                  string
+	FTPPassword              string
+	FTPRoot                  string
 	DefaultQuotaBytes        int64
 	RegistrationEnabled      bool
 	RegistrationAutoActivate bool
@@ -35,27 +41,21 @@ type Config struct {
 	MaxCoverUploadBytes      int64
 }
 
-func Load() (Config, error) {
+// LoadFileStorage loads the shared server/CLI settings without HTTP credentials.
+func LoadFileStorage() (Config, error) {
 	cfg := Config{
-		HTTPAddr:            envString("BOOK_HUB_HTTP_ADDR", ":8080"),
-		BasePath:            normalizeBasePath(envString("BOOK_HUB_BASE_PATH", "/")),
-		LogLevel:            envString("BOOK_HUB_LOG_LEVEL", "info"),
-		DatabaseURL:         os.Getenv("BOOK_HUB_DATABASE_URL"),
-		StorageDir:          envString("BOOK_HUB_STORAGE_DIR", "./data/books"),
-		BookStorage:         envString("BOOK_HUB_BOOK_STORAGE", "directory"),
-		BooksDir:            os.Getenv("BOOK_HUB_BOOKS_DIR"),
-		ImagesDir:           os.Getenv("BOOK_HUB_IMAGES_DIR"),
-		WorkDir:             os.Getenv("BOOK_HUB_WORK_DIR"),
-		CacheDir:            os.Getenv("BOOK_HUB_CACHE_DIR"),
-		DefaultQuotaBytes:   envInt64("BOOK_HUB_DEFAULT_QUOTA_BYTES", domain.DefaultQuotaBytes),
-		SessionSecret:       os.Getenv("BOOK_HUB_SESSION_SECRET"),
-		SessionTTL:          envDuration("BOOK_HUB_SESSION_TTL", 3*365*24*time.Hour),
-		MaxUploadBytes:      envInt64("BOOK_HUB_MAX_UPLOAD_BYTES", domain.DefaultMaxUpload),
-		MaxCoverUploadBytes: envInt64("BOOK_HUB_MAX_COVER_UPLOAD_BYTES", domain.DefaultMaxCoverBytes),
+		DatabaseURL: os.Getenv("BOOK_HUB_DATABASE_URL"),
+		StorageDir:  envString("BOOK_HUB_STORAGE_DIR", "./data/books"),
+		BookStorage: envString("BOOK_HUB_BOOK_STORAGE", "directory"),
+		BooksDir:    os.Getenv("BOOK_HUB_BOOKS_DIR"),
+		ImagesDir:   os.Getenv("BOOK_HUB_IMAGES_DIR"),
+		WorkDir:     os.Getenv("BOOK_HUB_WORK_DIR"),
+		CacheDir:    os.Getenv("BOOK_HUB_CACHE_DIR"),
+		FTPAddr:     os.Getenv("BOOK_HUB_FTP_ADDR"),
+		FTPUser:     os.Getenv("BOOK_HUB_FTP_USER"),
+		FTPPassword: os.Getenv("BOOK_HUB_FTP_PASSWORD"),
+		FTPRoot:     envString("BOOK_HUB_FTP_ROOT", "/books"),
 	}
-	cfg.RegistrationEnabled = envBool("BOOK_HUB_REGISTRATION_ENABLED", true)
-	cfg.RegistrationAutoActivate = envBool("BOOK_HUB_REGISTRATION_AUTO_ACTIVATE", false)
-	cfg.CookieSecure = envBool("BOOK_HUB_COOKIE_SECURE", false)
 	var err error
 	cfg.WorkMaxBytes, err = strictPositiveBytes("BOOK_HUB_WORK_MAX_BYTES", 1<<30)
 	if err != nil {
@@ -70,6 +70,25 @@ func Load() (Config, error) {
 	if err := cfg.ValidateFileStorage(); err != nil {
 		return Config{}, err
 	}
+	return cfg, nil
+}
+
+func Load() (Config, error) {
+	cfg, err := LoadFileStorage()
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.HTTPAddr = envString("BOOK_HUB_HTTP_ADDR", ":8080")
+	cfg.BasePath = normalizeBasePath(envString("BOOK_HUB_BASE_PATH", "/"))
+	cfg.LogLevel = envString("BOOK_HUB_LOG_LEVEL", "info")
+	cfg.DefaultQuotaBytes = envInt64("BOOK_HUB_DEFAULT_QUOTA_BYTES", domain.DefaultQuotaBytes)
+	cfg.SessionSecret = os.Getenv("BOOK_HUB_SESSION_SECRET")
+	cfg.SessionTTL = envDuration("BOOK_HUB_SESSION_TTL", 3*365*24*time.Hour)
+	cfg.MaxUploadBytes = envInt64("BOOK_HUB_MAX_UPLOAD_BYTES", domain.DefaultMaxUpload)
+	cfg.MaxCoverUploadBytes = envInt64("BOOK_HUB_MAX_COVER_UPLOAD_BYTES", domain.DefaultMaxCoverBytes)
+	cfg.RegistrationEnabled = envBool("BOOK_HUB_REGISTRATION_ENABLED", true)
+	cfg.RegistrationAutoActivate = envBool("BOOK_HUB_REGISTRATION_AUTO_ACTIVATE", false)
+	cfg.CookieSecure = envBool("BOOK_HUB_COOKIE_SECURE", false)
 	if len(cfg.SessionSecret) < 32 {
 		return Config{}, errors.New("BOOK_HUB_SESSION_SECRET must be at least 32 characters")
 	}
@@ -96,14 +115,34 @@ func (c Config) FilePaths() (books, images, work string) {
 }
 
 func (c Config) ValidateFileStorage() error {
-	if c.BookStorage != "" && c.BookStorage != "directory" {
-		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory")
+	if c.BookStorage != "" && c.BookStorage != "directory" && c.BookStorage != "ftp" {
+		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory or ftp")
+	}
+	if c.BookStorage == "ftp" {
+		host, port, err := net.SplitHostPort(c.FTPAddr)
+		number, portErr := strconv.Atoi(port)
+		if err != nil || host == "" || strings.ContainsAny(host, " \t\r\n\x00") || portErr != nil || number < 1 || number > 65535 {
+			return fmt.Errorf("BOOK_HUB_FTP_ADDR must be host:port")
+		}
+		if c.FTPUser == "" || strings.ContainsAny(c.FTPUser+c.FTPPassword, "\r\n\x00") {
+			return fmt.Errorf("BOOK_HUB_FTP_USER and PASSWORD must contain valid FTP credentials")
+		}
+		root := c.FTPRoot
+		if root == "" {
+			root = "/books"
+		}
+		if root == "/" || !strings.HasPrefix(root, "/") || path.Clean(root) != root || strings.ContainsAny(root, "\\\r\n\x00") {
+			return fmt.Errorf("BOOK_HUB_FTP_ROOT must be a clean absolute dedicated directory below /")
+		}
 	}
 	if c.WorkMaxBytes < 0 {
 		return fmt.Errorf("BOOK_HUB_WORK_MAX_BYTES must be positive")
 	}
 	books, images, work := c.FilePaths()
 	paths := []string{books, images, work}
+	if c.BookStorage == "ftp" {
+		paths = []string{images, work}
+	}
 	if c.CacheDir != "" || c.CacheMaxBytes != 0 {
 		if strings.TrimSpace(c.CacheDir) == "" || c.CacheMaxBytes <= 0 {
 			return fmt.Errorf("BOOK_HUB_CACHE_DIR and a positive BOOK_HUB_CACHE_MAX_BYTES are both required to enable the cache")

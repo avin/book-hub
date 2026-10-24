@@ -125,6 +125,13 @@ Make выбирает файл стека по `BOOK_HUB_DATABASE_URL`; producti
 
 ## Файловое хранилище
 
+Для проверки FTP используйте отдельный тестовый аккаунт и `BOOK_HUB_BOOK_STORAGE=ftp` с параметрами
+`BOOK_HUB_FTP_ADDR`, `BOOK_HUB_FTP_USER`, `BOOK_HUB_FTP_PASSWORD`, `BOOK_HUB_FTP_ROOT`.
+Реальные FTP-тесты запускаются с `BOOK_HUB_TEST_FTP_ADDR`; тестовый сервер должен предоставлять аккаунт
+`bookhub` с паролем `bookhub-test-password` и запись в `/books`. Каждый тест использует уникальный подкаталог.
+`go test -race ./internal/httpapi ./internal/storage/files -run TestFTP` запускает HTTP-жизненный цикл,
+ошибку входа, повреждённое получение, отмену передачи и проверку границ области. Без адреса эти тесты пропускаются.
+
 По умолчанию книги и обложки хранятся в Docker volume `book_storage`, подключённом к `/data/books` сервисов
 `backend`, `migrate`, `admin` и `backup`. Чтобы использовать серверный каталог, замените volume у всех четырёх сервисов, например:
 

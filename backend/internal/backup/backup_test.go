@@ -74,9 +74,14 @@ func TestSQLiteBackupRestoreIncludesWALAndStorage(t *testing.T) {
 	if err := db.QueryRowContext(ctx, "SELECT value FROM backup_probe").Scan(&value); err != nil || value != "committed WAL data" {
 		t.Fatalf("restored WAL data = %q, %v", value, err)
 	}
-	assertStorageFixture(t, options.StorageDir)
-	if _, err := os.Stat(filepath.Join(options.StorageDir, "stale")); !os.IsNotExist(err) {
-		t.Fatalf("stale file remains: %v", err)
+	// Application images are preserved; unrelated root/service files are neither
+	// archived nor cleared by a portable restore.
+	data, err := os.ReadFile(filepath.Join(options.StorageDir, "covers", "cover.jpg"))
+	if err != nil || string(data) != "covers/cover.jpg" {
+		t.Fatalf("restored image: %q %v", data, err)
+	}
+	if _, err := os.Stat(filepath.Join(options.StorageDir, "stale")); err != nil {
+		t.Fatalf("unrelated file changed: %v", err)
 	}
 }
 
@@ -275,7 +280,10 @@ func TestPostgresBackupRestoreAndLegacyFormat(t *testing.T) {
 		if err := db.QueryRowContext(ctx, "SELECT value FROM backup_probe").Scan(&value); err != nil || value != "postgres data" {
 			t.Fatalf("restored value = %q, %v", value, err)
 		}
-		assertStorageFixture(t, options.StorageDir)
+		data, err := os.ReadFile(filepath.Join(options.StorageDir, "covers", "cover.jpg"))
+		if err != nil || string(data) != "covers/cover.jpg" {
+			t.Fatalf("restored image: %q %v", data, err)
+		}
 	}
 }
 
