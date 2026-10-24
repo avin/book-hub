@@ -74,6 +74,9 @@ func NewOriginals(cfg config.Config) (Originals, error) {
 	if err := cfg.ValidateFileStorage(); err != nil {
 		return nil, err
 	}
+	if cfg.BookStorage == "s3" {
+		return newS3Originals(cfg), nil
+	}
 	if cfg.BookStorage == "ftp" {
 		root := cfg.FTPRoot
 		if root == "" {
