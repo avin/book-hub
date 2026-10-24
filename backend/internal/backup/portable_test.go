@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -99,6 +100,7 @@ func writePortableLibrary(t *testing.T, cfg config.Config) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fileStore.SeedBook(ctx, book, temp)
 	_, images, _ := cfg.FilePaths()
 	cover := filepath.Join(images, "cover.png")
 	thumb := filepath.Join(images, "cover.thumbnail.jpg")
@@ -161,6 +163,56 @@ func assertPortableLibraryHTTP(t *testing.T, cfg config.Config, bookID string) {
 		response.Body.Close()
 		if err != nil || response.StatusCode != http.StatusOK || !bytes.Equal(data, []byte(test.expected)) {
 			t.Fatalf("restored %s: %d %q %v", test.suffix, response.StatusCode, data, err)
+		}
+	}
+	response, err = client.Get(server.URL + "/api/v1/books/" + bookID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var metadata struct {
+		Title     string   `json:"title"`
+		Tags      []string `json:"tags"`
+		Favorite  bool     `json:"favorite"`
+		Format    string   `json:"format"`
+		SizeBytes int64    `json:"size_bytes"`
+	}
+	err = json.NewDecoder(response.Body).Decode(&metadata)
+	response.Body.Close()
+	if err != nil || response.StatusCode != http.StatusOK || metadata.Title != "Книга\tс иллюстрацией" || !metadata.Favorite || metadata.Format != "pdf" || metadata.SizeBytes != int64(len(portableBook)) || len(metadata.Tags) != 1 || metadata.Tags[0] != "restored" {
+		t.Fatalf("restored HTTP metadata: %+v status=%d err=%v", metadata, response.StatusCode, err)
+	}
+	request, _ = http.NewRequest(http.MethodGet, server.URL+"/api/v1/books/"+bookID+"/file", nil)
+	request.Header.Set("Range", "bytes=0-3")
+	response, err = client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(response.Body)
+	response.Body.Close()
+	if err != nil || response.StatusCode != http.StatusPartialContent || string(data) != "%PDF" {
+		t.Fatalf("restored HTTP range: %d %q %v", response.StatusCode, data, err)
+	}
+	foreign, err := store.CreateUser(ctx, "foreign"+uuid.NewString()[:8], "unused", true, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, tokenHash, err := auth.NewSessionToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateSession(ctx, foreign.ID, tokenHash, 3600); err != nil {
+		t.Fatal(err)
+	}
+	for _, suffix := range []string{"/file", "/cover"} {
+		request, _ = http.NewRequest(http.MethodGet, server.URL+"/api/v1/books/"+bookID+suffix, nil)
+		request.AddCookie(&http.Cookie{Name: "book_hub_session", Value: token})
+		response, err = http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != http.StatusNotFound {
+			t.Fatalf("foreign access after restore: %d", response.StatusCode)
 		}
 	}
 	hash := sha256.Sum256([]byte(portableBook))

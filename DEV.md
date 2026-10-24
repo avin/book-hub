@@ -91,6 +91,15 @@ suite создаёт случайную schema через `search_path` и уд�
 Для запуска backup CLI на хосте нужны `pg_dump` и `psql` той же основной версии, что и PostgreSQL-сервер.
 Docker-образ содержит клиенты PostgreSQL 16 и 17 и выбирает нужную версию автоматически.
 
+`go test -race ./internal/backup -run 'TestRemote|TestLegacyBackupRestoresInto|TestInterruptedRemote'`
+из `backend/` проверяет перенос между директорией, FTP, обоими FTPS и S3 для SQLite и PostgreSQL,
+старые архивы, отказ непустого назначения и ручной повтор после прерывания. Нужны все пять параметров
+изолированных сервисов: `BOOK_HUB_TEST_FTP_ADDR`, `BOOK_HUB_TEST_FTPS_EXPLICIT_ADDR`,
+`BOOK_HUB_TEST_FTPS_IMPLICIT_ADDR`, `BOOK_HUB_TEST_FTPS_CA_FILE`, `BOOK_HUB_TEST_S3_ENDPOINT`.
+Тесты используют описанные ниже тестовые аккаунты, уникальные каталоги/префиксы и удаляют только собственные
+объекты. PostgreSQL-часть дополнительно требует тестовый URL и утилиты, указанные выше. Пропущенная из-за
+отсутствия сервиса проверка не означает прохождения его контракта.
+
 ## CI
 
 Workflow `.github/workflows/verify.yml` запускается для каждого push и pull request. Он проверяет Go-тесты,
