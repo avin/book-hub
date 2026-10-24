@@ -1,7 +1,10 @@
 package files
 
 import (
+	"book-hub/internal/config"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -23,6 +26,8 @@ const ftpIdleTimeout = 30 * time.Second
 
 type ftpOriginals struct {
 	address, user, password, root string
+	mode                          string
+	tlsConfig                     *tls.Config
 }
 
 func (s *ftpOriginals) BookPath(hash, format string) string {
@@ -238,10 +243,29 @@ func (s *ftpOriginals) connect(parent context.Context) (*ftpSession, error) {
 			return nil, err
 		}
 		session.raw = append(session.raw, conn)
+		control := len(session.raw) == 1
 		session.mu.Unlock()
-		return ftpIdleConn{conn}, nil
+		tracked := net.Conn(ftpIdleConn{conn})
+		// The FTP library delegates both sockets to this custom dialer.
+		// It upgrades explicit control itself; implicit control and all
+		// protected data sockets must be wrapped here with the original hostname.
+		if s.tlsConfig != nil && (!control || s.mode == "ftps-implicit") {
+			protected := tls.Client(tracked, s.tlsConfig.Clone())
+			tracked = protected
+			if !control {
+				tracked = &ftpTLSDataConn{Conn: protected}
+			}
+		}
+		return tracked, nil
 	}
-	conn, err := ftp.Dial(s.address, ftp.DialWithDialFunc(dial), ftp.DialWithForceListHidden(true))
+	options := []ftp.DialOption{ftp.DialWithDialFunc(dial), ftp.DialWithForceListHidden(true)}
+	if s.mode == "ftps-explicit" {
+		options = append(options, ftp.DialWithExplicitTLS(s.tlsConfig))
+	}
+	if s.mode == "ftps-implicit" {
+		options = append(options, ftp.DialWithTLS(s.tlsConfig))
+	}
+	conn, err := ftp.Dial(s.address, options...)
 	if err == nil {
 		session.conn = conn
 		err = conn.Login(s.user, s.password)
@@ -251,6 +275,25 @@ func (s *ftpOriginals) connect(parent context.Context) (*ftpSession, error) {
 		return nil, err
 	}
 	return session, nil
+}
+
+// Complete the TLS close handshake before closing the TCP socket. Closing it
+// with the peer's close_notify unread can reset the connection and truncate an
+// otherwise successful upload on FTPS servers. The tracked raw connection keeps
+// this wait bounded by its idle deadline and cancellation.
+type ftpTLSDataConn struct {
+	*tls.Conn
+	once sync.Once
+	err  error
+}
+
+func (c *ftpTLSDataConn) Close() error {
+	c.once.Do(func() {
+		writeErr := c.CloseWrite()
+		_, readErr := io.Copy(io.Discard, c.Conn)
+		c.err = errors.Join(writeErr, readErr, c.Conn.Close())
+	})
+	return c.err
 }
 
 func (s *ftpSession) closeConnections() {
@@ -302,4 +345,27 @@ func (r *ftpReader) Close() error {
 		r.session.close()
 	})
 	return r.err
+}
+func ftpTLSConfig(cfg config.Config) (*tls.Config, error) {
+	if cfg.BookStorage == "ftp" {
+		return nil, nil
+	}
+	host, _, err := net.SplitHostPort(cfg.FTPAddr)
+	if err != nil {
+		return nil, err
+	}
+	roots, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("load trusted certificate authorities: %w", err)
+	}
+	if cfg.FTPCAFile != "" {
+		pem, err := os.ReadFile(cfg.FTPCAFile)
+		if err != nil {
+			return nil, fmt.Errorf("BOOK_HUB_FTP_CA_FILE: %w", err)
+		}
+		if !roots.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("BOOK_HUB_FTP_CA_FILE contains no certificates")
+		}
+	}
+	return &tls.Config{RootCAs: roots, ServerName: host, MinVersion: tls.VersionTLS12}, nil
 }

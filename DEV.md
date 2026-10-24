@@ -150,3 +150,21 @@ SQLite-файл должен лежать на локальном диске; с
 - [docs/APP.md](docs/APP.md) — поведение приложения;
 - [api/openapi.yaml](api/openapi.yaml) — API-контракт;
 - [CONTEXT.md](CONTEXT.md) и `docs/adr/` — предметная область и архитектурные решения.
+
+Для реальных FTPS-проверок задайте `BOOK_HUB_TEST_FTPS_EXPLICIT_ADDR`,
+`BOOK_HUB_TEST_FTPS_IMPLICIT_ADDR` и `BOOK_HUB_TEST_FTPS_CA_FILE` (PEM тестового CA).
+Тестовые серверы должны предоставлять тот же изолированный аккаунт FTP и требовать TLS
+для управляющего соединения и передачи файлов. Сертификат должен соответствовать имени
+из адреса; проверки неверного имени используют IP тестового сервера, отсутствующий в SAN.
+`TestFTPSOriginalLifecycleThroughHTTP` выполняет полный HTTP-цикл для обоих режимов,
+а `TestFTPSRejectsUntrustedCertificateAndWrongServerName` проверяет отказ TLS.
+`TestFTPSNeverRetriesAsPlainFTP` проверяет отсутствие повторного подключения и передачи
+учётных данных при отказе TLS. Обычные FTP-тесты остаются включены отдельно.
+
+Реальные S3-проверки работают с Garage v2.5.0 без облачного аккаунта. Задайте
+`BOOK_HUB_TEST_S3_ENDPOINT=http://storage-s3:3900` в изолированном тестовом окружении и выполните
+`go test -race ./internal/httpapi ./internal/storage/files -run TestS3` из `backend/`.
+Fixture использует бакет `bookhub-test`, регион `garage`, ключ `GK00000000000000000000000000000001`
+и тестовый secret `codex-bookhub-s3-test-secret-000000000000000000000000000000000000`.
+Тесты создают уникальные префиксы и удаляют только собственные объекты. Проверяются HTTP-жизненный цикл,
+контроль целостности, ошибка аутентификации без потери сессии, границы префикса и отмена multipart с очисткой частей.
