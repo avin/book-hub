@@ -4,7 +4,7 @@
 
 **Blocked by:** 05 — Полный цикл хранения на FTP.
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 **Основание:** [спецификация](../spec.md), истории 3–6; ADR-0008.
 

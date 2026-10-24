@@ -17,11 +17,28 @@ import (
 )
 
 func TestFTPTransferCancellationAndNamespaceIsolation(t *testing.T) {
-	address := os.Getenv("BOOK_HUB_TEST_FTP_ADDR")
-	if address == "" {
-		t.Skip("set BOOK_HUB_TEST_FTP_ADDR to run real FTP transfers")
+	runFTPTransferCancellationAndNamespaceIsolation(t, "ftp", "BOOK_HUB_TEST_FTP_ADDR")
+}
+
+func TestFTPSTransferCancellationAndNamespaceIsolation(t *testing.T) {
+	for _, test := range []struct{ mode, env string }{{"ftps-explicit", "BOOK_HUB_TEST_FTPS_EXPLICIT_ADDR"}, {"ftps-implicit", "BOOK_HUB_TEST_FTPS_IMPLICIT_ADDR"}} {
+		t.Run(test.mode, func(t *testing.T) { runFTPTransferCancellationAndNamespaceIsolation(t, test.mode, test.env) })
 	}
-	cfg := config.Config{BookStorage: "ftp", FTPAddr: address, FTPUser: "bookhub", FTPPassword: "bookhub-test-password", FTPRoot: "/books/cancel-" + uuid.NewString(), StorageDir: t.TempDir()}
+}
+
+func runFTPTransferCancellationAndNamespaceIsolation(t *testing.T, mode, addressEnv string) {
+	t.Helper()
+	address := os.Getenv(addressEnv)
+	if address == "" {
+		t.Skip("set " + addressEnv + " to run real FTP/FTPS transfers")
+	}
+	cfg := config.Config{BookStorage: mode, FTPAddr: address, FTPUser: "bookhub", FTPPassword: "bookhub-test-password", FTPRoot: "/books/cancel-" + uuid.NewString(), StorageDir: t.TempDir()}
+	if mode != "ftp" {
+		cfg.FTPCAFile = os.Getenv("BOOK_HUB_TEST_FTPS_CA_FILE")
+		if cfg.FTPCAFile == "" {
+			t.Fatal("BOOK_HUB_TEST_FTPS_CA_FILE required")
+		}
+	}
 	source, err := files.NewOriginals(cfg)
 	if err != nil {
 		t.Fatal(err)

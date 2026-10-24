@@ -22,13 +22,31 @@ import (
 )
 
 func TestFTPOriginalLifecycleThroughHTTP(t *testing.T) {
-	address := os.Getenv("BOOK_HUB_TEST_FTP_ADDR")
+	runFTPOriginalLifecycle(t, "ftp", "BOOK_HUB_TEST_FTP_ADDR")
+}
+
+func TestFTPSOriginalLifecycleThroughHTTP(t *testing.T) {
+	for _, test := range []struct{ mode, addressEnv string }{{"ftps-explicit", "BOOK_HUB_TEST_FTPS_EXPLICIT_ADDR"}, {"ftps-implicit", "BOOK_HUB_TEST_FTPS_IMPLICIT_ADDR"}} {
+		t.Run(test.mode, func(t *testing.T) { runFTPOriginalLifecycle(t, test.mode, test.addressEnv) })
+	}
+}
+
+func runFTPOriginalLifecycle(t *testing.T, mode, addressEnv string) {
+	t.Helper()
+	address := os.Getenv(addressEnv)
 	if address == "" {
-		t.Skip("set BOOK_HUB_TEST_FTP_ADDR to run the real FTP lifecycle")
+		t.Skip("set " + addressEnv + " to run the real FTP/FTPS lifecycle")
+	}
+	if mode != "ftp" {
+		ca := os.Getenv("BOOK_HUB_TEST_FTPS_CA_FILE")
+		if ca == "" {
+			t.Fatal("BOOK_HUB_TEST_FTPS_CA_FILE is required for FTPS tests")
+		}
+		t.Setenv("BOOK_HUB_FTP_CA_FILE", ca)
 	}
 	t.Setenv("BOOK_HUB_SESSION_SECRET", "01234567890123456789012345678901")
 	t.Setenv("BOOK_HUB_STORAGE_DIR", t.TempDir())
-	t.Setenv("BOOK_HUB_BOOK_STORAGE", "ftp")
+	t.Setenv("BOOK_HUB_BOOK_STORAGE", mode)
 	t.Setenv("BOOK_HUB_FTP_ADDR", address)
 	t.Setenv("BOOK_HUB_FTP_USER", "bookhub")
 	t.Setenv("BOOK_HUB_FTP_PASSWORD", "bookhub-test-password")

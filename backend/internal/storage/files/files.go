@@ -58,12 +58,16 @@ func NewOriginals(cfg config.Config) (Originals, error) {
 	if err := cfg.ValidateFileStorage(); err != nil {
 		return nil, err
 	}
-	if cfg.BookStorage == "ftp" {
+	if cfg.BookStorage == "ftp" || cfg.BookStorage == "ftps-explicit" || cfg.BookStorage == "ftps-implicit" {
 		root := cfg.FTPRoot
 		if root == "" {
 			root = "/books"
 		}
-		return &ftpOriginals{address: cfg.FTPAddr, user: cfg.FTPUser, password: cfg.FTPPassword, root: root}, nil
+		tlsConfig, err := ftpTLSConfig(cfg)
+		if err != nil {
+			return nil, err
+		}
+		return &ftpOriginals{address: cfg.FTPAddr, user: cfg.FTPUser, password: cfg.FTPPassword, root: root, mode: cfg.BookStorage, tlsConfig: tlsConfig}, nil
 	}
 	books, _, _ := cfg.FilePaths()
 	return NewDirectory(books), nil

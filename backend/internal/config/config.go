@@ -29,6 +29,7 @@ type Config struct {
 	FTPUser                  string
 	FTPPassword              string
 	FTPRoot                  string
+	FTPCAFile                string
 	DefaultQuotaBytes        int64
 	RegistrationEnabled      bool
 	RegistrationAutoActivate bool
@@ -52,6 +53,7 @@ func LoadFileStorage() (Config, error) {
 		FTPUser:     os.Getenv("BOOK_HUB_FTP_USER"),
 		FTPPassword: os.Getenv("BOOK_HUB_FTP_PASSWORD"),
 		FTPRoot:     envString("BOOK_HUB_FTP_ROOT", "/books"),
+		FTPCAFile:   os.Getenv("BOOK_HUB_FTP_CA_FILE"),
 	}
 	var err error
 	cfg.WorkMaxBytes, err = strictPositiveBytes("BOOK_HUB_WORK_MAX_BYTES", 1<<30)
@@ -106,10 +108,10 @@ func (c Config) FilePaths() (books, images, work string) {
 }
 
 func (c Config) ValidateFileStorage() error {
-	if c.BookStorage != "" && c.BookStorage != "directory" && c.BookStorage != "ftp" {
-		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory or ftp")
+	if c.BookStorage != "" && c.BookStorage != "directory" && c.BookStorage != "ftp" && c.BookStorage != "ftps-explicit" && c.BookStorage != "ftps-implicit" {
+		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory, ftp, ftps-explicit or ftps-implicit")
 	}
-	if c.BookStorage == "ftp" {
+	if c.BookStorage == "ftp" || c.BookStorage == "ftps-explicit" || c.BookStorage == "ftps-implicit" {
 		host, port, err := net.SplitHostPort(c.FTPAddr)
 		number, portErr := strconv.Atoi(port)
 		if err != nil || host == "" || strings.ContainsAny(host, " \t\r\n\x00") || portErr != nil || number < 1 || number > 65535 {
@@ -131,7 +133,7 @@ func (c Config) ValidateFileStorage() error {
 	}
 	books, images, work := c.FilePaths()
 	paths := []string{books, images, work}
-	if c.BookStorage == "ftp" {
+	if c.BookStorage == "ftp" || c.BookStorage == "ftps-explicit" || c.BookStorage == "ftps-implicit" {
 		paths = []string{images, work}
 	}
 	for i, path := range paths {

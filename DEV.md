@@ -144,3 +144,13 @@ SQLite-файл должен лежать на локальном диске; с
 - [docs/APP.md](docs/APP.md) — поведение приложения;
 - [api/openapi.yaml](api/openapi.yaml) — API-контракт;
 - [CONTEXT.md](CONTEXT.md) и `docs/adr/` — предметная область и архитектурные решения.
+
+Для реальных FTPS-проверок задайте `BOOK_HUB_TEST_FTPS_EXPLICIT_ADDR`,
+`BOOK_HUB_TEST_FTPS_IMPLICIT_ADDR` и `BOOK_HUB_TEST_FTPS_CA_FILE` (PEM тестового CA).
+Тестовые серверы должны предоставлять тот же изолированный аккаунт FTP и требовать TLS
+для управляющего соединения и передачи файлов. Сертификат должен соответствовать имени
+из адреса; проверки неверного имени используют IP тестового сервера, отсутствующий в SAN.
+`TestFTPSOriginalLifecycleThroughHTTP` выполняет полный HTTP-цикл для обоих режимов,
+а `TestFTPSRejectsUntrustedCertificateAndWrongServerName` проверяет отказ TLS.
+`TestFTPSNeverRetriesAsPlainFTP` проверяет отсутствие повторного подключения и передачи
+учётных данных при отказе TLS. Обычные FTP-тесты остаются включены отдельно.
