@@ -14,13 +14,14 @@ import (
 )
 
 type Store struct {
-	mu       sync.Mutex
-	users    map[uuid.UUID]domain.UserWithPassword
-	files    map[uuid.UUID]domain.BookFile
-	fileHash map[string]uuid.UUID
-	books    map[uuid.UUID]bookRecord
-	sessions map[string]sessionRecord
-	settings map[uuid.UUID]json.RawMessage
+	mu        sync.Mutex
+	users     map[uuid.UUID]domain.UserWithPassword
+	files     map[uuid.UUID]domain.BookFile
+	fileHash  map[string]uuid.UUID
+	books     map[uuid.UUID]bookRecord
+	sessions  map[string]sessionRecord
+	settings  map[uuid.UUID]json.RawMessage
+	deletions map[string]string
 }
 
 type bookRecord struct {
@@ -37,12 +38,13 @@ type sessionRecord struct {
 
 func New() *Store {
 	return &Store{
-		users:    make(map[uuid.UUID]domain.UserWithPassword),
-		files:    make(map[uuid.UUID]domain.BookFile),
-		fileHash: make(map[string]uuid.UUID),
-		books:    make(map[uuid.UUID]bookRecord),
-		sessions: make(map[string]sessionRecord),
-		settings: make(map[uuid.UUID]json.RawMessage),
+		users:     make(map[uuid.UUID]domain.UserWithPassword),
+		files:     make(map[uuid.UUID]domain.BookFile),
+		fileHash:  make(map[string]uuid.UUID),
+		books:     make(map[uuid.UUID]bookRecord),
+		sessions:  make(map[string]sessionRecord),
+		settings:  make(map[uuid.UUID]json.RawMessage),
+		deletions: make(map[string]string),
 	}
 }
 
@@ -165,8 +167,7 @@ func (s *Store) DeleteUser(_ context.Context, userID uuid.UUID) ([]domain.Delete
 		if s.fileRefCountLocked(record.BookFileID) == 0 {
 			if file, ok := s.files[record.BookFileID]; ok {
 				files.BookPath = file.StoragePath
-				delete(s.fileHash, file.SHA256)
-				delete(s.files, record.BookFileID)
+				s.deletions[file.SHA256] = file.StoragePath
 			}
 		}
 		deleted = append(deleted, files)
@@ -296,14 +297,37 @@ func (s *Store) UserHasBookFile(_ context.Context, userID, bookFileID uuid.UUID)
 	return false, nil
 }
 
-func (s *Store) CreateBook(_ context.Context, userID uuid.UUID, fileInput domain.BookFileInput, bookInput domain.BookInput) (domain.Book, error) {
+func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, fileInput domain.BookFileInput, bookInput domain.BookInput) (domain.Book, error) {
+	return s.CreateBookWithOriginal(ctx, userID, fileInput, bookInput, nil)
+}
+
+func (s *Store) CreateBookWithOriginal(ctx context.Context, userID uuid.UUID, fileInput domain.BookFileInput, bookInput domain.BookInput, persist func(context.Context) (string, error)) (domain.Book, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.users[userID]; !ok {
 		return domain.Book{}, domain.ErrNotFound
 	}
-	fileID := fileInput.ID
+	fileID := s.fileHash[fileInput.SHA256]
+	if fileID != uuid.Nil && s.files[fileID].Format != fileInput.Format {
+		return domain.Book{}, domain.ErrUnsupportedFormat
+	}
+	if _, pending := s.deletions[fileInput.SHA256]; pending && persist != nil {
+		location, err := persist(ctx)
+		if err != nil {
+			return domain.Book{}, err
+		}
+		existing := s.files[fileID]
+		existing.StoragePath = location
+		s.files[fileID] = existing
+	}
 	if fileID == uuid.Nil {
+		if persist != nil {
+			location, err := persist(ctx)
+			if err != nil {
+				return domain.Book{}, err
+			}
+			fileInput.StoragePath = location
+		}
 		fileID = uuid.New()
 		s.files[fileID] = domain.BookFile{
 			ID:          fileID,
@@ -337,6 +361,7 @@ func (s *Store) CreateBook(_ context.Context, userID uuid.UUID, fileInput domain
 		UpdatedAt:       now,
 	}
 	s.books[book.ID] = bookRecord{UserID: userID, BookFileID: fileID, Book: book}
+	delete(s.deletions, fileInput.SHA256)
 	return book, nil
 }
 
@@ -429,8 +454,7 @@ func (s *Store) DeleteBook(_ context.Context, userID, bookID uuid.UUID) (domain.
 	if s.fileRefCountLocked(record.BookFileID) == 0 {
 		file := s.files[record.BookFileID]
 		files.BookPath = file.StoragePath
-		delete(s.fileHash, file.SHA256)
-		delete(s.files, record.BookFileID)
+		s.deletions[file.SHA256] = file.StoragePath
 	}
 	return files, nil
 }

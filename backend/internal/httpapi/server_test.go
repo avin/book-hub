@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"image"
 	"image/color"
@@ -272,6 +273,13 @@ func TestUploadDeleteLifecycleDeduplicatesPhysicalFiles(t *testing.T) {
 	}
 
 	app.requestJSON(t, secondClient, http.MethodDelete, "/v1/books/"+secondBookID, secondCSRF, nil, http.StatusNoContent)
+	app.requestRaw(t, secondClient, http.MethodGet, "/v1/books/"+secondBookID+"/file", "", nil, http.StatusNotFound)
+	if countStoredFiles(t, app.storageRoot) != 1 {
+		t.Fatal("request must leave the original for durable background deletion")
+	}
+	if err := app.store.ProcessOriginalDeletions(context.Background(), files.New(app.storageRoot).Books.Delete); err != nil {
+		t.Fatal(err)
+	}
 	if countStoredFiles(t, app.storageRoot) != 0 {
 		t.Fatalf("expected physical file to be deleted when no users reference it")
 	}
@@ -376,6 +384,7 @@ func TestCoverUploadStoresFullAndThumbnailVariants(t *testing.T) {
 type testApp struct {
 	server      *httptest.Server
 	storageRoot string
+	store       *memory.Store
 }
 
 func newTestApp(t *testing.T, autoActivate bool) testApp {
@@ -396,10 +405,11 @@ func newTestAppAtBasePath(t *testing.T, autoActivate bool, basePath string) test
 		MaxCoverUploadBytes:      1024 * 1024,
 	}
 	fileStore := files.New(root)
-	handler := httpapi.New(cfg, memory.New(), fileStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	store := memory.New()
+	handler := httpapi.New(cfg, store, fileStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	return testApp{server: server, storageRoot: root}
+	return testApp{server: server, storageRoot: root, store: store}
 }
 
 func (a testApp) client(t *testing.T) *http.Client {

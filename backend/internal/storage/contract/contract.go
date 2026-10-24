@@ -16,6 +16,7 @@ func Run(t *testing.T, newStore NewStore) {
 	t.Helper()
 	runQueryContract(t, newStore)
 	runAccountContract(t, newStore)
+	runOriginalLifecycle(t, newStore)
 
 	t.Run("ownership, tags, relevance, progress, covers, sessions, quotas, deletion and deduplication", func(t *testing.T) {
 		ctx := context.Background()

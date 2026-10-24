@@ -45,6 +45,16 @@ func run() error {
 		return err
 	}
 	server := httpapi.New(cfg, store, fileStore, logger)
+	workerCtx, cancelWorker := context.WithCancel(ctx)
+	workerDone := make(chan struct{})
+	go func() {
+		defer close(workerDone)
+		server.RunOriginalDeletions(workerCtx)
+	}()
+	defer func() {
+		cancelWorker()
+		<-workerDone
+	}()
 	logger.Info("starting book hub server", "addr", cfg.HTTPAddr, "api_base", config.APIBasePath(cfg.BasePath))
 	return httpapi.ListenAndServe(ctx, cfg.HTTPAddr, server, logger)
 }

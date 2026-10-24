@@ -74,7 +74,7 @@ func run() error {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		case "delete user":
-			if err := deleteUser(ctx, scanner, store, fileStore.Books); err != nil {
+			if err := deleteUser(ctx, scanner, store); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		case "set quota":
@@ -159,7 +159,7 @@ func setActive(ctx context.Context, scanner *bufio.Scanner, store adminStore, ac
 	return nil
 }
 
-func deleteUser(ctx context.Context, scanner *bufio.Scanner, store adminStore, originals files.Originals) error {
+func deleteUser(ctx context.Context, scanner *bufio.Scanner, store adminStore) error {
 	user, err := readUser(ctx, scanner, store)
 	if err != nil {
 		return err
@@ -174,7 +174,6 @@ func deleteUser(ctx context.Context, scanner *bufio.Scanner, store adminStore, o
 	for _, item := range deleted {
 		files.DeleteBestEffort(item.CoverPath)
 		files.DeleteBestEffort(item.CoverThumbPath)
-		_ = originals.Delete(ctx, item.BookPath)
 	}
 	return nil
 }
