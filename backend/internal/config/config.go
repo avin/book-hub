@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,6 +30,12 @@ type Config struct {
 	FTPUser                  string
 	FTPPassword              string
 	FTPRoot                  string
+	S3Endpoint               string
+	S3Region                 string
+	S3Bucket                 string
+	S3Prefix                 string
+	S3AccessKeyID            string
+	S3SecretAccessKey        string
 	DefaultQuotaBytes        int64
 	RegistrationEnabled      bool
 	RegistrationAutoActivate bool
@@ -53,6 +60,12 @@ func Load() (Config, error) {
 		FTPAddr:             os.Getenv("BOOK_HUB_FTP_ADDR"),
 		FTPUser:             os.Getenv("BOOK_HUB_FTP_USER"),
 		FTPPassword:         os.Getenv("BOOK_HUB_FTP_PASSWORD"),
+		S3Endpoint:          os.Getenv("BOOK_HUB_S3_ENDPOINT"),
+		S3Region:            os.Getenv("BOOK_HUB_S3_REGION"),
+		S3Bucket:            os.Getenv("BOOK_HUB_S3_BUCKET"),
+		S3Prefix:            envString("BOOK_HUB_S3_PREFIX", "books"),
+		S3AccessKeyID:       os.Getenv("BOOK_HUB_S3_ACCESS_KEY_ID"),
+		S3SecretAccessKey:   os.Getenv("BOOK_HUB_S3_SECRET_ACCESS_KEY"),
 		FTPRoot:             envString("BOOK_HUB_FTP_ROOT", "/books"),
 		DefaultQuotaBytes:   envInt64("BOOK_HUB_DEFAULT_QUOTA_BYTES", domain.DefaultQuotaBytes),
 		SessionSecret:       os.Getenv("BOOK_HUB_SESSION_SECRET"),
@@ -97,8 +110,8 @@ func (c Config) FilePaths() (books, images, work string) {
 }
 
 func (c Config) ValidateFileStorage() error {
-	if c.BookStorage != "" && c.BookStorage != "directory" && c.BookStorage != "ftp" {
-		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory or ftp")
+	if c.BookStorage != "" && c.BookStorage != "directory" && c.BookStorage != "ftp" && c.BookStorage != "s3" {
+		return fmt.Errorf("BOOK_HUB_BOOK_STORAGE must be directory, ftp or s3")
 	}
 	if c.BookStorage == "ftp" {
 		host, port, err := net.SplitHostPort(c.FTPAddr)
@@ -117,12 +130,29 @@ func (c Config) ValidateFileStorage() error {
 			return fmt.Errorf("BOOK_HUB_FTP_ROOT must be a clean absolute dedicated directory below /")
 		}
 	}
+	if c.BookStorage == "s3" {
+		if strings.TrimSpace(c.S3Region) == "" || strings.TrimSpace(c.S3Bucket) == "" || c.S3AccessKeyID == "" || c.S3SecretAccessKey == "" {
+			return fmt.Errorf("S3 region, bucket and credentials are required")
+		}
+		if strings.ContainsAny(c.S3Region+c.S3Bucket+c.S3AccessKeyID+c.S3SecretAccessKey, "\r\n\x00") || strings.ContainsAny(c.S3Bucket, "/\\ \t") {
+			return fmt.Errorf("invalid S3 configuration")
+		}
+		if c.S3Endpoint != "" {
+			endpoint, err := url.Parse(c.S3Endpoint)
+			if err != nil || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.Host == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || (endpoint.Path != "" && endpoint.Path != "/") {
+				return fmt.Errorf("BOOK_HUB_S3_ENDPOINT must be an HTTP(S) origin")
+			}
+		}
+		if c.S3Prefix == "" || strings.HasPrefix(c.S3Prefix, "/") || path.Clean(c.S3Prefix) != c.S3Prefix || c.S3Prefix == "." || c.S3Prefix == ".." || strings.HasPrefix(c.S3Prefix, "../") || strings.ContainsAny(c.S3Prefix, "\\\r\n\x00") {
+			return fmt.Errorf("BOOK_HUB_S3_PREFIX must be a clean dedicated prefix")
+		}
+	}
 	if c.WorkMaxBytes < 0 {
 		return fmt.Errorf("BOOK_HUB_WORK_MAX_BYTES must be positive")
 	}
 	books, images, work := c.FilePaths()
 	paths := []string{books, images, work}
-	if c.BookStorage == "ftp" {
+	if c.BookStorage == "ftp" || c.BookStorage == "s3" {
 		paths = []string{images, work}
 	}
 	for i, path := range paths {
