@@ -41,6 +41,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	fileStore.SetLogger(logger)
 	if err := fileStore.Ensure(); err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ package files
 import (
 	"context"
 	"io"
+	"log/slog"
 	"path/filepath"
 
 	"book-hub/internal/config"
@@ -30,6 +31,7 @@ type Store struct {
 	Images Images
 	Work   Workspace
 	root   string
+	cache  *bookCache
 }
 
 func New(root string) Store {
@@ -45,7 +47,20 @@ func NewConfigured(cfg config.Config) (Store, error) {
 	if limit == 0 {
 		limit = 1 << 30
 	}
-	return newStore(cfg.StorageDir, books, images, work, limit), nil
+	store := newStore(cfg.StorageDir, books, images, work, limit)
+	if cfg.CacheDir != "" {
+		store.cache = newBookCache(cfg.CacheDir, cfg.CacheMaxBytes)
+	}
+	return store, nil
+}
+
+// SetLogger connects optional cache failures to the server's logger.
+func (s Store) SetLogger(logger *slog.Logger) {
+	if s.cache != nil {
+		s.cache.mu.Lock()
+		s.cache.logger = logger
+		s.cache.mu.Unlock()
+	}
 }
 
 func newStore(root, books, images, workPath string, limit int64) Store {
@@ -61,6 +76,9 @@ func newStore(root, books, images, workPath string, limit int64) Store {
 func (s Store) Root() string { return s.root }
 
 func (s Store) Ensure() error {
+	if s.cache != nil {
+		s.cache.ensure()
+	}
 	if err := s.Work.Ensure(); err != nil {
 		return err
 	}
