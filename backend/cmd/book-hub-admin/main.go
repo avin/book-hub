@@ -38,8 +38,7 @@ func run() error {
 		return err
 	}
 	defer store.Close()
-	fileStore, err := files.NewConfigured(cfg)
-	if err != nil {
+	if _, err := files.NewOriginals(cfg); err != nil {
 		return err
 	}
 	scanner := bufio.NewScanner(os.Stdin)
@@ -86,7 +85,7 @@ func run() error {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		case "show storage stats":
-			fmt.Println("storage:", fileStore.Root())
+			fmt.Println("storage:", cfg.StorageDir)
 		case "quit", "exit":
 			return nil
 		default:

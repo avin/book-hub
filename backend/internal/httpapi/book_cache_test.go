@@ -162,6 +162,7 @@ func TestBookCacheEvictsLeastRecentlyReadOrDownloadedBook(t *testing.T) {
 			a := h.app.uploadBook(t, owner, csrf, "a.pdf", []byte("%PDF-original"))
 			b := h.app.uploadBook(t, owner, csrf, "b.pdf", []byte("%PDF-second!!"))
 			h.app.requestRaw(t, owner, http.MethodGet, "/v1/books/"+a+"/file"+suffix, "", nil, http.StatusOK)
+			h.restart(t)
 			c := h.app.uploadBook(t, owner, csrf, "c.pdf", []byte("%PDF-third!!!"))
 			h.source.mu.Lock()
 			h.source.openErr = errors.New("offline")
