@@ -125,6 +125,7 @@ func TestUploadAndRemoteReadShareBoundedWorkspace(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("retrieval did not start")
 	}
+	app.requestRaw(t, client, http.MethodGet, "/readyz", "", nil, http.StatusOK)
 	app.uploadWithStatus(t, client, csrf, []byte("other"), http.StatusServiceUnavailable)
 	close(source.proceed)
 	if err := <-result; err != nil {
@@ -135,6 +136,37 @@ func TestUploadAndRemoteReadShareBoundedWorkspace(t *testing.T) {
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("workspace files leaked: %v %v", entries, err)
 	}
+}
+
+func TestWorkspaceRestartRemovesOnlyItsAbandonedFiles(t *testing.T) {
+	root := t.TempDir()
+	work := filepath.Join(root, "tmp")
+	if err := os.MkdirAll(work, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "upload-crashed"), bytes.Repeat([]byte("!"), 100), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "keep.txt"), []byte("admin note"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	fileStore, err := files.NewConfigured(config.Config{StorageDir: root, WorkMaxBytes: 13})
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := newOriginalsApp(t, fileStore.Books, fileStore)
+	client := app.client(t)
+	app.requestRaw(t, client, http.MethodGet, "/readyz", "", nil, http.StatusOK)
+	if _, err := os.Stat(filepath.Join(work, "upload-crashed")); !os.IsNotExist(err) {
+		t.Fatalf("abandoned work remains: %v", err)
+	}
+	if data, err := os.ReadFile(filepath.Join(work, "keep.txt")); err != nil || string(data) != "admin note" {
+		t.Fatalf("unrelated file removed: %q %v", data, err)
+	}
+	csrf := app.csrf(t, client)
+	app.register(t, client, csrf, "reader", "password", http.StatusCreated)
+	app.login(t, client, csrf, "reader", "password", http.StatusOK)
+	app.uploadWithStatus(t, client, csrf, []byte("%PDF-original"), http.StatusCreated)
 }
 
 func TestSeparatedOriginalsAndImagesRemainReadyWithoutOriginalDisk(t *testing.T) {
