@@ -1,6 +1,7 @@
 package files
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -39,7 +40,7 @@ func (s Images) SaveCover(userBookID, format string, reader io.Reader, limit int
 	if err != nil {
 		return domain.CoverFiles{}, err
 	}
-	defer os.Remove(temp.Path)
+	defer temp.Release()
 
 	stamp := time.Now().UTC().UnixNano()
 	thumbnailPath := filepath.Join(s.root, fmt.Sprintf("%s.%d.thumbnail.jpg", userBookID, stamp))
@@ -52,7 +53,7 @@ func (s Images) SaveCover(userBookID, format string, reader io.Reader, limit int
 		_ = os.Remove(thumbnailPath)
 		return domain.CoverFiles{}, err
 	}
-	if err := os.Rename(temp.Path, finalPath); err != nil {
+	if err := copyAtomic(context.Background(), temp.Path, finalPath); err != nil {
 		_ = os.Remove(thumbnailPath)
 		return domain.CoverFiles{}, err
 	}

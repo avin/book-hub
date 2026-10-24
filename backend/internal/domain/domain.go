@@ -66,6 +66,7 @@ type Book struct {
 	ProgressPercent float64
 	LastOpenedAt    time.Time
 	StoragePath     string
+	SHA256          string
 	CoverPath       *string
 	CoverThumbPath  *string
 	CreatedAt       time.Time

@@ -387,7 +387,7 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		select ub.id, ub.title,
 			coalesce(array_agg(t.name order by t.name) filter (where t.name is not null), '{}'::text[]) as tags,
 			ub.favorite, bf.format, bf.size_bytes,
-			ub.progress_percent, bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.last_opened_at, ub.updated_at
+			ub.progress_percent, bf.storage_path, bf.sha256, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.last_opened_at, ub.updated_at
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
 		left join user_book_tags ubt on ubt.user_book_id = ub.id
@@ -656,7 +656,7 @@ func scanBook(ctx context.Context, q bookQuerier, userID, bookID uuid.UUID) (dom
 		select ub.id, ub.title,
 			coalesce(array_agg(t.name order by t.name) filter (where t.name is not null), '{}'::text[]) as tags,
 			ub.favorite, bf.format, bf.size_bytes,
-			ub.progress_percent, bf.storage_path, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.last_opened_at, ub.updated_at
+			ub.progress_percent, bf.storage_path, bf.sha256, ub.cover_path, ub.cover_thumbnail_path, ub.created_at, ub.last_opened_at, ub.updated_at
 		from user_books ub
 		join book_files bf on bf.id = ub.book_file_id
 		left join user_book_tags ubt on ubt.user_book_id = ub.id
@@ -691,6 +691,7 @@ func scanBooks(rows pgx.Rows) ([]domain.Book, error) {
 			&book.SizeBytes,
 			&book.ProgressPercent,
 			&book.StoragePath,
+			&book.SHA256,
 			&book.CoverPath,
 			&book.CoverThumbPath,
 			&book.CreatedAt,

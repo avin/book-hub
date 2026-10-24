@@ -629,7 +629,7 @@ type bookQuerier interface {
 
 const bookSelect = `select ub.id, ub.title,
  (select json_group_array(name) from (select t.name from user_book_tags bt join tags t on t.id=bt.tag_id where bt.user_book_id=ub.id order by t.name)) as tags,
- ub.favorite, bf.format, bf.size_bytes, ub.progress_percent, bf.storage_path, ub.cover_path, ub.cover_thumbnail_path,
+ ub.favorite, bf.format, bf.size_bytes, ub.progress_percent, bf.storage_path, bf.sha256, ub.cover_path, ub.cover_thumbnail_path,
  ub.created_at, ub.last_opened_at, ub.updated_at
  from user_books ub join book_files bf on bf.id=ub.book_file_id`
 
@@ -663,6 +663,7 @@ func scanBooks(rows *rows) ([]domain.Book, error) {
 			&book.SizeBytes,
 			&book.ProgressPercent,
 			&book.StoragePath,
+			&book.SHA256,
 			&book.CoverPath,
 			&book.CoverThumbPath,
 			&book.CreatedAt,

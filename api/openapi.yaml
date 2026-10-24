@@ -461,18 +461,58 @@ paths:
     parameters:
       - $ref: "#/components/parameters/BookId"
       - $ref: "#/components/parameters/BookFileDownload"
+      - name: Range
+        in: header
+        schema:
+          type: string
+        description: Byte ranges, for example bytes=0-1023. The whole original is verified before any range is served.
+      - name: If-None-Match
+        in: header
+        schema:
+          type: string
+      - name: If-Modified-Since
+        in: header
+        schema:
+          type: string
+    head:
+      tags:
+        - Books
+      operationId: getBookFileHeaders
+      summary: Get verified book file headers without a response body
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: File headers, including Content-Length, Content-Type, Content-Disposition, ETag and Last-Modified.
+        "206":
+          description: Satisfiable byte range headers without a body.
+        "304":
+          description: The verified file matches the conditional request.
+        "416":
+          description: Unsatisfiable byte range; Content-Range contains the full file size.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
     get:
       tags:
         - Books
       operationId: downloadBookFile
       summary: Download book file for viewer
+      description: |
+        Access is checked before opening any original or local copy. The complete file is received
+        and verified by size and SHA-256 before serving it, including for byte ranges.
+        Unavailable originals, corrupt content and exhausted temporary workspace return 503
+        service_unavailable without changing the session cookie.
       security:
         - cookieAuth: []
       responses:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
         "200":
-          description: Book file.
+          description: Complete verified book file. Byte ranges and conditional requests are supported.
           headers:
             X-Request-Id:
               $ref: "#/components/headers/RequestId"
@@ -499,6 +539,30 @@ paths:
               schema:
                 type: string
                 format: binary
+        "206":
+          description: Verified byte range(s), preserving the file MIME type and Content-Disposition. Content-Range identifies a single range; multiple ranges use multipart/byteranges.
+          headers:
+            Content-Range:
+              schema:
+                type: string
+            Content-Length:
+              schema:
+                type: integer
+                format: int64
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: The verified file matches the conditional request; no body.
+        "416":
+          description: Unsatisfiable byte range.
+          headers:
+            Content-Range:
+              description: Full file size, for example bytes */4096.
+              schema:
+                type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":

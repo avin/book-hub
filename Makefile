@@ -28,6 +28,9 @@ endif
 DEV_SQLITE_PATH := $(subst \,/,$(abspath ./data/db/book-hub.sqlite))
 DEV_DATABASE_URL ?= $(if $(filter sqlite://%,$(BOOK_HUB_DATABASE_URL)),sqlite://$(if $(filter /%,$(DEV_SQLITE_PATH)),,/)$(DEV_SQLITE_PATH),$(subst @postgres:5432,@localhost:5432,$(BOOK_HUB_DATABASE_URL)))
 DEV_STORAGE_DIR ?= $(abspath ./data/books)
+DEV_BOOKS_DIR ?= $(DEV_STORAGE_DIR)/books
+DEV_IMAGES_DIR ?= $(DEV_STORAGE_DIR)/covers
+DEV_WORK_DIR ?= $(DEV_STORAGE_DIR)/tmp
 
 # Настройки HTTP-проверки готовности приложения.
 BOOK_HUB_PUBLIC_PORT ?= 8080
@@ -112,7 +115,7 @@ endif
 
 # Запускает Go backend локально; URL базы меняется с docker-host postgres на localhost.
 dev-backend:
-	BOOK_HUB_DATABASE_URL="$(DEV_DATABASE_URL)" BOOK_HUB_STORAGE_DIR="$(DEV_STORAGE_DIR)" go -C $(BACKEND_DIR) run ./cmd/book-hub-server
+	BOOK_HUB_DATABASE_URL="$(DEV_DATABASE_URL)" BOOK_HUB_STORAGE_DIR="$(DEV_STORAGE_DIR)" BOOK_HUB_BOOKS_DIR="$(DEV_BOOKS_DIR)" BOOK_HUB_IMAGES_DIR="$(DEV_IMAGES_DIR)" BOOK_HUB_WORK_DIR="$(DEV_WORK_DIR)" go -C $(BACKEND_DIR) run ./cmd/book-hub-server
 
 # Запускает frontend в режиме разработки через Vite.
 dev-frontend:

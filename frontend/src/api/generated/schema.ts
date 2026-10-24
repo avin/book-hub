@@ -223,20 +223,32 @@ export interface paths {
                 /** @description When set to "1", the response uses Content-Disposition attachment to save the file. */
                 download?: components["parameters"]["BookFileDownload"];
             };
-            header?: never;
+            header?: {
+                /** @description Byte ranges, for example bytes=0-1023. The whole original is verified before any range is served. */
+                Range?: string;
+                "If-None-Match"?: string;
+                "If-Modified-Since"?: string;
+            };
             path: {
                 /** @description User book identifier. */
                 book_id: components["parameters"]["BookId"];
             };
             cookie?: never;
         };
-        /** Download book file for viewer */
+        /**
+         * Download book file for viewer
+         * @description Access is checked before opening any original or local copy. The complete file is received
+         *     and verified by size and SHA-256 before serving it, including for byte ranges.
+         *     Unavailable originals, corrupt content and exhausted temporary workspace return 503
+         *     service_unavailable without changing the session cookie.
+         */
         get: operations["downloadBookFile"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
-        head?: never;
+        /** Get verified book file headers without a response body */
+        head: operations["getBookFileHeaders"];
         patch?: never;
         trace?: never;
     };
@@ -1018,7 +1030,12 @@ export interface operations {
                 /** @description When set to "1", the response uses Content-Disposition attachment to save the file. */
                 download?: components["parameters"]["BookFileDownload"];
             };
-            header?: never;
+            header?: {
+                /** @description Byte ranges, for example bytes=0-1023. The whole original is verified before any range is served. */
+                Range?: string;
+                "If-None-Match"?: string;
+                "If-Modified-Since"?: string;
+            };
             path: {
                 /** @description User book identifier. */
                 book_id: components["parameters"]["BookId"];
@@ -1027,7 +1044,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Book file. */
+            /** @description Complete verified book file. Byte ranges and conditional requests are supported. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
@@ -1045,8 +1062,88 @@ export interface operations {
                     "image/vnd.djvu": string;
                 };
             };
+            /** @description Verified byte range(s), preserving the file MIME type and Content-Disposition. Content-Range identifies a single range; multiple ranges use multipart/byteranges. */
+            206: {
+                headers: {
+                    "Content-Range"?: string;
+                    "Content-Length"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description The verified file matches the conditional request; no body. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Unsatisfiable byte range. */
+            416: {
+                headers: {
+                    /** @description Full file size, for example bytes *\/4096. */
+                    "Content-Range"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getBookFileHeaders: {
+        parameters: {
+            query?: {
+                /** @description When set to "1", the response uses Content-Disposition attachment to save the file. */
+                download?: components["parameters"]["BookFileDownload"];
+            };
+            header?: {
+                /** @description Byte ranges, for example bytes=0-1023. The whole original is verified before any range is served. */
+                Range?: string;
+                "If-None-Match"?: string;
+                "If-Modified-Since"?: string;
+            };
+            path: {
+                /** @description User book identifier. */
+                book_id: components["parameters"]["BookId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File headers, including Content-Length, Content-Type, Content-Disposition, ETag and Last-Modified. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Satisfiable byte range headers without a body. */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The verified file matches the conditional request. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Unsatisfiable byte range; Content-Range contains the full file size. */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             503: components["responses"]["ServiceUnavailable"];
         };
     };
