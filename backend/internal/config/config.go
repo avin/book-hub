@@ -25,6 +25,8 @@ type Config struct {
 	ImagesDir                string
 	WorkDir                  string
 	WorkMaxBytes             int64
+	CacheDir                 string
+	CacheMaxBytes            int64
 	FTPAddr                  string
 	FTPUser                  string
 	FTPPassword              string
@@ -48,6 +50,7 @@ func LoadFileStorage() (Config, error) {
 		BooksDir:    os.Getenv("BOOK_HUB_BOOKS_DIR"),
 		ImagesDir:   os.Getenv("BOOK_HUB_IMAGES_DIR"),
 		WorkDir:     os.Getenv("BOOK_HUB_WORK_DIR"),
+		CacheDir:    os.Getenv("BOOK_HUB_CACHE_DIR"),
 		FTPAddr:     os.Getenv("BOOK_HUB_FTP_ADDR"),
 		FTPUser:     os.Getenv("BOOK_HUB_FTP_USER"),
 		FTPPassword: os.Getenv("BOOK_HUB_FTP_PASSWORD"),
@@ -57,6 +60,12 @@ func LoadFileStorage() (Config, error) {
 	cfg.WorkMaxBytes, err = strictPositiveBytes("BOOK_HUB_WORK_MAX_BYTES", 1<<30)
 	if err != nil {
 		return Config{}, err
+	}
+	if os.Getenv("BOOK_HUB_CACHE_MAX_BYTES") != "" {
+		cfg.CacheMaxBytes, err = strictPositiveBytes("BOOK_HUB_CACHE_MAX_BYTES", 0)
+		if err != nil {
+			return Config{}, err
+		}
 	}
 	if err := cfg.ValidateFileStorage(); err != nil {
 		return Config{}, err
@@ -134,6 +143,12 @@ func (c Config) ValidateFileStorage() error {
 	if c.BookStorage == "ftp" {
 		paths = []string{images, work}
 	}
+	if c.CacheDir != "" || c.CacheMaxBytes != 0 {
+		if strings.TrimSpace(c.CacheDir) == "" || c.CacheMaxBytes <= 0 {
+			return fmt.Errorf("BOOK_HUB_CACHE_DIR and a positive BOOK_HUB_CACHE_MAX_BYTES are both required to enable the cache")
+		}
+		paths = append(paths, c.CacheDir)
+	}
 	for i, path := range paths {
 		absolute, err := filepath.Abs(path)
 		if err != nil {
@@ -145,7 +160,7 @@ func (c Config) ValidateFileStorage() error {
 				return err
 			}
 			if containsPath(absolute, otherAbsolute) || containsPath(otherAbsolute, absolute) {
-				return fmt.Errorf("originals, images and workspace directories must not overlap")
+				return fmt.Errorf("originals, images, workspace and cache directories must not overlap")
 			}
 		}
 	}

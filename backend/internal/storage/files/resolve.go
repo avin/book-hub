@@ -27,6 +27,18 @@ func (l *BookLease) Close() error {
 }
 
 func (s Store) OpenBook(ctx context.Context, book domain.Book) (*BookLease, error) {
+	if s.cache != nil {
+		lease, handled, err := s.cache.open(ctx, book, func() (io.ReadCloser, error) {
+			return s.Books.Open(ctx, book.StoragePath)
+		})
+		if handled {
+			return lease, err
+		}
+	}
+	return s.openOriginal(ctx, book)
+}
+
+func (s Store) openOriginal(ctx context.Context, book domain.Book) (*BookLease, error) {
 	local, ok := s.Books.(interface{ LocalPath(string) string })
 	if !ok {
 		source := &originalReader{ctx: ctx, originals: s.Books, location: book.StoragePath}
