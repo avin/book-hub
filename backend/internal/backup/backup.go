@@ -216,6 +216,9 @@ func validateLayout(options Options, directory string) error {
 	}
 	books, images, work := cfg.FilePaths()
 	separate := []string{images, work}
+	if cfg.CacheDir != "" {
+		separate = append(separate, cfg.CacheDir)
+	}
 	if cfg.BookStorage == "" || cfg.BookStorage == "directory" {
 		separate = append(separate, books)
 	}
@@ -226,12 +229,15 @@ func validateLayout(options Options, directory string) error {
 		}
 		for _, previous := range separate[:i] {
 			if containsPath(previous, resolved) || containsPath(resolved, previous) {
-				return fmt.Errorf("originals, images and workspace directories must not overlap through symlinks")
+				return fmt.Errorf("originals, images, workspace and cache directories must not overlap through symlinks")
 			}
 		}
 		separate[i] = resolved
 	}
 	localPaths := []string{storagePath, images, work}
+	if cfg.CacheDir != "" {
+		localPaths = append(localPaths, cfg.CacheDir)
+	}
 	if cfg.BookStorage == "" || cfg.BookStorage == "directory" {
 		localPaths = append(localPaths, books)
 	}
