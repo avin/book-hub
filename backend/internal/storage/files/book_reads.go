@@ -116,6 +116,9 @@ func (r *bookReads) release(hash string, flight *bookFlight) {
 	if !flight.complete {
 		flight.cancel()
 		r.mu.Unlock()
+		// The last cancelled handler owns cleanup until the receive has stopped.
+		// Returning earlier would leave its partial file and reservation in use.
+		<-flight.released
 		return
 	}
 	lease := flight.lease
