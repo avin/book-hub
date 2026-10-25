@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"book-hub/internal/config"
+	"book-hub/internal/frontend"
 	"book-hub/internal/httpapi"
 	"book-hub/internal/storage/files"
 	"book-hub/internal/storage/memory"
@@ -393,6 +394,11 @@ func newTestApp(t *testing.T, autoActivate bool) testApp {
 
 func newTestAppAtBasePath(t *testing.T, autoActivate bool, basePath string) testApp {
 	t.Helper()
+	return newTestAppWithFrontend(t, autoActivate, basePath, "")
+}
+
+func newTestAppWithFrontend(t *testing.T, autoActivate bool, basePath, frontendDir string) testApp {
+	t.Helper()
 	root := t.TempDir()
 	cfg := config.Config{
 		BasePath:                 basePath,
@@ -407,7 +413,12 @@ func newTestAppAtBasePath(t *testing.T, autoActivate bool, basePath string) test
 	fileStore := files.New(root)
 	store := memory.New()
 	handler := httpapi.New(cfg, store, fileStore, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	server := httptest.NewServer(handler)
+	static, err := frontend.New(frontendDir, basePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = static.Close() })
+	server := httptest.NewServer(static.Handler(handler))
 	t.Cleanup(server.Close)
 	return testApp{server: server, storageRoot: root, store: store}
 }

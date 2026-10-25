@@ -18,6 +18,7 @@ import (
 type Config struct {
 	HTTPAddr                 string
 	BasePath                 string
+	FrontendDir              string
 	LogLevel                 string
 	DatabaseURL              string
 	StorageDir               string
@@ -95,6 +96,7 @@ func Load() (Config, error) {
 	}
 	cfg.HTTPAddr = envString("BOOK_HUB_HTTP_ADDR", ":8080")
 	cfg.BasePath = normalizeBasePath(envString("BOOK_HUB_BASE_PATH", "/"))
+	cfg.FrontendDir = os.Getenv("BOOK_HUB_FRONTEND_DIR")
 	cfg.LogLevel = envString("BOOK_HUB_LOG_LEVEL", "info")
 	cfg.DefaultQuotaBytes = envInt64("BOOK_HUB_DEFAULT_QUOTA_BYTES", domain.DefaultQuotaBytes)
 	cfg.SessionSecret = os.Getenv("BOOK_HUB_SESSION_SECRET")

@@ -67,6 +67,13 @@ make dev-frontend
 
 Backend слушает `http://localhost:8080`, Vite — `http://localhost:5173`.
 
+Для проверки production-сборки без Vite выполните `npm --prefix frontend run build` и запустите
+Go-сервер с `BOOK_HUB_FRONTEND_DIR`, указывающим на `frontend/dist`. Используйте абсолютный путь:
+относительные пути отсчитываются от рабочего каталога процесса (`make dev-backend` запускает Go из `backend/`).
+При размещении в подпути значения `VITE_BASE_PATH` при сборке и `BOOK_HUB_BASE_PATH` при запуске должны совпадать.
+Пустой `BOOK_HUB_FRONTEND_DIR` сохраняет обычный API-only режим. Пример эксплуатации готовых бинарников
+с SQLite приведён в [README](README.md#запуск-без-docker-и-отдельного-веб-сервера).
+
 В `frontend/vite.config.ts` для локального backend укажите proxy target `http://localhost:8080`. Текущий proxy target следует согласовать со средой, в которой запущен API. При `BOOK_HUB_BASE_PATH=/hub` задайте `VITE_BASE_PATH=/hub` и добавьте proxy для `/hub/api`.
 
 ## Команды разработки

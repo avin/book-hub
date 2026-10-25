@@ -167,6 +167,83 @@ password: надёжный-пароль
 Команда `help` в этой консоли покажет остальные действия. Например, там можно изменить квоту пользователя, пароль или
 статус аккаунта.
 
+## Запуск без Docker и отдельного веб-сервера
+
+`book-hub-server` может раздавать готовый frontend вместе с API на `BOOK_HUB_HTTP_ADDR`.
+Укажите `BOOK_HUB_FRONTEND_DIR`: абсолютный путь к сборке либо путь относительно рабочего каталога процесса.
+Пустое или отсутствующее значение сохраняет режим только API; Docker/Compose по умолчанию используют отдельный frontend/nginx.
+
+На машине сборки нужны Go, Node.js и npm из [инструкции разработки](DEV.md). Пример для Linux:
+
+```bash
+mkdir -p dist/bin
+CGO_ENABLED=0 go -C backend build -o ../dist/bin/book-hub-server ./cmd/book-hub-server
+CGO_ENABLED=0 go -C backend build -o ../dist/bin/book-hub-migrate ./cmd/book-hub-migrate
+CGO_ENABLED=0 go -C backend build -o ../dist/bin/book-hub-admin ./cmd/book-hub-admin
+npm --prefix frontend ci
+VITE_BASE_PATH=/ npm --prefix frontend run build
+```
+
+Для другого устройства задайте подходящие `GOOS`, `GOARCH` и, при необходимости, `GOARM`.
+Перенесите три бинарника из `dist/bin/` и содержимое `frontend/dist/` на устройство, например
+в `/opt/book-hub/bin/` и `/opt/book-hub/frontend/`. На устройстве для работы не нужны Docker, Node.js или Go.
+Миграции входят в бинарник мигратора; копировать SQL-файлы отдельно не требуется.
+
+Перед каждым запуском экспортируйте настройки в окружение процесса или задайте их в менеджере служб.
+Бинарники сами не читают `.env`. Пример с SQLite и отдельными каталогами на USB:
+
+```bash
+mkdir -p /mnt/usb/book-hub/{db,images,work}
+export BOOK_HUB_DATABASE_URL=sqlite:///mnt/usb/book-hub/db/book-hub.sqlite
+export BOOK_HUB_SESSION_SECRET='replace-with-a-random-secret-at-least-32-characters'
+export BOOK_HUB_BOOK_STORAGE=directory
+export BOOK_HUB_BOOKS_DIR=/mnt/raid/book-hub/books
+export BOOK_HUB_IMAGES_DIR=/mnt/usb/book-hub/images
+export BOOK_HUB_WORK_DIR=/mnt/usb/book-hub/work
+export BOOK_HUB_HTTP_ADDR=:8080
+export BOOK_HUB_BASE_PATH=/
+export BOOK_HUB_FRONTEND_DIR=/opt/book-hub/frontend
+export BOOK_HUB_REGISTRATION_ENABLED=false
+```
+
+SQLite должна находиться на локальном диске; одновременно запускается один backend.
+Пользователь службы должен иметь доступ на запись к БД, книгам, изображениям и рабочему каталогу,
+а к frontend достаточно доступа на чтение. Значение секрета в примере обязательно замените.
+
+Сначала примените миграции:
+
+```bash
+/opt/book-hub/bin/book-hub-migrate up
+```
+
+Затем создайте пользователя:
+
+```bash
+/opt/book-hub/bin/book-hub-admin
+```
+
+В консоли введите `create user`, укажите логин и пароль, затем `quit`. После этого запустите сервер:
+
+```bash
+/opt/book-hub/bin/book-hub-server
+```
+
+Откройте `http://адрес-устройства:8080/`. Страницы и API доступны на одном адресе, API остаётся под `/api`.
+Для размещения под `/hub` соберите frontend с `VITE_BASE_PATH=/hub`, задайте `BOOK_HUB_BASE_PATH=/hub`
+и откройте `/hub/`; API будет под `/hub/api`. В каталоге сборки `index.html` остаётся непосредственно в корне,
+без вложенной папки `hub`. Сервер не переписывает пути внутри сборки и не собирает frontend при запуске.
+
+Каталог frontend целиком публичный: указывайте только production-сборку. Не размещайте в нём книги,
+изображения приложения, БД, конфигурацию, рабочие файлы или кэш. Просмотр каталогов, скрытые файлы
+и ссылки за пределы сборки запрещены. Неверный или нечитаемый каталог либо отсутствие обычного читаемого
+`index.html` завершают запуск ошибкой; мигратор, admin и backup CLI от frontend не зависят.
+
+HTML всегда загружается заново, ресурсы Vite с хэшем в имени могут кэшироваться надолго,
+остальные файлы требуют перепроверки. Обновляйте сборку с перезапуском сервера. Чтобы вернуться к внешнему
+веб-серверу, удалите `BOOK_HUB_FRONTEND_DIR` из окружения и перезапустите backend.
+HTTPS настраивается внешним TLS-прокси; при HTTPS задайте `BOOK_HUB_COOKIE_SECURE=true`.
+Размещение frontend на USB само по себе не гарантирует сон HDD: он зависит и от расположения остальных данных и служб.
+
 ## Обычные действия
 
 | Задача                        | Команда                                                                  |

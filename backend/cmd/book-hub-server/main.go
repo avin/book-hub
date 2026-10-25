@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"book-hub/internal/config"
+	"book-hub/internal/frontend"
 	"book-hub/internal/httpapi"
 	"book-hub/internal/storage/files"
 	"book-hub/internal/storage/sqlstore"
@@ -27,6 +28,11 @@ func run() error {
 	if cfg.DatabaseURL == "" {
 		return fmt.Errorf("BOOK_HUB_DATABASE_URL is required")
 	}
+	static, err := frontend.New(cfg.FrontendDir, cfg.BasePath)
+	if err != nil {
+		return err
+	}
+	defer static.Close()
 	logger := httpapi.NewJSONLogger(cfg.LogLevel)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -57,5 +63,5 @@ func run() error {
 		<-workerDone
 	}()
 	logger.Info("starting book hub server", "addr", cfg.HTTPAddr, "api_base", config.APIBasePath(cfg.BasePath))
-	return httpapi.ListenAndServe(ctx, cfg.HTTPAddr, server, logger)
+	return httpapi.ListenAndServe(ctx, cfg.HTTPAddr, static.Handler(server), logger)
 }
