@@ -246,6 +246,7 @@ Frontend доступен под `BOOK_HUB_BASE_PATH`, API сохраняет п
 - health/readiness checks.
 
 Миграции запускаются отдельной командой.
+Сервер обрабатывает SIGINT и SIGTERM для штатной остановки.
 
 ## База данных
 

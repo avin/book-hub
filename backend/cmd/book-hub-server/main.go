@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"book-hub/internal/config"
 	"book-hub/internal/frontend"
@@ -34,7 +35,7 @@ func run() error {
 	}
 	defer static.Close()
 	logger := httpapi.NewJSONLogger(cfg.LogLevel)
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	store, err := sqlstore.Open(ctx, cfg.DatabaseURL)
