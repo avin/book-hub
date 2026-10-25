@@ -355,19 +355,19 @@ func TestBookCacheBypassKeepsBooksAvailableAndLogsOperationalFailure(t *testing.
 	}
 }
 
-func TestBookCacheRejectsCorruptReceiveAndAllowsRetry(t *testing.T) {
+func TestBookCacheRejectsTruncatedReceiveAndAllowsRetry(t *testing.T) {
 	h := newCacheHarness(t, 13)
 	owner, csrf := cacheOwner(t, h)
 	id := h.app.uploadBook(t, owner, csrf, "book.pdf", []byte("%PDF-original"))
 	emptyBookCache(t, h)
 	h.source.mu.Lock()
 	h.source.openFn = func(context.Context, string, []byte) (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader([]byte("%PDF-corrupt!"))), nil
+		return io.NopCloser(bytes.NewReader([]byte("%PDF-"))), nil
 	}
 	h.source.mu.Unlock()
 	response := h.app.requestRaw(t, owner, http.MethodGet, "/v1/books/"+id+"/file", "", nil, http.StatusServiceUnavailable)
 	if bytes.Contains(response.body, []byte("%PDF-")) {
-		t.Fatal("corrupt original leaked to HTTP response")
+		t.Fatal("truncated original leaked to HTTP response")
 	}
 	entries, err := os.ReadDir(h.cfg.CacheDir)
 	if err != nil || len(entries) != 0 {
@@ -574,5 +574,59 @@ func TestBookCacheDirectoryUsesDirectBypassAndWarmCopiesWithOfflineOriginals(t *
 				t.Fatalf("local bytes: %q", response.body)
 			}
 		})
+	}
+}
+
+func TestBookReadsDoNotVerifyOriginalHash(t *testing.T) {
+	for _, local := range []bool{false, true} {
+		for _, mode := range []string{"disabled", "bypass", "miss"} {
+			t.Run(fmt.Sprintf("local=%t/%s", local, mode), func(t *testing.T) {
+				h := newCacheHarness(t, 13)
+				books, _, _ := h.cfg.FilePaths()
+				if local {
+					h.originals = files.NewDirectory(books)
+					h.restart(t)
+				}
+				owner, csrf := cacheOwner(t, h)
+				id := h.app.uploadBook(t, owner, csrf, "book.pdf", []byte("%PDF-original"))
+				emptyBookCache(t, h)
+				switch mode {
+				case "disabled":
+					h.cfg.CacheDir, h.cfg.CacheMaxBytes = "", 0
+				case "bypass":
+					h.cfg.CacheMaxBytes = 1
+				}
+				h.restart(t)
+				// Changing bytes without changing size distinguishes hash checks from stat.
+				changed := []byte("%PDF-changed!")
+				if local {
+					paths, err := filepath.Glob(filepath.Join(books, "*", "*.pdf"))
+					if err != nil || len(paths) != 1 {
+						t.Fatalf("originals: %v %v", paths, err)
+					}
+					if err := os.WriteFile(paths[0], changed, 0600); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					h.source.mu.Lock()
+					for location := range h.source.data {
+						h.source.data[location] = changed
+					}
+					h.source.mu.Unlock()
+				}
+				path := "/v1/books/" + id + "/file"
+				_, _, response, done := coalescedRequest(t, h, owner, path, "bytes=5-8")
+				awaitCoalesced(t, done, "range response did not finish")
+				if response.Code != http.StatusPartialContent || response.Body.String() != "chan" || response.Header().Get("Content-Range") != "bytes 5-8/13" {
+					t.Fatalf("range response: %d %q %v", response.Code, response.Body.String(), response.Header())
+				}
+				for _, suffix := range []string{"", "?download=1"} {
+					full := h.app.requestRaw(t, owner, http.MethodGet, path+suffix, "", nil, http.StatusOK)
+					if !bytes.Equal(full.body, changed) {
+						t.Fatalf("book response: %q", full.body)
+					}
+				}
+			})
+		}
 	}
 }

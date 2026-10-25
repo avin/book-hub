@@ -465,7 +465,7 @@ paths:
         in: header
         schema:
           type: string
-        description: Byte ranges, for example bytes=0-1023. The whole original is verified before any range is served.
+        description: Byte ranges, for example bytes=0-1023. File size is checked without hashing the content.
       - name: If-None-Match
         in: header
         schema:
@@ -478,7 +478,7 @@ paths:
       tags:
         - Books
       operationId: getBookFileHeaders
-      summary: Get verified book file headers without a response body
+      summary: Get book file headers without a response body
       security:
         - cookieAuth: []
       responses:
@@ -487,7 +487,7 @@ paths:
         "206":
           description: Satisfiable byte range headers without a body.
         "304":
-          description: The verified file matches the conditional request.
+          description: The file matches the conditional request.
         "416":
           description: Unsatisfiable byte range; Content-Range contains the full file size.
         "401":
@@ -502,9 +502,11 @@ paths:
       operationId: downloadBookFile
       summary: Download book file for viewer
       description: |
-        Access is checked before opening any original or local copy. The complete file is received
-        and verified by size and SHA-256 before serving it, including for byte ranges.
-        Unavailable originals, corrupt content and exhausted temporary workspace return 503
+        Access is checked before opening any original or local copy. File size is checked without
+        computing SHA-256, including when populating the cache. Local originals bypassing the cache
+        are served without reading the complete content first. Remote originals are fully received
+        before serving byte ranges. Same-size content changes are not detected during reads.
+        Unavailable originals, transfer failures, size mismatches and exhausted temporary workspace return 503
         service_unavailable without changing the session cookie.
       security:
         - cookieAuth: []
@@ -512,7 +514,7 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
         "200":
-          description: Complete verified book file. Byte ranges and conditional requests are supported.
+          description: Complete book file. Byte ranges and conditional requests are supported.
           headers:
             X-Request-Id:
               $ref: "#/components/headers/RequestId"
@@ -540,7 +542,7 @@ paths:
                 type: string
                 format: binary
         "206":
-          description: Verified byte range(s), preserving the file MIME type and Content-Disposition. Content-Range identifies a single range; multiple ranges use multipart/byteranges.
+          description: Byte range(s), preserving the file MIME type and Content-Disposition. Content-Range identifies a single range; multiple ranges use multipart/byteranges.
           headers:
             Content-Range:
               schema:
@@ -555,7 +557,7 @@ paths:
                 type: string
                 format: binary
         "304":
-          description: The verified file matches the conditional request; no body.
+          description: The file matches the conditional request; no body.
         "416":
           description: Unsatisfiable byte range.
           headers:

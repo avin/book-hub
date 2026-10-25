@@ -98,7 +98,7 @@ func (c *bookCache) restore() error {
 		if err != nil {
 			return err
 		}
-		err = verify(context.Background(), file, info.Size(), hash)
+		err = verifyCachedBook(file, info.Size(), hash)
 		closeErr := file.Close()
 		if closeErr != nil {
 			return closeErr
@@ -117,6 +117,19 @@ func (c *bookCache) restore() error {
 		c.used += info.Size()
 	}
 	return c.makeRoom(0)
+}
+
+// verifyCachedBook checks persisted copies only when restoring the cache at startup.
+func verifyCachedBook(file *os.File, size int64, expected string) error {
+	hash := sha256.New()
+	written, err := io.Copy(hash, io.LimitReader(file, size+1))
+	if err != nil {
+		return err
+	}
+	if written != size || hex.EncodeToString(hash.Sum(nil)) != expected {
+		return fmt.Errorf("cached file size or SHA-256 mismatch")
+	}
+	return nil
 }
 
 var errCacheFull = errors.New("cache budget occupied")
@@ -185,7 +198,7 @@ func (c *bookCache) acquire(hash string, size int64) (*BookLease, error) {
 }
 
 // open reports handled=false when the original/bounded workspace should be used.
-// A failed original receive is handled here, so corrupt bytes are never retried as a cache bypass.
+// A failed original receive is handled here, so incomplete transfers are never retried as a cache bypass.
 func (c *bookCache) open(ctx context.Context, book domain.Book, source func() (io.ReadCloser, error)) (*BookLease, bool, error) {
 	c.ensure()
 	c.mu.Lock()
@@ -235,7 +248,6 @@ func (c *bookCache) receive(ctx context.Context, book domain.Book, source func()
 		return nil, true, fmt.Errorf("receive original: %w: %w", storage.ErrUnavailable, err)
 	}
 	stop := context.AfterFunc(ctx, func() { input.Close() })
-	hash := sha256.New()
 	buffer := make([]byte, 32*1024)
 	var written int64
 	var sourceErr, cacheErr error
@@ -250,7 +262,6 @@ func (c *bookCache) receive(ctx context.Context, book domain.Book, source func()
 			if _, cacheErr = output.Write(buffer[:n]); cacheErr != nil {
 				break
 			}
-			hash.Write(buffer[:n])
 			written += int64(n)
 		}
 		if readErr != nil {
@@ -264,8 +275,8 @@ func (c *bookCache) receive(ctx context.Context, book domain.Book, source func()
 	if closeErr := input.Close(); sourceErr == nil {
 		sourceErr = closeErr
 	}
-	if sourceErr == nil && (written != book.SizeBytes || hex.EncodeToString(hash.Sum(nil)) != book.SHA256) {
-		sourceErr = fmt.Errorf("original size or SHA-256 mismatch")
+	if sourceErr == nil && written != book.SizeBytes {
+		sourceErr = fmt.Errorf("original size mismatch")
 	}
 	if cacheErr == nil && sourceErr == nil {
 		cacheErr = output.Sync()

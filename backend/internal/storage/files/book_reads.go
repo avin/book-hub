@@ -10,7 +10,7 @@ import (
 	"book-hub/internal/storage"
 )
 
-// bookReads shares a verified result while requests wait for or serve it.
+// bookReads shares a local file while requests wait for or serve it.
 // Its base lease retains the cache pin or workspace reservation; each response
 // opens its own file so ranges and seeks cannot affect another response.
 type bookReads struct {

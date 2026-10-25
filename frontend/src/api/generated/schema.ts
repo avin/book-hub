@@ -224,7 +224,7 @@ export interface paths {
                 download?: components["parameters"]["BookFileDownload"];
             };
             header?: {
-                /** @description Byte ranges, for example bytes=0-1023. The whole original is verified before any range is served. */
+                /** @description Byte ranges, for example bytes=0-1023. File size is checked without hashing the content. */
                 Range?: string;
                 "If-None-Match"?: string;
                 "If-Modified-Since"?: string;
@@ -237,9 +237,11 @@ export interface paths {
         };
         /**
          * Download book file for viewer
-         * @description Access is checked before opening any original or local copy. The complete file is received
-         *     and verified by size and SHA-256 before serving it, including for byte ranges.
-         *     Unavailable originals, corrupt content and exhausted temporary workspace return 503
+         * @description Access is checked before opening any original or local copy. File size is checked without
+         *     computing SHA-256, including when populating the cache. Local originals bypassing the cache
+         *     are served without reading the complete content first. Remote originals are fully received
+         *     before serving byte ranges. Same-size content changes are not detected during reads.
+         *     Unavailable originals, transfer failures, size mismatches and exhausted temporary workspace return 503
          *     service_unavailable without changing the session cookie.
          */
         get: operations["downloadBookFile"];
@@ -247,7 +249,7 @@ export interface paths {
         post?: never;
         delete?: never;
         options?: never;
-        /** Get verified book file headers without a response body */
+        /** Get book file headers without a response body */
         head: operations["getBookFileHeaders"];
         patch?: never;
         trace?: never;
@@ -1031,7 +1033,7 @@ export interface operations {
                 download?: components["parameters"]["BookFileDownload"];
             };
             header?: {
-                /** @description Byte ranges, for example bytes=0-1023. The whole original is verified before any range is served. */
+                /** @description Byte ranges, for example bytes=0-1023. File size is checked without hashing the content. */
                 Range?: string;
                 "If-None-Match"?: string;
                 "If-Modified-Since"?: string;
@@ -1044,7 +1046,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Complete verified book file. Byte ranges and conditional requests are supported. */
+            /** @description Complete book file. Byte ranges and conditional requests are supported. */
             200: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
@@ -1062,7 +1064,7 @@ export interface operations {
                     "image/vnd.djvu": string;
                 };
             };
-            /** @description Verified byte range(s), preserving the file MIME type and Content-Disposition. Content-Range identifies a single range; multiple ranges use multipart/byteranges. */
+            /** @description Byte range(s), preserving the file MIME type and Content-Disposition. Content-Range identifies a single range; multiple ranges use multipart/byteranges. */
             206: {
                 headers: {
                     "Content-Range"?: string;
@@ -1073,7 +1075,7 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
-            /** @description The verified file matches the conditional request; no body. */
+            /** @description The file matches the conditional request; no body. */
             304: {
                 headers: {
                     [name: string]: unknown;
@@ -1101,7 +1103,7 @@ export interface operations {
                 download?: components["parameters"]["BookFileDownload"];
             };
             header?: {
-                /** @description Byte ranges, for example bytes=0-1023. The whole original is verified before any range is served. */
+                /** @description Byte ranges, for example bytes=0-1023. File size is checked without hashing the content. */
                 Range?: string;
                 "If-None-Match"?: string;
                 "If-Modified-Since"?: string;
@@ -1128,7 +1130,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The verified file matches the conditional request. */
+            /** @description The file matches the conditional request. */
             304: {
                 headers: {
                     [name: string]: unknown;

@@ -23,7 +23,7 @@ import (
 	"book-hub/internal/storage/memory"
 )
 
-func TestCorruptOriginalReturnsTemporaryErrorWithoutLosingSession(t *testing.T) {
+func TestTruncatedOriginalReturnsTemporaryErrorWithoutLosingSession(t *testing.T) {
 	app := newTestApp(t, true)
 	client := app.client(t)
 	csrf := app.csrf(t, client)
@@ -34,8 +34,7 @@ func TestCorruptOriginalReturnsTemporaryErrorWithoutLosingSession(t *testing.T) 
 	if err != nil || len(paths) != 1 {
 		t.Fatalf("originals: %v %v", paths, err)
 	}
-	// Equal size catches hash validation independently from the size check.
-	if err := os.WriteFile(paths[0], []byte("%PDF-corrupt!"), 0600); err != nil {
+	if err := os.WriteFile(paths[0], []byte("%PDF-"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	response := app.requestRaw(t, client, http.MethodGet, "/v1/books/"+bookID+"/file", "", nil, http.StatusServiceUnavailable)
@@ -45,7 +44,7 @@ func TestCorruptOriginalReturnsTemporaryErrorWithoutLosingSession(t *testing.T) 
 	app.requestRaw(t, client, http.MethodGet, "/v1/books/"+bookID, "", nil, http.StatusOK)
 }
 
-func TestRemoteOriginalIsFullyVerifiedBeforeRangeResponse(t *testing.T) {
+func TestRemoteOriginalIsFullyReceivedBeforeRangeResponse(t *testing.T) {
 	source := &managedOriginals{started: make(chan struct{}), proceed: make(chan struct{})}
 	app := newOriginalsApp(t, source, files.New(t.TempDir()))
 	client := app.client(t)
@@ -202,7 +201,7 @@ func TestSeparatedOriginalsAndImagesRemainReadyWithoutOriginalDisk(t *testing.T)
 }
 
 func TestRemoteOriginalFailuresNeverPublishPartialContentAndReleaseWorkspace(t *testing.T) {
-	for _, failure := range []string{"truncated", "long", "hash", "interrupted", "unavailable"} {
+	for _, failure := range []string{"truncated", "long", "interrupted", "unavailable"} {
 		t.Run(failure, func(t *testing.T) {
 			source := &managedOriginals{}
 			root := t.TempDir()
@@ -222,8 +221,6 @@ func TestRemoteOriginalFailuresNeverPublishPartialContentAndReleaseWorkspace(t *
 				source.data = source.data[:5]
 			case "long":
 				source.data = append(source.data, '!')
-			case "hash":
-				source.data[0] = '!'
 			case "interrupted":
 				source.readErr = io.ErrUnexpectedEOF
 			case "unavailable":

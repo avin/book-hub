@@ -104,7 +104,13 @@ func (s Workspace) SaveTemp(reader io.Reader, limit int64) (TempFile, error) {
 }
 
 func (s Workspace) SaveTempContext(ctx context.Context, reader io.Reader, limit int64) (TempFile, error) {
-	return s.save(ctx, reader, limit, -1)
+	hash := sha256.New()
+	temp, err := s.save(ctx, io.TeeReader(reader, hash), limit, -1)
+	if err != nil {
+		return TempFile{}, err
+	}
+	temp.SHA256 = hex.EncodeToString(hash.Sum(nil))
+	return temp, nil
 }
 
 // save reserves an expected full size before receiving, or grows an upload's
@@ -135,7 +141,6 @@ func (s Workspace) save(ctx context.Context, reader io.Reader, limit, expected i
 			s.unreserve(reserved)
 		})
 	}
-	hash := sha256.New()
 	buffer := make([]byte, 32*1024)
 	var written int64
 	input := io.LimitReader(contextReader{ctx, reader}, limit+1)
@@ -156,7 +161,6 @@ func (s Workspace) save(ctx context.Context, reader io.Reader, limit, expected i
 				err = fmt.Errorf("workspace write: %w: %w", storage.ErrUnavailable, err)
 				break
 			}
-			hash.Write(buffer[:n])
 			written += int64(n)
 		}
 		if readErr != nil {
@@ -174,5 +178,5 @@ func (s Workspace) save(ctx context.Context, reader io.Reader, limit, expected i
 		release()
 		return TempFile{}, err
 	}
-	return TempFile{Path: file.Name(), SHA256: hex.EncodeToString(hash.Sum(nil)), Size: written, release: release}, nil
+	return TempFile{Path: file.Name(), Size: written, release: release}, nil
 }

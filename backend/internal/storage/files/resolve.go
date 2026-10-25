@@ -2,8 +2,6 @@ package files
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -12,7 +10,7 @@ import (
 	"book-hub/internal/storage"
 )
 
-// BookLease holds the verified local file until the HTTP response has finished.
+// BookLease holds the local file until the HTTP response has finished.
 type BookLease struct {
 	*os.File
 	release func()
@@ -51,9 +49,9 @@ func (s Store) openOriginal(ctx context.Context, book domain.Book) (*BookLease, 
 		if err != nil {
 			return nil, fmt.Errorf("receive original: %w: %w", storage.ErrUnavailable, err)
 		}
-		if temp.Size != book.SizeBytes || temp.SHA256 != book.SHA256 {
+		if temp.Size != book.SizeBytes {
 			temp.Release()
-			return nil, fmt.Errorf("original size or SHA-256 mismatch: %w", storage.ErrUnavailable)
+			return nil, fmt.Errorf("original size mismatch: %w", storage.ErrUnavailable)
 		}
 		file, err := os.Open(temp.Path)
 		if err != nil {
@@ -66,9 +64,13 @@ func (s Store) openOriginal(ctx context.Context, book domain.Book) (*BookLease, 
 	if err != nil {
 		return nil, fmt.Errorf("open original: %w: %w", storage.ErrUnavailable, err)
 	}
-	if err := verify(ctx, file, book.SizeBytes, book.SHA256); err != nil {
+	info, err := file.Stat()
+	if err == nil && (!info.Mode().IsRegular() || info.Size() != book.SizeBytes) {
+		err = fmt.Errorf("original must be a regular file of size %d", book.SizeBytes)
+	}
+	if err != nil {
 		file.Close()
-		return nil, fmt.Errorf("verify original: %w: %w", storage.ErrUnavailable, err)
+		return nil, fmt.Errorf("stat original: %w: %w", storage.ErrUnavailable, err)
 	}
 	return &BookLease{File: file}, nil
 }
@@ -102,22 +104,6 @@ func (r *originalReader) Close() error {
 		return r.stream.Close()
 	}
 	return nil
-}
-
-func verify(ctx context.Context, file *os.File, size int64, expected string) error {
-	if size < 0 || len(expected) != 64 {
-		return fmt.Errorf("invalid original integrity metadata")
-	}
-	hash := sha256.New()
-	written, err := io.Copy(hash, io.LimitReader(contextReader{ctx, file}, size+1))
-	if err != nil {
-		return err
-	}
-	if written != size || hex.EncodeToString(hash.Sum(nil)) != expected {
-		return fmt.Errorf("original size or SHA-256 mismatch")
-	}
-	_, err = file.Seek(0, io.SeekStart)
-	return err
 }
 
 type contextReader struct {

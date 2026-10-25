@@ -158,7 +158,7 @@ func TestSharedBookReceiveFailureAllowsAnotherAttempt(t *testing.T) {
 		if cached {
 			name = "cache"
 		}
-		for _, failure := range []string{"unavailable", "truncated", "wrong hash", "interrupted"} {
+		for _, failure := range []string{"unavailable", "truncated", "oversized", "interrupted"} {
 			t.Run(name+"/"+failure, func(t *testing.T) {
 				h := newCacheHarness(t, 13)
 				owner, csrf := cacheOwner(t, h)
@@ -184,8 +184,8 @@ func TestSharedBookReceiveFailureAllowsAnotherAttempt(t *testing.T) {
 					switch failure {
 					case "truncated":
 						return io.NopCloser(bytes.NewReader([]byte("%PDF-"))), nil
-					case "wrong hash":
-						return io.NopCloser(bytes.NewReader([]byte("%PDF-corrupt!"))), nil
+					case "oversized":
+						return io.NopCloser(bytes.NewReader([]byte("%PDF-original!"))), nil
 					case "interrupted":
 						return io.NopCloser(io.MultiReader(bytes.NewReader([]byte("%PDF-")), failedBookStream{})), nil
 					default:
@@ -205,7 +205,7 @@ func TestSharedBookReceiveFailureAllowsAnotherAttempt(t *testing.T) {
 					t.Fatalf("shared failure: %d %d", first.Code, response.Code)
 				}
 				if bytes.Contains(first.Body.Bytes(), []byte("%PDF-")) || bytes.Contains(response.Body.Bytes(), []byte("%PDF-")) {
-					t.Fatal("incomplete or corrupt bytes leaked into a shared response")
+					t.Fatal("incomplete or oversized bytes leaked into a shared response")
 				}
 				h.source.mu.Lock()
 				if h.source.opens != 1 {
