@@ -94,12 +94,12 @@ func TestCreateUserActivatesAccount(t *testing.T) {
 func TestAdminUsesConfiguredPasswordAlgorithm(t *testing.T) {
 	ctx := context.Background()
 	store := memory.New()
-	cfg := config.Config{DefaultQuotaBytes: 100, PasswordAlgorithm: auth.PasswordPBKDF2SHA256}
+	cfg := config.Config{DefaultQuotaBytes: 100, PasswordAlgorithm: auth.PasswordPBKDF2SHA256, PBKDF2Iterations: 10000}
 	if err := createUser(ctx, bufio.NewScanner(strings.NewReader("reader\npassword\n")), store, cfg); err != nil {
 		t.Fatal(err)
 	}
 	user, err := store.GetUserByLogin(ctx, "reader")
-	if err != nil || !strings.HasPrefix(user.PasswordHash, "$pbkdf2-sha256$") || !auth.VerifyPassword("password", user.PasswordHash) {
+	if err != nil || !strings.HasPrefix(user.PasswordHash, "$pbkdf2-sha256$i=10000$") || !auth.VerifyPassword("password", user.PasswordHash) {
 		t.Fatalf("created user's password: %v", err)
 	}
 	if err := store.CreateSession(ctx, user.ID, "session", 60); err != nil {
@@ -109,7 +109,7 @@ func TestAdminUsesConfiguredPasswordAlgorithm(t *testing.T) {
 		t.Fatal(err)
 	}
 	user, err = store.GetUser(ctx, user.ID)
-	if err != nil || !strings.HasPrefix(user.PasswordHash, "$pbkdf2-sha256$") || !auth.VerifyPassword("replacement", user.PasswordHash) || auth.VerifyPassword("password", user.PasswordHash) {
+	if err != nil || !strings.HasPrefix(user.PasswordHash, "$pbkdf2-sha256$i=10000$") || !auth.VerifyPassword("replacement", user.PasswordHash) || auth.VerifyPassword("password", user.PasswordHash) {
 		t.Fatalf("changed user's password: %v", err)
 	}
 	if _, err := store.GetSession(ctx, "session"); err == nil {

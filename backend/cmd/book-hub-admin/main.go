@@ -132,7 +132,7 @@ func createUser(ctx context.Context, scanner *bufio.Scanner, store adminStore, c
 	if err := domain.ValidatePassword(password); err != nil {
 		return err
 	}
-	hash, err := auth.HashPasswordWithAlgorithm(password, cfg.PasswordAlgorithm)
+	hash, err := auth.HashPasswordWithAlgorithm(password, cfg.PasswordAlgorithm, cfg.PBKDF2Iterations)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func setPassword(ctx context.Context, scanner *bufio.Scanner, store adminStore, 
 	if err := domain.ValidatePassword(password); err != nil {
 		return err
 	}
-	hash, err := auth.HashPasswordWithAlgorithm(password, cfg.PasswordAlgorithm)
+	hash, err := auth.HashPasswordWithAlgorithm(password, cfg.PasswordAlgorithm, cfg.PBKDF2Iterations)
 	if err != nil {
 		return err
 	}

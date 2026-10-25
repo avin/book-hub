@@ -15,35 +15,42 @@ import (
 )
 
 const (
-	PasswordArgon2id            = "argon2id"
-	PasswordPBKDF2SHA256        = "pbkdf2-sha256"
-	pbkdf2Iterations            = 600_000
-	argonMemory          uint32 = 64 * 1024
-	argonIterations      uint32 = 3
-	argonParallelism     uint8  = 2
-	argonSaltLength             = 16
-	argonKeyLength       uint32 = 32
+	PasswordArgon2id               = "argon2id"
+	PasswordPBKDF2SHA256           = "pbkdf2-sha256"
+	DefaultPBKDF2Iterations        = 600_000
+	MaxPBKDF2Iterations            = 10_000_000
+	argonMemory             uint32 = 64 * 1024
+	argonIterations         uint32 = 3
+	argonParallelism        uint8  = 2
+	argonSaltLength                = 16
+	argonKeyLength          uint32 = 32
 )
 
 func HashPassword(password string) (string, error) {
-	return HashPasswordWithAlgorithm(password, PasswordArgon2id)
+	return HashPasswordWithAlgorithm(password, PasswordArgon2id, 0)
 }
 
 // An empty algorithm preserves the default for programmatically built configs.
-func HashPasswordWithAlgorithm(password, algorithm string) (string, error) {
+func HashPasswordWithAlgorithm(password, algorithm string, iterations int) (string, error) {
 	if !ValidPasswordAlgorithm(algorithm) {
 		return "", errors.New("unsupported password algorithm")
+	}
+	if iterations == 0 {
+		iterations = DefaultPBKDF2Iterations
+	}
+	if iterations < 1 || iterations > MaxPBKDF2Iterations {
+		return "", errors.New("invalid pbkdf2 iterations")
 	}
 	salt := make([]byte, argonSaltLength)
 	if _, err := rand.Read(salt); err != nil {
 		return "", err
 	}
 	if algorithm == PasswordPBKDF2SHA256 {
-		key, err := pbkdf2.Key(sha256.New, password, salt, pbkdf2Iterations, int(argonKeyLength))
+		key, err := pbkdf2.Key(sha256.New, password, salt, iterations, int(argonKeyLength))
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("$pbkdf2-sha256$i=%d$%s$%s", pbkdf2Iterations,
+		return fmt.Sprintf("$pbkdf2-sha256$i=%d$%s$%s", iterations,
 			base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(key)), nil
 	}
 	key := argon2.IDKey([]byte(password), salt, argonIterations, argonMemory, argonParallelism, argonKeyLength)
@@ -79,9 +86,16 @@ func ValidPasswordAlgorithm(algorithm string) bool {
 }
 
 // NeedsPasswordRehash is used only after successful verification.
-func NeedsPasswordRehash(encodedHash, algorithm string) bool {
+func NeedsPasswordRehash(encodedHash, algorithm string, iterations int) bool {
 	if algorithm == "" {
 		algorithm = PasswordArgon2id
+	}
+	if algorithm == PasswordPBKDF2SHA256 {
+		if iterations == 0 {
+			iterations = DefaultPBKDF2Iterations
+		}
+		storedIterations, _, _, err := decodePBKDF2Hash(encodedHash)
+		return err != nil || storedIterations != iterations
 	}
 	return !strings.HasPrefix(encodedHash, "$"+algorithm+"$")
 }
@@ -92,7 +106,7 @@ func decodePBKDF2Hash(encodedHash string) (int, []byte, []byte, error) {
 		return 0, nil, nil, errors.New("invalid pbkdf2 hash")
 	}
 	iterations, err := strconv.Atoi(strings.TrimPrefix(parts[2], "i="))
-	if err != nil || iterations < 1 || iterations > 10_000_000 {
+	if err != nil || iterations < 1 || iterations > MaxPBKDF2Iterations {
 		return 0, nil, nil, errors.New("invalid pbkdf2 iterations")
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[3])

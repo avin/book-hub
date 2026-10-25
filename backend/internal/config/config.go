@@ -43,6 +43,7 @@ type Config struct {
 	S3SecretAccessKey        string
 	DefaultQuotaBytes        int64
 	PasswordAlgorithm        string
+	PBKDF2Iterations         int
 	RegistrationEnabled      bool
 	RegistrationAutoActivate bool
 	SessionSecret            string
@@ -111,6 +112,13 @@ func Load() (Config, error) {
 	cfg.PasswordAlgorithm = envString("BOOK_HUB_PASSWORD_ALGORITHM", auth.PasswordArgon2id)
 	if !auth.ValidPasswordAlgorithm(cfg.PasswordAlgorithm) {
 		return Config{}, errors.New("BOOK_HUB_PASSWORD_ALGORITHM must be argon2id or pbkdf2-sha256")
+	}
+	cfg.PBKDF2Iterations = auth.DefaultPBKDF2Iterations
+	if value := os.Getenv("BOOK_HUB_PBKDF2_ITERATIONS"); value != "" {
+		cfg.PBKDF2Iterations, err = strconv.Atoi(value)
+		if err != nil || cfg.PBKDF2Iterations < 1 || cfg.PBKDF2Iterations > auth.MaxPBKDF2Iterations {
+			return Config{}, fmt.Errorf("BOOK_HUB_PBKDF2_ITERATIONS must be an integer between 1 and %d", auth.MaxPBKDF2Iterations)
+		}
 	}
 	if len(cfg.SessionSecret) < 32 {
 		return Config{}, errors.New("BOOK_HUB_SESSION_SECRET must be at least 32 characters")

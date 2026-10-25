@@ -12,26 +12,26 @@ func TestPasswordAlgorithms(t *testing.T) {
 		t.Run(algorithm, func(t *testing.T) {
 			// Keep the existing 2048-byte password contract, including Unicode.
 			password := strings.Repeat("я", 1024)
-			hash, err := auth.HashPasswordWithAlgorithm(password, algorithm)
+			hash, err := auth.HashPasswordWithAlgorithm(password, algorithm, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if !auth.VerifyPassword(password, hash) || auth.VerifyPassword(password+"x", hash) {
 				t.Fatal("password verification failed")
 			}
-			other, err := auth.HashPasswordWithAlgorithm(password, algorithm)
+			other, err := auth.HashPasswordWithAlgorithm(password, algorithm, 0)
 			if err != nil || other == hash {
 				t.Fatal("passwords must have independent random salts")
 			}
-			if auth.NeedsPasswordRehash(hash, algorithm) {
+			if auth.NeedsPasswordRehash(hash, algorithm, 0) {
 				t.Fatal("hash using the configured algorithm needs rehash")
 			}
-			if !auth.NeedsPasswordRehash(hash, oppositeAlgorithm(algorithm)) {
+			if !auth.NeedsPasswordRehash(hash, oppositeAlgorithm(algorithm), 0) {
 				t.Fatal("hash using a different algorithm does not need rehash")
 			}
 		})
 	}
-	if _, err := auth.HashPasswordWithAlgorithm("password", "sha256"); err == nil {
+	if _, err := auth.HashPasswordWithAlgorithm("password", "sha256", 0); err == nil {
 		t.Fatal("unknown algorithm accepted")
 	}
 }
@@ -48,6 +48,26 @@ func TestPBKDF2Interoperability(t *testing.T) {
 	const hash = "$pbkdf2-sha256$i=600000$MDEyMzQ1Njc4OWFiY2RlZg$mW18kPdKShac963vQrBoSPfRusPlaNHMlNT3m+HuAmM"
 	if !auth.VerifyPassword("password", hash) || auth.VerifyPassword("wrong", hash) {
 		t.Fatal("PBKDF2-HMAC-SHA256 reference hash verification failed")
+	}
+}
+
+func TestPBKDF2IterationPolicy(t *testing.T) {
+	for _, iterations := range []int{0, 1, 1000, 10000, 600000} {
+		hash, err := auth.HashPasswordWithAlgorithm("password", auth.PasswordPBKDF2SHA256, iterations)
+		if err != nil || !auth.VerifyPassword("password", hash) || auth.VerifyPassword("wrong", hash) {
+			t.Fatalf("verification with %d iterations: %v", iterations, err)
+		}
+		if auth.NeedsPasswordRehash(hash, auth.PasswordPBKDF2SHA256, iterations) {
+			t.Fatalf("same iteration policy requires rehash: %d", iterations)
+		}
+		if !auth.NeedsPasswordRehash(hash, auth.PasswordPBKDF2SHA256, 50000) {
+			t.Fatalf("different iteration policy does not require rehash: %d", iterations)
+		}
+	}
+	for _, iterations := range []int{-1, auth.MaxPBKDF2Iterations + 1} {
+		if _, err := auth.HashPasswordWithAlgorithm("password", auth.PasswordPBKDF2SHA256, iterations); err == nil {
+			t.Fatalf("invalid iteration count accepted: %d", iterations)
+		}
 	}
 }
 
@@ -82,7 +102,7 @@ func TestMalformedPasswordHashesAreRejected(t *testing.T) {
 func BenchmarkVerifyPassword(b *testing.B) {
 	for _, algorithm := range []string{auth.PasswordArgon2id, auth.PasswordPBKDF2SHA256} {
 		b.Run(algorithm, func(b *testing.B) {
-			hash, err := auth.HashPasswordWithAlgorithm("password", algorithm)
+			hash, err := auth.HashPasswordWithAlgorithm("password", algorithm, 0)
 			if err != nil {
 				b.Fatal(err)
 			}
