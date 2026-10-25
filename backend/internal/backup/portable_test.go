@@ -58,6 +58,75 @@ func TestPortableSQLiteLibraryRestoresWithoutItsSource(t *testing.T) {
 	assertPortableLibraryHTTP(t, target, bookID)
 }
 
+func TestPortableBackupRestoresImagesFromSymlinkedRoot(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	source := portableConfig(filepath.Join(root, "source"))
+	physicalImages := filepath.Join(root, "physical-images")
+	if err := os.MkdirAll(physicalImages, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(source.ImagesDir), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(physicalImages, source.ImagesDir); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := database.Migrate(ctx, source.DatabaseURL, "up"); err != nil {
+		t.Fatal(err)
+	}
+	bookID := writePortableLibrary(t, source)
+	directory := filepath.Join(root, "backup")
+	if err := os.Mkdir(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := Create(ctx, Options{DatabaseURL: source.DatabaseURL, FileStorage: source}, directory); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(root, "source")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(physicalImages); err != nil {
+		t.Fatal(err)
+	}
+	target := portableConfig(filepath.Join(root, "target"))
+	options := Options{DatabaseURL: target.DatabaseURL, FileStorage: target}
+	if err := Validate(ctx, options, directory); err != nil {
+		t.Fatalf("successful backup is not restorable: %v", err)
+	}
+	if err := Restore(ctx, options, directory); err != nil {
+		t.Fatal(err)
+	}
+	assertPortableLibraryHTTP(t, target, bookID)
+}
+
+func TestPortableBackupRejectsLinksInsideImages(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	source := portableConfig(filepath.Join(root, "source"))
+	if err := database.Migrate(ctx, source.DatabaseURL, "up"); err != nil {
+		t.Fatal(err)
+	}
+	writePortableLibrary(t, source)
+	external := filepath.Join(root, "outside.png")
+	if err := os.WriteFile(external, []byte("outside the selected image tree"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, filepath.Join(source.ImagesDir, "linked.png")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	directory := filepath.Join(root, "backup")
+	if err := os.Mkdir(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := Create(ctx, Options{DatabaseURL: source.DatabaseURL, FileStorage: source}, directory); err == nil {
+		t.Fatal("a link inside the selected image tree was archived")
+	}
+	if _, err := os.Stat(filepath.Join(directory, "manifest.json")); !os.IsNotExist(err) {
+		t.Fatalf("incomplete backup was published: %v", err)
+	}
+}
+
 func portableConfig(root string) config.Config {
 	return config.Config{BasePath: "/", DatabaseURL: sqliteURL(filepath.Join(root, "database", "library.sqlite")), StorageDir: filepath.Join(root, "legacy"), BooksDir: filepath.Join(root, "originals"), ImagesDir: filepath.Join(root, "images"), WorkDir: filepath.Join(root, "work"), SessionSecret: strings.Repeat("x", 32), SessionTTL: time.Hour, MaxUploadBytes: 1024, MaxCoverUploadBytes: 1024}
 }

@@ -13,28 +13,47 @@ func lockOriginal(ctx context.Context, tx pgx.Tx, hash string) error {
 }
 
 func (s *Store) ProcessOriginalDeletions(ctx context.Context, remove func(context.Context, string) error) error {
-	rows, err := s.pool.Query(ctx, `select sha256 from original_deletions order by sha256 limit 100`)
-	if err != nil {
+	var through string
+	if err := s.pool.QueryRow(ctx, `select coalesce(max(sha256), '') from original_deletions`).Scan(&through); err != nil {
 		return err
 	}
-	var hashes []string
-	for rows.Next() {
-		var hash string
-		if err := rows.Scan(&hash); err != nil {
-			rows.Close()
-			return err
-		}
-		hashes = append(hashes, hash)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return err
-	}
+	// Advance past failures too. The upper bound keeps this pass from chasing
+	// newly queued higher keys while each query still holds at most 100 tasks.
+	var after string
 	var failures []error
-	for _, hash := range hashes {
-		if err := s.deleteOriginal(ctx, hash, remove); err != nil {
-			failures = append(failures, err)
+	for after < through {
+		if err := ctx.Err(); err != nil {
+			return errors.Join(append(failures, err)...)
 		}
+		rows, err := s.pool.Query(ctx, `select sha256 from original_deletions where sha256 > $1 and sha256 <= $2 order by sha256 limit 100`, after, through)
+		if err != nil {
+			return errors.Join(append(failures, err)...)
+		}
+		var hashes []string
+		for rows.Next() {
+			var hash string
+			if err := rows.Scan(&hash); err != nil {
+				rows.Close()
+				return errors.Join(append(failures, err)...)
+			}
+			hashes = append(hashes, hash)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return errors.Join(append(failures, err)...)
+		}
+		if len(hashes) == 0 {
+			break
+		}
+		for _, hash := range hashes {
+			if err := ctx.Err(); err != nil {
+				return errors.Join(append(failures, err)...)
+			}
+			if err := s.deleteOriginal(ctx, hash, remove); err != nil {
+				failures = append(failures, err)
+			}
+		}
+		after = hashes[len(hashes)-1]
 	}
 	return errors.Join(failures...)
 }

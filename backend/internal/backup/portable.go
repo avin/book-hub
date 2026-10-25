@@ -208,6 +208,12 @@ func archiveLibrary(ctx context.Context, cfg config.Config, originals files.Orig
 		}
 	}
 	_, images, _ := cfg.FilePaths()
+	// The configured root may be a symlink, but links inside its tree remain
+	// unsupported so the archive cannot escape the selected image directory.
+	images, err = resolvePath(images)
+	if err != nil {
+		return err
+	}
 	err = filepath.WalkDir(images, func(filePath string, entry os.DirEntry, walkErr error) error {
 		if os.IsNotExist(walkErr) && filePath == images {
 			return nil

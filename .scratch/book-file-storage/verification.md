@@ -58,6 +58,18 @@
 | 15 | Переносимость restore | цепочка directory→FTP→explicit FTPS→implicit FTPS→S3→directory для обеих СУБД; source удалён перед HTTP |
 | 16 | Старые копии и отказы restore | old SQLite/PG schemas, PG без manifest, `./` tar со служебными файлами, preflight preservation, interrupted/manual cleanup/retry |
 
+## Проверка исправлений итогового ревью
+
+Исправлены два подтверждённых замечания Spec: неполная копия при корневом симлинке каталога изображений
+и голодание очереди за первыми 100 неудачными удалениями. По оси Standards замечаний не было.
+Подробности и регрессионные сценарии записаны в [review.md](review.md).
+
+После исправлений пройден Linux-запуск с настоящими PostgreSQL и SQLite:
+`go test -p 2 -race ./internal/backup ./internal/storage/db ./internal/storage/sqlite ./internal/storage/memory`.
+Включены оба новых сценария, прежние контракты хранения, локальные и старые резервные копии.
+Сборка всех CLI `go build ./cmd/...` пройдена. Протокольная матрица и frontend повторно не запускались:
+протокольные адаптеры, frontend и публичный HTTP-контракт не изменены.
+
 ## Ограничения проверки
 
 Полная production multi-stage Docker-сборка в этой среде **не выполнялась**: на удалённой
