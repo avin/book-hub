@@ -3,6 +3,7 @@ package contract
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +15,70 @@ import (
 
 // RunOriginalPersistence exercises the durable lifecycle through independent database stores.
 func RunOriginalPersistence(t *testing.T, prepare func(*testing.T) func() storage.Store) {
+	t.Run("failed deletions do not block other originals or their later retries", func(t *testing.T) {
+		open := prepare(t)
+		store := open()
+		ctx := context.Background()
+		owner, err := store.CreateUser(ctx, "owner", "hash", true, 1000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		root := t.TempDir()
+		for i := 1; i <= 101; i++ {
+			location := filepath.Join(root, fmt.Sprintf("%d.pdf", i))
+			if err := os.WriteFile(location, []byte("original"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			book, err := store.CreateBook(ctx, owner.ID, domain.BookFileInput{
+				SHA256: fmt.Sprintf("%064x", i), StoragePath: location, Format: "pdf", SizeBytes: 8,
+			}, domain.BookInput{Title: "Book"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := store.DeleteBook(ctx, owner.ID, book.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		unavailable := errors.New("these originals are temporarily unavailable")
+		healthy := filepath.Join(root, "101.pdf")
+		attempts := 0
+		for range 2 {
+			err := store.ProcessOriginalDeletions(ctx, func(ctx context.Context, location string) error {
+				if location != healthy {
+					return unavailable
+				}
+				attempts++
+				return removeOriginal(ctx, location)
+			})
+			if !errors.Is(err, unavailable) {
+				t.Fatalf("failed deletions were lost: %v", err)
+			}
+		}
+		if attempts != 1 {
+			t.Fatalf("healthy original behind failed deletions: attempts=%d", attempts)
+		}
+		if _, err := os.Stat(healthy); !os.IsNotExist(err) {
+			t.Fatalf("healthy original was not deleted: %v", err)
+		}
+		store.Close()
+		reopened := open()
+		retries := 0
+		if err := reopened.ProcessOriginalDeletions(ctx, func(context.Context, string) error {
+			retries++
+			return unavailable
+		}); !errors.Is(err, unavailable) || retries != 100 {
+			t.Fatalf("failed tasks did not survive restart: retries=%d err=%v", retries, err)
+		}
+		if err := reopened.ProcessOriginalDeletions(ctx, removeOriginal); err != nil {
+			t.Fatal(err)
+		}
+		if err := reopened.ProcessOriginalDeletions(ctx, func(context.Context, string) error {
+			t.Error("completed deletion was retried")
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	})
 	t.Run("re-upload repairs an original removed before a failed deletion acknowledgement", func(t *testing.T) {
 		open := prepare(t)
 		store := open()
