@@ -48,4 +48,3 @@ if ($testExitCode -eq 0 -and $runRoot -match '^/worktrees/[a-zA-Z0-9_-]+-[a-f0-9
     & docker exec $RunnerName rm -rf -- $runRoot
 }
 exit $testExitCode
-
