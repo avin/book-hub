@@ -102,7 +102,13 @@ func (f *Frontend) Handler(api http.Handler) http.Handler {
 			return
 		}
 		name := strings.TrimPrefix(r.URL.Path, f.base+"/")
+		trailingSlash := strings.HasSuffix(name, "/")
+		name = strings.TrimSuffix(name, "/")
 		if name == "" {
+			if trailingSlash {
+				http.NotFound(w, r)
+				return
+			}
 			name = "index.html"
 		}
 		if !publicPath(name) {
@@ -110,6 +116,11 @@ func (f *Frontend) Handler(api http.Handler) http.Handler {
 			return
 		}
 		file, info, err := f.open(name)
+		if err == nil && trailingSlash {
+			file.Close()
+			http.NotFound(w, r)
+			return
+		}
 		if errors.Is(err, fs.ErrNotExist) && path.Ext(name) == "" && !resourcePath(name) {
 			name = "index.html"
 			file, info, err = f.open(name)

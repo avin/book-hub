@@ -34,7 +34,7 @@ func TestFrontendPagesAndAPIRouting(t *testing.T) {
 		t.Run("base="+base, func(t *testing.T) {
 			app := newTestAppWithFrontend(t, true, base+"/", frontendFixture(t))
 			client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-			for _, route := range []string{"/", "/login", "/library?tag=books", "/settings", "/read/123", "/apiary"} {
+			for _, route := range []string{"/", "/login", "/library?tag=books", "/library/", "/settings", "/reader/123", "/reader/123/", "/apiary"} {
 				res, err := client.Get(app.server.URL + base + route)
 				if err != nil {
 					t.Fatal(err)
@@ -135,7 +135,7 @@ func TestFrontendResourcesAndMissingFiles(t *testing.T) {
 			}
 		})
 	}
-	for _, path := range []string{"missing.js", "missing.mjs", "missing.wasm", "missing.css", "assets/missing", "assets", "pdfjs-assets/cmaps/missing", "djvujs-assets/missing"} {
+	for _, path := range []string{"missing.js", "missing.mjs", "missing.wasm", "missing.css", "assets/missing", "assets", "pdfjs-assets/cmaps/missing", "djvujs-assets/missing", "robots/"} {
 		t.Run("missing/"+path, func(t *testing.T) {
 			req, _ := http.NewRequest("GET", app.server.URL+"/hub/"+path, nil)
 			req.Header.Set("Accept", "text/html")
