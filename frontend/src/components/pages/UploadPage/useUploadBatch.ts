@@ -50,6 +50,7 @@ export default function useUploadBatch(options: {
       const book = await uploadBook({
         file: draft.file,
         title: draft.title.trim(),
+        description: draft.description,
         tags: draft.tags,
         favorite: false,
       });

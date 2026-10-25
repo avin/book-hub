@@ -16,6 +16,7 @@ import InputContainer from '@/components/common/InputContainer/InputContainer';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import TextInput from '@/components/common/TextInput/TextInput';
+import AutosizeTextarea from '@/components/common/AutosizeTextarea/AutosizeTextarea';
 import { useI18n } from '@/i18n/I18nProvider';
 import styles from './EditBookDialog.module.scss';
 
@@ -64,6 +65,7 @@ function EditBookDialog(props: { book: Book; tagOptions: string[]; onClose: () =
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [title, setTitle] = createSignal(untrack(() => props.book.title));
+  const [description, setDescription] = createSignal(untrack(() => props.book.description ?? ''));
   const [tags, setTags] = createSignal<string[]>(untrack(() => props.book.tags));
   const [error, setError] = createSignal('');
   const [pendingCover, setPendingCover] = createSignal<PendingCover | undefined>(undefined);
@@ -190,6 +192,7 @@ function EditBookDialog(props: { book: Book; tagOptions: string[]; onClose: () =
         bookId: props.book.id,
         patch: {
           title: nextTitle,
+          description: description().trim(),
           tags: tags(),
           favorite: props.book.favorite,
         },
@@ -302,9 +305,23 @@ function EditBookDialog(props: { book: Book; tagOptions: string[]; onClose: () =
           <div class={styles.fields}>
             <InputContainer label={t('title')}>
               <TextInput
+                aria-label={t('title')}
                 value={title()}
                 onInput={(event) => {
                   setTitle(event.currentTarget.value);
+                  setError('');
+                }}
+              />
+            </InputContainer>
+
+            <InputContainer label={t('description')}>
+              <AutosizeTextarea
+                aria-label={t('description')}
+                value={description()}
+                maxLength={10000}
+                disabled={busy()}
+                onInput={(value) => {
+                  setDescription(value);
                   setError('');
                 }}
               />

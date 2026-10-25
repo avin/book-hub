@@ -55,7 +55,7 @@ func TestPortableSQLiteLibraryRestoresWithoutItsSource(t *testing.T) {
 	if err := Restore(ctx, Options{DatabaseURL: target.DatabaseURL, FileStorage: target}, directory); err != nil {
 		t.Fatal(err)
 	}
-	assertPortableLibraryHTTP(t, target, bookID)
+	assertPortableLibraryHTTP(t, target, bookID, portableDescription)
 }
 
 func TestPortableBackupRestoresImagesFromSymlinkedRoot(t *testing.T) {
@@ -97,7 +97,7 @@ func TestPortableBackupRestoresImagesFromSymlinkedRoot(t *testing.T) {
 	if err := Restore(ctx, options, directory); err != nil {
 		t.Fatal(err)
 	}
-	assertPortableLibraryHTTP(t, target, bookID)
+	assertPortableLibraryHTTP(t, target, bookID, portableDescription)
 }
 
 func TestPortableBackupRejectsLinksInsideImages(t *testing.T) {
@@ -132,6 +132,7 @@ func portableConfig(root string) config.Config {
 }
 
 const portableBook = "%PDF-1.7\nwhole original with embedded illustration\x00\xff\n"
+const portableDescription = "Описание\n\nс иллюстрацией 🙂"
 
 func writePortableLibrary(t *testing.T, cfg config.Config) string {
 	t.Helper()
@@ -165,7 +166,7 @@ func writePortableLibrary(t *testing.T, cfg config.Config) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	book, err := store.CreateBook(ctx, owner.ID, domain.BookFileInput{SHA256: temp.SHA256, SizeBytes: temp.Size, Format: "pdf", StoragePath: location}, domain.BookInput{Title: "Книга\tс иллюстрацией", Tags: []string{"restored"}, Favorite: true})
+	book, err := store.CreateBook(ctx, owner.ID, domain.BookFileInput{SHA256: temp.SHA256, SizeBytes: temp.Size, Format: "pdf", StoragePath: location}, domain.BookInput{Title: "Книга\tс иллюстрацией", Description: "Описание\n\nс иллюстрацией 🙂", Tags: []string{"restored"}, Favorite: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +186,7 @@ func writePortableLibrary(t *testing.T, cfg config.Config) string {
 	return book.ID.String()
 }
 
-func assertPortableLibraryHTTP(t *testing.T, cfg config.Config, bookID string) {
+func assertPortableLibraryHTTP(t *testing.T, cfg config.Config, bookID, description string) {
 	t.Helper()
 	ctx := context.Background()
 	store, err := sqlstore.Open(ctx, cfg.DatabaseURL)
@@ -239,15 +240,16 @@ func assertPortableLibraryHTTP(t *testing.T, cfg config.Config, bookID string) {
 		t.Fatal(err)
 	}
 	var metadata struct {
-		Title     string   `json:"title"`
-		Tags      []string `json:"tags"`
-		Favorite  bool     `json:"favorite"`
-		Format    string   `json:"format"`
-		SizeBytes int64    `json:"size_bytes"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Tags        []string `json:"tags"`
+		Favorite    bool     `json:"favorite"`
+		Format      string   `json:"format"`
+		SizeBytes   int64    `json:"size_bytes"`
 	}
 	err = json.NewDecoder(response.Body).Decode(&metadata)
 	response.Body.Close()
-	if err != nil || response.StatusCode != http.StatusOK || metadata.Title != "Книга\tс иллюстрацией" || !metadata.Favorite || metadata.Format != "pdf" || metadata.SizeBytes != int64(len(portableBook)) || len(metadata.Tags) != 1 || metadata.Tags[0] != "restored" {
+	if err != nil || response.StatusCode != http.StatusOK || metadata.Title != "Книга\tс иллюстрацией" || metadata.Description != description || !metadata.Favorite || metadata.Format != "pdf" || metadata.SizeBytes != int64(len(portableBook)) || len(metadata.Tags) != 1 || metadata.Tags[0] != "restored" {
 		t.Fatalf("restored HTTP metadata: %+v status=%d err=%v", metadata, response.StatusCode, err)
 	}
 	request, _ = http.NewRequest(http.MethodGet, server.URL+"/api/v1/books/"+bookID+"/file", nil)
@@ -382,9 +384,15 @@ func TestPortableLegacySQLiteRestoresOldPathsAndServiceEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	bookID := writePortableLibrary(t, source)
-	if err := database.Migrate(ctx, source.DatabaseURL, "down"); err != nil {
+	migrator, err := database.NewMigrator(ctx, source.DatabaseURL, false)
+	if err != nil {
 		t.Fatal(err)
 	}
+	if err := migrator.Migrate(1); err != nil {
+		migrator.Close()
+		t.Fatal(err)
+	}
+	migrator.Close()
 	db, err := database.OpenSQLite(ctx, source.DatabaseURL, false)
 	if err != nil {
 		t.Fatal(err)
@@ -410,7 +418,7 @@ func TestPortableLegacySQLiteRestoresOldPathsAndServiceEntries(t *testing.T) {
 	if err := Restore(ctx, Options{DatabaseURL: target.DatabaseURL, FileStorage: target}, directory); err != nil {
 		t.Fatal(err)
 	}
-	assertPortableLibraryHTTP(t, target, bookID)
+	assertPortableLibraryHTTP(t, target, bookID, "")
 	if _, err := os.Stat(filepath.Join(target.WorkDir, "upload-unfinished")); !os.IsNotExist(err) {
 		t.Fatalf("legacy temporary file restored: %v", err)
 	}
@@ -507,9 +515,15 @@ func TestPortablePostgresLibraryRestoresCurrentAndLegacyWithoutSource(t *testing
 			directory := filepath.Join(root, "backup")
 			os.Mkdir(directory, 0700)
 			if legacy {
-				if err := database.Migrate(ctx, source.DatabaseURL, "down"); err != nil {
+				migrator, err := database.NewMigrator(ctx, source.DatabaseURL, false)
+				if err != nil {
 					t.Fatal(err)
 				}
+				if err := migrator.Migrate(3); err != nil {
+					migrator.Close()
+					t.Fatal(err)
+				}
+				migrator.Close()
 				db, err := sql.Open("pgx", source.DatabaseURL)
 				if err != nil {
 					t.Fatal(err)
@@ -543,12 +557,16 @@ func TestPortablePostgresLibraryRestoresCurrentAndLegacyWithoutSource(t *testing
 			if err := Restore(ctx, Options{DatabaseURL: target.DatabaseURL, FileStorage: target}, directory); err != nil {
 				t.Fatal(err)
 			}
-			assertPortableLibraryHTTP(t, target, bookID)
+			description := portableDescription
+			if legacy {
+				description = ""
+			}
+			assertPortableLibraryHTTP(t, target, bookID, description)
 			// A second restore must reject the occupied namespace before it changes the DB.
 			if err := Restore(ctx, Options{DatabaseURL: target.DatabaseURL, FileStorage: target}, directory); err == nil {
 				t.Fatal("nonempty destination accepted")
 			}
-			assertPortableLibraryHTTP(t, target, bookID)
+			assertPortableLibraryHTTP(t, target, bookID, description)
 		})
 	}
 }
@@ -628,7 +646,7 @@ func TestPortableBackupOmitsPendingOrphansAndTemporaryFiles(t *testing.T) {
 	if err := Restore(ctx, Options{DatabaseURL: target.DatabaseURL, FileStorage: target}, directory); err != nil {
 		t.Fatal(err)
 	}
-	assertPortableLibraryHTTP(t, target, bookID)
+	assertPortableLibraryHTTP(t, target, bookID, portableDescription)
 	restored, err := sqlstore.Open(ctx, target.DatabaseURL)
 	if err != nil {
 		t.Fatal(err)

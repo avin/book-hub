@@ -7,6 +7,7 @@ import usePageLocker from '@/components/common/PageLockerProvider/usePageLocker'
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
 import TextInput from '@/components/common/TextInput/TextInput';
+import AutosizeTextarea from '@/components/common/AutosizeTextarea/AutosizeTextarea';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
   applyBulkTags as applyBulkTagsToDrafts,
@@ -389,6 +390,7 @@ function UploadPage() {
                       <InputContainer label={t('title')}>
                         <div class={styles.titleInput}>
                           <TextInput
+                            aria-label={t('title')}
                             class={styles.titleInputField}
                             value={draft().title}
                             disabled={uploading()}
@@ -417,6 +419,22 @@ function UploadPage() {
                             }
                           />
                         </div>
+                      </InputContainer>
+
+                      <InputContainer label={t('description')}>
+                        <AutosizeTextarea
+                          aria-label={t('description')}
+                          value={draft().description}
+                          maxLength={10000}
+                          disabled={uploading()}
+                          onInput={(description) =>
+                            updateDraft(draft().id, (currentDraft) => ({
+                              ...currentDraft,
+                              description,
+                              uploadError: undefined,
+                            }))
+                          }
+                        />
                       </InputContainer>
 
                       <InputContainer label={t('tags')}>

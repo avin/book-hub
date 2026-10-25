@@ -140,6 +140,7 @@ describe('books API', () => {
       uploadBook({
         file,
         title: '  Заголовок  ',
+        description: '  Первая строка\n\nВторая строка  ',
         tags: ['tag-one', 'tag-two'],
         favorite: true,
       }),
@@ -156,6 +157,7 @@ describe('books API', () => {
     const formData = init.body as FormData;
     expect(formData.get('file')).toBe(file);
     expect(formData.get('title')).toBe('Заголовок');
+    expect(formData.get('description')).toBe('Первая строка\n\nВторая строка');
     expect(formData.getAll('tags')).toEqual(['tag-one', 'tag-two']);
     expect(formData.get('favorite')).toBe('true');
   });

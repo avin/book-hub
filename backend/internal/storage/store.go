@@ -74,7 +74,8 @@ type Store interface {
 }
 
 type BookPatch struct {
-	Title    *string
-	Tags     *[]string
-	Favorite *bool
+	Title       *string
+	Description *string
+	Tags        *[]string
+	Favorite    *bool
 }

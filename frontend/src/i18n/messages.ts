@@ -501,6 +501,10 @@ export const messages = {
     ru: 'Название',
     en: 'Title',
   },
+  description: {
+    ru: 'Описание',
+    en: 'Description',
+  },
   favorite: {
     ru: 'Избранное',
     en: 'Favorite',

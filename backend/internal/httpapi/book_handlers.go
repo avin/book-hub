@@ -121,7 +121,7 @@ func (s *Server) handleUploadBook(w http.ResponseWriter, r *http.Request) {
 	}
 	book, err := s.store.CreateBookWithOriginal(r.Context(), user.ID,
 		domain.BookFileInput{SHA256: temp.SHA256, SizeBytes: temp.Size, Format: format},
-		domain.BookInput{Title: title, Tags: form["tags"], Favorite: favorite},
+		domain.BookInput{Title: title, Description: form.Get("description"), Tags: form["tags"], Favorite: favorite},
 		func(ctx context.Context) (string, error) {
 			location, err := s.files.Books.MoveBook(ctx, temp.Path, temp.SHA256, format)
 			if err != nil {
@@ -164,9 +164,10 @@ func (s *Server) handlePatchBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	book, err := s.store.UpdateBook(r.Context(), userID, bookID, storage.BookPatch{
-		Title:    req.Title,
-		Tags:     req.Tags,
-		Favorite: req.Favorite,
+		Title:       req.Title,
+		Description: req.Description,
+		Tags:        req.Tags,
+		Favorite:    req.Favorite,
 	})
 	if err != nil {
 		s.writeError(w, r, err)

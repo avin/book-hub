@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -15,6 +17,7 @@ const (
 	DefaultMaxUpload     int64 = 314572800
 	DefaultMaxCoverBytes int64 = 1048576
 	MaxSettingsBytes           = 64 * 1024
+	MaxDescriptionLength       = 10000
 )
 
 var loginPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{3,64}$`)
@@ -59,6 +62,7 @@ type BookFile struct {
 type Book struct {
 	ID              uuid.UUID
 	Title           string
+	Description     string
 	Tags            []string
 	Favorite        bool
 	Format          string
@@ -90,9 +94,10 @@ type BookPage struct {
 }
 
 type BookInput struct {
-	Title    string
-	Tags     []string
-	Favorite bool
+	Title       string
+	Description string
+	Tags        []string
+	Favorite    bool
 }
 
 type BookFileInput struct {
@@ -142,6 +147,25 @@ func NormalizeTitle(title string) string {
 		return string([]rune(normalized)[:512])
 	}
 	return normalized
+}
+
+func NormalizeDescription(description string) (string, error) {
+	if !utf8.ValidString(description) {
+		return "", ErrValidation
+	}
+	length := 0
+	for _, r := range description {
+		length++
+		if r > 0xffff {
+			length++
+		}
+		if length > MaxDescriptionLength {
+			return "", ErrValidation
+		}
+	}
+	return strings.TrimFunc(description, func(r rune) bool {
+		return r == '\ufeff' || (unicode.IsSpace(r) && r != '\u0085')
+	}), nil
 }
 
 func TitleFromFilename(name string) string {

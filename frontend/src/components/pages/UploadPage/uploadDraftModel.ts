@@ -9,6 +9,7 @@ export type BookDraft = {
   id: string;
   file: File;
   title: string;
+  description: string;
   tags: string[];
   coverFile?: File;
   coverPreviewUrl?: string;
@@ -54,6 +55,7 @@ export function createBookDraft(file: File, id: string): BookDraft {
     id,
     file,
     title: titleFromFile(file),
+    description: '',
     tags: [],
     coverStatus: 'pending',
     epubValidationStatus: isEpubBookFile(file) ? 'pending' : 'ready',

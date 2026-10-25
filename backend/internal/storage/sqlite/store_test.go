@@ -64,7 +64,7 @@ func TestPersistenceAfterReopen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	book, err := store.CreateBook(ctx, owner.ID, bookFile(), domain.BookInput{Title: "Сохранённая книга", Tags: []string{"PDF", " Книги "}, Favorite: true})
+	book, err := store.CreateBook(ctx, owner.ID, bookFile(), domain.BookInput{Title: "Сохранённая книга", Description: "Сохранённое\nописание 🙂", Tags: []string{"PDF", " Книги "}, Favorite: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestPersistenceAfterReopen(t *testing.T) {
 		t.Fatalf("persisted user: user=%+v err=%v", user.User, err)
 	}
 	got, err := store.GetBook(ctx, owner.ID, book.ID)
-	if err != nil || got.Title != book.Title || !got.Favorite || got.ProgressPercent != 37.5 || got.CoverPath == nil || *got.CoverPath != cover.CoverPath || got.CoverThumbPath == nil || *got.CoverThumbPath != cover.CoverThumbPath {
+	if err != nil || got.Title != book.Title || got.Description != "Сохранённое\nописание 🙂" || !got.Favorite || got.ProgressPercent != 37.5 || got.CoverPath == nil || *got.CoverPath != cover.CoverPath || got.CoverThumbPath == nil || *got.CoverThumbPath != cover.CoverThumbPath {
 		t.Fatalf("persisted book: book=%+v err=%v", got, err)
 	}
 	if !got.CreatedAt.Equal(before.CreatedAt) || !got.LastOpenedAt.Equal(before.LastOpenedAt) || !got.UpdatedAt.Equal(before.UpdatedAt) {

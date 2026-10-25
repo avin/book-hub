@@ -314,6 +314,10 @@ func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, fileInput doma
 }
 
 func (s *Store) CreateBookWithOriginal(ctx context.Context, userID uuid.UUID, fileInput domain.BookFileInput, bookInput domain.BookInput, persist func(context.Context) (string, error)) (domain.Book, error) {
+	description, err := domain.NormalizeDescription(bookInput.Description)
+	if err != nil {
+		return domain.Book{}, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.users[userID]; !ok {
@@ -361,6 +365,7 @@ func (s *Store) CreateBookWithOriginal(ctx context.Context, userID uuid.UUID, fi
 	book := domain.Book{
 		ID:              uuid.New(),
 		Title:           domain.NormalizeTitle(bookInput.Title),
+		Description:     description,
 		Tags:            domain.NormalizeTags(bookInput.Tags),
 		Favorite:        bookInput.Favorite,
 		Format:          file.Format,
@@ -436,6 +441,13 @@ func (s *Store) UpdateBook(_ context.Context, userID, bookID uuid.UUID, patch st
 	}
 	if patch.Title != nil {
 		record.Book.Title = domain.NormalizeTitle(*patch.Title)
+	}
+	if patch.Description != nil {
+		description, err := domain.NormalizeDescription(*patch.Description)
+		if err != nil {
+			return domain.Book{}, err
+		}
+		record.Book.Description = description
 	}
 	if patch.Tags != nil {
 		record.Book.Tags = domain.NormalizeTags(*patch.Tags)

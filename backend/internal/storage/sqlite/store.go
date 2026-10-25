@@ -326,6 +326,10 @@ func (s *Store) CreateBook(ctx context.Context, userID uuid.UUID, file domain.Bo
 }
 
 func (s *Store) CreateBookWithOriginal(ctx context.Context, userID uuid.UUID, file domain.BookFileInput, book domain.BookInput, persist func(context.Context) (string, error)) (domain.Book, error) {
+	description, err := domain.NormalizeDescription(book.Description)
+	if err != nil {
+		return domain.Book{}, err
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return domain.Book{}, err
@@ -375,9 +379,9 @@ func (s *Store) CreateBookWithOriginal(ctx context.Context, userID uuid.UUID, fi
 
 	bookID := uuid.New()
 	_, err = tx.Exec(ctx, `
-		insert into user_books (id, user_id, book_file_id, title, favorite)
-		values (?1, ?2, ?3, ?4, ?5)
-	`, bookID, userID, fileID, domain.NormalizeTitle(book.Title), book.Favorite)
+		insert into user_books (id, user_id, book_file_id, title, favorite, description)
+		values (?1, ?2, ?3, ?4, ?5, ?6)
+	`, bookID, userID, fileID, domain.NormalizeTitle(book.Title), book.Favorite, description)
 	if err != nil {
 		if strings.Contains(err.Error(), "user_books.user_id, user_books.book_file_id") {
 			return domain.Book{}, domain.ErrDuplicateBook
@@ -462,9 +466,16 @@ func (s *Store) UpdateBook(ctx context.Context, userID, bookID uuid.UUID, patch 
 		return domain.Book{}, err
 	}
 	title := current.Title
+	description := current.Description
 	favorite := current.Favorite
 	if patch.Title != nil {
 		title = domain.NormalizeTitle(*patch.Title)
+	}
+	if patch.Description != nil {
+		description, err = domain.NormalizeDescription(*patch.Description)
+		if err != nil {
+			return domain.Book{}, err
+		}
 	}
 	if patch.Favorite != nil {
 		favorite = *patch.Favorite
@@ -476,9 +487,9 @@ func (s *Store) UpdateBook(ctx context.Context, userID, bookID uuid.UUID, patch 
 	defer tx.Rollback(ctx)
 
 	tag, err := tx.Exec(ctx, `
-		update user_books set title = ?3, favorite = ?4, updated_at = bookhub_now()
+		update user_books set title = ?3, favorite = ?4, description = ?5, updated_at = bookhub_now()
 		where id = ?2 and user_id = ?1
-	`, userID, bookID, title, favorite)
+	`, userID, bookID, title, favorite, description)
 	if err != nil {
 		return domain.Book{}, err
 	}
@@ -672,7 +683,7 @@ type bookQuerier interface {
 	Query(ctx context.Context, sql string, args ...any) (*rows, error)
 }
 
-const bookSelect = `select ub.id, ub.title,
+const bookSelect = `select ub.id, ub.title, ub.description,
  (select json_group_array(name) from (select t.name from user_book_tags bt join tags t on t.id=bt.tag_id where bt.user_book_id=ub.id order by t.name)) as tags,
  ub.favorite, bf.format, bf.size_bytes, ub.progress_percent, bf.storage_path, bf.sha256, ub.cover_path, ub.cover_thumbnail_path,
  ub.created_at, ub.last_opened_at, ub.updated_at
@@ -702,6 +713,7 @@ func scanBooks(rows *rows) ([]domain.Book, error) {
 		if err := rows.Scan(
 			&book.ID,
 			&book.Title,
+			&book.Description,
 			&tags,
 			&book.Favorite,
 			&book.Format,

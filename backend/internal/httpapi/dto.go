@@ -26,9 +26,10 @@ type bookQueryRequest struct {
 }
 
 type bookPatchRequest struct {
-	Title    *string   `json:"title"`
-	Tags     *[]string `json:"tags"`
-	Favorite *bool     `json:"favorite"`
+	Title       *string   `json:"title"`
+	Description *string   `json:"description"`
+	Tags        *[]string `json:"tags"`
+	Favorite    *bool     `json:"favorite"`
 }
 
 type progressRequest struct {
@@ -51,6 +52,7 @@ type userDTO struct {
 type bookResponse struct {
 	ID              string   `json:"id"`
 	Title           string   `json:"title"`
+	Description     string   `json:"description"`
 	Tags            []string `json:"tags"`
 	Favorite        bool     `json:"favorite"`
 	Format          string   `json:"format"`
@@ -80,6 +82,7 @@ func bookDTO(book domain.Book) bookResponse {
 	return bookResponse{
 		ID:              book.ID.String(),
 		Title:           book.Title,
+		Description:     book.Description,
 		Tags:            book.Tags,
 		Favorite:        book.Favorite,
 		Format:          book.Format,

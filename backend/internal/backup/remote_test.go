@@ -108,7 +108,7 @@ func TestRemoteBackupRestoresAcrossEveryStorageWithoutItsSource(t *testing.T) {
 					if err := Restore(ctx, options, copyDirectory); err != nil {
 						t.Fatal(err)
 					}
-					assertPortableLibraryHTTP(t, target, bookID)
+					assertPortableLibraryHTTP(t, target, bookID, portableDescription)
 					source, sourceRoot = target, targetRoot
 				})
 			}
@@ -261,7 +261,7 @@ func TestRemoteFullBackupRejectsUnavailableOrDamagedOriginalDespiteWarmCache(t *
 				}
 				// Reading the library can still succeed from cache, but that must not
 				// advertise a backup missing its required permanent original as complete.
-				assertPortableLibraryHTTP(t, cfg, bookID)
+				assertPortableLibraryHTTP(t, cfg, bookID, portableDescription)
 				directory := filepath.Join(root, "backup")
 				if err := os.Mkdir(directory, 0700); err != nil {
 					t.Fatal(err)
@@ -379,11 +379,20 @@ func TestLegacyBackupRestoresIntoEveryRemoteStorage(t *testing.T) {
 				t.Fatal(err)
 			}
 			bookID := writePortableLibrary(t, source)
-			if err := database.Migrate(ctx, source.DatabaseURL, "down"); err != nil {
+			migrator, err := database.NewMigrator(ctx, source.DatabaseURL, false)
+			if err != nil {
 				t.Fatal(err)
 			}
+			version := uint(3)
+			if driver == "sqlite" {
+				version = 1
+			}
+			if err := migrator.Migrate(version); err != nil {
+				migrator.Close()
+				t.Fatal(err)
+			}
+			migrator.Close()
 			var db *sql.DB
-			var err error
 			if driver == "sqlite" {
 				db, err = database.OpenSQLite(ctx, source.DatabaseURL, false)
 			} else {
@@ -440,7 +449,7 @@ func TestLegacyBackupRestoresIntoEveryRemoteStorage(t *testing.T) {
 					if err := Restore(ctx, Options{DatabaseURL: target.DatabaseURL, FileStorage: target}, directory); err != nil {
 						t.Fatal(err)
 					}
-					assertPortableLibraryHTTP(t, target, bookID)
+					assertPortableLibraryHTTP(t, target, bookID, "")
 					if _, err := os.Stat(filepath.Join(target.WorkDir, "upload-unfinished")); !os.IsNotExist(err) {
 						t.Fatalf("legacy partial restored: %v", err)
 					}
@@ -519,7 +528,7 @@ func TestInterruptedRemoteRestoreRequiresCleanupBeforeRetry(t *testing.T) {
 			if err := Restore(ctx, options, directory); err != nil {
 				t.Fatal(err)
 			}
-			assertPortableLibraryHTTP(t, target, bookID)
+			assertPortableLibraryHTTP(t, target, bookID, portableDescription)
 		})
 	}
 }

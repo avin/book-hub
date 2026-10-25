@@ -82,6 +82,7 @@ export async function getBook(bookId: string) {
 export async function uploadBook(input: {
   file: File;
   title?: string;
+  description?: string;
   tags: string[];
   favorite: boolean;
 }) {
@@ -92,6 +93,7 @@ export async function uploadBook(input: {
   if (input.title?.trim()) {
     formData.append('title', input.title.trim());
   }
+  formData.append('description', input.description?.trim() ?? '');
   for (const tag of input.tags) {
     formData.append('tags', tag);
   }

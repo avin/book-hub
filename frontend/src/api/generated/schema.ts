@@ -458,10 +458,13 @@ export interface components {
             /** @description Unique lowercase tags attached to the current user's books, sorted ascending. */
             items: string[];
         };
+        /** @description Optional personal plain-text description, empty when absent. Limited to 10000 UTF-16 code units before trimming, matching browser maxlength; a supplementary Unicode character counts as two units. Leading and trailing ECMAScript whitespace is removed; internal whitespace and line breaks are preserved. Not included in search and never written into the original book file. */
+        BookDescription: string;
         Book: {
             /** Format: uuid */
             id: string;
             title: string;
+            description?: components["schemas"]["BookDescription"];
             tags: string[];
             favorite: boolean;
             format: components["schemas"]["BookFormat"];
@@ -490,12 +493,14 @@ export interface components {
             /** Format: binary */
             file: string;
             title?: string;
+            description?: components["schemas"]["BookDescription"];
             tags?: string[];
             /** @default false */
             favorite: boolean;
         };
         BookPatchRequest: {
             title?: string;
+            description?: components["schemas"]["BookDescription"];
             tags?: string[];
             favorite?: boolean;
         };

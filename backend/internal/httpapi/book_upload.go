@@ -10,10 +10,12 @@ import (
 	"book-hub/internal/storage/files"
 )
 
+const maxBookMetadataBytes = 64 * 1024
+
 // Stream directly into the bounded workspace. ParseMultipartForm would first
 // create an independent unaccounted disk copy for a large uploaded book.
 func (s *Server) readBookUpload(w http.ResponseWriter, r *http.Request) (temp files.TempFile, filename string, form url.Values, err error) {
-	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxUploadBytes+10*1024)
+	r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxUploadBytes+maxBookMetadataBytes+10*1024)
 	reader, err := r.MultipartReader()
 	if err != nil {
 		return temp, "", nil, domain.ErrValidation
@@ -48,9 +50,9 @@ func (s *Server) readBookUpload(w http.ResponseWriter, r *http.Request) (temp fi
 				return temp, "", nil, err
 			}
 		} else {
-			value, readErr := io.ReadAll(io.LimitReader(part, 10*1024-metadataBytes+1))
+			value, readErr := io.ReadAll(io.LimitReader(part, maxBookMetadataBytes-metadataBytes+1))
 			metadataBytes += int64(len(value))
-			if readErr != nil || metadataBytes > 10*1024 {
+			if readErr != nil || metadataBytes > maxBookMetadataBytes {
 				part.Close()
 				return temp, "", nil, domain.ErrValidation
 			}

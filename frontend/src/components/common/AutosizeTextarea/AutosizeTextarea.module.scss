@@ -1,0 +1,10 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+
+.textarea {
+  display: block;
+  padding: 9px 12px;
+  max-height: calc(10lh + 20px);
+  overflow-y: hidden;
+  resize: none;
+}

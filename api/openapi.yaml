@@ -1153,6 +1153,17 @@ components:
             maxLength: 64
           description: Unique lowercase tags attached to the current user's books, sorted ascending.
 
+    BookDescription:
+      type: string
+      maxLength: 10000
+      x-max-utf16-length: 10000
+      description: >-
+        Optional personal plain-text description, empty when absent. Limited to 10000 UTF-16
+        code units before trimming, matching browser maxlength; a supplementary Unicode
+        character counts as two units. Leading and trailing ECMAScript whitespace is
+        removed; internal whitespace and line breaks are preserved. Not included in search
+        and never written into the original book file.
+
     Book:
       type: object
       additionalProperties: false
@@ -1174,6 +1185,8 @@ components:
         title:
           type: string
           maxLength: 512
+        description:
+          $ref: "#/components/schemas/BookDescription"
         tags:
           type: array
           maxItems: 50
@@ -1223,6 +1236,8 @@ components:
         title:
           type: string
           maxLength: 512
+        description:
+          $ref: "#/components/schemas/BookDescription"
         tags:
           type: array
           maxItems: 50
@@ -1240,6 +1255,8 @@ components:
         title:
           type: string
           maxLength: 512
+        description:
+          $ref: "#/components/schemas/BookDescription"
         tags:
           type: array
           maxItems: 50
