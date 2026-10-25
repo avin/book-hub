@@ -14,6 +14,44 @@ import (
 
 func runAccountContract(t *testing.T, newStore NewStore) {
 	t.Helper()
+	t.Run("password rehash preserves sessions and concurrent password changes", func(t *testing.T) {
+		ctx := context.Background()
+		store, first := readerStore(t, newStore)
+		user, err := store.GetUser(ctx, first.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		token := tokenHash()
+		if err := store.CreateSession(ctx, first.ID, token, 60); err != nil {
+			t.Fatal(err)
+		}
+		updated, err := store.RehashUserPassword(ctx, first.ID, user.PasswordHash, "rehash")
+		if err != nil || !updated {
+			t.Fatalf("rehash: updated=%v err=%v", updated, err)
+		}
+		if _, err := store.GetSession(ctx, token); err != nil {
+			t.Fatalf("session revoked by rehash: %v", err)
+		}
+		updated, err = store.RehashUserPassword(ctx, first.ID, user.PasswordHash, "stale-rehash")
+		if err != nil || updated {
+			t.Fatalf("stale rehash overwrote password: updated=%v err=%v", updated, err)
+		}
+		user, err = store.GetUser(ctx, first.ID)
+		if err != nil || user.PasswordHash != "rehash" {
+			t.Fatalf("rehash persistence: hash=%q err=%v", user.PasswordHash, err)
+		}
+		if err := store.SetUserActive(ctx, first.ID, false); err != nil {
+			t.Fatal(err)
+		}
+		updated, err = store.RehashUserPassword(ctx, first.ID, "rehash", "inactive-rehash")
+		if err != nil || updated {
+			t.Fatalf("inactive rehash: updated=%v err=%v", updated, err)
+		}
+		updated, err = store.RehashUserPassword(ctx, uuid.New(), "missing", "rehash")
+		if err != nil || updated {
+			t.Fatalf("missing user rehash: updated=%v err=%v", updated, err)
+		}
+	})
 	t.Run("isolated settings and session lifecycle", func(t *testing.T) {
 		ctx := context.Background()
 		store, first := readerStore(t, newStore)

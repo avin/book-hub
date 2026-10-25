@@ -111,6 +111,14 @@ func (s *Store) SetUserPassword(ctx context.Context, userID uuid.UUID, passwordH
 	return nil
 }
 
+func (s *Store) RehashUserPassword(ctx context.Context, userID uuid.UUID, previousHash, passwordHash string) (bool, error) {
+	tag, err := s.pool.Exec(ctx, `update users set password_hash = ?3, updated_at = bookhub_now() where id = ?1 and password_hash = ?2 and is_active`, userID, previousHash, passwordHash)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
 func (s *Store) SetUserQuota(ctx context.Context, userID uuid.UUID, quotaBytes int64) error {
 	used, err := s.UsedBytes(ctx, userID)
 	if err != nil {

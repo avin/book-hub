@@ -130,6 +130,18 @@ func (s *Store) SetUserPassword(_ context.Context, userID uuid.UUID, passwordHas
 	return nil
 }
 
+func (s *Store) RehashUserPassword(_ context.Context, userID uuid.UUID, previousHash, passwordHash string) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user, ok := s.users[userID]
+	if !ok || !user.IsActive || user.PasswordHash != previousHash {
+		return false, nil
+	}
+	user.PasswordHash = passwordHash
+	s.users[userID] = user
+	return true, nil
+}
+
 func (s *Store) SetUserQuota(_ context.Context, userID uuid.UUID, quotaBytes int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

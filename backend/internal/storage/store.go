@@ -14,6 +14,8 @@ type Users interface {
 	GetUserByLogin(ctx context.Context, login string) (domain.UserWithPassword, error)
 	SetUserActive(ctx context.Context, userID uuid.UUID, active bool) error
 	SetUserPassword(ctx context.Context, userID uuid.UUID, passwordHash string) error
+	// RehashUserPassword replaces only an unchanged hash for an active user, preserving sessions.
+	RehashUserPassword(ctx context.Context, userID uuid.UUID, previousHash, passwordHash string) (bool, error)
 	SetUserQuota(ctx context.Context, userID uuid.UUID, quotaBytes int64) error
 	DeleteUser(ctx context.Context, userID uuid.UUID) ([]domain.DeletedBookFiles, error)
 	ListUsers(ctx context.Context) ([]domain.User, error)

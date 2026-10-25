@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"book-hub/internal/auth"
 	"book-hub/internal/domain"
 )
 
@@ -41,6 +42,7 @@ type Config struct {
 	S3AccessKeyID            string
 	S3SecretAccessKey        string
 	DefaultQuotaBytes        int64
+	PasswordAlgorithm        string
 	RegistrationEnabled      bool
 	RegistrationAutoActivate bool
 	SessionSecret            string
@@ -106,6 +108,10 @@ func Load() (Config, error) {
 	cfg.RegistrationEnabled = envBool("BOOK_HUB_REGISTRATION_ENABLED", true)
 	cfg.RegistrationAutoActivate = envBool("BOOK_HUB_REGISTRATION_AUTO_ACTIVATE", false)
 	cfg.CookieSecure = envBool("BOOK_HUB_COOKIE_SECURE", false)
+	cfg.PasswordAlgorithm = envString("BOOK_HUB_PASSWORD_ALGORITHM", auth.PasswordArgon2id)
+	if !auth.ValidPasswordAlgorithm(cfg.PasswordAlgorithm) {
+		return Config{}, errors.New("BOOK_HUB_PASSWORD_ALGORITHM must be argon2id or pbkdf2-sha256")
+	}
 	if len(cfg.SessionSecret) < 32 {
 		return Config{}, errors.New("BOOK_HUB_SESSION_SECRET must be at least 32 characters")
 	}

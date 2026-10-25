@@ -44,7 +44,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	hash, err := auth.HashPassword(req.Password)
+	hash, err := auth.HashPasswordWithAlgorithm(req.Password, s.cfg.PasswordAlgorithm)
 	if err != nil {
 		s.writeError(w, r, err)
 		return
@@ -87,6 +87,22 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !user.IsActive {
 		s.writeError(w, r, domain.ErrAccountInactive)
 		return
+	}
+	if auth.NeedsPasswordRehash(user.PasswordHash, s.cfg.PasswordAlgorithm) {
+		hash, err := auth.HashPasswordWithAlgorithm(req.Password, s.cfg.PasswordAlgorithm)
+		if err != nil {
+			s.writeError(w, r, err)
+			return
+		}
+		updated, err := s.store.RehashUserPassword(r.Context(), user.ID, user.PasswordHash, hash)
+		if err != nil {
+			s.writeError(w, r, err)
+			return
+		}
+		if !updated {
+			s.writeError(w, r, domain.ErrInvalidCredentials)
+			return
+		}
 	}
 	token, tokenHash, err := auth.NewSessionToken()
 	if err != nil {
@@ -148,7 +164,7 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	hash, err := auth.HashPassword(req.NewPassword)
+	hash, err := auth.HashPasswordWithAlgorithm(req.NewPassword, s.cfg.PasswordAlgorithm)
 	if err != nil {
 		s.writeError(w, r, err)
 		return

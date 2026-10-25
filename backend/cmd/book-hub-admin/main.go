@@ -81,7 +81,7 @@ func run() error {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		case "set password":
-			if err := setPassword(ctx, scanner, store); err != nil {
+			if err := setPassword(ctx, scanner, store, cfg); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 			}
 		case "show storage stats":
@@ -132,7 +132,7 @@ func createUser(ctx context.Context, scanner *bufio.Scanner, store adminStore, c
 	if err := domain.ValidatePassword(password); err != nil {
 		return err
 	}
-	hash, err := auth.HashPassword(password)
+	hash, err := auth.HashPasswordWithAlgorithm(password, cfg.PasswordAlgorithm)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func setQuota(ctx context.Context, scanner *bufio.Scanner, store adminStore) err
 	return store.SetUserQuota(ctx, user.ID, value)
 }
 
-func setPassword(ctx context.Context, scanner *bufio.Scanner, store adminStore) error {
+func setPassword(ctx context.Context, scanner *bufio.Scanner, store adminStore, cfg config.Config) error {
 	user, err := readUser(ctx, scanner, store)
 	if err != nil {
 		return err
@@ -201,7 +201,7 @@ func setPassword(ctx context.Context, scanner *bufio.Scanner, store adminStore) 
 	if err := domain.ValidatePassword(password); err != nil {
 		return err
 	}
-	hash, err := auth.HashPassword(password)
+	hash, err := auth.HashPasswordWithAlgorithm(password, cfg.PasswordAlgorithm)
 	if err != nil {
 		return err
 	}
