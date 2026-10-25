@@ -10,6 +10,8 @@ services:
     volumes:
       - book_storage:/data/books
       - sqlite_data:/data/db
+      - /data/books/tmp
+      - /data/cache
     healthcheck:
       test:
         [

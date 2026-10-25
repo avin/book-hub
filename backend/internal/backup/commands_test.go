@@ -61,3 +61,35 @@ printf '%s\n' "$stage" >> "$OPERATION_LOG"
 		})
 	}
 }
+
+func TestMakeDevelopmentUsesItsHostCacheDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Make operational shell harness runs on Linux")
+	}
+	if _, err := exec.LookPath("make"); err != nil {
+		t.Skip("make unavailable")
+	}
+	makefile, err := os.ReadFile(filepath.Join("..", "..", "..", "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "Makefile"), makefile, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go"), []byte("#!/bin/sh\nprintf '%s' \"$BOOK_HUB_CACHE_DIR\" > \"$CACHE_LOG\"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	log := filepath.Join(root, "cache-path")
+	want := filepath.Join(root, "host-cache")
+	command := exec.Command("make", "--no-print-directory", "dev-backend", "BOOK_HUB_DATABASE_URL=sqlite:///unused.sqlite", "BOOK_HUB_CACHE_DIR=/data/cache", "BOOK_HUB_CACHE_MAX_BYTES=100", "DEV_CACHE_DIR="+want)
+	command.Dir = root
+	command.Env = append(os.Environ(), "PATH="+root+string(os.PathListSeparator)+os.Getenv("PATH"), "CACHE_LOG="+log)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("make: %v %s", err, output)
+	}
+	actual, err := os.ReadFile(log)
+	if err != nil || string(actual) != want {
+		t.Fatalf("development cache %q want %q: %v", actual, want, err)
+	}
+}

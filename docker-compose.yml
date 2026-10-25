@@ -26,6 +26,8 @@ services:
         condition: service_healthy
     volumes:
       - book_storage:/data/books
+      - /data/books/tmp
+      - /data/cache
     healthcheck:
       test:
         [

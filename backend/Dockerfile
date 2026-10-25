@@ -16,7 +16,7 @@ FROM alpine:3.22
 RUN apk add --no-cache ca-certificates wget postgresql16-client postgresql17-client \
 	&& addgroup -S bookhub \
 	&& adduser -S -G bookhub bookhub \
-	&& mkdir -p /app/migrations /data/books /data/db \
+	&& mkdir -p /app/migrations /data/books/tmp /data/db /data/cache \
 	&& chown -R bookhub:bookhub /app /data
 
 WORKDIR /app
