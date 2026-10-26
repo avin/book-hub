@@ -164,3 +164,60 @@ test('авторизованный пользователь видит библ�
   await expect(page.getByRole('heading', { name: /Ваши книги/ })).toContainText('4');
   await expect(page.getByRole('article')).toHaveCount(4);
 });
+
+test('много тегов остаются в границах редактора книги при изменении ширины', async ({
+  page,
+  api,
+}) => {
+  const tags = Array.from({ length: 20 }, (_, index) => `длинный тег книги ${index + 1}`);
+  await api.intercept(books.req.list, {
+    items: [{ ...books.items[0], tags }],
+    total: 1,
+    limit: 24,
+    offset: 0,
+  });
+  await login(page);
+  await page.getByRole('button', { name: 'Действия с книгой' }).click();
+  await page.getByRole('menuitem', { name: 'Изменить', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Изменить книгу' });
+  const collapsedTags = dialog.getByRole('button', { name: /^\+\d+$/ });
+
+  for (const width of [1280, 390, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 1280) {
+      await expect
+        .poll(() => dialog.evaluate((element) => element.getBoundingClientRect().width))
+        .toBe(960);
+    }
+    await expect(collapsedTags).toBeVisible();
+    await expect
+      .poll(() =>
+        dialog.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return (
+            element.scrollWidth <= element.clientWidth &&
+            bounds.left >= 0 &&
+            bounds.right <= innerWidth
+          );
+        }),
+      )
+      .toBe(true);
+    const tagInput = dialog.getByRole('textbox').last();
+    await expect
+      .poll(() =>
+        tagInput.evaluate((element) => {
+          const input = element.getBoundingClientRect();
+          const container = element.parentElement!.getBoundingClientRect();
+          return input.left >= container.left && input.right <= container.right;
+        }),
+      )
+      .toBe(true);
+    await collapsedTags.click();
+    await expect(
+      dialog.getByRole('button', { name: `Remove ${tags.at(-1)}`, exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeVisible();
+    await dialog.screenshot({ path: test.info().outputPath(`edit-book-tags-${width}.png`) });
+  }
+});
