@@ -125,12 +125,12 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: $radius-pill;
-  background: rgb(var(--shadow-color) / 0.08);
   color: var(--danger);
 
   :global(svg) {
     fill: currentColor;
+    stroke: #fff;
+    stroke-width: 2.5;
   }
 }
 
