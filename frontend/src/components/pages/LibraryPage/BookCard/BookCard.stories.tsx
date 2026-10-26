@@ -7,6 +7,8 @@ export default { component: BookCard };
 const sampleBook: Book = {
   id: '00000000-0000-4000-8000-000000000002',
   title: 'The Architecture of Reading Systems',
+  description:
+    'A practical guide to building reading applications and organizing digital libraries.',
   tags: ['architecture', 'solidjs', 'reader'],
   favorite: true,
   format: 'fb2',

@@ -1,0 +1,51 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+
+.bookDescription {
+  position: relative;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.expand.expand {
+  display: inline-flex;
+  width: 28px;
+  min-width: 28px;
+  height: 20px;
+  min-height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: $radius-pill;
+  background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 650;
+  line-height: 18px;
+  vertical-align: top;
+  white-space: nowrap;
+
+  :global(svg) {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover:not(:disabled):not([aria-disabled='true']) {
+    background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
+    color: var(--text-primary);
+  }
+}
+
+.measurement {
+  position: absolute;
+  inset: 0 0 auto;
+  visibility: hidden;
+  pointer-events: none;
+}

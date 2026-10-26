@@ -8,6 +8,7 @@ import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookCover from '../BookCover/BookCover';
+import BookDescription from './BookDescription/BookDescription';
 import styles from './BookCard.module.scss';
 
 function areTagsEqual(left: readonly string[], right: readonly string[]) {
@@ -48,18 +49,30 @@ function BookCard(props: {
 
   return (
     <article class={styles.bookCard}>
-      <A class={styles.bookMain} href={`/reader/${bookId()}`}>
-        <span
-          class={styles.coverLink}
-          title={t('showFullCover')}
-          onContextMenu={handleCoverContextMenu}
-        >
-          <BookCover bookId={bookId()} format={format()} version={props.book().updated_at} />
-        </span>
+      <div class={styles.bookMain}>
+        <div class={styles.coverColumn}>
+          <A
+            class={styles.coverLink}
+            href={`/reader/${bookId()}`}
+            aria-label={title()}
+            title={t('showFullCover')}
+            onContextMenu={handleCoverContextMenu}
+          >
+            <BookCover bookId={bookId()} format={format()} version={props.book().updated_at} />
+          </A>
+        </div>
         <div class={styles.bookContent}>
           <div class={styles.bookTitleRow}>
-            <h2>{title()}</h2>
+            <h2>
+              <A class={styles.titleLink} href={`/reader/${bookId()}`}>
+                {title()}
+              </A>
+            </h2>
           </div>
+
+          <Show when={props.book().description?.trim()}>
+            {(description) => <BookDescription text={description()} />}
+          </Show>
 
           <Show when={tags().length > 0}>
             <div class={styles.cardTags}>
@@ -67,7 +80,7 @@ function BookCard(props: {
             </div>
           </Show>
         </div>
-      </A>
+      </div>
 
       <div class={styles.bookActions}>
         <Button
