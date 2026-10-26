@@ -8,7 +8,6 @@ export const messages = {
   retry: { ru: 'Повторить', en: 'Retry' },
   bookmarks: { ru: 'Закладки', en: 'Bookmarks' },
   bookmark: { ru: 'Закладка', en: 'Bookmark' },
-  create: { ru: 'Создать', en: 'Create' },
   createBookmark: { ru: 'Создать закладку', en: 'Create bookmark' },
   deleteBookmark: { ru: 'Удалить закладку', en: 'Delete bookmark' },
   nameUpTo100Characters: {

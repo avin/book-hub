@@ -1,5 +1,5 @@
 import { useNavigate } from '@solidjs/router';
-import { Bookmark, X } from 'lucide-solid';
+import { Bookmark, Plus, X } from 'lucide-solid';
 import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { createLibraryBookmarks, type LibraryBookmark } from '@/api/libraryBookmarks';
 import Button from '@/components/common/Button/Button';
@@ -124,9 +124,10 @@ function LibraryBookmarks() {
         type="button"
         variant="ghost"
         disabled={!settings.isSuccess || mutation.isPending}
+        iconStart={<Plus />}
         onClick={openCreation}
       >
-        {t('create')}
+        {t('createBookmark')}
       </Button>
     </>
   );

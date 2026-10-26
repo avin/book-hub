@@ -13,7 +13,7 @@ test('создание сохраняет фильтры отдельно от �
   });
   await login(page);
   await page.getByRole('textbox', { name: 'Поиск книг', exact: true }).fill('Война');
-  await page.getByRole('button', { name: 'Создать', exact: true }).click();
+  await page.getByRole('button', { name: 'Создать закладку', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Создать закладку', exact: true });
   await expect(dialog.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue(
     'Война',
@@ -97,7 +97,7 @@ test('черновик независим, предзаполняется на �
   await login(page);
   await page.goto('/library?q=Война&search_field=description&tag=роман');
   await page.getByRole('link', { name: 'Настройки', exact: true }).click();
-  await page.getByRole('button', { name: 'Создать', exact: true }).click();
+  await page.getByRole('button', { name: 'Создать закладку', exact: true }).click();
   let dialog = page.getByRole('dialog', { name: 'Создать закладку', exact: true });
   await expect(dialog.getByRole('textbox', { name: 'Название', exact: true })).toHaveValue(
     'Закладка',
@@ -112,7 +112,7 @@ test('черновик независим, предзаполняется на �
   await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue('Война');
   for (let i = 0; i < 2; i++) {
-    await page.getByRole('button', { name: 'Создать', exact: true }).click();
+    await page.getByRole('button', { name: 'Создать закладку', exact: true }).click();
     dialog = page.getByRole('dialog', { name: 'Создать закладку', exact: true });
     const name = dialog.getByRole('textbox', { name: 'Название', exact: true });
     await name.fill('   ');
@@ -164,14 +164,14 @@ test('до посещения библиотеки форма пуста, моб
   await page.goto('/settings'); // Новая загрузка приложения без посещения библиотеки.
   await page.getByRole('button', { name: 'Закладки', exact: true }).click();
   const list = page.getByRole('dialog', { name: 'Закладки', exact: true });
-  await list.getByRole('button', { name: 'Создать', exact: true }).click();
+  await list.getByRole('button', { name: 'Создать закладку', exact: true }).click();
   const form = page.getByRole('dialog', { name: 'Создать закладку', exact: true });
   await expect(list).toBeHidden();
   await expect(form.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue('');
   await expect(form.getByRole('button', { name: 'Где искать' })).toHaveText('По названию');
   await form.getByRole('button', { name: 'Отмена' }).click();
   await expect(list).toBeVisible();
-  await list.getByRole('button', { name: 'Создать', exact: true }).click();
+  await list.getByRole('button', { name: 'Создать закладку', exact: true }).click();
   await form.getByRole('button', { name: 'Создать закладку', exact: true }).click();
   await expect(list).toBeVisible();
   await list.getByRole('button', { name: 'Закладка', exact: true }).click();
@@ -195,7 +195,9 @@ for (const mobile of [false, true]) {
     const last = page.getByRole('button', { name: /^Закладка 79 / });
     await last.scrollIntoViewIfNeeded();
     await expect(last).toBeInViewport();
-    await expect(page.getByRole('button', { name: 'Создать', exact: true })).toBeInViewport();
+    await expect(
+      page.getByRole('button', { name: 'Создать закладку', exact: true }),
+    ).toBeInViewport();
     if (!mobile) {
       await expect(page.getByRole('button', { name: 'Язык', exact: true })).toBeInViewport();
       await expect(page.getByRole('button', { name: 'Выйти', exact: true })).toBeInViewport();
@@ -295,7 +297,7 @@ test('создание доступно без randomUUID на HTTP домашн
   const settings = await mockSettings(page);
   await login(page);
   for (let i = 0; i < 2; i++) {
-    await page.getByRole('button', { name: 'Создать', exact: true }).click();
+    await page.getByRole('button', { name: 'Создать закладку', exact: true }).click();
     const form = page.getByRole('dialog', { name: 'Создать закладку', exact: true });
     await form.getByRole('button', { name: 'Создать закладку', exact: true }).click();
     await expect(form).toBeHidden();
@@ -330,3 +332,30 @@ test('закладка применяется при нажатии до заг�
   );
   await expect(page.getByRole('button', { name: 'Где искать' })).toHaveText('По описанию');
 });
+
+for (const mobile of [false, true]) {
+  for (const count of [0, 2]) {
+    test(`создание расположено сразу после ${count ? 'закладок' : 'начала списка'} (${mobile ? 'mobile' : 'desktop'})`, async ({
+      page,
+    }) => {
+      await mockSettings(
+        page,
+        Array.from({ length: count }, (_, index) => bookmark(String(index), `Выборка ${index}`)),
+      );
+      await page.setViewportSize({ width: mobile ? 390 : 1100, height: 800 });
+      await login(page);
+      if (mobile) await page.getByRole('button', { name: 'Закладки', exact: true }).click();
+      const previous = count
+        ? page.getByRole('button', { name: `Выборка ${count - 1}`, exact: true })
+        : mobile
+          ? page.getByRole('heading', { name: 'Закладки', exact: true })
+          : page.getByRole('link', { name: 'Настройки', exact: true });
+      const previousBounds = await previous.boundingBox();
+      const create = page.getByRole('button', { name: 'Создать закладку', exact: true });
+      const bounds = await create.boundingBox();
+      const gap = bounds!.y - previousBounds!.y - previousBounds!.height;
+      expect(gap).toBeGreaterThanOrEqual(0);
+      expect(gap).toBeLessThan(count ? 20 : 60);
+    });
+  }
+}
