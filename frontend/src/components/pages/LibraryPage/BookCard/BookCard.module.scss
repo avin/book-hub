@@ -109,16 +109,23 @@
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+}
 
-  span {
-    max-width: 100%;
-    padding: 3px 8px;
-    border-radius: $radius-pill;
-    background: var(--accent-soft-bg);
+.cardTag.cardTag {
+  max-width: 100%;
+  min-height: 0;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: $radius-pill;
+  background: var(--accent-soft-bg);
+  color: var(--accent-hover);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 16px;
+
+  &:hover:not(:disabled):not([aria-disabled='true']) {
+    background: color-mix(in srgb, var(--accent) 20%, var(--surface-raised));
     color: var(--accent-hover);
-    font-size: 12px;
-    font-weight: 550;
-    line-height: 16px;
   }
 }
 

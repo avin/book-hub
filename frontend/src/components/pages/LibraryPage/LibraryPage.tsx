@@ -221,6 +221,10 @@ function LibraryPage() {
     });
   });
 
+  const handleTagSelect = (tag: string) => {
+    setSelectedTags((tags) => (tags.includes(tag) ? tags : [...tags, tag]));
+  };
+
   const handleFavoriteToggle = (book: Book) => {
     updateBookMutation.mutate({
       bookId: book.id,
@@ -441,6 +445,7 @@ function LibraryPage() {
                   fallback={
                     <BookCard
                       book={book}
+                      onTagSelect={handleTagSelect}
                       onFavoriteToggle={handleFavoriteToggle}
                       onEdit={setEditingBook}
                       onDelete={handleDelete}

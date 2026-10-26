@@ -2,6 +2,42 @@ import { expect, test } from './fixtures';
 import { login } from './support/api';
 import * as books from './mocks/books';
 
+test('клик по тегу добавляет его в фильтр без дубликатов и сохраняет остальные параметры', async ({
+  page,
+}) => {
+  await login(page);
+  const initial = new URLSearchParams({
+    q: 'Война',
+    tag: 'роман',
+    sort: 'title_desc',
+    favorite: 'favorite',
+  });
+  await page.goto(`/library?${initial}`);
+  const card = page.getByRole('article').first();
+  await expect(card.getByRole('heading')).toHaveText('Война и мир');
+  const filteredRequest = page.waitForRequest((request) => {
+    if (!request.url().endsWith(`/api${books.req.list.path}`)) return false;
+    return request.postDataJSON().tags?.includes('классика');
+  });
+  await card.getByRole('button', { name: 'классика', exact: true }).click();
+  expect((await filteredRequest).postDataJSON()).toMatchObject({
+    q: 'Война',
+    tags: ['роман', 'классика'],
+    sort: 'title_desc',
+    favorite: true,
+  });
+  await expect
+    .poll(() => new URL(page.url()).searchParams.getAll('tag'))
+    .toEqual(['роман', 'классика']);
+  await card.getByRole('button', { name: 'классика', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  expect(new URL(page.url()).searchParams.getAll('tag')).toEqual(['роман', 'классика']);
+  expect(new URL(page.url()).pathname).toBe('/library');
+  expect(new URL(page.url()).searchParams.get('q')).toBe('Война');
+  expect(new URL(page.url()).searchParams.get('sort')).toBe('title_desc');
+  expect(new URL(page.url()).searchParams.get('favorite')).toBe('favorite');
+});
+
 test('описание сворачивается до двух строк и раскрывается кнопкой', async ({ page, api }) => {
   const description = 'Длинное описание книги с подробностями и примерами. '.repeat(40);
   await api.intercept(books.req.list, {

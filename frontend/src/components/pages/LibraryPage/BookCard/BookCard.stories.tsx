@@ -24,6 +24,7 @@ export const Default = () => (
     <div style={{ width: '620px' }}>
       <BookCard
         book={() => sampleBook}
+        onTagSelect={() => undefined}
         onFavoriteToggle={() => undefined}
         onEdit={() => undefined}
         onDelete={() => undefined}

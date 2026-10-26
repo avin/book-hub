@@ -17,6 +17,7 @@ function areTagsEqual(left: readonly string[], right: readonly string[]) {
 
 function BookCard(props: {
   book: Accessor<Book>;
+  onTagSelect: (tag: string) => void;
   onFavoriteToggle: (book: Book) => void;
   onEdit: (book: Book) => void;
   onDelete: (book: Book) => void;
@@ -76,7 +77,18 @@ function BookCard(props: {
 
           <Show when={tags().length > 0}>
             <div class={styles.cardTags}>
-              <For each={tags()}>{(tag) => <span>{tag}</span>}</For>
+              <For each={tags()}>
+                {(tag) => (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    class={styles.cardTag}
+                    onClick={() => props.onTagSelect(tag)}
+                  >
+                    {tag}
+                  </Button>
+                )}
+              </For>
             </div>
           </Show>
         </div>
