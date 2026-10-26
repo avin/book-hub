@@ -8,6 +8,7 @@ import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookCover from '../BookCover/BookCover';
+import BookInfo from '../BookInfo/BookInfo';
 import BookDescription from './BookDescription/BookDescription';
 import styles from './BookCard.module.scss';
 
@@ -29,6 +30,7 @@ function BookCard(props: {
   const favorite = createMemo(() => props.book().favorite);
   const format = createMemo(() => props.book().format);
   const progressPercent = createMemo(() => props.book().progress_percent);
+  const [infoOpen, setInfoOpen] = createSignal(false);
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const [menuOpen, setMenuOpen] = createSignal(false);
   const tags = createMemo<Book['tags']>((previousTags) => {
@@ -131,6 +133,7 @@ function BookCard(props: {
             onEdit={props.onEdit}
             onDelete={props.onDelete}
             onResetProgress={props.onResetProgress}
+            onShowInfo={() => setInfoOpen(true)}
             onShowCover={showCover}
             onAction={() => setMenuOpen(false)}
           />
@@ -141,11 +144,20 @@ function BookCard(props: {
         <span style={{ width: `${progressPercent()}%` }} />
       </div>
 
+      <Show when={infoOpen() && !coverPreviewOpen()}>
+        <BookInfo
+          book={props.book()}
+          onShowCover={showCover}
+          onTagSelect={props.onTagSelect}
+          onClose={() => setInfoOpen(false)}
+        />
+      </Show>
+
       <Show when={coverPreviewOpen()}>
         <ModalDialog
           overlayClass={styles.coverPreviewBackdrop}
           contentClass={styles.coverPreviewDialog}
-          ariaLabel={t('showFullCover')}
+          ariaLabel={t('showFullCoverMenu')}
           onClose={() => setCoverPreviewOpen(false)}
         >
           <img src={getBookCoverUrl(bookId())} alt="" />

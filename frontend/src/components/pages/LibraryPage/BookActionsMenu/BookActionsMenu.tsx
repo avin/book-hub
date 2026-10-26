@@ -1,4 +1,4 @@
-import { Download, Edit3, Eye, Heart, RotateCcw, Trash2 } from 'lucide-solid';
+import { Download, Edit3, Eye, Heart, Info, RotateCcw, Trash2 } from 'lucide-solid';
 import { type Accessor } from 'solid-js';
 import { type Book, getBookDownloadName, getBookDownloadUrl } from '@/api/books';
 import Menu, { type MenuItem } from '@/components/common/Menu/Menu';
@@ -10,6 +10,7 @@ function BookActionsMenu(props: {
   onEdit: (book: Book) => void;
   onDelete: (book: Book) => void;
   onResetProgress: (book: Book) => void;
+  onShowInfo: (book: Book) => void;
   onShowCover: (book: Book) => void;
   onAction?: () => void;
 }) {
@@ -26,6 +27,12 @@ function BookActionsMenu(props: {
   };
 
   const menuItems = (): MenuItem[] => [
+    {
+      id: 'info',
+      label: t('bookInformation'),
+      iconStart: <Info />,
+      onClick: () => props.onShowInfo(props.book()),
+    },
     {
       id: 'favorite',
       label: props.book().favorite ? t('removeFromFavorites') : t('addToFavorites'),

@@ -1,5 +1,5 @@
 import { A } from '@solidjs/router';
-import { Heart, MoreVertical } from 'lucide-solid';
+import { Heart, Info, MoreVertical } from 'lucide-solid';
 import { type Accessor, createMemo, createSignal, Show } from 'solid-js';
 import { type Book, getBookCoverUrl } from '@/api/books';
 import Dropdown from '@/components/common/Dropdown/Dropdown';
@@ -7,18 +7,21 @@ import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
 import BookCover from '../BookCover/BookCover';
+import BookInfo from '../BookInfo/BookInfo';
 import styles from './BookCardGrid.module.scss';
 
 function BookCardGrid(props: {
   book: Accessor<Book>;
+  onTagSelect: (tag: string) => void;
   onFavoriteToggle: (book: Book) => void;
   onEdit: (book: Book) => void;
   onDelete: (book: Book) => void;
   onResetProgress: (book: Book) => void;
 }) {
   const { t } = useI18n();
-  const [menuMode, setMenuMode] = createSignal<'button' | 'context' | null>(null);
+  const [menuMode, setMenuMode] = createSignal<'button' | 'context' | 'info' | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = createSignal({ x: 0, y: 0 });
+  const [infoOpen, setInfoOpen] = createSignal(false);
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const bookId = createMemo(() => props.book().id);
   const title = createMemo(() => props.book().title);
@@ -100,6 +103,7 @@ function BookCardGrid(props: {
           onEdit={props.onEdit}
           onDelete={props.onDelete}
           onResetProgress={props.onResetProgress}
+          onShowInfo={() => setInfoOpen(true)}
           onShowCover={showCover}
           onAction={() => setMenuMode(null)}
         />
@@ -127,8 +131,44 @@ function BookCardGrid(props: {
           onEdit={props.onEdit}
           onDelete={props.onDelete}
           onResetProgress={props.onResetProgress}
+          onShowInfo={() => setInfoOpen(true)}
           onShowCover={showCover}
           onAction={() => setMenuMode(null)}
+        />
+      </Dropdown>
+
+      <Dropdown
+        open={menuMode() === 'info'}
+        maxHeight="min(480px, calc(100dvh - 24px))"
+        onOpenChange={(open) => setMenuMode(open ? 'info' : null)}
+        placement="bottom-start"
+        referenceStyle={{
+          position: 'absolute',
+          right: '8px',
+          bottom: '11px',
+          width: '32px',
+          height: '32px',
+        }}
+        trigger={
+          <button
+            type="button"
+            class={styles.menuTrigger}
+            aria-label={t('bookInformation')}
+            title={t('bookInformation')}
+            aria-haspopup="dialog"
+            aria-expanded={menuMode() === 'info'}
+            onClick={() => setMenuMode(menuMode() === 'info' ? null : 'info')}
+          >
+            <Info />
+          </button>
+        }
+      >
+        <BookInfo
+          compact
+          book={props.book()}
+          onShowCover={showCover}
+          onTagSelect={props.onTagSelect}
+          onClose={() => setMenuMode(null)}
         />
       </Dropdown>
 
@@ -136,11 +176,20 @@ function BookCardGrid(props: {
         <span style={{ width: `${progressPercent()}%` }} />
       </div>
 
+      <Show when={infoOpen() && !coverPreviewOpen()}>
+        <BookInfo
+          book={props.book()}
+          onShowCover={showCover}
+          onTagSelect={props.onTagSelect}
+          onClose={() => setInfoOpen(false)}
+        />
+      </Show>
+
       <Show when={coverPreviewOpen()}>
         <ModalDialog
           overlayClass={styles.coverPreviewBackdrop}
           contentClass={styles.coverPreviewDialog}
-          ariaLabel={t('showFullCover')}
+          ariaLabel={t('showFullCoverMenu')}
           onClose={() => setCoverPreviewOpen(false)}
         >
           <img src={getBookCoverUrl(bookId())} alt="" />

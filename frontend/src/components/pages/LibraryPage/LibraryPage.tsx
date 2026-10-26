@@ -465,6 +465,7 @@ function LibraryPage() {
                 >
                   <BookCardGrid
                     book={book}
+                    onTagSelect={handleTagSelect}
                     onFavoriteToggle={handleFavoriteToggle}
                     onEdit={setEditingBook}
                     onDelete={handleDelete}

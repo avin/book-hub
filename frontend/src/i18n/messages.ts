@@ -5,6 +5,8 @@ export type Language = (typeof languages)[number];
 type Translation = Record<Language, string>;
 
 export const messages = {
+  bookInformation: { ru: 'Информация о книге', en: 'Book information' },
+  noTags: { ru: 'Без тегов', en: 'No tags' },
   whereToSearch: {
     ru: 'Где искать',
     en: 'Search in',

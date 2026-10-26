@@ -17,6 +17,7 @@ function Dropdown(props: {
   onOpenChange: (open: boolean) => void;
   placement?: Placement;
   minWidth?: number;
+  maxHeight?: string;
   fitReferenceToContent?: boolean;
   referenceStyle?: JSX.CSSProperties;
 }) {
@@ -101,7 +102,7 @@ function Dropdown(props: {
         {props.trigger}
       </div>
       <Show when={props.open}>
-        <div ref={floatingEl} class={styles.content}>
+        <div ref={floatingEl} class={styles.content} style={{ 'max-height': props.maxHeight }}>
           {props.children}
         </div>
       </Show>
