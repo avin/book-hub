@@ -238,7 +238,7 @@ test('много тегов остаются в границах редакто�
         }),
       )
       .toBe(true);
-    const tagInput = dialog.getByRole('textbox').last();
+    const tagInput = dialog.getByRole('combobox', { name: 'Теги' });
     await expect
       .poll(() =>
         tagInput.evaluate((element) => {
@@ -250,7 +250,7 @@ test('много тегов остаются в границах редакто�
       .toBe(true);
     await collapsedTags.click();
     await expect(
-      dialog.getByRole('button', { name: `Remove ${tags.at(-1)}`, exact: true }),
+      dialog.getByRole('button', { name: `Удалить тег ${tags.at(-1)}`, exact: true }),
     ).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeVisible();

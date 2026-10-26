@@ -1,6 +1,12 @@
-import { createEffect, createSignal, onCleanup } from 'solid-js';
+import { batch, createEffect, createMemo, createSignal, onCleanup } from 'solid-js';
 import { getRecentTagsPreference, setRecentTagsPreference } from '@/storage/browserPreferences';
-import { mergeRecentTags, normalizeTag, normalizeTags, sortTagsByRecent } from './tagUtils';
+import {
+  MAX_TAGS,
+  mergeRecentTags,
+  normalizeTag,
+  normalizeTags,
+  sortTagsByRecent,
+} from './tagUtils';
 
 const MAX_RECENT_TAGS = 20;
 const SEARCH_DEBOUNCE_MS = 200;
@@ -37,30 +43,33 @@ export function createTagSelectionModel(config: {
   showOptionsOnFocus: () => boolean;
 }) {
   const [query, setQuery] = createSignal('');
-  const [options, setOptions] = createSignal<string[]>([]);
+  const [searchResults, setSearchResults] = createSignal<string[]>([]);
   const [dropdownMode, setDropdownMode] = createSignal<'options' | 'collapsed' | null>(null);
   const [focusedOptionIndex, setFocusedOptionIndex] = createSignal<number | null>(null);
   const [arrowScrolling, setArrowScrolling] = createSignal(false);
-  const knownOptions: string[] = [];
   const optionSearch = createTagOptionSearch();
   let searchTimeout: ReturnType<typeof setTimeout> | undefined;
-  let shouldOpenOptionsAfterSearch = false;
-  let lastEmptyInputBackspaceAt = 0;
+  const [shouldOpenOptionsAfterSearch, setShouldOpenOptionsAfterSearch] = createSignal(false);
+  let lastEmptyInputBackspaceAt: number | undefined;
 
   const isOptionsOpen = () => dropdownMode() === 'options';
   const isCollapsedOpen = () => dropdownMode() === 'collapsed';
   const isDropdownOpen = () => dropdownMode() !== null;
 
   const loadRecentTags = () => normalizeTags(getRecentTagsPreference());
+  const isAtLimit = createMemo(() => normalizeTags(config.value()).length >= MAX_TAGS);
 
   const closeDropdown = () => {
-    shouldOpenOptionsAfterSearch = false;
+    cancelSearch();
+    lastEmptyInputBackspaceAt = undefined;
+    setShouldOpenOptionsAfterSearch(false);
     setDropdownMode(null);
   };
 
   const normalizeOptions = (nextOptions: string[]) => {
+    if (isAtLimit()) return [];
     const seen = new Set<string>();
-    const selectedTags = config.value();
+    const selectedTags = normalizeTags(config.value());
     const availableOptions = nextOptions.map(normalizeTag).filter((option) => {
       if (!option || selectedTags.includes(option) || seen.has(option)) {
         return false;
@@ -73,30 +82,16 @@ export function createTagSelectionModel(config: {
     return sortTagsByRecent(availableOptions, loadRecentTags());
   };
 
-  const rememberOptions = (nextOptions: string[]) => {
-    const knownOptionsSet = new Set(knownOptions);
-    for (const option of nextOptions) {
-      if (knownOptionsSet.has(option)) {
-        continue;
-      }
-
-      knownOptionsSet.add(option);
-      knownOptions.push(option);
-    }
-  };
-
   const searchLocalOptions = (searchQuery: string) => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    const localOptions = [...(config.options() ?? []), ...knownOptions];
-
-    return localOptions.filter((option) => {
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      return option.toLowerCase().includes(normalizedQuery);
-    });
+    const normalizedQuery = normalizeTag(searchQuery);
+    return (config.options() ?? []).filter((option) =>
+      normalizeTag(option).includes(normalizedQuery),
+    );
   };
+
+  const options = createMemo(() =>
+    normalizeOptions(config.onSearchOptions() ? searchResults() : searchLocalOptions(query())),
+  );
 
   const searchOptions = async (searchQuery: string) => {
     const nextOptions = await optionSearch.run(() => {
@@ -108,19 +103,13 @@ export function createTagSelectionModel(config: {
       return;
     }
 
-    rememberOptions(nextOptions);
-
-    const normalizedOptions = normalizeOptions(nextOptions);
-    setOptions(normalizedOptions);
-    if (shouldOpenOptionsAfterSearch) {
-      setDropdownMode(normalizedOptions.length ? 'options' : null);
-    }
+    setSearchResults(nextOptions);
   };
 
   const debouncedSearchOptions = (searchQuery: string, immediate = false) => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
+    cancelSearch();
+    setSearchResults([]);
+    if (!config.onSearchOptions()) return;
 
     if (immediate) {
       void searchOptions(searchQuery);
@@ -151,21 +140,22 @@ export function createTagSelectionModel(config: {
   };
 
   const addTag = (tag: string) => {
+    if (config.disabled()) return;
     const normalized = normalizeTag(tag);
-    const selectedTags = config.value();
+    const selectedTags = normalizeTags(config.value());
 
-    if (!normalized || selectedTags.includes(normalized)) {
-      return;
+    if (normalized && !isAtLimit() && !selectedTags.includes(normalized)) {
+      config.onChange([...selectedTags, normalized]);
+      updateRecentTags([normalized]);
     }
 
-    config.onChange([...selectedTags, normalized]);
-    updateRecentTags([normalized]);
-    setQuery('');
     closeDropdown();
+    setQuery('');
   };
 
   const removeTag = (tag: string) => {
-    lastEmptyInputBackspaceAt = 0;
+    if (config.disabled()) return;
+    lastEmptyInputBackspaceAt = undefined;
     config.onChange(config.value().filter((selected) => selected !== tag));
   };
 
@@ -180,23 +170,24 @@ export function createTagSelectionModel(config: {
   };
 
   const applyTypedInput = () => {
-    cancelSearch();
-
-    const normalized = normalizeTag(query());
-    if (!normalized) {
-      closeDropdown();
-      return;
-    }
-
-    const selectedTags = config.value();
-    if (!selectedTags.includes(normalized)) {
-      config.onChange([...selectedTags, normalized]);
-      updateRecentTags([normalized]);
-    }
-
-    setQuery('');
-    closeDropdown();
+    addTag(query());
   };
+
+  createEffect(() => {
+    options();
+    setFocusedOptionIndex(null);
+    setArrowScrolling(false);
+  });
+
+  createEffect(() => {
+    if (shouldOpenOptionsAfterSearch()) {
+      setDropdownMode(options().length ? 'options' : null);
+    }
+  });
+
+  createEffect(() => {
+    if (config.disabled()) closeDropdown();
+  });
 
   createEffect(() => {
     if (!isOptionsOpen()) {
@@ -208,28 +199,36 @@ export function createTagSelectionModel(config: {
 
   return {
     query,
+    isAtLimit,
     options,
     focusedOptionIndex,
     arrowScrolling,
     isOptionsOpen,
     isCollapsedOpen,
     isDropdownOpen,
+    wantsOptions: shouldOpenOptionsAfterSearch,
     closeDropdown,
     openOptions() {
+      lastEmptyInputBackspaceAt = undefined;
       if (config.disabled() || !config.showOptionsOnFocus()) {
         return;
       }
 
-      shouldOpenOptionsAfterSearch = true;
-      debouncedSearchOptions(query(), true);
+      batch(() => {
+        debouncedSearchOptions(normalizeTag(query()), true);
+        setShouldOpenOptionsAfterSearch(true);
+      });
     },
     toggleCollapsedDropdown() {
-      shouldOpenOptionsAfterSearch = false;
+      if (config.disabled()) return;
+      lastEmptyInputBackspaceAt = undefined;
+      cancelSearch();
+      setShouldOpenOptionsAfterSearch(false);
       setDropdownMode((previousMode) => (previousMode === 'collapsed' ? null : 'collapsed'));
     },
     handleDropdownOpenChange(nextOpen: boolean) {
       if (nextOpen) {
-        setDropdownMode('options');
+        if (!config.disabled()) setShouldOpenOptionsAfterSearch(true);
         return;
       }
 
@@ -239,10 +238,11 @@ export function createTagSelectionModel(config: {
     removeTag,
     applyTypedInput,
     applyCurrentInput() {
+      if (config.disabled()) return;
       cancelSearch();
 
       const focusedIndex = focusedOptionIndex();
-      const option = focusedIndex === null ? undefined : options()[focusedIndex];
+      const option = isOptionsOpen() && focusedIndex !== null ? options()[focusedIndex] : undefined;
       if (option) {
         addTag(option);
         return;
@@ -251,35 +251,32 @@ export function createTagSelectionModel(config: {
       applyTypedInput();
     },
     handleChangeQuery(nextQuery: string) {
-      const normalizedQuery = nextQuery.toLowerCase();
-
-      setQuery(normalizedQuery);
-      lastEmptyInputBackspaceAt = 0;
-      setFocusedOptionIndex(null);
-      shouldOpenOptionsAfterSearch = true;
-      if (!isOptionsOpen()) {
-        setDropdownMode(null);
-      }
-
-      debouncedSearchOptions(normalizedQuery);
+      if (config.disabled()) return;
+      batch(() => {
+        setQuery(nextQuery);
+        lastEmptyInputBackspaceAt = undefined;
+        setFocusedOptionIndex(null);
+        setShouldOpenOptionsAfterSearch(true);
+        debouncedSearchOptions(normalizeTag(nextQuery));
+      });
     },
     handleInputFocus() {
       if (config.disabled()) {
         return;
       }
 
-      shouldOpenOptionsAfterSearch = true;
-      if (!isOptionsOpen()) {
-        setDropdownMode(null);
-      }
-
+      lastEmptyInputBackspaceAt = undefined;
       if (config.showOptionsOnFocus()) {
-        debouncedSearchOptions(query(), true);
+        batch(() => {
+          debouncedSearchOptions(normalizeTag(query()), true);
+          setShouldOpenOptionsAfterSearch(true);
+        });
         return;
       }
 
       if (query().trim()) {
-        debouncedSearchOptions(query());
+        debouncedSearchOptions(normalizeTag(query()));
+        setShouldOpenOptionsAfterSearch(true);
       }
     },
     handleEmptyInputBackspace(
@@ -288,7 +285,8 @@ export function createTagSelectionModel(config: {
       repeat: boolean,
       now: number,
     ) {
-      if (inputValue.length || !config.value().length) {
+      if (config.disabled() || inputValue.length || !config.value().length) {
+        lastEmptyInputBackspaceAt = undefined;
         return false;
       }
 
@@ -296,15 +294,18 @@ export function createTagSelectionModel(config: {
         return true;
       }
 
-      const isDoubleBackspace = now - lastEmptyInputBackspaceAt <= DOUBLE_BACKSPACE_MS;
-      lastEmptyInputBackspaceAt = isDoubleBackspace ? 0 : now;
+      const isDoubleBackspace =
+        lastEmptyInputBackspaceAt !== undefined &&
+        now - lastEmptyInputBackspaceAt <= DOUBLE_BACKSPACE_MS;
+      lastEmptyInputBackspaceAt = isDoubleBackspace ? undefined : now;
 
       if (!isDoubleBackspace) {
         return true;
       }
 
       if (hiddenTagCount > 0 && !isCollapsedOpen()) {
-        shouldOpenOptionsAfterSearch = false;
+        cancelSearch();
+        setShouldOpenOptionsAfterSearch(false);
         setDropdownMode('collapsed');
         return true;
       }
@@ -313,11 +314,13 @@ export function createTagSelectionModel(config: {
       return true;
     },
     moveFocusedOption(direction: -1 | 1) {
+      lastEmptyInputBackspaceAt = undefined;
       const currentOptions = options();
-      if (!isOptionsOpen() || !currentOptions.length) {
+      if (config.disabled() || !currentOptions.length || isCollapsedOpen()) {
         return false;
       }
 
+      setShouldOpenOptionsAfterSearch(true);
       setArrowScrolling(true);
       setFocusedOptionIndex((currentIndex) => {
         if (currentIndex === null) {
@@ -331,6 +334,9 @@ export function createTagSelectionModel(config: {
     focusOption(index: number) {
       setArrowScrolling(false);
       setFocusedOptionIndex(index);
+    },
+    resetBackspace() {
+      lastEmptyInputBackspaceAt = undefined;
     },
   };
 }

@@ -58,10 +58,10 @@ describe('TagsSelect', () => {
 
   it('добавляет сфокусированный вариант через стрелки и Enter', async () => {
     const { getByRole, onChange } = renderTagsSelect({ options: ['history', 'fiction'] });
-    const input = getByRole('textbox');
+    const input = getByRole('combobox');
 
     fireEvent.focus(input);
-    await waitFor(() => expect(getByRole('button', { name: 'history' })).not.toBeNull());
+    await waitFor(() => expect(getByRole('option', { name: 'history' })).not.toBeNull());
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -70,7 +70,7 @@ describe('TagsSelect', () => {
 
   it('удаляет последний тег только после двойного Backspace', () => {
     const { getByRole, onChange } = renderTagsSelect({ initialValue: ['one', 'two'] });
-    const input = getByRole('textbox');
+    const input = getByRole('combobox');
 
     fireEvent.keyDown(input, { key: 'Backspace' });
     expect(onChange).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe('TagsSelect', () => {
 
       fireEvent.keyDown(collapsedBadge, { key: 'Enter' });
 
-      await waitFor(() => expect(getByRole('button', { name: 'Remove one' })).not.toBeNull());
+      await waitFor(() => expect(getByRole('button', { name: 'Remove tag one' })).not.toBeNull());
     } finally {
       if (offsetWidth) {
         Object.defineProperty(HTMLElement.prototype, 'offsetWidth', offsetWidth);
@@ -103,8 +103,87 @@ describe('TagsSelect', () => {
   it('не позволяет изменять значение в disabled состоянии', () => {
     const { getByRole, onChange } = renderTagsSelect({ initialValue: ['one'], disabled: true });
 
-    expect((getByRole('textbox') as HTMLInputElement).disabled).toBe(true);
-    expect((getByRole('button', { name: 'Remove one' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((getByRole('combobox') as HTMLInputElement).disabled).toBe(true);
+    expect((getByRole('button', { name: 'Remove tag one' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('нормализует дубликат и пробельный ввод, не вызывая onChange', () => {
+    const { getByRole, onChange } = renderTagsSelect({ initialValue: ['one'] });
+    const input = getByRole('combobox') as HTMLInputElement;
+    for (const text of [' ONE ', '   ']) {
+      fireEvent.input(input, { target: { value: text } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(input.value).toBe('');
+    }
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('ограничивает ввод 64 Unicode-символами', () => {
+    const { getByRole, onChange } = renderTagsSelect({});
+    const input = getByRole('combobox') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: '🙂'.repeat(65) } });
+    expect(input.value).toBe('🙂'.repeat(64));
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenLastCalledWith(['🙂'.repeat(64)]);
+  });
+
+  it('оставляет клавиатурные сокращения редактирования браузеру', () => {
+    const { getByRole, onChange } = renderTagsSelect({ initialValue: ['one'] });
+    const input = getByRole('combobox');
+    fireEvent.keyDown(input, { key: 'Backspace' });
+    fireEvent.keyDown(input, { key: 'Backspace', ctrlKey: true });
+    fireEvent.keyDown(input, { key: 'Enter', altKey: true });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('вставляет только помещающуюся часть текста, сохраняя суффикс и курсор', () => {
+    const { getByRole } = renderTagsSelect({});
+    const input = getByRole('combobox') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'a'.repeat(62) + 'Z' } });
+    input.setSelectionRange(62, 62);
+    fireEvent.paste(input, { clipboardData: { getData: () => '🙂🙂' } });
+    expect(input.value).toBe('a'.repeat(62) + '🙂Z');
+    expect(input.selectionStart).toBe(64);
+  });
+
+  it('не применяет ввод по Enter во время IME composition', () => {
+    const { getByRole, onChange } = renderTagsSelect({});
+    const input = getByRole('combobox');
+    fireEvent.compositionStart(input);
+    fireEvent.input(input, { target: { value: '日本' } });
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(input);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith(['日本']);
+  });
+
+  it('Escape во время IME не закрывает подсказки', async () => {
+    const { getByRole } = renderTagsSelect({ options: ['history'] });
+    const input = getByRole('combobox');
+    fireEvent.focus(input);
+    await waitFor(() => expect(getByRole('listbox')).not.toBeNull());
+    fireEvent.compositionStart(input);
+    fireEvent.keyDown(input, { key: 'Escape', isComposing: true });
+    expect(getByRole('listbox')).not.toBeNull();
+  });
+
+  it('закрывает подсказки при Tab с пустым вводом и сбрасывает удаление при blur', async () => {
+    const { getByRole, queryByRole, onChange } = renderTagsSelect({
+      initialValue: ['one'],
+      options: ['history'],
+    });
+    const input = getByRole('combobox');
+    fireEvent.focus(input);
+    await waitFor(() => expect(getByRole('option', { name: 'history' })).not.toBeNull());
+    fireEvent.keyDown(input, { key: 'Backspace' });
+    fireEvent.focusOut(input);
+    expect(queryByRole('option', { name: 'history' })).toBeNull();
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: 'Backspace' });
     expect(onChange).not.toHaveBeenCalled();
   });
 });

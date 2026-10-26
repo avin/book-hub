@@ -75,10 +75,17 @@
   gap: 8px;
 }
 
+.tagText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .removeButton {
   display: inline-flex;
   width: 14px;
   height: 14px;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   margin: 0;
@@ -113,8 +120,8 @@
 .input {
   @include control-text;
 
-  min-width: 100px;
-  flex: 0 0 auto;
+  min-width: 0;
+  flex: 0 1 auto;
   height: auto;
   padding: 0;
   border: 0;
@@ -142,9 +149,13 @@
   margin: 0;
   padding: 0;
   font-family: inherit;
-  font-size: 15px;
+  font-size: inherit;
   line-height: 30px;
   white-space: pre;
+}
+
+.inputHint {
+  @include visually-hidden;
 }
 
 .measureContainer {
@@ -184,7 +195,8 @@
   font-weight: 400;
   text-align: left;
   text-decoration: none;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   cursor: pointer;
 
   &:hover,

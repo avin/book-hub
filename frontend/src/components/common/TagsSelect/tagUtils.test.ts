@@ -8,6 +8,16 @@ import {
 } from './tagUtils';
 
 describe('tag utilities', () => {
+  it('соблюдает серверные ограничения: 64 Unicode-символа и 50 тегов при добавлении', () => {
+    expect(normalizeTags(['🙂'.repeat(65)])).toEqual(['🙂'.repeat(64)]);
+    expect(
+      appendUniqueTags(
+        Array.from({ length: 49 }, (_, i) => `tag-${i}`),
+        ['one', 'two'],
+      ),
+    ).toHaveLength(50);
+    expect(mergeTagOptions(Array.from({ length: 60 }, (_, i) => `tag-${i}`))).toHaveLength(60);
+  });
   it('нормализует и дедуплицирует теги, сохраняя первый порядок', () => {
     expect(normalizeTags([' Fantasy ', 'fantasy', '', 'History', ' history '])).toEqual([
       'fantasy',
@@ -17,6 +27,10 @@ describe('tag utilities', () => {
       'fiction',
       'history',
       'science',
+    ]);
+    expect(appendUniqueTags([' Fiction '], ['fiction', 'HISTORY', ' history ', ''])).toEqual([
+      'fiction',
+      'history',
     ]);
   });
 

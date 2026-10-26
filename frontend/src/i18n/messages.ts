@@ -351,6 +351,22 @@ export const messages = {
     ru: 'Найти или добавить тег',
     en: 'Find or add tag',
   },
+  removeTag: {
+    ru: 'Удалить тег',
+    en: 'Remove tag',
+  },
+  tagLimitReached: {
+    ru: 'Можно добавить не больше 50 тегов',
+    en: 'You can add up to 50 tags',
+  },
+  tagLengthLimit: {
+    ru: 'До 64 символов в теге',
+    en: 'Up to 64 characters per tag',
+  },
+  selectedTags: {
+    ru: 'Выбранные теги',
+    en: 'Selected tags',
+  },
   findByTag: {
     ru: 'Найти по тегу',
     en: 'Find by tag',

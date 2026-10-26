@@ -1,5 +1,8 @@
+export const MAX_TAGS = 50;
+export const MAX_TAG_LENGTH = 64;
+
 export function normalizeTag(tag: string) {
-  return tag.trim().toLowerCase();
+  return Array.from(tag.trim().toLowerCase()).slice(0, MAX_TAG_LENGTH).join('');
 }
 
 export function normalizeTags(tags: string[]) {
@@ -16,21 +19,11 @@ export function normalizeTags(tags: string[]) {
 }
 
 export function mergeTagOptions(...tagGroups: string[][]) {
-  const tags = new Map<string, string>();
-
-  for (const tagGroup of tagGroups) {
-    for (const tag of tagGroup) {
-      tags.set(tag, tag);
-    }
-  }
-
-  return [...tags.values()].sort((left, right) => left.localeCompare(right));
+  return normalizeTags(tagGroups.flat()).sort((left, right) => left.localeCompare(right));
 }
 
 export function appendUniqueTags(existingTags: string[], tags: string[]) {
-  const existingTagsSet = new Set(existingTags);
-
-  return [...existingTags, ...tags.filter((tag) => !existingTagsSet.has(tag))];
+  return normalizeTags([...existingTags, ...tags]).slice(0, MAX_TAGS);
 }
 
 export function sortTagsByRecent(tags: string[], recentTags: string[]) {

@@ -12,9 +12,9 @@ export function useTagOverflow(config: {
 }) {
   const [inputWidth, setInputWidth] = createSignal(100);
   const [containerWidth, setContainerWidth] = createSignal(0);
-  const [dropdownWidth, setDropdownWidth] = createSignal<number | undefined>(undefined);
   const [visibleTagCount, setVisibleTagCount] = createSignal(untrack(() => config.value().length));
-  const tagMeasureEls: (HTMLSpanElement | undefined)[] = [];
+  const tagMeasureEls = new Map<string, HTMLSpanElement>();
+  const [measureRevision, setMeasureRevision] = createSignal(0);
   let inputContainerEl: HTMLDivElement | undefined;
   let measureInputWidthEl: HTMLSpanElement | undefined;
   let collapsedBadgeMeasureEl: HTMLSpanElement | undefined;
@@ -45,16 +45,22 @@ export function useTagOverflow(config: {
     resizeObserver.observe(inputContainerEl);
   });
 
-  createEffect(() => {
-    if (!config.isDropdownOpen()) {
-      setDropdownWidth(undefined);
-      return;
-    }
-
-    if (dropdownWidth() === undefined && inputContainerEl) {
-      setDropdownWidth(inputContainerEl.offsetWidth);
-    }
+  const dropdownWidth = createMemo(() => {
+    containerWidth();
+    return config.isDropdownOpen() ? inputContainerEl?.offsetWidth : undefined;
   });
+
+  const availableWidth = () => {
+    const width = containerWidth();
+    if (!inputContainerEl || !width) return 0;
+    const style = getComputedStyle(inputContainerEl);
+    return Math.max(
+      0,
+      (inputContainerEl.clientWidth || width) -
+        (parseFloat(style.paddingLeft) || 0) -
+        (parseFloat(style.paddingRight) || 0),
+    );
+  };
 
   createEffect(() => {
     if (!measureInputWidthEl || !inputContainerEl) {
@@ -65,22 +71,23 @@ export function useTagOverflow(config: {
     const textToMeasure = config.query() || (value.length ? '' : config.placeholder()) || ' ';
     measureInputWidthEl.textContent = textToMeasure || ' ';
     const measuredWidth = measureInputWidthEl.offsetWidth;
-    const maxAvailableWidth = inputContainerEl.offsetWidth - 16;
-    const nextInputWidth = Math.max(100, Math.min(measuredWidth + 10, maxAvailableWidth));
+    const maxAvailableWidth = availableWidth();
+    const nextInputWidth = Math.min(maxAvailableWidth || 100, Math.max(100, measuredWidth + 10));
     setInputWidth(nextInputWidth);
   });
 
   createEffect(() => {
-    const availableWidth = containerWidth() || inputContainerEl?.offsetWidth || 0;
+    const currentAvailableWidth = availableWidth();
     const value = config.value();
     const currentInputWidth = inputWidth();
 
-    if (!availableWidth) {
+    if (!currentAvailableWidth) {
       setVisibleTagCount(value.length);
       return;
     }
 
-    const tagWidths = value.map((_, index) => tagMeasureEls[index]?.offsetWidth ?? 0);
+    measureRevision();
+    const tagWidths = value.map((tag) => tagMeasureEls.get(tag)?.offsetWidth ?? 0);
     const prefixWidths = [0];
     for (const width of tagWidths) {
       prefixWidths.push(prefixWidths[prefixWidths.length - 1] + width);
@@ -106,11 +113,11 @@ export function useTagOverflow(config: {
     };
 
     let nextVisibleCount = value.length;
-    while (nextVisibleCount > 0 && getTotalWidth(nextVisibleCount) > availableWidth) {
+    while (nextVisibleCount > 0 && getTotalWidth(nextVisibleCount) > currentAvailableWidth) {
       nextVisibleCount -= 1;
     }
 
-    if (getTotalWidth(nextVisibleCount) > availableWidth) {
+    if (getTotalWidth(nextVisibleCount) > currentAvailableWidth) {
       nextVisibleCount = 0;
     }
 
@@ -141,8 +148,9 @@ export function useTagOverflow(config: {
     setCollapsedBadgeMeasure(element: HTMLSpanElement) {
       collapsedBadgeMeasureEl = element;
     },
-    setTagMeasure(index: number, element: HTMLSpanElement) {
-      tagMeasureEls[index] = element;
+    setTagMeasure(tag: string, element: HTMLSpanElement) {
+      tagMeasureEls.set(tag, element);
+      setMeasureRevision((revision) => revision + 1);
     },
   };
 }
