@@ -3,6 +3,8 @@ import { ChevronDown, Heart } from 'lucide-solid';
 import { type Accessor, createMemo, createSignal, For, Show } from 'solid-js';
 import { type Book, getBookCoverUrl } from '@/api/books';
 import Button from '@/components/common/Button/Button';
+import ContextMenu from '@/components/common/ContextMenu/ContextMenu';
+import { createContextMenu } from '@/components/common/ContextMenu/createContextMenu';
 import Dropdown from '@/components/common/Dropdown/Dropdown';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
@@ -33,6 +35,7 @@ function BookCard(props: {
   const [infoOpen, setInfoOpen] = createSignal(false);
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const [menuOpen, setMenuOpen] = createSignal(false);
+  const contextMenu = createContextMenu(() => setMenuOpen(false));
   const tags = createMemo<Book['tags']>((previousTags) => {
     const nextTags = props.book().tags;
 
@@ -41,13 +44,8 @@ function BookCard(props: {
 
   const showCover = () => {
     setMenuOpen(false);
+    contextMenu.close();
     setCoverPreviewOpen(true);
-  };
-
-  const handleCoverContextMenu = (event: MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    showCover();
   };
 
   return (
@@ -58,8 +56,7 @@ function BookCard(props: {
             class={styles.coverLink}
             href={`/reader/${bookId()}`}
             aria-label={title()}
-            title={t('showFullCover')}
-            onContextMenu={handleCoverContextMenu}
+            onContextMenu={contextMenu.handleContextMenu}
           >
             <BookCover bookId={bookId()} format={format()} version={props.book().updated_at} />
           </A>
@@ -139,6 +136,19 @@ function BookCard(props: {
           />
         </Dropdown>
       </div>
+
+      <ContextMenu controller={contextMenu} minWidth={220}>
+        <BookActionsMenu
+          book={props.book}
+          onFavoriteToggle={props.onFavoriteToggle}
+          onEdit={props.onEdit}
+          onDelete={props.onDelete}
+          onResetProgress={props.onResetProgress}
+          onShowInfo={() => setInfoOpen(true)}
+          onShowCover={showCover}
+          onAction={contextMenu.close}
+        />
+      </ContextMenu>
 
       <div class={styles.progress}>
         <span style={{ width: `${progressPercent()}%` }} />

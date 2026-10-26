@@ -2,6 +2,42 @@ import { expect, test } from './fixtures';
 import { login } from './support/api';
 import * as books from './mocks/books';
 
+for (const view of ['Список', 'Сетка']) {
+  test(`правый клик по обложке (${view}) открывает меню книги у курсора`, async ({ page }) => {
+    await login(page);
+    await page.getByRole('button', { name: view, exact: true }).click();
+    const card = page.getByRole('article').first();
+    const cover = card.getByRole('link').first();
+    const preview = page.getByRole('dialog', { name: 'Показать обложку целиком', exact: true });
+
+    const coverBounds = await cover.boundingBox();
+    expect(coverBounds).not.toBeNull();
+    const clickPosition = { x: coverBounds!.x + 20, y: coverBounds!.y + 30 };
+    await page.mouse.click(clickPosition.x, clickPosition.y, { button: 'right' });
+    await expect(page.getByRole('menuitem', { name: 'Информация о книге' })).toBeVisible();
+    await expect
+      .poll(async () => {
+        const bounds = await page.getByRole('menu').boundingBox();
+        return bounds ? Math.abs(bounds.x - clickPosition.x) : Infinity;
+      })
+      .toBeLessThan(2);
+    const menuBounds = await page.getByRole('menu').boundingBox();
+    expect(Math.abs(menuBounds!.y - clickPosition.y)).toBeLessThan(20);
+    await expect(preview).toBeHidden();
+    await expect(page).toHaveURL(/\/library/);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menuitem')).toHaveCount(0);
+
+    await cover.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Показать обложку целиком', exact: true }).click();
+    await expect(preview).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(preview).toBeHidden();
+    await cover.click();
+    await expect(page).toHaveURL(`/reader/${books.items[0].id}`);
+  });
+}
+
 test('поле поиска переключается между названием и описанием и сохраняется в URL', async ({
   page,
 }) => {

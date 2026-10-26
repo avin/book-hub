@@ -3,6 +3,8 @@ import { Heart, Info, MoreVertical } from 'lucide-solid';
 import { type Accessor, createMemo, createSignal, Show } from 'solid-js';
 import { type Book, getBookCoverUrl } from '@/api/books';
 import Dropdown from '@/components/common/Dropdown/Dropdown';
+import ContextMenu from '@/components/common/ContextMenu/ContextMenu';
+import { createContextMenu } from '@/components/common/ContextMenu/createContextMenu';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
@@ -19,8 +21,8 @@ function BookCardGrid(props: {
   onResetProgress: (book: Book) => void;
 }) {
   const { t } = useI18n();
-  const [menuMode, setMenuMode] = createSignal<'button' | 'context' | 'info' | null>(null);
-  const [contextMenuPosition, setContextMenuPosition] = createSignal({ x: 0, y: 0 });
+  const [menuMode, setMenuMode] = createSignal<'button' | 'info' | null>(null);
+  const contextMenu = createContextMenu(() => setMenuMode(null));
   const [infoOpen, setInfoOpen] = createSignal(false);
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const bookId = createMemo(() => props.book().id);
@@ -31,19 +33,12 @@ function BookCardGrid(props: {
 
   const showCover = () => {
     setMenuMode(null);
+    contextMenu.close();
     setCoverPreviewOpen(true);
   };
 
   return (
-    <article
-      class={styles.gridCard}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setContextMenuPosition({ x: event.clientX, y: event.clientY });
-        setMenuMode('context');
-      }}
-    >
+    <article class={styles.gridCard} onContextMenu={contextMenu.handleContextMenu}>
       <A class={styles.coverLink} href={`/reader/${bookId()}`}>
         <BookCover
           bookId={bookId()}
@@ -109,22 +104,7 @@ function BookCardGrid(props: {
         />
       </Dropdown>
 
-      <Dropdown
-        open={menuMode() === 'context'}
-        onOpenChange={(open) => setMenuMode(open ? 'context' : null)}
-        placement="bottom-start"
-        minWidth={220}
-        referenceStyle={{
-          position: 'fixed',
-          left: `${contextMenuPosition().x}px`,
-          top: `${contextMenuPosition().y}px`,
-          width: '1px',
-          height: '1px',
-        }}
-        trigger={
-          <button type="button" class={styles.contextMenuAnchor} aria-hidden="true" tabindex="-1" />
-        }
-      >
+      <ContextMenu controller={contextMenu} minWidth={220}>
         <BookActionsMenu
           book={props.book}
           onFavoriteToggle={props.onFavoriteToggle}
@@ -133,9 +113,9 @@ function BookCardGrid(props: {
           onResetProgress={props.onResetProgress}
           onShowInfo={() => setInfoOpen(true)}
           onShowCover={showCover}
-          onAction={() => setMenuMode(null)}
+          onAction={contextMenu.close}
         />
-      </Dropdown>
+      </ContextMenu>
 
       <Dropdown
         open={menuMode() === 'info'}
