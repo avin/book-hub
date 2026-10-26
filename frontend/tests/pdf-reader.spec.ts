@@ -15,7 +15,10 @@ test('перемещение первого PDF-фильтра в конец н�
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await page
+    .getByRole('heading', { name: 'PDF с оглавлением', exact: true })
+    .getByRole('link')
+    .click();
   await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
   await showReaderChrome(page);
   await page.getByRole('button', { name: 'Внешний вид' }).click();
@@ -78,7 +81,10 @@ test('перемещение первого PDF-фильтра в конец н�
 
 test('читатель PDF отрисовывает страницу в браузере', async ({ page }) => {
   await login(page);
-  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  await page
+    .getByRole('heading', { name: 'Мастер и Маргарита', exact: true })
+    .getByRole('link')
+    .click();
 
   await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
 });
@@ -91,7 +97,10 @@ for (const deviceScaleFactor of [1, 1.25, 2]) {
       page,
     }) => {
       await login(page);
-      await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+      await page
+        .getByRole('heading', { name: 'PDF с оглавлением', exact: true })
+        .getByRole('link')
+        .click();
       const canvases = page.locator('[data-page-number="1"] canvas');
 
       const expectNativeCanvasSize = async () => {
@@ -145,7 +154,10 @@ test('читатель PDF сохраняет поиск, оглавление, 
 }) => {
   await page.setViewportSize({ width: 640, height: 720 });
   await login(page);
-  await page.getByRole('link', { name: 'PDF с оглавлением' }).click();
+  await page
+    .getByRole('heading', { name: 'PDF с оглавлением', exact: true })
+    .getByRole('link')
+    .click();
   await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
 
   await showReaderChrome(page);

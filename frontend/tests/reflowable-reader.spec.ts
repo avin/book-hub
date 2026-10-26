@@ -19,7 +19,10 @@ async function showReaderChrome(page: Page) {
 async function verifyReflowableReader(page: Page, fixture: ReflowableReaderFixture) {
   await page.setViewportSize({ width: 640, height: 480 });
   await login(page);
-  await page.getByRole('link', { name: fixture.bookTitle }).click();
+  await page
+    .getByRole('heading', { name: fixture.bookTitle, exact: true })
+    .getByRole('link')
+    .click();
   await expect(page.getByRole('heading', { name: fixture.initialHeading })).toBeVisible();
 
   await showReaderChrome(page);

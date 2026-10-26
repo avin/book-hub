@@ -45,6 +45,7 @@ describe('общие утилиты фронтенда', () => {
       ),
     ).toEqual({
       search: ' sci-fi ',
+      searchField: 'title',
       sort: 'relevance',
       favoriteFilter: 'regular',
       tags: ['fantasy'],
@@ -53,6 +54,7 @@ describe('общие утилиты фронтенда', () => {
       buildLibraryListStateUrl(
         {
           search: ' books ',
+          searchField: 'title',
           sort: 'title_asc',
           favoriteFilter: 'favorite',
           tags: ['tag', ' tag ', ''],
@@ -63,6 +65,7 @@ describe('общие утилиты фронтенда', () => {
 
     rememberLibraryListState({
       search: 'remembered',
+      searchField: 'title',
       sort: 'relevance',
       favoriteFilter: 'all',
       tags: [],

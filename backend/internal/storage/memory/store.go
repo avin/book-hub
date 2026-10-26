@@ -606,7 +606,11 @@ func matchesQuery(book domain.Book, query domain.BookQuery) bool {
 	if query.Favorite != nil && book.Favorite != *query.Favorite {
 		return false
 	}
-	if query.Q != "" && !strings.Contains(strings.ToLower(book.Title), strings.ToLower(query.Q)) {
+	searchText := book.Title
+	if query.SearchField == "description" {
+		searchText = book.Description
+	}
+	if query.Q != "" && !strings.Contains(strings.ToLower(searchText), strings.ToLower(query.Q)) {
 		return false
 	}
 	for _, tag := range query.Tags {

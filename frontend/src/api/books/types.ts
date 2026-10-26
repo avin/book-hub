@@ -5,4 +5,5 @@ export type BookListResponse = components['schemas']['BookListResponse'];
 export type BookPatchRequest = components['schemas']['BookPatchRequest'];
 export type BookQueryRequest = components['schemas']['BookQueryRequest'];
 export type BookSort = components['schemas']['BookSort'];
+export type BookSearchField = components['schemas']['BookSearchField'];
 export type ReadingProgress = components['schemas']['ReadingProgress'];

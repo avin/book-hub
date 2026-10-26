@@ -5,6 +5,22 @@ export type Language = (typeof languages)[number];
 type Translation = Record<Language, string>;
 
 export const messages = {
+  whereToSearch: {
+    ru: 'Где искать',
+    en: 'Search in',
+  },
+  byTitle: {
+    ru: 'По названию',
+    en: 'Title',
+  },
+  byDescription: {
+    ru: 'По описанию',
+    en: 'Description',
+  },
+  findByDescription: {
+    ru: 'Найти по описанию',
+    en: 'Find by description',
+  },
   expand: {
     ru: 'Развернуть',
     en: 'Expand',

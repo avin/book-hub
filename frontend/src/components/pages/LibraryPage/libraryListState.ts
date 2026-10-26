@@ -1,9 +1,10 @@
-import type { BookSort } from '@/api/books';
+import type { BookSearchField, BookSort } from '@/api/books';
 
 export type LibraryFavoriteFilter = 'all' | 'favorite' | 'regular';
 
 export type LibraryListState = {
   search: string;
+  searchField: BookSearchField;
   sort: BookSort;
   favoriteFilter: LibraryFavoriteFilter;
   tags: string[];
@@ -11,12 +12,13 @@ export type LibraryListState = {
 
 const defaultLibraryListState: LibraryListState = {
   search: '',
+  searchField: 'title',
   sort: 'relevance',
   favoriteFilter: 'all',
   tags: [],
 };
 
-const listQueryParamNames = ['q', 'tag', 'sort', 'favorite'] as const;
+const listQueryParamNames = ['q', 'search_field', 'tag', 'sort', 'favorite'] as const;
 const sortValues = new Set<BookSort>(['relevance', 'created_at_desc', 'title_asc', 'title_desc']);
 const favoriteFilterValues = new Set<LibraryFavoriteFilter>(['all', 'favorite', 'regular']);
 
@@ -25,6 +27,7 @@ let lastLibraryListState: LibraryListState = cloneLibraryListState(defaultLibrar
 function cloneLibraryListState(state: LibraryListState): LibraryListState {
   return {
     search: state.search,
+    searchField: state.searchField,
     sort: state.sort,
     favoriteFilter: state.favoriteFilter,
     tags: [...state.tags],
@@ -82,6 +85,7 @@ export function readLibraryListStateFromSearch(search: string) {
 
   return {
     search: params.get('q') ?? defaultLibraryListState.search,
+    searchField: params.get('search_field') === 'description' ? 'description' : 'title',
     sort: parseBookSort(params.get('sort')),
     favoriteFilter: parseFavoriteFilter(params.get('favorite')),
     tags: uniqueNonEmptyValues(params.getAll('tag')),
@@ -113,6 +117,9 @@ export function buildLibraryListStateUrl(
 
   if (search) {
     params.set('q', search);
+  }
+  if (state.searchField !== defaultLibraryListState.searchField) {
+    params.set('search_field', state.searchField);
   }
   if (state.sort !== defaultLibraryListState.sort) {
     params.set('sort', state.sort);

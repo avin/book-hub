@@ -4,6 +4,7 @@ export type {
   BookPatchRequest,
   BookQueryRequest,
   BookSort,
+  BookSearchField,
   ReadingProgress,
 } from './books/types';
 

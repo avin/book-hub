@@ -78,12 +78,13 @@ type Book struct {
 }
 
 type BookQuery struct {
-	Limit    int
-	Offset   int
-	Sort     string
-	Tags     []string
-	Favorite *bool
-	Q        string
+	SearchField string
+	Limit       int
+	Offset      int
+	Sort        string
+	Tags        []string
+	Favorite    *bool
+	Q           string
 }
 
 type BookPage struct {
@@ -200,6 +201,12 @@ func NormalizeTags(tags []string) []string {
 }
 
 func NormalizeBookQuery(q BookQuery) (BookQuery, error) {
+	if q.SearchField == "" {
+		q.SearchField = "title"
+	}
+	if q.SearchField != "title" && q.SearchField != "description" {
+		return BookQuery{}, ErrValidation
+	}
 	if q.Limit == 0 {
 		q.Limit = 50
 	}

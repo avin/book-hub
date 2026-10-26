@@ -428,9 +428,13 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		orderBy = "ub.last_opened_at desc, ub.created_at desc, ub.id desc"
 	}
 
+	searchColumn := "ub.title"
+	if query.SearchField == "description" {
+		searchColumn = "ub.description"
+	}
 	where := `
 		ub.user_id = $1
-		and ($2::text = '' or strpos(lower(ub.title), lower($2)) > 0)
+		and ($2::text = '' or strpos(lower(` + searchColumn + `), lower($2)) > 0)
 		and ($3::bool is null or ub.favorite = $3)
 		and not exists (
 			select 1 from unnest($4::text[]) qtag

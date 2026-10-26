@@ -2,6 +2,49 @@ import { expect, test } from './fixtures';
 import { login } from './support/api';
 import * as books from './mocks/books';
 
+test('поле поиска переключается между названием и описанием и сохраняется в URL', async ({
+  page,
+}) => {
+  const items = [
+    { ...books.items[0], title: 'Архитектура', description: 'Морские приключения' },
+    { ...books.items[1], title: 'Морские истории', description: 'Роман о горах' },
+  ];
+  await page.route(`**/api${books.req.list.path}`, (route) => {
+    const query = route.request().postDataJSON();
+    const field = query.search_field === 'description' ? 'description' : 'title';
+    const filtered = items.filter((book) => book[field].toLowerCase().includes(query.q ?? ''));
+    return route.fulfill({
+      json: { items: filtered, total: filtered.length, limit: 24, offset: 0 },
+    });
+  });
+  await login(page);
+  const search = page.getByRole('textbox', { name: 'Поиск книг', exact: true });
+  await search.fill('морские');
+  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.getByRole('article').getByRole('heading')).toHaveText('Морские истории');
+  await page.getByRole('button', { name: 'Где искать', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'По описанию', exact: true }).click();
+  await expect(search).toHaveValue('морские');
+  await expect(search).toHaveAttribute('placeholder', 'Найти по описанию');
+  await expect(page.getByRole('article').getByRole('heading')).toHaveText('Архитектура');
+  await expect.poll(() => new URL(page.url()).searchParams.get('search_field')).toBe('description');
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Где искать', exact: true })).toHaveText(
+    'По описанию',
+  );
+  await expect(search).toHaveValue('морские');
+  await expect(page.getByRole('article').getByRole('heading')).toHaveText('Архитектура');
+  await page.getByRole('button', { name: 'Очистить поиск', exact: true }).click();
+  await expect(search).toHaveValue('');
+  await expect(page.getByRole('article')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Где искать', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'По названию', exact: true }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.has('search_field')).toBe(false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(search).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('search-field-mobile.png') });
+});
+
 test('клик по тегу добавляет его в фильтр без дубликатов и сохраняет остальные параметры', async ({
   page,
 }) => {

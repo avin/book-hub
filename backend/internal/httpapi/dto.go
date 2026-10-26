@@ -17,12 +17,13 @@ type changePasswordRequest struct {
 }
 
 type bookQueryRequest struct {
-	Limit    *int     `json:"limit"`
-	Offset   *int     `json:"offset"`
-	Sort     string   `json:"sort"`
-	Tags     []string `json:"tags"`
-	Favorite *bool    `json:"favorite"`
-	Q        string   `json:"q"`
+	SearchField string   `json:"search_field"`
+	Limit       *int     `json:"limit"`
+	Offset      *int     `json:"offset"`
+	Sort        string   `json:"sort"`
+	Tags        []string `json:"tags"`
+	Favorite    *bool    `json:"favorite"`
+	Q           string   `json:"q"`
 }
 
 type bookPatchRequest struct {

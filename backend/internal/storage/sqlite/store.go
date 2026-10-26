@@ -413,7 +413,11 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 		orderBy = "ub.last_opened_at desc, ub.created_at desc, ub.id desc"
 	}
 	tags, _ := json.Marshal(query.Tags)
-	where := `ub.user_id = ?1 and (?2 = '' or instr(bookhub_lower(ub.title),bookhub_lower(?2))>0)
+	searchColumn := "ub.title"
+	if query.SearchField == "description" {
+		searchColumn = "ub.description"
+	}
+	where := `ub.user_id = ?1 and (?2 = '' or instr(bookhub_lower(` + searchColumn + `),bookhub_lower(?2))>0)
  and (?3 is null or ub.favorite=?3)
  and not exists(select 1 from json_each(?4) qtag where not exists(
  select 1 from user_book_tags bt join tags t on t.id=bt.tag_id

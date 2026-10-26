@@ -436,9 +436,16 @@ export interface components {
             /** @description Matches all selected tags exactly after trimming whitespace and converting to lowercase. */
             tags?: string[];
             favorite?: boolean | null;
-            /** @description Case-insensitive literal title substring, including Cyrillic and Latin. Leading and trailing whitespace is trimmed. Percent, underscore and backslash are ordinary characters; Cyrillic е and ё remain distinct. */
+            /** @description Case-insensitive literal substring of the selected search_field, including Cyrillic and Latin. Leading and trailing whitespace is trimmed. Percent, underscore and backslash are ordinary characters; Cyrillic е and ё remain distinct. */
             q?: string;
+            search_field?: components["schemas"]["BookSearchField"];
         };
+        /**
+         * @description Book metadata field searched by q. Defaults to title; description searches only the saved description, not the book file contents.
+         * @default title
+         * @enum {string}
+         */
+        BookSearchField: "title" | "description";
         /**
          * @description Equal primary keys use book ID descending. Relevance uses last_opened_at, created_at and ID descending. Alphabetical ordering of individual characters may depend on the configured database.
          * @default relevance

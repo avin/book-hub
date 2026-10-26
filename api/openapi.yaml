@@ -1098,7 +1098,15 @@ components:
           nullable: true
         q:
           type: string
-          description: Case-insensitive literal title substring, including Cyrillic and Latin. Leading and trailing whitespace is trimmed. Percent, underscore and backslash are ordinary characters; Cyrillic е and ё remain distinct.
+          description: Case-insensitive literal substring of the selected search_field, including Cyrillic and Latin. Leading and trailing whitespace is trimmed. Percent, underscore and backslash are ordinary characters; Cyrillic е and ё remain distinct.
+        search_field:
+          $ref: "#/components/schemas/BookSearchField"
+
+    BookSearchField:
+      type: string
+      default: title
+      enum: [title, description]
+      description: Book metadata field searched by q. Defaults to title; description searches only the saved description, not the book file contents.
 
     BookSort:
       type: string

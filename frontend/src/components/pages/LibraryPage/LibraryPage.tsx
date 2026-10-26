@@ -6,6 +6,7 @@ import {
   type Book,
   type BookListResponse,
   type BookQueryRequest,
+  type BookSearchField,
   type BookSort,
   booksQueryKey,
   createBookTagsQuery,
@@ -30,6 +31,7 @@ import BookCard from './BookCard/BookCard';
 import BookCardGrid from './BookCardGrid/BookCardGrid';
 import EditBookDialog from './EditBookDialog/EditBookDialog';
 import LibraryFiltersDropdown from './LibraryFiltersDropdown/LibraryFiltersDropdown';
+import SearchFieldSelect from './SearchFieldSelect/SearchFieldSelect';
 import {
   buildLibraryListStateUrl,
   getDefaultLibraryListState,
@@ -51,6 +53,7 @@ function LibraryPage() {
   let loadMoreRef: HTMLDivElement | undefined;
   const initialListState = readInitialLibraryListState();
   const [search, setSearch] = createSignal(initialListState.search);
+  const [searchField, setSearchField] = createSignal<BookSearchField>(initialListState.searchField);
   const [debouncedSearch, setDebouncedSearch] = createSignal(initialListState.search);
   const [sort, setSort] = createSignal<BookSort>(initialListState.sort);
   const [favoriteFilter, setFavoriteFilter] = createSignal<LibraryFavoriteFilter>(
@@ -66,6 +69,7 @@ function LibraryPage() {
 
   const applyListState = (state: LibraryListState, options?: { immediateSearch?: boolean }) => {
     setSearch(state.search);
+    setSearchField(state.searchField);
     setSort(state.sort);
     setFavoriteFilter(state.favoriteFilter);
     setSelectedTags(state.tags);
@@ -87,6 +91,7 @@ function LibraryPage() {
   createEffect(() => {
     rememberLibraryListState({
       search: search(),
+      searchField: searchField(),
       sort: sort(),
       favoriteFilter: favoriteFilter(),
       tags: selectedTags(),
@@ -96,6 +101,7 @@ function LibraryPage() {
   createEffect(() => {
     const state = {
       search: debouncedSearch(),
+      searchField: searchField(),
       sort: sort(),
       favoriteFilter: favoriteFilter(),
       tags: selectedTags(),
@@ -121,6 +127,7 @@ function LibraryPage() {
     favorite:
       favoriteFilter() === 'favorite' ? true : favoriteFilter() === 'regular' ? false : null,
     q: debouncedSearch().trim(),
+    search_field: searchField(),
   }));
 
   const booksQuery = createInfiniteQuery<
@@ -306,9 +313,12 @@ function LibraryPage() {
             class={styles.searchField}
             classList={{ [styles.searchFieldActive]: search() !== '' }}
           >
+            <SearchFieldSelect value={searchField()} onChange={setSearchField} />
             <TextInput
+              class={styles.searchInput}
+              aria-label={t('searchBooks')}
               value={search()}
-              placeholder={t('findByTitle')}
+              placeholder={t(searchField() === 'description' ? 'findByDescription' : 'findByTitle')}
               onInput={(event) => {
                 setSearch(event.currentTarget.value);
               }}

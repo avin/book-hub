@@ -64,10 +64,39 @@
 
 .searchField {
   position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: $radius-sm;
+  background: var(--surface-raised);
+  transition:
+    border-color $duration-fast $ease-standard,
+    box-shadow $duration-fast $ease-standard;
+
+  &:hover {
+    border-color: var(--border-strong);
+  }
+
+  &:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+  }
 }
 
-// Reserve space on the right only while the clear button is visible, so the
-// empty field has no extra padding (plain input as requested).
+.searchInput.searchInput {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 0;
+  min-height: 38px;
+  border: 0;
+  background: transparent;
+
+  &:focus {
+    box-shadow: none;
+  }
+}
+
+// Reserve space on the right only while the clear button is visible.
 .searchFieldActive {
   :global(input) {
     padding-right: 40px;

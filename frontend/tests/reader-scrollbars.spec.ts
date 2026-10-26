@@ -5,7 +5,10 @@ test('тонкие полосы имеют толщину 1 px и сохраня
   page,
 }) => {
   await login(page);
-  await page.getByRole('link', { name: 'Мастер и Маргарита' }).click();
+  await page
+    .getByRole('heading', { name: 'Мастер и Маргарита', exact: true })
+    .getByRole('link')
+    .click();
   await expect(page.locator('[data-page-number="1"]')).toBeVisible();
   await page.mouse.move(0, 0);
 
@@ -29,7 +32,7 @@ test('тонкие полосы имеют толщину 1 px и сохраня
 
   await page.getByRole('link', { name: 'Библиотека' }).click();
   await expect.poll(scrollbarSize).not.toEqual({ width: '1px', height: '1px' });
-  await page.getByRole('link', { name: 'Война и мир' }).click();
+  await page.getByRole('heading', { name: 'Война и мир', exact: true }).getByRole('link').click();
   await expect(page.getByRole('heading', { name: 'Глава первая' })).toBeVisible();
   await page.mouse.move(0, 0);
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');

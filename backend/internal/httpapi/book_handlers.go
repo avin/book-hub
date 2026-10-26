@@ -29,7 +29,7 @@ func (s *Server) handleQueryBooks(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	query := domain.BookQuery{Limit: 50, Offset: 0, Sort: req.Sort, Tags: req.Tags, Favorite: req.Favorite, Q: req.Q}
+	query := domain.BookQuery{Limit: 50, Offset: 0, Sort: req.Sort, Tags: req.Tags, Favorite: req.Favorite, Q: req.Q, SearchField: req.SearchField}
 	if req.Limit != nil {
 		query.Limit = *req.Limit
 	}
