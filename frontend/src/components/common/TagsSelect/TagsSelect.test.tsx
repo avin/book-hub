@@ -54,6 +54,7 @@ describe('TagsSelect', () => {
     cleanup();
     localStorage.clear();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('добавляет сфокусированный вариант через стрелки и Enter', async () => {
@@ -181,9 +182,74 @@ describe('TagsSelect', () => {
     await waitFor(() => expect(getByRole('option', { name: 'history' })).not.toBeNull());
     fireEvent.keyDown(input, { key: 'Backspace' });
     fireEvent.focusOut(input);
-    expect(queryByRole('option', { name: 'history' })).toBeNull();
+    await waitFor(() => expect(queryByRole('option', { name: 'history' })).toBeNull());
     fireEvent.focus(input);
     fireEvent.keyDown(input, { key: 'Backspace' });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('внешнее удаление сфокусированного тега переводит фокус на соседа и затем в инпут', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(50);
+    let updateTags!: (value: string[]) => void;
+    const { getByRole } = render(() => {
+      const [value, setValue] = createSignal(['one', 'two', 'three']);
+      updateTags = setValue;
+      return (
+        <I18nProvider>
+          <TagsSelect value={value()} onChange={setValue} />
+        </I18nProvider>
+      );
+    });
+    fireEvent.click(await waitFor(() => getByRole('button', { name: '+3' })));
+    getByRole('button', { name: 'Remove tag two' }).focus();
+    updateTags(['one', 'three']);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(getByRole('button', { name: 'Remove tag three' })),
+    );
+    updateTags([]);
+    await waitFor(() => expect(document.activeElement).toBe(getByRole('combobox')));
+  });
+
+  it('перестановка тегов извне сохраняет фокус на том же теге', async () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(50);
+    let updateTags!: (value: string[]) => void;
+    const { getByRole } = render(() => {
+      const [value, setValue] = createSignal(['one', 'two', 'three']);
+      updateTags = setValue;
+      return (
+        <I18nProvider>
+          <TagsSelect value={value()} onChange={setValue} />
+        </I18nProvider>
+      );
+    });
+    fireEvent.click(await waitFor(() => getByRole('button', { name: '+3' })));
+    getByRole('button', { name: 'Remove tag three' }).focus();
+    updateTags(['three', 'one', 'two']);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(getByRole('button', { name: 'Remove tag three' })),
+    );
+  });
+
+  it('завершение IME на предельной длине не удаляет суффикс строки', () => {
+    const { getByRole } = renderTagsSelect({});
+    const input = getByRole('combobox') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'a'.repeat(63) + 'Z' } });
+    input.setSelectionRange(63, 63);
+    fireEvent.compositionStart(input);
+    fireEvent.input(input, { target: { value: 'a'.repeat(63) + '日本Z' } });
+    fireEvent.compositionEnd(input);
+    expect(input.value).toBe('a'.repeat(63) + 'Z');
+  });
+
+  it('IME вставляет помещающуюся часть в выделение, сохраняя суффикс и Unicode', () => {
+    const { getByRole } = renderTagsSelect({});
+    const input = getByRole('combobox') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'a'.repeat(62) + 'XZ' } });
+    input.setSelectionRange(62, 63);
+    fireEvent.compositionStart(input);
+    fireEvent.input(input, { target: { value: 'a'.repeat(62) + '🙂🙂Z' } });
+    fireEvent.compositionEnd(input);
+    expect(input.value).toBe('a'.repeat(62) + '🙂Z');
+    expect(input.selectionStart).toBe(64);
   });
 });

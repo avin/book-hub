@@ -47,6 +47,16 @@ describe('tag option search', () => {
 });
 
 describe('tag selection interactions', () => {
+  it('внутренний фокус сохраняет группу; новый ввод переключает её на подсказки', () => {
+    const { model } = setup();
+    model.openCollapsedDropdown();
+    model.handleInputFocus();
+    expect(model.isCollapsedOpen()).toBe(true);
+    model.handleChangeQuery('hi');
+    expect(model.isCollapsedOpen()).toBe(false);
+    expect(model.isOptionsOpen()).toBe(true);
+    expect(model.options()).toEqual(['history']);
+  });
   it('не добавляет 51-й тег, но позволяет удалить тег и добавить другой', () => {
     const { model, setValue, value } = setup();
     setValue(Array.from({ length: 50 }, (_, i) => `tag-${i}`));

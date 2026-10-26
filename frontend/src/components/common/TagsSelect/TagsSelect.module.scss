@@ -96,6 +96,11 @@
   color: currentColor;
   cursor: pointer;
 
+  &:focus-visible {
+    @include focus-ring;
+    border-radius: 3px;
+  }
+
   &:disabled {
     cursor: not-allowed;
   }

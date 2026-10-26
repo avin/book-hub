@@ -173,6 +173,14 @@ export function createTagSelectionModel(config: {
     addTag(query());
   };
 
+  const openCollapsedDropdown = () => {
+    if (config.disabled()) return;
+    lastEmptyInputBackspaceAt = undefined;
+    cancelSearch();
+    setShouldOpenOptionsAfterSearch(false);
+    setDropdownMode('collapsed');
+  };
+
   createEffect(() => {
     options();
     setFocusedOptionIndex(null);
@@ -207,6 +215,7 @@ export function createTagSelectionModel(config: {
     isCollapsedOpen,
     isDropdownOpen,
     wantsOptions: shouldOpenOptionsAfterSearch,
+    openCollapsedDropdown,
     closeDropdown,
     openOptions() {
       lastEmptyInputBackspaceAt = undefined;
@@ -221,10 +230,8 @@ export function createTagSelectionModel(config: {
     },
     toggleCollapsedDropdown() {
       if (config.disabled()) return;
-      lastEmptyInputBackspaceAt = undefined;
-      cancelSearch();
-      setShouldOpenOptionsAfterSearch(false);
-      setDropdownMode((previousMode) => (previousMode === 'collapsed' ? null : 'collapsed'));
+      if (isCollapsedOpen()) closeDropdown();
+      else openCollapsedDropdown();
     },
     handleDropdownOpenChange(nextOpen: boolean) {
       if (nextOpen) {
@@ -266,6 +273,7 @@ export function createTagSelectionModel(config: {
       }
 
       lastEmptyInputBackspaceAt = undefined;
+      if (isCollapsedOpen()) return;
       if (config.showOptionsOnFocus()) {
         batch(() => {
           debouncedSearchOptions(normalizeTag(query()), true);

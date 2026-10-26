@@ -5,6 +5,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { createTagSelectionModel } from './tagSelectionModel';
 import { MAX_TAG_LENGTH } from './tagUtils';
 import { useTagOverflow } from './useTagOverflow';
+import { useTagFocus } from './useTagFocus';
 import styles from './TagsSelect.module.scss';
 
 function preventLabelActivation(event: MouseEvent) {
@@ -48,8 +49,13 @@ function TagBadge(props: {
             type="button"
             class={styles.removeButton}
             aria-label={`${t('removeTag')} ${props.tag}`}
+            data-tag-remove={props.tag}
             disabled={props.disabled}
             onMouseDown={(event) => event.preventDefault()}
+            onKeyDown={(event) => {
+              if (event.repeat && (event.key === 'Enter' || event.key === ' '))
+                event.preventDefault();
+            }}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -81,19 +87,11 @@ function TagsSelect(props: {
   let inputEl: HTMLInputElement | undefined;
   let dropdownEl: HTMLDivElement | undefined;
   let listContainerEl: HTMLDivElement | undefined;
+  let fieldEl: HTMLDivElement | undefined;
+  let collapsedEl: HTMLSpanElement | undefined;
   let isComposing = false;
-  let updatingSelection = false;
-  let restoringInputFocus = false;
+  let compositionRange: { prefix: string; suffix: string } | undefined;
   const listId = createUniqueId();
-
-  const focusInput = () => {
-    restoringInputFocus = true;
-    try {
-      inputEl?.focus();
-    } finally {
-      restoringInputFocus = false;
-    }
-  };
 
   const placeholder = () => props.placeholder ?? t('findOrAddTag');
   const selection = createTagSelectionModel({
@@ -112,6 +110,22 @@ function TagsSelect(props: {
     isCollapsedOpen: selection.isCollapsedOpen,
     closeDropdown: selection.closeDropdown,
   });
+  const focus = useTagFocus({
+    value: () => props.value,
+    hiddenTags: overflow.hiddenTags,
+    disabled: () => Boolean(props.disabled),
+    isCollapsedOpen: selection.isCollapsedOpen,
+    isDropdownOpen: selection.isDropdownOpen,
+    openCollapsed: selection.openCollapsedDropdown,
+    closeDropdown: selection.closeDropdown,
+    applyTypedInput: selection.applyTypedInput,
+    removeTag: selection.removeTag,
+    input: () => inputEl,
+    field: () => fieldEl,
+    menu: () => dropdownEl,
+    collapsed: () => collapsedEl,
+  });
+  const focusInput = focus.focusInput;
 
   const openOptions = () => {
     if (props.disabled || !(props.showOptionsOnFocus ?? true)) {
@@ -141,19 +155,6 @@ function TagsSelect(props: {
     container.scrollTop += elementCenter - containerCenter;
   };
 
-  const handleInputBlur = (event: FocusEvent) => {
-    if (updatingSelection) return;
-    const relatedTarget = event.relatedTarget;
-    if (
-      relatedTarget instanceof Node &&
-      (dropdownEl?.contains(relatedTarget) || inputEl?.parentElement?.contains(relatedTarget))
-    ) {
-      return;
-    }
-
-    selection.applyTypedInput();
-  };
-
   const handleContainerClick = (event: MouseEvent) => {
     if (props.disabled) return;
     const target = event.target;
@@ -174,29 +175,15 @@ function TagsSelect(props: {
     selection.openOptions();
   };
 
-  const removeTag = (tag: string, collapsed = false) => {
-    if (props.disabled) return;
-    const menuHadFocus = dropdownEl?.contains(document.activeElement);
-    updatingSelection = true;
-    try {
-      selection.removeTag(tag);
-      if (!collapsed || !selection.isCollapsedOpen()) {
-        focusInput();
-      } else if (menuHadFocus) {
-        dropdownEl?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
-      }
-    } finally {
-      updatingSelection = false;
-    }
-  };
+  const removeTag = (tag: string, collapsed = false) => focus.removeTag(tag, collapsed);
 
-  const handleEscape = (event: KeyboardEvent) => {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    focus.handleKeyDown(event);
     if (event.key !== 'Escape' || isComposing || event.isComposing) return;
     if (!selection.isDropdownOpen() && !selection.wantsOptions()) return;
     event.preventDefault();
     event.stopPropagation();
-    selection.closeDropdown();
-    focusInput();
+    focus.dismiss();
   };
 
   createEffect(() => {
@@ -222,12 +209,16 @@ function TagsSelect(props: {
       trigger={
         <>
           <div
-            ref={overflow.setInputContainer}
+            ref={(element) => {
+              fieldEl = element;
+              overflow.setInputContainer(element);
+            }}
             class={styles.inputContainer}
             classList={{ [styles.disabled]: props.disabled }}
             onClick={handleContainerClick}
-            onFocusOut={handleInputBlur}
-            onKeyDown={handleEscape}
+            onFocusIn={focus.handleFocusIn}
+            onFocusOut={focus.handleFocusOut}
+            onKeyDown={handleKeyDown}
           >
             <For each={overflow.visibleTags()}>
               {(tag) => (
@@ -242,6 +233,7 @@ function TagsSelect(props: {
 
             <Show when={overflow.hiddenTags().length > 0}>
               <span
+                ref={collapsedEl}
                 class={`${styles.badge} ${styles.collapsedBadge}`}
                 data-tag-badge
                 role="button"
@@ -259,15 +251,12 @@ function TagsSelect(props: {
                   selection.toggleCollapsedDropdown();
                 }}
                 onKeyDown={(event) => {
-                  if (
-                    props.disabled ||
-                    event.repeat ||
-                    (event.key !== 'Enter' && event.key !== ' ')
-                  ) {
+                  if (props.disabled || (event.key !== 'Enter' && event.key !== ' ')) {
                     return;
                   }
 
                   event.preventDefault();
+                  if (event.repeat) return;
                   selection.toggleCollapsedDropdown();
                 }}
               >
@@ -309,7 +298,7 @@ function TagsSelect(props: {
               readOnly={selection.isAtLimit()}
               disabled={props.disabled}
               onFocus={() => {
-                if (!restoringInputFocus) selection.handleInputFocus();
+                if (!focus.isMovingFocus()) selection.handleInputFocus();
               }}
               onBeforeInput={(event) => {
                 if (isComposing || event.isComposing || !event.data) return;
@@ -358,16 +347,34 @@ function TagsSelect(props: {
                 }
                 selection.handleChangeQuery(event.currentTarget.value);
               }}
-              onCompositionStart={() => {
+              onCompositionStart={(event) => {
                 isComposing = true;
+                const input = event.currentTarget;
+                compositionRange = {
+                  prefix: input.value.slice(0, input.selectionStart ?? 0),
+                  suffix: input.value.slice(input.selectionEnd ?? 0),
+                };
                 selection.resetBackspace();
               }}
               onCompositionEnd={(event) => {
                 isComposing = false;
-                event.currentTarget.value = Array.from(event.currentTarget.value)
-                  .slice(0, MAX_TAG_LENGTH)
-                  .join('');
-                selection.handleChangeQuery(event.currentTarget.value);
+                const input = event.currentTarget;
+                if (compositionRange && Array.from(input.value).length > MAX_TAG_LENGTH) {
+                  const { prefix, suffix } = compositionRange;
+                  const remaining = MAX_TAG_LENGTH - Array.from(prefix + suffix).length;
+                  const inserted = Array.from(
+                    input.value.slice(prefix.length, input.value.length - suffix.length),
+                  )
+                    .slice(0, Math.max(0, remaining))
+                    .join('');
+                  input.value = prefix + inserted + suffix;
+                  input.setSelectionRange(
+                    prefix.length + inserted.length,
+                    prefix.length + inserted.length,
+                  );
+                }
+                compositionRange = undefined;
+                selection.handleChangeQuery(input.value);
               }}
               onKeyDown={(event) => {
                 if (isComposing || event.isComposing || event.keyCode === 229) {
@@ -436,8 +443,9 @@ function TagsSelect(props: {
             ref={dropdownEl}
             class={styles.menu}
             style={{ width: `${overflow.dropdownWidth() ?? 0}px` }}
-            onFocusOut={handleInputBlur}
-            onKeyDown={handleEscape}
+            onFocusIn={focus.handleFocusIn}
+            onFocusOut={focus.handleFocusOut}
+            onKeyDown={handleKeyDown}
           >
             <div
               ref={listContainerEl}
@@ -481,8 +489,9 @@ function TagsSelect(props: {
           aria-label={t('selectedTags')}
           class={styles.collapsedTagsDropdownArea}
           style={{ width: `${overflow.dropdownWidth() ?? 0}px` }}
-          onFocusOut={handleInputBlur}
-          onKeyDown={handleEscape}
+          onFocusIn={focus.handleFocusIn}
+          onFocusOut={focus.handleFocusOut}
+          onKeyDown={handleKeyDown}
         >
           <For each={overflow.hiddenTags()}>
             {(tag) => (
