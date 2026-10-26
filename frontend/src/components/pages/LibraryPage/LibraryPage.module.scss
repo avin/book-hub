@@ -57,7 +57,7 @@
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) minmax(274px, 1fr);
+  grid-template-columns: repeat(2, minmax(220px, 1fr)) auto;
   align-items: end;
   gap: 12px;
 }
@@ -141,10 +141,11 @@
 
 .secondaryFilters {
   display: grid;
+  grid-column: span 2;
   min-width: 0;
   align-items: end;
   gap: 12px;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: subgrid;
 }
 
 .filtersField {
@@ -255,6 +256,11 @@
 
   .toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .secondaryFilters {
+    grid-column: auto;
+    grid-template-columns: minmax(220px, 1fr) auto;
   }
 }
 
