@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -283,6 +284,39 @@ func TestUploadDeleteLifecycleDeduplicatesPhysicalFiles(t *testing.T) {
 	}
 	if countStoredFiles(t, app.storageRoot) != 0 {
 		t.Fatalf("expected physical file to be deleted when no users reference it")
+	}
+}
+
+func TestLibraryBookmarksSettingsAcrossSessionsAndUsers(t *testing.T) {
+	app := newTestApp(t, true)
+	client := app.client(t)
+	csrf := app.csrf(t, client)
+	app.register(t, client, csrf, "bookmark-owner", "password", http.StatusCreated)
+	app.login(t, client, csrf, "bookmark-owner", "password", http.StatusOK)
+	var expected map[string]any
+	if err := json.Unmarshal([]byte(`{"theme":"dark","libraryBookmarks":[{"id":"first","name":"Закладка","search":"Море","searchField":"description","tags":["роман"]},{"id":"second","name":"Закладка","search":"","searchField":"title","tags":[]}]}`), &expected); err != nil {
+		t.Fatal(err)
+	}
+	app.requestJSON(t, client, http.MethodPut, "/v1/me/settings", csrf, expected, http.StatusOK)
+	secondSession := app.client(t)
+	secondCSRF := app.csrf(t, secondSession)
+	app.login(t, secondSession, secondCSRF, "bookmark-owner", "password", http.StatusOK)
+	got := app.requestJSON(t, secondSession, http.MethodGet, "/v1/me/settings", "", nil, http.StatusOK)
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("settings from another session: got=%#v want=%#v", got, expected)
+	}
+	other := app.client(t)
+	otherCSRF := app.csrf(t, other)
+	app.register(t, other, otherCSRF, "other-reader", "password", http.StatusCreated)
+	app.login(t, other, otherCSRF, "other-reader", "password", http.StatusOK)
+	otherSettings := app.requestJSON(t, other, http.MethodGet, "/v1/me/settings", "", nil, http.StatusOK)
+	if _, exists := otherSettings["libraryBookmarks"]; exists {
+		t.Fatalf("another user's bookmarks leaked: %#v", otherSettings)
+	}
+	app.requestJSON(t, other, http.MethodPut, "/v1/me/settings", otherCSRF, map[string]any{"libraryBookmarks": []any{}}, http.StatusOK)
+	got = app.requestJSON(t, client, http.MethodGet, "/v1/me/settings", "", nil, http.StatusOK)
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("another user changed owner's settings: %#v", got)
 	}
 }
 

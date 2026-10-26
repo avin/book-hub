@@ -5,6 +5,18 @@ export type Language = (typeof languages)[number];
 type Translation = Record<Language, string>;
 
 export const messages = {
+  retry: { ru: 'Повторить', en: 'Retry' },
+  bookmarks: { ru: 'Закладки', en: 'Bookmarks' },
+  bookmark: { ru: 'Закладка', en: 'Bookmark' },
+  create: { ru: 'Создать', en: 'Create' },
+  createBookmark: { ru: 'Создать закладку', en: 'Create bookmark' },
+  deleteBookmark: { ru: 'Удалить закладку', en: 'Delete bookmark' },
+  nameUpTo100Characters: {
+    ru: 'Введите название длиной от 1 до 100 символов',
+    en: 'Enter a name between 1 and 100 characters',
+  },
+  yes: { ru: 'Да', en: 'Yes' },
+  no: { ru: 'Нет', en: 'No' },
   bookInformation: { ru: 'Информация о книге', en: 'Book information' },
   noTags: { ru: 'Без тегов', en: 'No tags' },
   whereToSearch: {

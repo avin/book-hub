@@ -61,7 +61,7 @@
 .nav {
   display: grid;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   gap: 2px;
   align-content: start;
   overflow-y: auto;
@@ -160,7 +160,7 @@
     display: grid;
     align-items: center;
     gap: 6px;
-    grid-template-columns: minmax(72px, 1fr) auto 38px;
+    grid-template-columns: minmax(36px, 1fr) auto 38px 38px;
   }
 
   .sidebarHeader {

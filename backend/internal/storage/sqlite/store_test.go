@@ -75,7 +75,7 @@ func TestPersistenceAfterReopen(t *testing.T) {
 	if _, err := store.PutProgress(ctx, owner.ID, book.ID, 37.5); err != nil {
 		t.Fatal(err)
 	}
-	const settings = `{"theme":"dark","reader":{"zoom":1.5}}`
+	const settings = `{"theme":"dark","reader":{"zoom":1.5},"libraryBookmarks":[{"id":"one","name":"Все","search":"","searchField":"title","tags":[]},{"id":"two","name":"Море","search":"море","searchField":"description","tags":["роман"]}]}`
 	if err := store.PutSettings(ctx, owner.ID, json.RawMessage(settings)); err != nil {
 		t.Fatal(err)
 	}

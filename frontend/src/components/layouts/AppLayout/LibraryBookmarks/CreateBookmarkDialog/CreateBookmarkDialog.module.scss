@@ -1,0 +1,27 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+@use '../dialog' as bookmarkDialog;
+
+.overlay {
+  @include bookmarkDialog.overlay;
+}
+.dialog {
+  @include bookmarkDialog.dialog;
+}
+.form {
+  display: grid;
+  gap: 16px;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  input {
+    min-width: 0;
+  }
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

@@ -5,6 +5,7 @@ import { createLogoutMutation } from '@/api/auth';
 import Button from '@/components/common/Button/Button';
 import LanguageSelect from '@/components/common/LanguageSelect/LanguageSelect';
 import { useI18n } from '@/i18n/I18nProvider';
+import LibraryBookmarks from './LibraryBookmarks/LibraryBookmarks';
 import styles from './AppLayout.module.scss';
 
 function AppLayout(props: { children: JSX.Element }) {
@@ -56,6 +57,8 @@ function AppLayout(props: { children: JSX.Element }) {
               <span class={styles.navLabel}>{t('settings')}</span>
             </A>
           </nav>
+
+          <LibraryBookmarks />
 
           <Button
             class={styles.mobilePanelToggle}

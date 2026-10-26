@@ -1,0 +1,111 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+@use './dialog' as bookmarkDialog;
+
+.desktop {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  margin: 0 12px 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+}
+.mobile {
+  display: none;
+}
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: $radius-sm;
+  &:hover {
+    background: var(--surface-sunken);
+  }
+}
+.link {
+  min-width: 0;
+  flex: 1;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-touch-callout: none;
+  span {
+    display: block;
+    @include truncate;
+  }
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
+.remove {
+  display: flex;
+  visibility: hidden;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
+.revealed .remove,
+.row:has(:focus-visible) .remove {
+  visibility: visible;
+}
+@media (hover: hover) and (pointer: fine) {
+  .row:hover .remove {
+    visibility: visible;
+  }
+}
+.create {
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+.overlay {
+  @include bookmarkDialog.overlay;
+}
+.dialog {
+  @include bookmarkDialog.dialog;
+}
+.listDialog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 40px);
+  .list {
+    min-height: 100px;
+  }
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.fullName {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 720px) {
+  .desktop {
+    display: none;
+  }
+  .mobile {
+    display: inline-flex;
+    grid-column: 3;
+    grid-row: 1;
+  }
+}

@@ -1,3 +1,4 @@
+import { createSignal } from 'solid-js';
 import type { BookSearchField, BookSort } from '@/api/books';
 
 export type LibraryFavoriteFilter = 'all' | 'favorite' | 'regular';
@@ -133,4 +134,11 @@ export function buildLibraryListStateUrl(
 
   const nextSearch = params.toString();
   return `${location.pathname}${nextSearch ? `?${nextSearch}` : ''}${location.hash}`;
+}
+
+export const [libraryBookmarkApplication, setLibraryBookmarkApplication] =
+  createSignal<LibraryListState>();
+
+export function getLastLibraryListState() {
+  return cloneLibraryListState(lastLibraryListState);
 }

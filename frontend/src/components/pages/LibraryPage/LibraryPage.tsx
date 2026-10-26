@@ -1,6 +1,16 @@
 import { useNavigate } from '@solidjs/router';
 import { createInfiniteQuery } from '@tanstack/solid-query';
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js';
 import { LayoutGrid, Library, List, SearchX, Upload, X } from 'lucide-solid';
 import {
   type Book,
@@ -31,8 +41,10 @@ import BookCard from './BookCard/BookCard';
 import BookCardGrid from './BookCardGrid/BookCardGrid';
 import EditBookDialog from './EditBookDialog/EditBookDialog';
 import LibraryFiltersDropdown from './LibraryFiltersDropdown/LibraryFiltersDropdown';
-import SearchFieldSelect from './SearchFieldSelect/SearchFieldSelect';
+import SearchFieldSelect from '@/components/common/SearchFieldSelect/SearchFieldSelect';
 import {
+  libraryBookmarkApplication,
+  setLibraryBookmarkApplication,
   buildLibraryListStateUrl,
   getDefaultLibraryListState,
   type LibraryFavoriteFilter,
@@ -78,6 +90,18 @@ function LibraryPage() {
       setDebouncedSearch(state.search);
     }
   };
+
+  // Consume a pending bookmark even when it arrived before this lazy page mounted.
+  createEffect(
+    on(libraryBookmarkApplication, (state) => {
+      if (!state) return;
+      batch(() => {
+        applyListState(state, { immediateSearch: true });
+        setLibraryBookmarkApplication(undefined);
+      });
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }),
+  );
 
   createEffect(() => {
     const nextSearch = search();
@@ -200,6 +224,8 @@ function LibraryPage() {
 
   onMount(() => {
     const handlePopState = () => {
+      if (window.location.pathname.replace(/\/+$/, '') !== `${import.meta.env.BASE_URL}library`)
+        return;
       applyListState(
         readLibraryListStateFromSearch(window.location.search) ?? getDefaultLibraryListState(),
         {

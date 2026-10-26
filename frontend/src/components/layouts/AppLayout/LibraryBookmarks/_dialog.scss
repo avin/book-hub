@@ -1,0 +1,29 @@
+@use '@/styles/_variables.scss' as *;
+
+@mixin overlay {
+  z-index: 50;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 20px;
+  overflow-y: auto;
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+}
+@mixin dialog {
+  width: min(520px, 100%);
+  min-width: 0;
+  justify-self: center;
+  margin: auto;
+  padding: 20px;
+  border: 1px solid var(--border-default);
+  border-radius: $radius-lg;
+  background: var(--surface-raised);
+  box-shadow: $shadow-lg;
+  h2 {
+    margin: 0 0 20px;
+    font-size: 20px;
+  }
+}
