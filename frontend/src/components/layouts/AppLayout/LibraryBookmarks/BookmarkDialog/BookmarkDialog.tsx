@@ -28,14 +28,21 @@ function BookmarkDialog(props: {
   onClose: () => void;
 }) {
   const { t } = useI18n();
-  const initial = untrack(
-    () => props.bookmark ?? { ...getLastLibraryListState(), name: t('bookmark') },
-  );
+  const initial = untrack(() => {
+    if (props.bookmark) return props.bookmark;
+    const state = getLastLibraryListState();
+    const name = [state.search, ...state.tags]
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .join(' ');
+    return { ...state, name: name.slice(0, 100) || t('bookmark') };
+  });
   const [name, setName] = createSignal(initial.name);
   const [search, setSearch] = createSignal(initial.search);
   const [searchField, setSearchField] = createSignal<BookSearchField>(initial.searchField);
   const [tags, setTags] = createSignal([...initial.tags]);
   const [invalid, setInvalid] = createSignal(false);
+  let selectNameOnFocus = untrack(() => !props.bookmark);
   const tagQuery = createBookTagsQuery();
   const options = createMemo(() => mergeTagOptions(tagQuery.data?.items ?? [], tags()));
   return (
@@ -77,6 +84,12 @@ function BookmarkDialog(props: {
               value={name()}
               maxLength={100}
               invalid={invalid()}
+              onFocus={(event) => {
+                if (selectNameOnFocus) {
+                  event.currentTarget.select();
+                  selectNameOnFocus = false;
+                }
+              }}
               onInput={(event) => {
                 setName(event.currentTarget.value);
                 setInvalid(false);
