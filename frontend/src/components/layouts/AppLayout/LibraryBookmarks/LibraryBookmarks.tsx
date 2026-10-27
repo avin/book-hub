@@ -26,10 +26,11 @@ function LibraryBookmarks() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
-  const isReadingBook = () => /^\/reader\/[^/]+\/?$/.test(location.pathname);
-  const [activeId, setActiveId] = createSignal(getActiveLibraryBookmarkPreference());
+  const [selectedId, setSelectedId] = createSignal(getActiveLibraryBookmarkPreference());
+  const activeId = () =>
+    location.pathname.replace(/\/+$/, '') === '/library' ? selectedId() : undefined;
   const selectBookmark = (id: string | undefined) => {
-    setActiveId(id);
+    setSelectedId(id);
     setActiveLibraryBookmarkPreference(id);
   };
   const { settings, mutation, orderMutation, bookmarks, moveBookmark } = createLibraryBookmarks();
@@ -39,12 +40,8 @@ function LibraryBookmarks() {
   const [deleting, setDeleting] = createSignal<LibraryBookmark>();
   const [revealed, setRevealed] = createSignal<string>();
   createEffect(() => {
-    const id = activeId();
+    const id = selectedId();
     if (!id || libraryBookmarkApplication()) return;
-    if (location.pathname.replace(/\/+$/, '') !== '/library' && !isReadingBook()) {
-      selectBookmark(undefined);
-      return;
-    }
     if (!settings.isSuccess) return;
     const bookmark = bookmarks().find((item) => item.id === id);
     const state = currentLibraryListState();

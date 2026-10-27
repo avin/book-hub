@@ -876,19 +876,58 @@ test('открытие книги и возврат назад сохраняю�
 });
 
 for (const section of ['Загрузка', 'Настройки']) {
-  test(`выбор закладки сбрасывается при переходе в раздел ${section}`, async ({ page }) => {
-    await mockSettings(page, [bookmark('one', 'Моя выборка')]);
-    await login(page);
-    const entry = page.getByRole('button', { name: 'Моя выборка', exact: true });
-    await entry.click();
-    await expect(entry).toHaveAttribute('aria-pressed', 'true');
-    await page.getByRole('link', { name: section, exact: true }).click();
-    await expect(entry).toHaveAttribute('aria-pressed', 'false');
-    await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
-    await expect(entry).toHaveAttribute('aria-pressed', 'false');
-    await page.reload();
-    await expect(entry).toHaveAttribute('aria-pressed', 'false');
-  });
+  for (const mobile of [false, true]) {
+    for (const returnBy of ['menu', 'history']) {
+      test(`подсветка закладки скрывается в разделе ${section} и восстанавливается при возврате (${mobile ? 'mobile' : 'desktop'}, ${returnBy})`, async ({
+        page,
+      }) => {
+        const filters = { search: 'Война', tags: ['роман'] };
+        await mockSettings(page, [
+          bookmark('one', 'Первая', filters),
+          bookmark('two', 'Моя выборка', filters),
+        ]);
+        await page.setViewportSize({ width: mobile ? 390 : 1100, height: 844 });
+        await login(page);
+        const open = async () => {
+          if (mobile) await page.getByRole('button', { name: 'Закладки', exact: true }).click();
+        };
+        const close = async () => {
+          if (mobile) await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+        };
+        const entry = page.getByRole('button', { name: 'Моя выборка', exact: true });
+        await open();
+        await entry.click();
+        await expect(page).toHaveURL(/tag=/);
+        const libraryUrl = page.url();
+        await open();
+        await expect(entry).toHaveAttribute('aria-pressed', 'true');
+        await close();
+        await page.getByRole('link', { name: section, exact: true }).click();
+        await expect(page).toHaveURL(section === 'Загрузка' ? '/upload' : '/settings');
+        await open();
+        await expect(entry).toHaveAttribute('aria-pressed', 'false');
+        await close();
+        if (returnBy === 'menu') {
+          await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
+        } else {
+          await page.goBack();
+        }
+        await expect(page).toHaveURL(libraryUrl);
+        await expect(page.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue(
+          'Война',
+        );
+        await open();
+        await expect(entry).toHaveAttribute('aria-pressed', 'true');
+        await expect(page.getByRole('button', { name: 'Первая', exact: true })).toHaveAttribute(
+          'aria-pressed',
+          'false',
+        );
+        await page.reload();
+        await open();
+        await expect(entry).toHaveAttribute('aria-pressed', 'true');
+      });
+    }
+  }
 }
 
 for (const resetButton of ['header', 'emptyState'] as const) {
