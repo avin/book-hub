@@ -3,6 +3,35 @@ import type { Page } from '@playwright/test';
 import type { LibraryBookmark } from '../src/api/libraryBookmarks';
 import { login } from './support/api';
 
+test('поиск в закладке оформлен как в библиотеке и очищает только черновик', async ({ page }) => {
+  await login(page);
+  const librarySearch = page.getByRole('textbox', { name: 'Поиск книг', exact: true });
+  await librarySearch.fill('Война');
+  await librarySearch.blur();
+  const appearance = (input: HTMLElement) => {
+    const styles = (element: Element) => {
+      const css = getComputedStyle(element);
+      return [css.border, css.borderRadius, css.backgroundColor, css.minHeight, css.padding];
+    };
+    return { input: styles(input), container: styles(input.parentElement!) };
+  };
+  const expectedAppearance = await librarySearch.evaluate(appearance);
+  await page.getByRole('button', { name: 'Создать закладку', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Создать закладку', exact: true });
+  const search = dialog.getByRole('textbox', { name: 'Поиск книг', exact: true });
+  await search.blur();
+  expect(await search.evaluate(appearance)).toEqual(expectedAppearance);
+  await dialog.getByRole('button', { name: 'Где искать' }).click();
+  await page.getByRole('menuitem', { name: 'По описанию' }).click();
+  await expect(search).toHaveAttribute('placeholder', 'Найти по описанию');
+  await search.fill('черновик');
+  await expect(search).toBeFocused();
+  await dialog.getByRole('button', { name: 'Очистить поиск' }).click();
+  await expect(search).toHaveValue('');
+  await dialog.getByRole('button', { name: 'Отмена' }).click();
+  await expect(librarySearch).toHaveValue('Война');
+});
+
 test('создание сохраняет фильтры отдельно от выдачи и восстанавливает закладку после перезагрузки', async ({
   page,
 }) => {

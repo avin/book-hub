@@ -30,7 +30,6 @@ import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
-import TextInput from '@/components/common/TextInput/TextInput';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
   type LibraryView,
@@ -41,7 +40,7 @@ import BookCard from './BookCard/BookCard';
 import BookCardGrid from './BookCardGrid/BookCardGrid';
 import EditBookDialog from './EditBookDialog/EditBookDialog';
 import LibraryFiltersDropdown from './LibraryFiltersDropdown/LibraryFiltersDropdown';
-import SearchFieldSelect from '@/components/common/SearchFieldSelect/SearchFieldSelect';
+import BookSearchInput from '@/components/common/BookSearchInput/BookSearchInput';
 import {
   libraryBookmarkApplication,
   setLibraryBookmarkApplication,
@@ -335,35 +334,16 @@ function LibraryPage() {
 
       <section class={styles.toolbar}>
         <InputContainer label={t('searchBooks')}>
-          <div
-            class={styles.searchField}
-            classList={{ [styles.searchFieldActive]: search() !== '' }}
-          >
-            <SearchFieldSelect value={searchField()} onChange={setSearchField} />
-            <TextInput
-              class={styles.searchInput}
-              aria-label={t('searchBooks')}
-              value={search()}
-              placeholder={t(searchField() === 'description' ? 'findByDescription' : 'findByTitle')}
-              onInput={(event) => {
-                setSearch(event.currentTarget.value);
-              }}
-            />
-            <Show when={search() !== ''}>
-              <button
-                type="button"
-                class={styles.searchClear}
-                aria-label={t('clearSearch')}
-                title={t('clearSearch')}
-                onClick={() => {
-                  setSearch('');
-                  setDebouncedSearch('');
-                }}
-              >
-                <X />
-              </button>
-            </Show>
-          </div>
+          <BookSearchInput
+            value={search()}
+            onChange={setSearch}
+            searchField={searchField()}
+            onSearchFieldChange={setSearchField}
+            onClear={() => {
+              setSearch('');
+              setDebouncedSearch('');
+            }}
+          />
         </InputContainer>
 
         <div class={styles.secondaryFilters}>

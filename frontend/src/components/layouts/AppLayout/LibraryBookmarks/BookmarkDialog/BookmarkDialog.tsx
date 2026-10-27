@@ -4,7 +4,7 @@ import { createBookTagsQuery, type BookSearchField } from '@/api/books';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
-import SearchFieldSelect from '@/components/common/SearchFieldSelect/SearchFieldSelect';
+import BookSearchInput from '@/components/common/BookSearchInput/BookSearchInput';
 import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
 import TextInput from '@/components/common/TextInput/TextInput';
@@ -84,17 +84,12 @@ function BookmarkDialog(props: {
             />
           </InputContainer>
           <InputContainer label={t('searchBooks')}>
-            <div class={styles.search}>
-              <SearchFieldSelect value={searchField()} onChange={setSearchField} />
-              <TextInput
-                aria-label={t('searchBooks')}
-                value={search()}
-                placeholder={t(
-                  searchField() === 'description' ? 'findByDescription' : 'findByTitle',
-                )}
-                onInput={(event) => setSearch(event.currentTarget.value)}
-              />
-            </div>
+            <BookSearchInput
+              value={search()}
+              onChange={setSearch}
+              searchField={searchField()}
+              onSearchFieldChange={setSearchField}
+            />
           </InputContainer>
           <InputContainer label={t('tags')}>
             <TagsSelect
