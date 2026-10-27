@@ -60,12 +60,11 @@
   right: 0;
   left: 0;
   z-index: 40;
-  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  background: var(--surface-raised);
   border-bottom: 1px solid var(--border-default);
   font-family: $font-family-base;
   font-size: $font-size-base;
   line-height: $line-height-base;
-  backdrop-filter: blur(16px) saturate(180%);
   transform: translateY(-100%);
   transition:
     transform $duration-base $ease-standard,
@@ -76,7 +75,6 @@
 .secondaryBar {
   position: relative;
   padding: 0;
-  backdrop-filter: blur(16px) saturate(180%);
 }
 
 .footer {
@@ -88,11 +86,10 @@
   left: 0;
   z-index: 40;
   border-top: 1px solid var(--border-default);
-  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  background: var(--surface-raised);
   font-family: $font-family-base;
   font-size: $font-size-sm;
   line-height: 20px;
-  backdrop-filter: blur(16px) saturate(180%);
   transform: translateY(100%);
   transition:
     transform $duration-base $ease-standard,
