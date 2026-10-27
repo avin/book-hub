@@ -26,6 +26,7 @@ function LibraryBookmarks() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
+  const isReadingBook = () => /^\/reader\/[^/]+\/?$/.test(location.pathname);
   const [activeId, setActiveId] = createSignal(getActiveLibraryBookmarkPreference());
   const selectBookmark = (id: string | undefined) => {
     setActiveId(id);
@@ -40,7 +41,7 @@ function LibraryBookmarks() {
   createEffect(() => {
     const id = activeId();
     if (!id || libraryBookmarkApplication()) return;
-    if (location.pathname.replace(/\/+$/, '') !== '/library') {
+    if (location.pathname.replace(/\/+$/, '') !== '/library' && !isReadingBook()) {
       selectBookmark(undefined);
       return;
     }
@@ -55,7 +56,6 @@ function LibraryBookmarks() {
     )
       selectBookmark(undefined);
   });
-  onCleanup(() => selectBookmark(undefined));
   let pressTimer: ReturnType<typeof setTimeout> | undefined;
   let longPressed = false;
   const clearPress = () => clearTimeout(pressTimer);

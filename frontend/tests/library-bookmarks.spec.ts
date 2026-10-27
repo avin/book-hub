@@ -837,6 +837,30 @@ for (const mobile of [false, true]) {
   });
 }
 
+test('открытие книги и возврат назад сохраняют выбранную закладку', async ({ page }) => {
+  await mockSettings(page, [
+    bookmark('one', 'Первая', { search: 'Война' }),
+    bookmark('two', 'Вторая', { search: 'Война' }),
+  ]);
+  await login(page);
+  const entry = page.getByRole('button', { name: 'Вторая', exact: true });
+  await entry.click();
+  await expect(entry).toHaveAttribute('aria-pressed', 'true');
+  const libraryUrl = page.url();
+  await page.getByRole('article').first().getByRole('link').first().click();
+  await expect(page).toHaveURL(/\/reader\//);
+  await page.goBack();
+  await expect(page).toHaveURL(libraryUrl);
+  await expect(entry).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Первая', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue('Война');
+  await page.reload();
+  await expect(entry).toHaveAttribute('aria-pressed', 'true');
+});
+
 for (const section of ['Загрузка', 'Настройки']) {
   test(`выбор закладки сбрасывается при переходе в раздел ${section}`, async ({ page }) => {
     await mockSettings(page, [bookmark('one', 'Моя выборка')]);
