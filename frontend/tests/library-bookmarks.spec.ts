@@ -80,6 +80,37 @@ async function mockSettings(page: Page, items: LibraryBookmark[] = []) {
   return () => settings;
 }
 
+test('подсветка закладки затухает вместе с областью кнопки редактирования', async ({ page }) => {
+  await mockSettings(page, [bookmark('hover', 'Выборка')]);
+  await login(page);
+  const link = page.getByRole('button', { name: 'Выборка', exact: true });
+  const row = page.locator('[data-bookmark-id="hover"]');
+  await link.hover();
+  await row.evaluate((element) => {
+    for (const animation of element.getAnimations({ subtree: true })) animation.finish();
+  });
+  await page.mouse.move(0, 0);
+  const fading = await row.evaluate((element) => {
+    const animation = element
+      .getAnimations()
+      .find(
+        (item) => item instanceof CSSTransition && item.transitionProperty === 'background-color',
+      );
+    if (!animation) return null;
+    animation.pause();
+    animation.currentTime = Number(animation.effect!.getTiming().duration) / 2;
+    return {
+      background: getComputedStyle(element).backgroundColor,
+      buttons: Array.from(element.querySelectorAll('button')).map(
+        (button) => getComputedStyle(button).backgroundColor,
+      ),
+    };
+  });
+  expect(fading).not.toBeNull();
+  expect(fading!.background).not.toBe('rgba(0, 0, 0, 0)');
+  expect(fading!.buttons).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)']);
+});
+
 for (const route of ['/library', '/upload', '/settings']) {
   for (const favorite of ['favorite', 'regular']) {
     test(`пустая закладка полностью заменяет фильтры из ${route}, избранное ${favorite}`, async ({

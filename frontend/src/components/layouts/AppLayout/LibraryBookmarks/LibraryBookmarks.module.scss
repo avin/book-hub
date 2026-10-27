@@ -25,6 +25,7 @@
   align-items: center;
   min-width: 0;
   border-radius: $radius-sm;
+  transition: background $duration-fast $ease-standard;
   &:hover {
     background: var(--surface-sunken);
   }
@@ -39,6 +40,10 @@
   touch-action: pan-y;
   user-select: none;
   -webkit-touch-callout: none;
+
+  &:hover:where(:not(:disabled)) {
+    background: transparent;
+  }
 
   span {
     @include truncate;
