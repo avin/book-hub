@@ -64,7 +64,7 @@ for (const view of ['Список', 'Сетка']) {
     await page.getByRole('button', { name: view, exact: true }).click();
     const card = page.getByRole('article').first();
     const cover = card.getByRole('link').first();
-    const preview = page.getByRole('dialog', { name: 'Показать обложку целиком', exact: true });
+    const preview = page.getByRole('dialog', { name: 'Показать обложку', exact: true });
 
     const coverBounds = await cover.boundingBox();
     expect(coverBounds).not.toBeNull();
@@ -85,7 +85,7 @@ for (const view of ['Список', 'Сетка']) {
     await expect(page.getByRole('menuitem')).toHaveCount(0);
 
     await cover.click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Показать обложку целиком', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Показать обложку', exact: true }).click();
     await expect(preview).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(preview).toBeHidden();

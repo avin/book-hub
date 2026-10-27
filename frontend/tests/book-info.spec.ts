@@ -100,10 +100,10 @@ for (const grid of [false, true]) {
     await page.keyboard.press('Shift+Tab');
     await expect(info.getByRole('button', { name: 'роман', exact: true })).toBeFocused();
     await page.screenshot({ path: test.info().outputPath('book-info-desktop.png') });
-    const cover = info.getByRole('button', { name: 'Показать обложку целиком', exact: true });
+    const cover = info.getByRole('button', { name: 'Показать обложку', exact: true });
     await cover.focus();
     await cover.press('Enter');
-    const preview = page.getByRole('dialog', { name: 'Показать обложку целиком', exact: true });
+    const preview = page.getByRole('dialog', { name: 'Показать обложку', exact: true });
     await expect(preview).toBeVisible();
     await expect(info).toBeHidden();
     await expect(preview.locator('img')).toBeVisible();
@@ -112,7 +112,7 @@ for (const grid of [false, true]) {
     await page.keyboard.press('Escape');
     await expect(preview).toBeHidden();
     await expect(info).toBeVisible();
-    await info.getByRole('button', { name: 'Показать обложку целиком', exact: true }).click();
+    await info.getByRole('button', { name: 'Показать обложку', exact: true }).click();
     await expect(preview).toBeVisible();
     await page.mouse.click(4, 4);
     await expect(preview).toBeHidden();

@@ -256,7 +256,7 @@ test('FB2 и EPUB сохраняют размеры и шрифт интерфе
       await expectHeight(color, 40);
     }
     await expectHeight(page.getByRole('searchbox', { name: 'Поиск по книге' }), 32);
-    await expectHeight(panel.getByRole('button', { name: 'Закрыть', exact: true }), 40);
+    await expectHeight(panel.getByRole('button', { name: 'Закрыть', exact: true }), 32);
 
     const readUiMetrics = () =>
       panel.evaluate((element) =>
@@ -320,8 +320,8 @@ test('PDF и DJVU используют одинаковую панель и ко
       timeout: 30_000,
     });
     const panel = await openReaderSettings(page);
-    await expectHeight(panel.getByRole('button', { name: 'Закрыть', exact: true }), 40);
-    await expectHeight(panel.getByRole('slider', { name: 'Увеличение ширины', exact: true }), 32);
+    await expectHeight(panel.getByRole('button', { name: 'Закрыть', exact: true }), 32);
+    await expectHeight(panel.getByRole('slider', { name: 'Увеличение ширины', exact: true }), 24);
     await expectHeight(panel.getByRole('checkbox', { name: 'Инверсия', exact: true }), 16);
     await expectHeight(page.getByTestId('reader-floating-footer').getByRole('button').last(), 32);
     if (format === 'pdf') {

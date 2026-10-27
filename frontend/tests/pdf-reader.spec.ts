@@ -103,12 +103,12 @@ for (const deviceScaleFactor of [1, 1.25, 2]) {
         .click();
       const canvases = page.locator('[data-page-number="1"] canvas');
 
-      const expectNativeCanvasSize = async () => {
+      const expectNativeCanvasSize = async (filtered = false) => {
         await expect
           .poll(() =>
-            canvases.evaluateAll((elements) => {
+            canvases.evaluateAll((elements, filtered) => {
               const visible = elements.filter(
-                (canvas) => getComputedStyle(canvas).display !== 'none',
+                (canvas) => canvas.isConnected && getComputedStyle(canvas).display !== 'none',
               );
               const ratio = Math.min(2, window.devicePixelRatio);
 
@@ -117,9 +117,11 @@ for (const deviceScaleFactor of [1, 1.25, 2]) {
                 visible.every((element) => {
                   const canvas = element as HTMLCanvasElement;
                   const rect = canvas.getBoundingClientRect();
-                  const page = canvas.closest('[data-page-number]')!;
+                  const page = canvas.closest('[data-page-number]');
 
                   return (
+                    page !== null &&
+                    (!filtered || canvas.getAttribute('aria-hidden') === 'true') &&
                     canvas.width === Math.round(page.clientWidth * ratio) &&
                     canvas.height > 0 &&
                     Math.abs(rect.width - canvas.width / ratio) < 0.02 &&
@@ -127,7 +129,7 @@ for (const deviceScaleFactor of [1, 1.25, 2]) {
                   );
                 })
               );
-            }),
+            }, filtered),
           )
           .toBe(true);
       };
@@ -139,12 +141,15 @@ for (const deviceScaleFactor of [1, 1.25, 2]) {
 
       await showReaderChrome(page);
       await page.getByRole('button', { name: 'Внешний вид' }).click();
+      const firstPage = page.locator('[data-page-number="1"]');
+      const initialWidth = await firstPage.evaluate((element) => element.clientWidth);
       await page.getByRole('slider', { name: 'Увеличение ширины' }).fill('80');
-      await expect.poll(() => canvases.count()).toBeGreaterThan(1);
+      await expect
+        .poll(() => firstPage.evaluate((element) => element.clientWidth))
+        .toBeGreaterThan(initialWidth);
       await expectNativeCanvasSize();
       await page.getByRole('checkbox', { name: 'Инверсия', exact: true }).check();
-      await expect.poll(() => canvases.count()).toBeGreaterThan(2);
-      await expectNativeCanvasSize();
+      await expectNativeCanvasSize(true);
     });
   });
 }
