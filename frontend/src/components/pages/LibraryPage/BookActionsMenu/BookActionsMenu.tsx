@@ -34,6 +34,19 @@ function BookActionsMenu(props: {
       onClick: () => props.onShowInfo(props.book()),
     },
     {
+      id: 'show-cover',
+      label: t('showFullCoverMenu'),
+      iconStart: <Eye />,
+      onClick: () => props.onShowCover(props.book()),
+    },
+    {
+      id: 'download',
+      label: t('downloadBook'),
+      iconStart: <Download />,
+      onClick: downloadBook,
+    },
+    { type: 'separator' },
+    {
       id: 'favorite',
       label: props.book().favorite ? t('removeFromFavorites') : t('addToFavorites'),
       iconStart: <Heart />,
@@ -50,18 +63,6 @@ function BookActionsMenu(props: {
       label: t('resetReadingProgress'),
       iconStart: <RotateCcw />,
       onClick: () => props.onResetProgress(props.book()),
-    },
-    {
-      id: 'show-cover',
-      label: t('showFullCoverMenu'),
-      iconStart: <Eye />,
-      onClick: () => props.onShowCover(props.book()),
-    },
-    {
-      id: 'download',
-      label: t('downloadBook'),
-      iconStart: <Download />,
-      onClick: downloadBook,
     },
     { type: 'separator' },
     {

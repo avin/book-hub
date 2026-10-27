@@ -505,7 +505,7 @@ export const messages = {
     en: 'Open the context menu to show the full cover',
   },
   showFullCoverMenu: {
-    ru: 'Показать обложку целиком',
+    ru: 'Показать обложку',
     en: 'Show full cover',
   },
   downloadBook: {
