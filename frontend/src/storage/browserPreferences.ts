@@ -13,11 +13,13 @@ export {
   setReflowableReaderSettingsPreference,
 } from './browserPreferencesReflowable';
 export {
+  getActiveLibraryBookmarkPreference,
   getLanguagePreference,
   getLibraryViewPreference,
   getMinimalScrollbarsPreference,
   getRecentTagsPreference,
   getThemePreference,
+  setActiveLibraryBookmarkPreference,
   setLanguagePreference,
   setLibraryViewPreference,
   setMinimalScrollbarsPreference,

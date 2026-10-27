@@ -9,6 +9,8 @@ test('поиск в закладке оформлен как в библиоте
   await librarySearch.fill('Война');
   await librarySearch.blur();
   const appearance = (input: HTMLElement) => {
+    for (const animation of input.parentElement!.getAnimations({ subtree: true }))
+      animation.finish();
     const styles = (element: Element) => {
       const css = getComputedStyle(element);
       return [css.border, css.borderRadius, css.backgroundColor, css.minHeight, css.padding];
@@ -140,8 +142,9 @@ for (const route of ['/library', '/upload', '/settings']) {
         'aria-pressed',
         'true',
       );
-      await expect(page.getByRole('button', { name: 'Все книги', exact: true })).not.toHaveClass(
-        /active/,
+      await expect(page.getByRole('button', { name: 'Все книги', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
       );
       await page.getByRole('link', { name: 'Настройки', exact: true }).click();
       await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
@@ -587,3 +590,74 @@ for (const mobile of [false, true]) {
     await expect(page).toHaveURL(/tag=/);
   });
 }
+
+for (const mobile of [false, true]) {
+  test(`активная закладка сохраняется после перезагрузки и сбрасывается при поиске (${mobile ? 'mobile' : 'desktop'})`, async ({
+    page,
+  }) => {
+    await mockSettings(page, [
+      bookmark('one', 'Первая', { search: 'Война' }),
+      bookmark('two', 'Вторая', { search: 'Война' }),
+    ]);
+    await page.setViewportSize({ width: mobile ? 390 : 1100, height: 844 });
+    await login(page);
+    const open = async () => {
+      if (mobile) await page.getByRole('button', { name: 'Закладки', exact: true }).click();
+    };
+    const first = page.getByRole('button', { name: 'Первая', exact: true });
+    const second = page.getByRole('button', { name: 'Вторая', exact: true });
+    await open();
+    await first.click();
+    await expect(page).toHaveURL(/q=/);
+    await page.reload();
+    await open();
+    await expect(first).toHaveAttribute('aria-pressed', 'true');
+    const activeBackground = await page
+      .getByRole('link', { name: 'Библиотека', exact: true })
+      .evaluate((element) => getComputedStyle(element).backgroundColor);
+    await expect(page.locator('[data-bookmark-id="one"]')).toHaveCSS(
+      'background-color',
+      activeBackground,
+    );
+    await expect(second).toHaveAttribute('aria-pressed', 'false');
+    await second.click();
+    await open();
+    await expect(first).toHaveAttribute('aria-pressed', 'false');
+    await expect(second).toHaveAttribute('aria-pressed', 'true');
+    if (mobile) await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Поиск книг', exact: true }).fill('новый запрос');
+    await open();
+    await expect(second).toHaveAttribute('aria-pressed', 'false');
+    if (mobile) await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
+    await page.reload();
+    await open();
+    await expect(second).toHaveAttribute('aria-pressed', 'false');
+  });
+}
+
+for (const section of ['Загрузка', 'Настройки']) {
+  test(`выбор закладки сбрасывается при переходе в раздел ${section}`, async ({ page }) => {
+    await mockSettings(page, [bookmark('one', 'Моя выборка')]);
+    await login(page);
+    const entry = page.getByRole('button', { name: 'Моя выборка', exact: true });
+    await entry.click();
+    await expect(entry).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('link', { name: section, exact: true }).click();
+    await expect(entry).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
+    await expect(entry).toHaveAttribute('aria-pressed', 'false');
+    await page.reload();
+    await expect(entry).toHaveAttribute('aria-pressed', 'false');
+  });
+}
+
+test('смена поля поиска сбрасывает выбор закладки', async ({ page }) => {
+  await mockSettings(page, [bookmark('one', 'Моя выборка')]);
+  await login(page);
+  const entry = page.getByRole('button', { name: 'Моя выборка', exact: true });
+  await entry.click();
+  await expect(entry).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Где искать' }).click();
+  await page.getByRole('menuitem', { name: 'По описанию' }).click();
+  await expect(entry).toHaveAttribute('aria-pressed', 'false');
+});

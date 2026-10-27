@@ -16,6 +16,7 @@ export type BrowserPreferences = {
   language?: unknown;
   theme?: unknown;
   libraryView?: unknown;
+  activeLibraryBookmark?: unknown;
   minimalScrollbars?: unknown;
   recentTags?: unknown;
   readers?: {

@@ -30,6 +30,18 @@
     background: var(--surface-sunken);
   }
 }
+.row.active {
+  background: var(--accent-soft-bg);
+
+  .link {
+    color: var(--accent-hover);
+    font-weight: 650;
+
+    :global(svg) {
+      color: var(--accent);
+    }
+  }
+}
 .row + .row {
   margin-top: 2px;
 }

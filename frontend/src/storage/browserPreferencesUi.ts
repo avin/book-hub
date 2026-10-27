@@ -64,3 +64,12 @@ export function setRecentTagsPreference(recentTags: string[]) {
     recentTags: recentTags.filter((tag) => tag.trim().length > 0),
   }));
 }
+
+export function getActiveLibraryBookmarkPreference(): string | undefined {
+  const id = readPreferences().activeLibraryBookmark;
+  return typeof id === 'string' ? id : undefined;
+}
+
+export function setActiveLibraryBookmarkPreference(id: string | undefined) {
+  updatePreferences((preferences) => ({ ...preferences, activeLibraryBookmark: id }));
+}

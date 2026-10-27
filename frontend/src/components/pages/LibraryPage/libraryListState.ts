@@ -100,8 +100,11 @@ export function readInitialLibraryListState() {
   );
 }
 
+const [currentLibraryListState, setCurrentLibraryListState] = createSignal<LibraryListState>();
+
 export function rememberLibraryListState(state: LibraryListState) {
   lastLibraryListState = cloneLibraryListState(state);
+  setCurrentLibraryListState(lastLibraryListState);
 }
 
 export function buildLibraryListStateUrl(
@@ -142,3 +145,5 @@ export const [libraryBookmarkApplication, setLibraryBookmarkApplication] =
 export function getLastLibraryListState() {
   return cloneLibraryListState(lastLibraryListState);
 }
+
+export { currentLibraryListState };

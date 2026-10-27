@@ -1,16 +1,22 @@
 import { Portal } from 'solid-js/web';
-import { useNavigate } from '@solidjs/router';
+import { useLocation, useNavigate } from '@solidjs/router';
 import { Bookmark, Pencil, Plus } from 'lucide-solid';
-import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { batch, createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { createLibraryBookmarks, type LibraryBookmark } from '@/api/libraryBookmarks';
 import Button from '@/components/common/Button/Button';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import {
   buildLibraryListStateUrl,
+  currentLibraryListState,
+  libraryBookmarkApplication,
   getLastLibraryListState,
   rememberLibraryListState,
   setLibraryBookmarkApplication,
 } from '@/components/pages/LibraryPage/libraryListState';
+import {
+  getActiveLibraryBookmarkPreference,
+  setActiveLibraryBookmarkPreference,
+} from '@/storage/browserPreferences';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookmarkDialog from './BookmarkDialog/BookmarkDialog';
 import styles from './LibraryBookmarks.module.scss';
@@ -18,12 +24,37 @@ import styles from './LibraryBookmarks.module.scss';
 function LibraryBookmarks() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeId, setActiveId] = createSignal(getActiveLibraryBookmarkPreference());
+  const selectBookmark = (id: string | undefined) => {
+    setActiveId(id);
+    setActiveLibraryBookmarkPreference(id);
+  };
   const { settings, mutation, bookmarks } = createLibraryBookmarks();
   const [mobileOpen, setMobileOpen] = createSignal(false);
   const [creating, setCreating] = createSignal(false);
   const [editing, setEditing] = createSignal<LibraryBookmark>();
   const [deleting, setDeleting] = createSignal<LibraryBookmark>();
   const [revealed, setRevealed] = createSignal<string>();
+  createEffect(() => {
+    const id = activeId();
+    if (!id || libraryBookmarkApplication()) return;
+    if (location.pathname.replace(/\/+$/, '') !== '/library') {
+      selectBookmark(undefined);
+      return;
+    }
+    if (!settings.isSuccess) return;
+    const bookmark = bookmarks().find((item) => item.id === id);
+    const state = currentLibraryListState();
+    if (
+      !bookmark ||
+      (state &&
+        (state.search.trim() !== bookmark.search.trim() ||
+          state.searchField !== bookmark.searchField))
+    )
+      selectBookmark(undefined);
+  });
+  onCleanup(() => selectBookmark(undefined));
   let pressTimer: ReturnType<typeof setTimeout> | undefined;
   let longPressed = false;
   const clearPress = () => clearTimeout(pressTimer);
@@ -60,10 +91,13 @@ function LibraryBookmarks() {
       tags: [...bookmark.tags],
       favoriteFilter: 'all' as const,
     };
-    rememberLibraryListState(state);
-    setLibraryBookmarkApplication(state);
-    setMobileOpen(false);
-    navigate(buildLibraryListStateUrl(state, { pathname: '/library', search: '', hash: '' }));
+    batch(() => {
+      rememberLibraryListState(state);
+      setLibraryBookmarkApplication(state);
+      selectBookmark(bookmark.id);
+      setMobileOpen(false);
+      navigate(buildLibraryListStateUrl(state, { pathname: '/library', search: '', hash: '' }));
+    });
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
   const list = () => (
@@ -74,13 +108,17 @@ function LibraryBookmarks() {
             <div
               class={styles.row}
               data-bookmark-id={bookmark.id}
-              classList={{ [styles.revealed]: revealed() === bookmark.id }}
+              classList={{
+                [styles.revealed]: revealed() === bookmark.id,
+                [styles.active]: activeId() === bookmark.id,
+              }}
               onContextMenu={(event) => event.preventDefault()}
             >
               <button
                 type="button"
                 class={styles.link}
                 title={bookmark.name}
+                aria-pressed={activeId() === bookmark.id}
                 onPointerDown={(event) => {
                   longPressed = false;
                   if (event.pointerType === 'mouse') return;
