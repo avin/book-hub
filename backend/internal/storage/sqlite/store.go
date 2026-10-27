@@ -412,21 +412,36 @@ func (s *Store) QueryBooks(ctx context.Context, userID uuid.UUID, query domain.B
 	if orderBy == "" {
 		orderBy = "ub.last_opened_at desc, ub.created_at desc, ub.id desc"
 	}
-	tags, _ := json.Marshal(query.Tags)
 	searchColumn := "ub.title"
 	if query.SearchField == "description" {
 		searchColumn = "ub.description"
 	}
 	where := `ub.user_id = ?1 and (?2 = '' or instr(bookhub_lower(` + searchColumn + `),bookhub_lower(?2))>0)
- and (?3 is null or ub.favorite=?3)
- and not exists(select 1 from json_each(?4) qtag where not exists(
- select 1 from user_book_tags bt join tags t on t.id=bt.tag_id
- where bt.user_book_id=ub.id and t.name=qtag.value))`
+ and (?3 is null or ub.favorite=?3)`
+	args := []any{userID, query.Q, query.Favorite}
+	queryPrefix := ""
+	bookQuery := bookSelect
+	countQuery := "select count(*) from user_books ub"
+	if len(query.Tags) > 0 {
+		tags, _ := json.Marshal(query.Tags)
+		queryPrefix = `with tagged_books as (
+	select bt.user_book_id
+	from json_each(?4) qtag
+	join tags t on t.user_id = ?1 and t.name = qtag.value
+	join user_book_tags bt on bt.tag_id = t.id
+	group by bt.user_book_id
+	having count(*) = json_array_length(?4)
+) `
+		countQuery = "select count(*) from tagged_books tb join user_books ub on ub.id = tb.user_book_id"
+		bookQuery = bookSelectFromTaggedBooks
+		args = append(args, string(tags))
+	}
 	var total int64
-	if err := s.pool.QueryRow(ctx, "select count(*) from user_books ub where "+where, userID, query.Q, query.Favorite, string(tags)).Scan(&total); err != nil {
+	if err := s.pool.QueryRow(ctx, queryPrefix+countQuery+" where "+where, args...).Scan(&total); err != nil {
 		return domain.BookPage{}, err
 	}
-	rows, err := s.pool.Query(ctx, bookSelect+" where "+where+" order by "+orderBy+" limit ?5 offset ?6", userID, query.Q, query.Favorite, string(tags), query.Limit, query.Offset)
+	args = append(args, query.Limit, query.Offset)
+	rows, err := s.pool.Query(ctx, queryPrefix+bookQuery+" where "+where+" order by "+orderBy+" limit ? offset ?", args...)
 	if err != nil {
 		return domain.BookPage{}, err
 	}
@@ -687,11 +702,18 @@ type bookQuerier interface {
 	Query(ctx context.Context, sql string, args ...any) (*rows, error)
 }
 
-const bookSelect = `select ub.id, ub.title, ub.description,
+const bookSelectColumns = `ub.id, ub.title, ub.description,
  (select json_group_array(name) from (select t.name from user_book_tags bt join tags t on t.id=bt.tag_id where bt.user_book_id=ub.id order by t.name)) as tags,
  ub.favorite, bf.format, bf.size_bytes, ub.progress_percent, bf.storage_path, bf.sha256, ub.cover_path, ub.cover_thumbnail_path,
- ub.created_at, ub.last_opened_at, ub.updated_at
+ ub.created_at, ub.last_opened_at, ub.updated_at`
+
+const bookSelect = `select ` + bookSelectColumns + `
  from user_books ub join book_files bf on bf.id=ub.book_file_id`
+
+const bookSelectFromTaggedBooks = `select ` + bookSelectColumns + `
+ from tagged_books tb
+ join user_books ub on ub.id=tb.user_book_id
+ join book_files bf on bf.id=ub.book_file_id`
 
 func scanBook(ctx context.Context, q bookQuerier, userID, bookID uuid.UUID) (domain.Book, error) {
 	rows, err := q.Query(ctx, bookSelect+" where ub.user_id=?1 and ub.id=?2", userID, bookID)
