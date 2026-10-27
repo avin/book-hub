@@ -2122,6 +2122,7 @@ function PdfReader(props: {
           <>
             <Button
               variant="secondary"
+              size="sm"
               type="button"
               iconOnly
               iconStart={<SlidersHorizontal />}
@@ -2132,6 +2133,7 @@ function PdfReader(props: {
             />
             <Button
               variant="secondary"
+              size="sm"
               type="button"
               iconOnly
               iconStart={<ListTree />}

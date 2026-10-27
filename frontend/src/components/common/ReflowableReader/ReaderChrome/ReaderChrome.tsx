@@ -58,6 +58,7 @@ function ReaderChrome(props: {
         <>
           <Button
             variant="secondary"
+            size="sm"
             type="button"
             iconOnly
             iconStart={<Settings />}
@@ -68,6 +69,7 @@ function ReaderChrome(props: {
           />
           <Button
             variant="secondary"
+            size="sm"
             type="button"
             iconOnly
             iconStart={<ListTree />}

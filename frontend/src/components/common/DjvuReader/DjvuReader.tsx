@@ -1047,6 +1047,7 @@ function DjvuReader(props: {
           <>
             <Button
               variant="secondary"
+              size="sm"
               type="button"
               iconOnly
               iconStart={<SlidersHorizontal />}
@@ -1057,6 +1058,7 @@ function DjvuReader(props: {
             />
             <Button
               variant="secondary"
+              size="sm"
               type="button"
               iconOnly
               iconStart={<ListTree />}

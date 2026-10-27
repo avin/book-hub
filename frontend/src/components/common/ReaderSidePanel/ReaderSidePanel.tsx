@@ -22,7 +22,8 @@ function ReaderSidePanel(props: {
       <div class={styles.panelHeader}>
         <h2>{props.title}</h2>
         <Button
-          variant="secondary"
+          variant="ghost"
+          size="sm"
           type="button"
           iconOnly
           iconStart={<X />}

@@ -4,12 +4,12 @@
 
 .filterList {
   display: grid;
-  gap: $space-3;
+  gap: $space-2;
 }
 
 .settingGroup {
   display: grid;
-  gap: $space-4;
+  gap: $space-3;
 
   h3 {
     display: flex;
@@ -22,8 +22,8 @@
     line-height: 20px;
 
     :global(svg) {
-      width: $icon-size;
-      height: $icon-size;
+      width: $icon-size-sm;
+      height: $icon-size-sm;
       color: var(--text-muted);
     }
   }
@@ -32,14 +32,14 @@
 .panelActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $space-3;
+  gap: $space-2;
 }
 
 .filterGroup {
   display: grid;
-  gap: $space-4;
-  padding: $space-4;
-  border: 1px solid var(--border-default);
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border-subtle);
   border-radius: $radius-sm;
   background: var(--surface-raised);
   will-change: transform;
@@ -47,6 +47,8 @@
 
 .settingGroup :global(input[type='range']) {
   @include range-control;
+
+  height: $space-6;
 }
 
 .filterPlaceholder {
@@ -59,7 +61,7 @@
 .filterHeader {
   display: flex;
   align-items: center;
-  gap: $space-2;
+  gap: $space-1;
 }
 
 .dragHandleWrapper {

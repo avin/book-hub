@@ -40,6 +40,7 @@ function SettingsPanel(props: {
         <div class={styles.panelActions}>
           <Button
             fullWidth
+            size="sm"
             variant="secondary"
             type="button"
             iconStart={<RotateCcw />}
@@ -49,6 +50,7 @@ function SettingsPanel(props: {
           </Button>
           <Button
             fullWidth
+            size="sm"
             variant="secondary"
             type="button"
             iconStart={<SlidersHorizontal />}

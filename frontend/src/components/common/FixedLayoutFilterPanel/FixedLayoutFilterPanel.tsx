@@ -244,6 +244,7 @@ function FixedLayoutFilterPanel(props: {
         <div class={styles.panelActions}>
           <Button
             fullWidth
+            size="sm"
             variant="secondary"
             type="button"
             iconStart={<RotateCcw />}
@@ -253,6 +254,7 @@ function FixedLayoutFilterPanel(props: {
           </Button>
           <Button
             fullWidth
+            size="sm"
             variant="secondary"
             type="button"
             iconStart={<SlidersHorizontal />}
@@ -302,6 +304,7 @@ function FixedLayoutFilterPanel(props: {
                   <span class={styles.dragHandleWrapper}>
                     <Button
                       variant="ghost"
+                      size="sm"
                       iconOnly
                       type="button"
                       class={styles.dragHandle}
