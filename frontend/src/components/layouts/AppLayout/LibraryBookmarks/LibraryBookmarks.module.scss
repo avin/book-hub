@@ -22,7 +22,7 @@
   border-radius: $radius-sm;
   transition: background $duration-fast $ease-standard;
   &:hover {
-    background: var(--surface-sunken);
+    background: var(--bookmark-hover-bg, var(--surface-sunken));
   }
 }
 .row.active {
