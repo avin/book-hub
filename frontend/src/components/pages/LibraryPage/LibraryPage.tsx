@@ -302,7 +302,6 @@ function LibraryPage() {
     <section class={styles.library}>
       <header class={styles.header}>
         <div>
-          <p class={styles.kicker}>{t('library')}</p>
           <h1>
             {t('yourBooks')}
             <Show when={booksTotal() !== undefined}>

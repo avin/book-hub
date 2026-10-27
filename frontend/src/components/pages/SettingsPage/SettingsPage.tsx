@@ -124,7 +124,6 @@ function SettingsPage() {
   return (
     <section class={styles.settingsPage}>
       <header class={styles.header}>
-        <p class={styles.kicker}>{t('settings')}</p>
         <h1>
           {t('accountSettings')}
           <Show when={user()}>

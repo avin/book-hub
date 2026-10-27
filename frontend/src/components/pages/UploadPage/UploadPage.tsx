@@ -270,10 +270,7 @@ function UploadPage() {
   return (
     <section class={styles.uploadPage}>
       <header class={styles.header}>
-        <div>
-          <p class={styles.kicker}>{t('upload')}</p>
-          <h1>{t('addBooks')}</h1>
-        </div>
+        <h1>{t('addBooks')}</h1>
       </header>
 
       <form class={styles.form} onSubmit={uploadBatch.handleSubmit}>
