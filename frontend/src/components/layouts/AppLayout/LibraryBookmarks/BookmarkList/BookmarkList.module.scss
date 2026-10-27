@@ -1,0 +1,27 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+
+.list {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.placeholder {
+  opacity: 0.3;
+  background: var(--accent-soft-bg);
+}
+.sorting,
+.placeholder,
+.dragging {
+  [data-bookmark-edit] {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+.dragging {
+  z-index: 10000;
+  opacity: 0.95;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 24px rgb(var(--shadow-color) / 0.24);
+  cursor: grabbing;
+}

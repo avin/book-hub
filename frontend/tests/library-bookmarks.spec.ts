@@ -82,6 +82,156 @@ async function mockSettings(page: Page, items: LibraryBookmark[] = []) {
   return () => settings;
 }
 
+async function dragBookmark(page: Page, id: string, targetId: string) {
+  const handle = page.locator(`[data-bookmark-id="${id}"] [data-bookmark-drag-handle]`);
+  const source = (await handle.boundingBox())!;
+  const target = (await page.locator(`[data-bookmark-id="${targetId}"]`).boundingBox())!;
+  const x = source.x + source.width / 2;
+  await page.mouse.move(x, source.y + source.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x, source.y + source.height / 2 + 7, { steps: 3 });
+  await page.mouse.move(x, target.y + target.height / 2, { steps: 20 });
+  await expect(page.locator('[data-bookmark-id]').first()).toHaveAttribute(
+    'data-bookmark-id',
+    targetId,
+  );
+  await page.mouse.up();
+}
+
+test('сохранение порядка не меняет вид и доступность кнопок', async ({ page }) => {
+  await mockSettings(page, [bookmark('one', 'А'), bookmark('two', 'Б')]);
+  await login(page);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/v1/me/settings', async (route) => {
+    if (route.request().method() === 'PUT') await gate;
+    await route.fallback();
+  });
+  try {
+    await dragBookmark(page, 'one', 'two');
+    for (const id of ['one', 'two']) {
+      const handle = page.locator(`[data-bookmark-id="${id}"] [data-bookmark-drag-handle]`);
+      await expect(handle).toBeEnabled();
+      await expect(handle).toHaveCSS('opacity', '1');
+      await expect(page.locator(`[data-bookmark-id="${id}"] [data-bookmark-edit]`)).toBeEnabled();
+    }
+    await expect(page.getByRole('button', { name: 'Создать закладку', exact: true })).toBeEnabled();
+  } finally {
+    release();
+  }
+});
+
+test('ответ сервера после переноса сохраняет строку под курсором и её hover', async ({ page }) => {
+  await mockSettings(page, [bookmark('one', 'А'), bookmark('two', 'Б')]);
+  await login(page);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/v1/me/settings', async (route) => {
+    if (route.request().method() === 'PUT') await gate;
+    await route.fallback();
+  });
+  try {
+    await dragBookmark(page, 'one', 'two');
+    const row = page.locator('[data-bookmark-id="one"]');
+    await expect.poll(() => row.evaluate((element) => element.matches(':hover'))).toBe(true);
+    const original = await row.elementHandle();
+    await row.evaluate((element) => {
+      for (const animation of element.getAnimations({ subtree: true })) animation.finish();
+    });
+    const background = await row.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const response = page.waitForResponse(
+      (res) => res.url().endsWith('/v1/me/settings') && res.request().method() === 'PUT',
+    );
+    release();
+    await response;
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
+    await expect.poll(() => original!.evaluate((element) => element.isConnected)).toBe(true);
+    await expect(row).toHaveCSS('background-color', background);
+    expect(await row.evaluate((element, previous) => element === previous, original)).toBe(true);
+    await expect.poll(() => row.evaluate((element) => element.matches(':hover'))).toBe(true);
+  } finally {
+    release();
+  }
+});
+
+for (const mobile of [false, true]) {
+  test(`перетаскивание за иконку сохраняет порядок (${mobile ? 'mobile' : 'desktop'})`, async ({
+    page,
+  }) => {
+    const saved = await mockSettings(page, [
+      bookmark('one', 'А'),
+      bookmark('two', 'Б'),
+      bookmark('three', 'В'),
+    ]);
+    if (mobile) await page.setViewportSize({ width: 390, height: 844 });
+    await login(page);
+    const open = async () => {
+      if (mobile) await page.getByRole('button', { name: 'Закладки', exact: true }).click();
+    };
+    await open();
+    await dragBookmark(page, 'one', 'two');
+    await expect
+      .poll(() => saved().libraryBookmarks.map((item) => item.id))
+      .toEqual(['two', 'one', 'three']);
+    await expect(page.getByRole('button', { name: 'А', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await page.reload();
+    await open();
+    await expect(page.locator('[data-bookmark-id]').first()).toHaveAttribute(
+      'data-bookmark-id',
+      'two',
+    );
+    await dragBookmark(page, 'two', 'one');
+    await expect
+      .poll(() => saved().libraryBookmarks.map((item) => item.id))
+      .toEqual(['one', 'two', 'three']);
+    expect(saved().unrelated).toEqual({ keep: 42 });
+    const link = page.getByRole('button', { name: 'А', exact: true });
+    const bounds = (await link.boundingBox())!;
+    const edit = page.getByRole('button', { name: 'Редактировать закладку А', exact: true });
+    await link.hover();
+    expect(bounds.x + bounds.width).toBeCloseTo((await edit.boundingBox())!.x, 0);
+    await link.click({ position: { x: bounds.width - 3, y: bounds.height / 2 } });
+    if (mobile) await open();
+    await expect(link).toHaveAttribute('aria-pressed', 'true');
+  });
+}
+
+test('ошибка сохранения порядка возвращает исходный список и позволяет повторить', async ({
+  page,
+}) => {
+  const saved = await mockSettings(page, [bookmark('one', 'А'), bookmark('two', 'Б')]);
+  await login(page);
+  let fail = true;
+  await page.route('**/api/v1/me/settings', async (route) => {
+    if (fail && route.request().method() === 'PUT') {
+      await route.fulfill({ status: 500, json: { error: 'internal_error' } });
+    } else await route.fallback();
+  });
+  await dragBookmark(page, 'one', 'two');
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.locator('[data-bookmark-id]').first()).toHaveAttribute(
+    'data-bookmark-id',
+    'one',
+  );
+  await expect(page.locator('[data-bookmark-drag-handle]').first()).toBeEnabled();
+  fail = false;
+  await dragBookmark(page, 'one', 'two');
+  await expect.poll(() => saved().libraryBookmarks.map((item) => item.id)).toEqual(['two', 'one']);
+  await expect(page.getByRole('alert')).toBeHidden();
+});
+
 test('подсветка закладки затухает вместе с областью кнопки редактирования', async ({ page }) => {
   await mockSettings(page, [bookmark('hover', 'Выборка')]);
   await login(page);
@@ -110,7 +260,7 @@ test('подсветка закладки затухает вместе с об�
   });
   expect(fading).not.toBeNull();
   expect(fading!.background).not.toBe('rgba(0, 0, 0, 0)');
-  expect(fading!.buttons).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)']);
+  expect(fading!.buttons).toEqual(Array(3).fill('rgba(0, 0, 0, 0)'));
 });
 
 for (const route of ['/library', '/upload', '/settings']) {
@@ -163,7 +313,7 @@ test('черновик независим, предзаполняется на �
   await page.getByRole('button', { name: 'Создать закладку', exact: true }).click();
   let dialog = page.getByRole('dialog', { name: 'Создать закладку', exact: true });
   await expect(dialog.getByRole('textbox', { name: 'Название', exact: true })).toHaveValue(
-    'Закладка',
+    'Война роман',
   );
   await expect(dialog.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue(
     'Война',
@@ -286,6 +436,42 @@ for (const mobile of [false, true]) {
 
 test.describe('сенсорное управление', () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  test('перетаскивание пальцем за иконку меняет порядок и не открывает закладку', async ({
+    page,
+  }) => {
+    const saved = await mockSettings(page, [bookmark('one', 'А'), bookmark('two', 'Б')]);
+    await login(page);
+    await page.getByRole('button', { name: 'Закладки', exact: true }).tap();
+    const handle = (await page
+      .locator('[data-bookmark-id="one"] [data-bookmark-drag-handle]')
+      .boundingBox())!;
+    const target = (await page.locator('[data-bookmark-id="two"]').boundingBox())!;
+    const session = await page.context().newCDPSession(page);
+    const x = handle.x + handle.width / 2;
+    const y = handle.y + handle.height / 2;
+    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    for (let step = 1; step <= 12; step++) {
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x, y: y + ((target.y + target.height / 2 - y) * step) / 12 }],
+      });
+      await page.waitForTimeout(25); // Продолжительность пользовательского жеста.
+    }
+    await expect(page.locator('[data-bookmark-id]').first()).toHaveAttribute(
+      'data-bookmark-id',
+      'two',
+    );
+    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect
+      .poll(() => saved().libraryBookmarks.map((item) => item.id))
+      .toEqual(['two', 'one']);
+    await expect(page.getByRole('dialog', { name: 'Закладки', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'А', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await session.detach();
+  });
   test('длительное нажатие раскрывает редактирование без применения, нажатие снаружи скрывает кнопку', async ({
     page,
   }) => {
@@ -486,19 +672,35 @@ test('кнопка создания и закладки выровнены с о
     const item = page.getByRole('button', { name, exact: true });
     const label = await item.getByText(name, { exact: true }).boundingBox();
     expect(Math.abs(label!.x - referenceText!.x)).toBeLessThan(1);
-    await expect(item.locator('svg')).toHaveCount(1);
-    const icon = await item.locator('svg').boundingBox();
+    const iconLocator =
+      name === 'Создать закладку'
+        ? item.locator('svg')
+        : page
+            .getByRole('button', { name: `Переместить закладку ${name}`, exact: true })
+            .locator('svg');
+    await expect(iconLocator).toHaveCount(1);
+    const icon = await iconLocator.boundingBox();
     expect(Math.abs(icon!.x - referenceIcon!.x)).toBeLessThan(1);
     expect(icon!.width).toBe(referenceIcon!.width);
     expect(icon!.height).toBe(referenceIcon!.height);
     const itemStyle = await item.evaluate((element) => {
       const style = getComputedStyle(element);
-      return { padding: style.padding, font: style.font, textAlign: style.textAlign };
+      return {
+        paddingTop: style.paddingTop,
+        paddingBottom: style.paddingBottom,
+        font: style.font,
+        textAlign: style.textAlign,
+      };
     });
     expect(itemStyle).toEqual(
       await reference.evaluate((element) => {
         const style = getComputedStyle(element);
-        return { padding: style.padding, font: style.font, textAlign: style.textAlign };
+        return {
+          paddingTop: style.paddingTop,
+          paddingBottom: style.paddingBottom,
+          font: style.font,
+          textAlign: style.textAlign,
+        };
       }),
     );
   }

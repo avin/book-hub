@@ -10,6 +10,7 @@ export const messages = {
   bookmark: { ru: 'Закладка', en: 'Bookmark' },
   createBookmark: { ru: 'Создать закладку', en: 'Create bookmark' },
   editBookmark: { ru: 'Редактировать закладку', en: 'Edit bookmark' },
+  moveBookmark: { ru: 'Переместить закладку', en: 'Move bookmark' },
   deleteBookmark: { ru: 'Удалить закладку', en: 'Delete bookmark' },
   nameUpTo100Characters: {
     ru: 'Введите название длиной от 1 до 100 символов',

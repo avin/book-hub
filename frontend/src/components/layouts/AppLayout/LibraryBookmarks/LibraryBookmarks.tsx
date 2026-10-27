@@ -19,6 +19,7 @@ import {
 } from '@/storage/browserPreferences';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookmarkDialog from './BookmarkDialog/BookmarkDialog';
+import BookmarkList from './BookmarkList/BookmarkList';
 import styles from './LibraryBookmarks.module.scss';
 
 function LibraryBookmarks() {
@@ -30,7 +31,7 @@ function LibraryBookmarks() {
     setActiveId(id);
     setActiveLibraryBookmarkPreference(id);
   };
-  const { settings, mutation, bookmarks } = createLibraryBookmarks();
+  const { settings, mutation, orderMutation, bookmarks, moveBookmark } = createLibraryBookmarks();
   const [mobileOpen, setMobileOpen] = createSignal(false);
   const [creating, setCreating] = createSignal(false);
   const [editing, setEditing] = createSignal<LibraryBookmark>();
@@ -102,7 +103,7 @@ function LibraryBookmarks() {
   };
   const list = () => (
     <>
-      <div class={styles.list} aria-label={t('bookmarks')}>
+      <BookmarkList disabled={mutation.isPending} onMove={moveBookmark}>
         <For each={bookmarks()}>
           {(bookmark) => (
             <div
@@ -114,6 +115,23 @@ function LibraryBookmarks() {
               }}
               onContextMenu={(event) => event.preventDefault()}
             >
+              <button
+                type="button"
+                class={styles.handle}
+                data-bookmark-drag-handle
+                aria-label={`${t('moveBookmark')} ${bookmark.name}`}
+                title={`${t('moveBookmark')} ${bookmark.name}`}
+                disabled={mutation.isPending}
+                onKeyDown={(event) => {
+                  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+                  event.preventDefault();
+                  const index = bookmarks().findIndex((item) => item.id === bookmark.id);
+                  const target = index + (event.key === 'ArrowUp' ? -1 : 1);
+                  if (target >= 0 && target < bookmarks().length) moveBookmark(bookmark.id, target);
+                }}
+              >
+                <Bookmark aria-hidden="true" />
+              </button>
               <button
                 type="button"
                 class={styles.link}
@@ -140,12 +158,12 @@ function LibraryBookmarks() {
                   apply(bookmark);
                 }}
               >
-                <Bookmark aria-hidden="true" />
                 <span>{bookmark.name}</span>
               </button>
               <button
                 type="button"
                 class={styles.edit}
+                data-bookmark-edit
                 aria-label={`${t('editBookmark')} ${bookmark.name}`}
                 onClick={() => {
                   mutation.reset();
@@ -157,7 +175,14 @@ function LibraryBookmarks() {
             </div>
           )}
         </For>
-      </div>
+      </BookmarkList>
+      <Show
+        when={
+          (mutation.isError || orderMutation.isError) && !creating() && !editing() && !deleting()
+        }
+      >
+        <p role="alert">{t('requestFailedTryAgain')}</p>
+      </Show>
       <Show when={settings.isError}>
         <p role="alert">{t('requestFailedTryAgain')}</p>
         <Button variant="ghost" onClick={() => void settings.refetch()}>
