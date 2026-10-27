@@ -93,11 +93,8 @@ export function readLibraryListStateFromSearch(search: string) {
   } satisfies LibraryListState;
 }
 
-export function readInitialLibraryListState() {
-  return (
-    readLibraryListStateFromSearch(window.location.search) ??
-    cloneLibraryListState(lastLibraryListState)
-  );
+export function readInitialLibraryListState(search: string) {
+  return readLibraryListStateFromSearch(search) ?? cloneLibraryListState(lastLibraryListState);
 }
 
 const [currentLibraryListState, setCurrentLibraryListState] = createSignal<LibraryListState>();

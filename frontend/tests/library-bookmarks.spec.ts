@@ -240,6 +240,20 @@ test('подсветка закладки затухает вместе с об�
   await link.hover();
   await row.evaluate((element) => {
     for (const animation of element.getAnimations({ subtree: true })) animation.finish();
+    element.addEventListener('transitionrun', (event) => {
+      if (
+        event.target !== element ||
+        (event as TransitionEvent).propertyName !== 'background-color'
+      )
+        return;
+      for (const animation of element.getAnimations()) {
+        if (
+          animation instanceof CSSTransition &&
+          animation.transitionProperty === 'background-color'
+        )
+          animation.pause();
+      }
+    });
   });
   await page.mouse.move(0, 0);
   const fading = await row.evaluate((element) => {

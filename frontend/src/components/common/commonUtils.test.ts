@@ -71,7 +71,16 @@ describe('общие утилиты фронтенда', () => {
       tags: [],
     });
     window.history.replaceState({}, '', '/library');
-    expect(readInitialLibraryListState().search).toBe('remembered');
+    expect(readInitialLibraryListState('').search).toBe('remembered');
+    window.history.replaceState({}, '', '/library?q=stale&sort=title_asc');
+    expect(readInitialLibraryListState('')).toMatchObject({
+      search: 'remembered',
+      sort: 'relevance',
+    });
+    expect(readInitialLibraryListState('?q=current&sort=title_desc')).toMatchObject({
+      search: 'current',
+      sort: 'title_desc',
+    });
   });
 
   it('ограничивает размеры и обрабатывает указатель линейки ширины', () => {

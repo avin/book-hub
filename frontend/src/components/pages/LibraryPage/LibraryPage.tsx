@@ -1,4 +1,4 @@
-import { useNavigate } from '@solidjs/router';
+import { useLocation, useNavigate } from '@solidjs/router';
 import { createInfiniteQuery } from '@tanstack/solid-query';
 import {
   batch,
@@ -10,6 +10,7 @@ import {
   onCleanup,
   onMount,
   Show,
+  untrack,
 } from 'solid-js';
 import { LayoutGrid, Library, List, SearchX, Upload, X } from 'lucide-solid';
 import {
@@ -61,8 +62,9 @@ const libraryRoutePath = '/library';
 function LibraryPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
   let loadMoreRef: HTMLDivElement | undefined;
-  const initialListState = readInitialLibraryListState();
+  const initialListState = readInitialLibraryListState(location.search);
   const [search, setSearch] = createSignal(initialListState.search);
   const [searchField, setSearchField] = createSignal<BookSearchField>(initialListState.searchField);
   const [debouncedSearch, setDebouncedSearch] = createSignal(initialListState.search);
@@ -135,7 +137,8 @@ function LibraryPage() {
       search: '',
       hash: '',
     });
-    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    // The browser URL is updated only after the router's transition commits.
+    const currentUrl = untrack(() => `${location.pathname}${location.search}${location.hash}`);
 
     if (nextUrl !== currentUrl) {
       navigate(nextUrl, { replace: true, scroll: false });
