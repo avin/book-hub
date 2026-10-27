@@ -279,7 +279,7 @@ test('подсветка закладки затухает вместе с об�
 
 for (const route of ['/library', '/upload', '/settings']) {
   for (const favorite of ['favorite', 'regular']) {
-    test(`пустая закладка полностью заменяет фильтры из ${route}, избранное ${favorite}`, async ({
+    test(`пустая закладка заменяет поиск и теги из ${route}, сохраняя избранное ${favorite}`, async ({
       page,
     }) => {
       await mockSettings(page, [bookmark('empty', 'Все книги')]);
@@ -296,11 +296,11 @@ for (const route of ['/library', '/upload', '/settings']) {
         (req) =>
           req.url().endsWith('/v1/books/query') &&
           req.postDataJSON().q === '' &&
-          req.postDataJSON().favorite === null,
+          req.postDataJSON().favorite === (favorite === 'favorite'),
       );
       await page.getByRole('button', { name: 'Все книги', exact: true }).click();
       await request;
-      await expect(page).toHaveURL(/\/library\?sort=title_desc$/);
+      await expect(page).toHaveURL(new RegExp(`/library\\?sort=title_desc&favorite=${favorite}$`));
       await expect(page.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue('');
       await expect(page.getByRole('button', { name: 'Сетка', exact: true })).toHaveAttribute(
         'aria-pressed',
@@ -312,7 +312,7 @@ for (const route of ['/library', '/upload', '/settings']) {
       );
       await page.getByRole('link', { name: 'Настройки', exact: true }).click();
       await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
-      await expect(page).toHaveURL(/\/library\?sort=title_desc$/);
+      await expect(page).toHaveURL(new RegExp(`/library\\?sort=title_desc&favorite=${favorite}$`));
     });
   }
 }
@@ -540,7 +540,7 @@ test('закладка заменяет поиск, поле и теги, выд
     q: 'морские',
     search_field: 'description',
     tags: ['роман', 'море'],
-    favorite: null,
+    favorite: true,
     sort: 'title_asc',
     offset: 0,
   });
@@ -550,7 +550,7 @@ test('закладка заменяет поиск, поле и теги, выд
   );
   const params = new URL(page.url()).searchParams;
   expect(params.getAll('tag')).toEqual(['роман', 'море']);
-  expect(params.has('favorite')).toBe(false);
+  expect(params.get('favorite')).toBe('favorite');
 });
 
 test('создание доступно без randomUUID на HTTP домашнего сервера', async ({ page }) => {
@@ -890,6 +890,63 @@ for (const section of ['Загрузка', 'Настройки']) {
     await expect(entry).toHaveAttribute('aria-pressed', 'false');
   });
 }
+
+for (const resetButton of ['header', 'emptyState'] as const) {
+  test(`очистка фильтров сбрасывает закладку только с тегами (${resetButton})`, async ({
+    page,
+  }) => {
+    const tag = resetButton === 'header' ? 'роман' : 'несуществующий';
+    await mockSettings(page, [bookmark('one', 'Моя выборка', { tags: [tag] })]);
+    await login(page);
+    const entry = page.getByRole('button', { name: 'Моя выборка', exact: true });
+    await entry.click();
+    await expect(entry).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: `Удалить тег ${tag}` })).toBeVisible();
+    const reset = page.getByRole('button', { name: 'Сбросить фильтр', exact: true });
+    await reset.nth(resetButton === 'header' ? 0 : 1).click();
+    await expect(page.getByRole('button', { name: `Удалить тег ${tag}` })).toBeHidden();
+    await expect(entry).toHaveAttribute('aria-pressed', 'false');
+    await page.reload();
+    await expect(entry).toHaveAttribute('aria-pressed', 'false');
+  });
+}
+
+for (const filter of ['tags', 'favorite'] as const) {
+  test(`изменение фильтра ${filter} ${filter === 'tags' ? 'сбрасывает' : 'сохраняет'} выбор закладки`, async ({
+    page,
+  }) => {
+    await mockSettings(page, [bookmark('one', 'Моя выборка', { tags: ['роман'] })]);
+    await login(page);
+    const entry = page.getByRole('button', { name: 'Моя выборка', exact: true });
+    await entry.click();
+    await expect(entry).toHaveAttribute('aria-pressed', 'true');
+    if (filter === 'tags') {
+      await page.getByRole('button', { name: 'Удалить тег роман' }).click();
+    } else {
+      await page.getByRole('button', { name: 'Сортировка', exact: true }).click();
+      await page.getByRole('button', { name: 'Избранные', exact: true }).click();
+    }
+    await expect(entry).toHaveAttribute('aria-pressed', filter === 'tags' ? 'false' : 'true');
+    await page.reload();
+    await expect(entry).toHaveAttribute('aria-pressed', filter === 'tags' ? 'false' : 'true');
+  });
+}
+
+test('очистка только избранного сохраняет выбор закладки', async ({ page }) => {
+  await mockSettings(page, [bookmark('one', 'Моя выборка')]);
+  await login(page);
+  const entry = page.getByRole('button', { name: 'Моя выборка', exact: true });
+  await entry.click();
+  await page.getByRole('button', { name: 'Сортировка', exact: true }).click();
+  await page.getByRole('button', { name: 'Избранные', exact: true }).click();
+  await expect(entry).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Сортировка', exact: true }).click();
+  await page.getByRole('button', { name: 'Сбросить фильтр', exact: true }).first().click();
+  await expect(page).not.toHaveURL(/favorite=/);
+  await expect(entry).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  await expect(entry).toHaveAttribute('aria-pressed', 'true');
+});
 
 test('смена поля поиска сбрасывает выбор закладки', async ({ page }) => {
   await mockSettings(page, [bookmark('one', 'Моя выборка')]);

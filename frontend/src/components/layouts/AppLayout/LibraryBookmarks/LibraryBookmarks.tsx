@@ -52,7 +52,9 @@ function LibraryBookmarks() {
       !bookmark ||
       (state &&
         (state.search.trim() !== bookmark.search.trim() ||
-          state.searchField !== bookmark.searchField))
+          state.searchField !== bookmark.searchField ||
+          state.tags.length !== bookmark.tags.length ||
+          state.tags.some((tag) => !bookmark.tags.includes(tag))))
     )
       selectBookmark(undefined);
   });
@@ -90,7 +92,6 @@ function LibraryBookmarks() {
       search: bookmark.search,
       searchField: bookmark.searchField,
       tags: [...bookmark.tags],
-      favoriteFilter: 'all' as const,
     };
     batch(() => {
       rememberLibraryListState(state);
