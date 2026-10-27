@@ -1,0 +1,44 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+
+@mixin menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 9px 12px;
+  gap: 11px;
+  border: 0;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 550;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background $duration-fast $ease-standard,
+    color $duration-fast $ease-standard;
+
+  &:hover:where(:not(:disabled)) {
+    background: var(--surface-sunken);
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  :global(svg) {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    transition: color $duration-fast $ease-standard;
+  }
+}

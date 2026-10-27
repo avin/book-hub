@@ -359,3 +359,88 @@ for (const mobile of [false, true]) {
     });
   }
 }
+
+for (const view of ['Список', 'Сетка']) {
+  test(`окна закладок перекрывают фильтры и книги (${view})`, async ({ page }) => {
+    await mockSettings(page, [bookmark('one', 'Моя выборка')]);
+    await login(page);
+    await page.getByRole('button', { name: view, exact: true }).click();
+    const background = page.locator('main');
+    const search = background.getByRole('textbox', { name: 'Поиск книг', exact: true });
+    const book = background.getByRole('article').first();
+    await expect(book).toBeVisible();
+    const covered = async () => {
+      for (const target of [search, book]) {
+        await expect
+          .poll(() =>
+            target.evaluate((element) => {
+              const bounds = element.getBoundingClientRect();
+              const top = document.elementFromPoint(
+                bounds.x + bounds.width / 2,
+                bounds.y + Math.min(bounds.height / 2, 40),
+              );
+              return top !== null && !element.contains(top);
+            }),
+          )
+          .toBe(true);
+      }
+    };
+    await page.getByRole('button', { name: 'Создать закладку', exact: true }).click();
+    const form = page.getByRole('dialog', { name: 'Создать закладку', exact: true });
+    await expect(form).toBeVisible();
+    await covered();
+    await form.getByRole('textbox', { name: 'Название', exact: true }).fill('Проверка слоёв');
+    await page.screenshot({ path: test.info().outputPath('bookmark-form.png') });
+    await form.getByRole('button', { name: 'Отмена', exact: true }).click();
+    await page.getByRole('button', { name: 'Моя выборка', exact: true }).hover();
+    await page.getByRole('button', { name: 'Удалить закладку Моя выборка', exact: true }).click();
+    await covered();
+    await page
+      .getByRole('dialog', { name: 'Удалить закладку', exact: true })
+      .getByRole('button', { name: 'Нет', exact: true })
+      .click();
+  });
+}
+
+test('кнопка создания и закладки выровнены с основными пунктами меню', async ({ page }) => {
+  await mockSettings(page, [bookmark('one', 'Моя выборка'), bookmark('two', 'Другая выборка')]);
+  await login(page);
+  const active = page.getByRole('link', { name: 'Библиотека', exact: true });
+  const activeColor = await active.evaluate((element) => getComputedStyle(element).color);
+  await active.hover();
+  await expect(active).toHaveCSS('color', activeColor);
+  const reference = page.getByRole('link', { name: 'Настройки', exact: true });
+  const referenceText = await reference.getByText('Настройки', { exact: true }).boundingBox();
+  const referenceIcon = await reference.locator('svg').boundingBox();
+  for (const name of ['Создать закладку', 'Моя выборка', 'Другая выборка']) {
+    const item = page.getByRole('button', { name, exact: true });
+    const label = await item.getByText(name, { exact: true }).boundingBox();
+    expect(Math.abs(label!.x - referenceText!.x)).toBeLessThan(1);
+    await expect(item.locator('svg')).toHaveCount(1);
+    const icon = await item.locator('svg').boundingBox();
+    expect(Math.abs(icon!.x - referenceIcon!.x)).toBeLessThan(1);
+    expect(icon!.width).toBe(referenceIcon!.width);
+    expect(icon!.height).toBe(referenceIcon!.height);
+    const itemStyle = await item.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { padding: style.padding, font: style.font, textAlign: style.textAlign };
+    });
+    expect(itemStyle).toEqual(
+      await reference.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { padding: style.padding, font: style.font, textAlign: style.textAlign };
+      }),
+    );
+  }
+  const upload = await page.getByRole('link', { name: 'Загрузка', exact: true }).boundingBox();
+  const settings = await reference.boundingBox();
+  const expectedGap = settings!.y - upload!.y - upload!.height;
+  let previous = await page.getByRole('button', { name: 'Моя выборка', exact: true }).boundingBox();
+  for (const name of ['Другая выборка', 'Создать закладку']) {
+    const current = await page.getByRole('button', { name, exact: true }).boundingBox();
+    expect(current!.height).toBe(settings!.height);
+    expect(current!.y - previous!.y - previous!.height).toBe(expectedGap);
+    previous = current;
+  }
+  await page.screenshot({ path: test.info().outputPath('bookmark-menu.png') });
+});

@@ -1,5 +1,6 @@
 @use '@/styles/_variables.scss' as *;
 @use '@/styles/_mixins.scss' as *;
+@use './menuItem' as menu;
 
 .layout {
   display: grid;
@@ -68,22 +69,7 @@
   padding: 0 12px 16px;
 
   a {
-    display: flex;
-    align-items: center;
-    padding: 9px 12px;
-    gap: 11px;
-    border-radius: $radius-sm;
-    color: var(--text-muted);
-    font-weight: 550;
-    text-decoration: none;
-    transition:
-      background $duration-fast $ease-standard,
-      color $duration-fast $ease-standard;
-
-    &:hover {
-      background: var(--surface-sunken);
-      color: var(--text-primary);
-    }
+    @include menu.menuItem;
 
     &:global(.active) {
       background: var(--accent-soft-bg);
@@ -94,16 +80,6 @@
         color: var(--accent);
       }
     }
-
-    &:focus-visible {
-      @include focus-ring;
-    }
-  }
-
-  :global(svg) {
-    width: 20px;
-    height: 20px;
-    transition: color $duration-fast $ease-standard;
   }
 }
 

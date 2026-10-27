@@ -1,3 +1,4 @@
+import { Portal } from 'solid-js/web';
 import { useNavigate } from '@solidjs/router';
 import { Bookmark, Plus, X } from 'lucide-solid';
 import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
@@ -96,6 +97,7 @@ function LibraryBookmarks() {
                   apply(bookmark);
                 }}
               >
+                <Bookmark aria-hidden="true" />
                 <span>{bookmark.name}</span>
               </button>
               <button
@@ -119,16 +121,15 @@ function LibraryBookmarks() {
           {t('retry')}
         </Button>
       </Show>
-      <Button
+      <button
         class={styles.create}
         type="button"
-        variant="ghost"
         disabled={!settings.isSuccess || mutation.isPending}
-        iconStart={<Plus />}
         onClick={openCreation}
       >
-        {t('createBookmark')}
-      </Button>
+        <Plus aria-hidden="true" />
+        <span>{t('createBookmark')}</span>
+      </button>
     </>
   );
   return (
@@ -144,76 +145,78 @@ function LibraryBookmarks() {
         title={t('bookmarks')}
         onClick={() => setMobileOpen(true)}
       />
-      <Show when={mobileOpen() && !creating() && !deleting()}>
-        <ModalDialog
-          ariaLabel={t('bookmarks')}
-          overlayClass={styles.overlay}
-          contentClass={`${styles.dialog} ${styles.listDialog}`}
-          onClose={() => setMobileOpen(false)}
-        >
-          <h2>{t('bookmarks')}</h2>
-          {list()}
-          <Button variant="ghost" onClick={() => setMobileOpen(false)}>
-            {t('close')}
-          </Button>
-        </ModalDialog>
-      </Show>
-      <Show when={creating()}>
-        <CreateBookmarkDialog
-          saving={mutation.isPending}
-          error={mutation.isError}
-          onClose={closeCreation}
-          onSave={(bookmark) =>
-            mutation.mutate(
-              { libraryBookmarks: [...bookmarks(), bookmark] },
-              { onSuccess: closeCreation },
-            )
-          }
-        />
-      </Show>
-      <Show when={deleting()}>
-        {(bookmark) => (
+      <Portal>
+        <Show when={mobileOpen() && !creating() && !deleting()}>
           <ModalDialog
-            ariaLabel={t('deleteBookmark')}
+            ariaLabel={t('bookmarks')}
             overlayClass={styles.overlay}
-            contentClass={styles.dialog}
-            onClose={() => {
-              if (!mutation.isPending) setDeleting(undefined);
-            }}
+            contentClass={`${styles.dialog} ${styles.listDialog}`}
+            onClose={() => setMobileOpen(false)}
           >
-            <h2>{t('deleteBookmark')}?</h2>
-            <p class={styles.fullName}>{bookmark().name}</p>
-            <Show when={mutation.isError}>
-              <p role="alert">{t('requestFailedTryAgain')}</p>
-            </Show>
-            <div class={styles.actions}>
-              <Button
-                variant="ghost"
-                disabled={mutation.isPending}
-                onClick={() => setDeleting(undefined)}
-              >
-                {t('no')}
-              </Button>
-              <Button
-                loading={mutation.isPending}
-                onClick={() =>
-                  mutation.mutate(
-                    { libraryBookmarks: bookmarks().filter((item) => item.id !== bookmark().id) },
-                    {
-                      onSuccess: () => {
-                        setDeleting(undefined);
-                        setRevealed(undefined);
-                      },
-                    },
-                  )
-                }
-              >
-                {t('yes')}
-              </Button>
-            </div>
+            <h2>{t('bookmarks')}</h2>
+            {list()}
+            <Button variant="ghost" onClick={() => setMobileOpen(false)}>
+              {t('close')}
+            </Button>
           </ModalDialog>
-        )}
-      </Show>
+        </Show>
+        <Show when={creating()}>
+          <CreateBookmarkDialog
+            saving={mutation.isPending}
+            error={mutation.isError}
+            onClose={closeCreation}
+            onSave={(bookmark) =>
+              mutation.mutate(
+                { libraryBookmarks: [...bookmarks(), bookmark] },
+                { onSuccess: closeCreation },
+              )
+            }
+          />
+        </Show>
+        <Show when={deleting()}>
+          {(bookmark) => (
+            <ModalDialog
+              ariaLabel={t('deleteBookmark')}
+              overlayClass={styles.overlay}
+              contentClass={styles.dialog}
+              onClose={() => {
+                if (!mutation.isPending) setDeleting(undefined);
+              }}
+            >
+              <h2>{t('deleteBookmark')}?</h2>
+              <p class={styles.fullName}>{bookmark().name}</p>
+              <Show when={mutation.isError}>
+                <p role="alert">{t('requestFailedTryAgain')}</p>
+              </Show>
+              <div class={styles.actions}>
+                <Button
+                  variant="ghost"
+                  disabled={mutation.isPending}
+                  onClick={() => setDeleting(undefined)}
+                >
+                  {t('no')}
+                </Button>
+                <Button
+                  loading={mutation.isPending}
+                  onClick={() =>
+                    mutation.mutate(
+                      { libraryBookmarks: bookmarks().filter((item) => item.id !== bookmark().id) },
+                      {
+                        onSuccess: () => {
+                          setDeleting(undefined);
+                          setRevealed(undefined);
+                        },
+                      },
+                    )
+                  }
+                >
+                  {t('yes')}
+                </Button>
+              </div>
+            </ModalDialog>
+          )}
+        </Show>
+      </Portal>
     </>
   );
 }
