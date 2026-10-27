@@ -8,8 +8,8 @@
   flex: 1 1 auto;
   min-height: 0;
   flex-direction: column;
-  margin: 0 12px 14px;
-  padding-top: 12px;
+  margin: 0 $space-3 $space-4;
+  padding-top: $space-3;
   border-top: 1px solid var(--border-default);
 }
 .mobile {
@@ -34,7 +34,7 @@
 
   .link {
     color: var(--accent-hover);
-    font-weight: 650;
+    font-weight: 600;
 
     :global(svg) {
       color: var(--accent);
@@ -42,7 +42,7 @@
   }
 }
 .row + .row {
-  margin-top: 2px;
+  margin-top: $space-1;
 }
 .link {
   @include menu.menuItem;
@@ -68,9 +68,9 @@
 .handle {
   @include menu.menuItem;
 
-  flex: 0 0 43px;
-  width: 43px;
-  padding-right: 11px;
+  flex: 0 0 44px;
+  width: 44px;
+  padding-right: $space-3;
   touch-action: none;
   cursor: grab;
 
@@ -84,14 +84,18 @@
 .edit {
   display: flex;
   visibility: hidden;
-  flex: 0 0 30px;
+  flex: 0 0 $control-height-sm;
   align-items: center;
   justify-content: center;
   align-self: stretch;
+  border-radius: $radius-sm;
   border: 0;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
+  &:hover {
+    color: var(--text-primary);
+  }
   &:focus-visible {
     @include focus-ring;
   }
@@ -109,7 +113,7 @@
   @include menu.menuItem;
 
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: $space-1;
 }
 .overlay {
   @include bookmarkDialog.overlay;
@@ -125,7 +129,7 @@
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: $space-2;
 }
 .fullName {
   overflow-wrap: anywhere;

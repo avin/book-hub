@@ -61,6 +61,10 @@
   left: 0;
   z-index: 40;
   background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  border-bottom: 1px solid var(--border-default);
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+  line-height: $line-height-base;
   backdrop-filter: blur(16px) saturate(180%);
   transform: translateY(-100%);
   transition:
@@ -83,8 +87,11 @@
   bottom: 0;
   left: 0;
   z-index: 40;
-  border-top: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-top: 1px solid var(--border-default);
   background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  font-family: $font-family-base;
+  font-size: $font-size-sm;
+  line-height: 20px;
   backdrop-filter: blur(16px) saturate(180%);
   transform: translateY(100%);
   transition:
@@ -103,8 +110,8 @@
   gap: $space-4;
   align-items: center;
   justify-content: space-between;
-  min-height: 48px;
-  padding: $space-1 $space-5;
+  min-height: $control-height-lg;
+  padding: $space-1 $space-4;
 }
 
 .footerBar {
@@ -112,8 +119,8 @@
   min-width: 0;
   gap: $space-2;
   align-items: center;
-  min-height: 48px;
-  padding: $space-1 $space-5;
+  min-height: $control-height-lg;
+  padding: $space-2 $space-4;
 }
 
 .searchControls {
@@ -132,12 +139,12 @@
 }
 
 .searchInput {
+  @include control-size(sm);
+
   min-width: 0;
   width: 100%;
-  height: 32px;
-  min-height: 30px;
-  padding-right: 40px;
-  padding-left: 32px;
+  padding-right: $space-10;
+  padding-left: $space-8;
 
   &::placeholder {
     color: var(--text-muted);
@@ -148,7 +155,7 @@
   display: inline-flex;
   position: absolute;
   top: 50%;
-  left: 10px;
+  left: $space-2;
   z-index: 1;
   align-items: center;
   justify-content: center;
@@ -161,12 +168,12 @@
   display: inline-flex;
   position: absolute;
   top: 50%;
-  right: 8px;
+  right: $space-1;
   z-index: 1;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: $space-6;
+  height: $space-6;
   padding: 0;
   border: none;
   border-radius: $radius-sm;
@@ -179,25 +186,25 @@
     background $duration-fast $ease-standard;
 
   :global(svg) {
-    width: 16px;
-    height: 16px;
+    width: $space-4;
+    height: $space-4;
   }
 
   &:hover {
-    color: var(--danger);
-    background: var(--danger-soft-bg);
+    color: var(--text-primary);
+    background: var(--surface-hover);
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+    @include focus-ring;
   }
 }
 
 .searchCount {
-  min-width: 34px;
+  min-width: $space-10;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: $font-size-xs;
+  font-variant-numeric: tabular-nums;
   text-align: center;
   white-space: nowrap;
 }
@@ -212,7 +219,8 @@
   flex: 0 1 auto;
   align-items: center;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: $font-size-xs;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -225,13 +233,14 @@
   @include truncate;
 
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: $font-size-sm;
   font-weight: 600;
 }
 
 @media (max-width: 720px) {
   .headerBar {
-    padding: $space-2 $space-4;
+    gap: $space-2;
+    padding: $space-1 $space-3;
   }
 
   .footerBar {

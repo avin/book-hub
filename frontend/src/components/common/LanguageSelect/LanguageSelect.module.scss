@@ -2,49 +2,30 @@
 @use '@/styles/_mixins.scss' as *;
 
 .trigger {
-  @include control-text;
+  @include control-size;
+  @include field-surface;
 
   display: inline-flex;
-  min-height: 36px;
   max-width: 180px;
   align-items: center;
-  padding: 0 10px;
-  gap: 8px;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-sm;
-  background: color-mix(in srgb, var(--surface-raised) 84%, transparent);
-  color: var(--text-primary);
-  font-weight: 650;
+  gap: $space-2;
+  font-weight: 500;
   cursor: pointer;
-  transition:
-    background $duration-fast $ease-standard,
-    border-color $duration-fast $ease-standard,
-    color $duration-fast $ease-standard,
-    box-shadow $duration-fast $ease-standard;
-
-  &:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-raised);
-  }
-
-  &:focus-visible {
-    @include focus-ring;
-  }
 }
 
 .icon,
 .chevron {
   display: inline-flex;
-  width: 18px;
-  height: 18px;
+  width: $icon-size;
+  height: $icon-size;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
 
   :global(svg) {
-    width: 18px;
-    height: 18px;
+    width: $icon-size;
+    height: $icon-size;
   }
 }
 

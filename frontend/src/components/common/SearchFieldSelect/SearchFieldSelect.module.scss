@@ -2,20 +2,19 @@
 @use '@/styles/_mixins.scss' as *;
 
 .trigger.trigger {
-  min-height: 30px;
-  margin: 3px 0 3px 3px;
-  padding: 0 8px;
-  gap: 5px;
+  @include control-size(sm);
+
+  margin: $space-1 0 $space-1 $space-1;
+  gap: $space-1;
   border: 0;
   border-right: 1px solid var(--border-default);
-  border-radius: calc($radius-sm - 2px) 0 0 calc($radius-sm - 2px);
+  border-radius: $radius-xs 0 0 $radius-xs;
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 550;
+  font-weight: 500;
   white-space: nowrap;
 
   :global(svg) {
-    width: 14px;
-    height: 14px;
+    width: $icon-size-sm;
+    height: $icon-size-sm;
   }
 }

@@ -15,11 +15,12 @@ function AutosizeTextarea(props: {
     const style = getComputedStyle(textarea);
     const borders = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
     const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const minimum = parseFloat(style.minHeight);
     const maximum = parseFloat(style.lineHeight) * 10 + padding + borders;
     textarea.style.overflowY = 'hidden';
     textarea.style.height = 'auto';
     const contentHeight = textarea.scrollHeight + borders;
-    textarea.style.height = `${Math.min(maximum, Math.max(40, contentHeight))}px`;
+    textarea.style.height = `${Math.min(maximum, Math.max(minimum, contentHeight))}px`;
     textarea.style.overflowY = contentHeight > maximum ? 'auto' : 'hidden';
   };
 

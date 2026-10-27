@@ -169,15 +169,11 @@
 }
 
 .pageInput {
+  @include control-size(sm);
+  @include field-surface;
+
   width: 52px;
-  height: 30px;
-  min-height: 30px;
   padding: 0 $space-1;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-sm;
-  color: var(--text-primary);
-  background: var(--surface-page);
-  font: inherit;
   text-align: center;
 }
 

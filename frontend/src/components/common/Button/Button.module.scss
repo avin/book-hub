@@ -8,14 +8,13 @@
 }
 
 .button {
-  @include control-text;
+  @include control-size;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0 16px;
-  gap: 8px;
+  padding-inline: $space-4;
+  gap: $space-2;
   border: 1px solid transparent;
   border-radius: $radius-sm;
   font-weight: 600;
@@ -85,12 +84,12 @@
 }
 
 .destructive {
-  color: var(--danger);
+  color: var(--danger-soft-text);
 
   @include interactive-hover {
     border-color: color-mix(in srgb, var(--danger) 22%, transparent);
-    background: transparent;
-    color: var(--danger-hover);
+    background: var(--danger-soft-bg);
+    color: var(--danger-soft-text);
   }
 }
 
@@ -106,12 +105,13 @@
 
 .link {
   display: inline;
+  height: auto;
   min-height: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--fb2-link, var(--accent));
+  color: var(--fb2-link, var(--text-link));
   font: inherit;
   font-weight: inherit;
   vertical-align: baseline;
@@ -134,23 +134,23 @@
 }
 
 .small {
-  min-height: 34px;
-  padding: 0 12px;
-  font-size: 14px;
+  @include control-size(sm);
+
+  padding-inline: $space-3;
 }
 
 .iconOnly {
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  min-height: 38px;
+  width: $control-height;
+  min-width: $control-height;
+  height: $control-height;
+  min-height: $control-height;
   padding: 0;
 
   &.small {
-    width: 34px;
-    min-width: 34px;
-    height: 34px;
-    min-height: 34px;
+    width: $control-height-sm;
+    min-width: $control-height-sm;
+    height: $control-height-sm;
+    min-height: $control-height-sm;
   }
 }
 
@@ -166,21 +166,23 @@
 
 .content {
   @include truncate;
+
+  min-width: 0;
 }
 
 .icon,
 .spinner {
   display: inline-flex;
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: $icon-size;
+  height: $icon-size;
   align-items: center;
   justify-content: center;
 }
 
 .icon :global(svg) {
-  width: 18px;
-  height: 18px;
+  width: $icon-size;
+  height: $icon-size;
 }
 
 .spinner {
@@ -194,4 +196,20 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.primary:active:not(:disabled):not(.disabled) {
+  background: var(--accent-active);
+}
+
+.secondary:active:not(:disabled):not(.disabled),
+.ghost:active:not(:disabled):not(.disabled) {
+  background: var(--surface-hover);
+}
+
+.small .icon,
+.small .spinner,
+.small .icon :global(svg) {
+  width: $icon-size-sm;
+  height: $icon-size-sm;
 }

@@ -1,8 +1,11 @@
 @use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
 @use '@/styles/_themes.scss';
 
 :root {
   font-family: $font-family-base;
+  font-size: $font-size-base;
+  line-height: $line-height-base;
   color: var(--text-primary);
   background: var(--surface-page);
   font-synthesis: none;
@@ -40,6 +43,29 @@ a {
   color: inherit;
 }
 
+button,
+input,
+textarea,
+select,
+a {
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+}
+
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'] {
+  accent-color: var(--accent);
+}
+
+::selection {
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-text);
+}
+
 #root {
   min-height: 100vh;
 }
@@ -63,5 +89,16 @@ a {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

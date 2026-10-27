@@ -16,24 +16,24 @@
 .tocButton {
   display: block;
   width: 100%;
+  min-height: $control-height;
   padding: $space-2 $space-3;
   border: 0;
   border-radius: $radius-sm;
   background: transparent;
   color: var(--text-primary);
-  font: inherit;
-  font-size: 14px;
-  line-height: 1.4;
+  font-family: $font-family-base;
+  font-size: $font-size-sm;
+  line-height: 20px;
   text-align: left;
   cursor: pointer;
   transition: background $duration-fast $ease-standard;
 
   &:hover {
-    background: var(--surface-sunken);
+    background: var(--surface-hover);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
+    @include focus-ring;
   }
 }

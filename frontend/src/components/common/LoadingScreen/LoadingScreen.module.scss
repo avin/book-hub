@@ -10,8 +10,8 @@
 }
 
 .spinner {
-  width: 38px;
-  height: 38px;
+  width: $space-10;
+  height: $space-10;
   border: 3px solid color-mix(in srgb, var(--accent) 18%, transparent);
   border-top-color: currentColor;
   border-radius: 50%;

@@ -3,7 +3,7 @@
 
 .library {
   display: grid;
-  gap: 24px;
+  gap: $space-6;
 }
 
 .header {
@@ -11,33 +11,33 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
+  gap: $space-4;
 
   > div {
     min-width: 0;
   }
 
   h1 {
-    margin: 4px 0 0;
+    margin: $space-1 0 0;
     color: var(--text-primary);
-    font-size: 32px;
-    font-weight: 750;
-    line-height: 40px;
+    font-size: $font-size-2xl;
+    font-weight: 700;
+    line-height: 36px;
     letter-spacing: -0.02em;
   }
 }
 
 .booksTotal {
-  color: var(--text-disabled);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
 .booksTotalFiltered {
-  color: var(--danger);
+  color: var(--accent-soft-text);
 }
 
 .resetFilters {
-  margin-left: 8px;
+  margin-left: $space-2;
   vertical-align: 4px;
 }
 
@@ -49,7 +49,7 @@
 .kicker {
   margin: 0;
   color: var(--accent);
-  font-size: 12px;
+  font-size: $font-size-xs;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -59,7 +59,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(220px, 1fr)) auto;
   align-items: end;
-  gap: 12px;
+  gap: $space-3;
 }
 
 .secondaryFilters {
@@ -67,19 +67,20 @@
   grid-column: span 2;
   min-width: 0;
   align-items: end;
-  gap: 12px;
+  gap: $space-3;
   grid-template-columns: subgrid;
 }
 
 .filtersField {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: flex-end;
-  gap: 8px;
+  gap: $space-2;
 }
 
 .viewToggle {
   display: inline-flex;
+  height: $control-height;
   align-items: center;
   gap: 2px;
 }
@@ -88,6 +89,7 @@
 .emptyState {
   display: grid;
   min-height: 260px;
+  padding: $space-6;
   place-items: center;
   border: 1px dashed var(--border-strong);
   border-radius: $radius-md;
@@ -97,7 +99,7 @@
 
 .state {
   align-content: center;
-  gap: 14px;
+  gap: $space-4;
   text-align: center;
 
   p {
@@ -111,14 +113,14 @@
 
 .emptyState {
   align-content: center;
-  gap: 14px;
+  gap: $space-4;
   text-align: center;
 
   h2 {
     margin: 0;
     color: var(--text-primary);
-    font-size: 20px;
-    font-weight: 650;
+    font-size: $font-size-lg;
+    font-weight: 600;
     letter-spacing: -0.01em;
   }
 
@@ -131,8 +133,8 @@
 
 .bookList {
   display: grid;
-  gap: 12px;
-  transition: opacity 160ms ease;
+  gap: $space-3;
+  transition: opacity $duration-base $ease-standard;
 }
 
 .bookListStale {
@@ -143,7 +145,7 @@
 // ratio, so column width drives the cover size.
 .bookListGrid {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 16px;
+  gap: $space-4;
 }
 
 .loadMoreSentinel {

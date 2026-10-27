@@ -4,6 +4,7 @@
 // All app colors flow through semantic CSS custom properties defined here.
 // Component styles use these tokens directly. _variables.scss contains only
 // compile-time values such as spacing, radii, motion and reusable shadows.
+// Overlays use the raised surface color; borders and shadows provide elevation.
 //
 // ─────────────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@
 
   --surface-page: #f5ebd9;
   --surface-raised: #faf5e8;
-  --surface-overlay: #fdfbf5;
+  --surface-overlay: var(--surface-raised);
   --surface-sunken: #ebdcc8;
   --surface-hover: #ebdcc8;
   --surface-inset: #ebdcc8;
@@ -25,15 +26,15 @@
 
   --text-primary: #2c1e31;
   --text-secondary: #5a3c45;
-  --text-muted: #8a5258;
-  --text-disabled: #ae6b60;
+  --text-muted: #78585e;
+  --text-disabled: #9c8580;
   --text-on-accent: #ffffff;
   --text-on-danger: #ffffff;
   --text-on-scrim: #ffffff;
   --text-on-raised: #2c1e31;
-  --text-link: #ba6156;
+  --text-link: #964253;
 
-  --accent: #ba6156;
+  --accent: #a34b43;
   --accent-hover: #964253;
   --accent-active: #57294b;
   --accent-soft-bg: #f9e6cf;
@@ -41,8 +42,8 @@
   --accent-border: #d58d6b;
 
   --border-subtle: #ebdcc8;
-  --border-default: #d89f75;
-  --border-strong: #ae6b60;
+  --border-default: #d3bfa9;
+  --border-strong: #aa8e7c;
   --border-accent: #ba6156;
 
   --danger: #dc2626;
@@ -64,7 +65,7 @@
   --shadow-color-strong: 44 30 49;
   --scrim: rgba(44, 30, 49, 0.5);
 
-  --focus-ring: #ba6156;
+  --focus-ring: #a34b43;
   --favorite: #dc2626;
 }
 
@@ -74,7 +75,7 @@
   // ── Surfaces ───────────────────────────────────────────────
   --surface-page: #fafaf9; // app background
   --surface-raised: #ffffff; // cards, inputs
-  --surface-overlay: #ffffff; // dropdowns, modals
+  --surface-overlay: var(--surface-raised); // dropdowns, modals
   --surface-sunken: #f5f5f4; // inset zones, code
   --surface-hover: #f5f5f4; // interactive hover bg
   --surface-inset: #f5f5f4; // recessed inputs
@@ -101,8 +102,8 @@
 
   // ── Borders ────────────────────────────────────────────────
   --border-subtle: #f5f5f4;
-  --border-default: #e7e5e4;
-  --border-strong: #d6d3d1;
+  --border-default: #a8a29e;
+  --border-strong: #78716c;
   --border-accent: #fb923c;
 
   // ── Danger ─────────────────────────────────────────────────
@@ -139,7 +140,7 @@
 
   --surface-page: #1c1917;
   --surface-raised: #292524;
-  --surface-overlay: #2a2624;
+  --surface-overlay: var(--surface-raised);
   --surface-sunken: #14110f;
   --surface-hover: #3a3430;
   --surface-inset: #14110f;
@@ -149,7 +150,7 @@
   --text-secondary: #d6d3d1;
   --text-muted: #a8a29e;
   --text-disabled: #78716c;
-  --text-on-accent: #ffffff;
+  --text-on-accent: #1c1917;
   --text-on-danger: #450a0a;
   --text-on-scrim: #ffffff;
   --text-on-raised: #f5f5f4;
@@ -163,8 +164,8 @@
   --accent-border: #c2410c;
 
   --border-subtle: #292524;
-  --border-default: #44403c;
-  --border-strong: #57534e;
+  --border-default: #80766f;
+  --border-strong: #a89b92;
   --border-accent: #c2410c;
 
   --danger: #f87171;
@@ -196,7 +197,7 @@
 
   --surface-page: #131a16;
   --surface-raised: #1d2722;
-  --surface-overlay: #1f2a24;
+  --surface-overlay: var(--surface-raised);
   --surface-sunken: #0d1310;
   --surface-hover: #283a31;
   --surface-inset: #0d1310;
@@ -220,8 +221,8 @@
   --accent-border: #16a34a;
 
   --border-subtle: #1d2722;
-  --border-default: #2c3a32;
-  --border-strong: #3d5042;
+  --border-default: #6b8273;
+  --border-strong: #8fa697;
   --border-accent: #16a34a;
 
   --danger: #f87171;
@@ -253,7 +254,7 @@
 
   --surface-page: #161616;
   --surface-raised: #212121;
-  --surface-overlay: #242424;
+  --surface-overlay: var(--surface-raised);
   --surface-sunken: #0e0e0e;
   --surface-hover: #2e2e2e;
   --surface-inset: #0e0e0e;
@@ -261,9 +262,9 @@
 
   --text-primary: #ededed;
   --text-secondary: #c4c4c4;
-  --text-muted: #8a8a8a;
+  --text-muted: #a3a3a3;
   --text-disabled: #5a5a5a;
-  --text-on-accent: #ffffff;
+  --text-on-accent: #0c1828;
   --text-on-danger: #2a0a0a;
   --text-on-scrim: #ffffff;
   --text-on-raised: #ededed;
@@ -277,8 +278,8 @@
   --accent-border: #2563eb;
 
   --border-subtle: #212121;
-  --border-default: #303030;
-  --border-strong: #424242;
+  --border-default: #737373;
+  --border-strong: #969696;
   --border-accent: #2563eb;
 
   --danger: #f87171;
@@ -310,7 +311,7 @@
 
   --surface-page: #f0f7f4;
   --surface-raised: #ffffff;
-  --surface-overlay: #ffffff;
+  --surface-overlay: var(--surface-raised);
   --surface-sunken: #e1ede8;
   --surface-hover: #e1ede8;
   --surface-inset: #e1ede8;
@@ -318,8 +319,8 @@
 
   --text-primary: #193c3e;
   --text-secondary: #265c42;
-  --text-muted: #3e8948;
-  --text-disabled: #63c74d;
+  --text-muted: #527163;
+  --text-disabled: #879c90;
   --text-on-accent: #ffffff;
   --text-on-danger: #ffffff;
   --text-on-scrim: #ffffff;
@@ -367,7 +368,7 @@
 
   --surface-page: #10141f;
   --surface-raised: #172038;
-  --surface-overlay: #1c253c;
+  --surface-overlay: var(--surface-raised);
   --surface-sunken: #090a14;
   --surface-hover: #253a5e;
   --surface-inset: #090a14;
@@ -378,7 +379,7 @@
   --text-muted: #819796;
   --text-disabled: #577277;
   --text-on-accent: #10141f;
-  --text-on-danger: #ffffff;
+  --text-on-danger: #2a0a0a;
   --text-on-scrim: #ffffff;
   --text-on-raised: #ebede9;
   --text-link: #73bed3;
@@ -391,8 +392,8 @@
   --accent-border: #3c5e8b;
 
   --border-subtle: #172038;
-  --border-default: #253a5e;
-  --border-strong: #3c5e8b;
+  --border-default: #687c9e;
+  --border-strong: #8da2c4;
   --border-accent: #3c5e8b;
 
   --danger: #f87171;
@@ -424,7 +425,7 @@
 
   --surface-page: #2e222f;
   --surface-raised: #3e3546;
-  --surface-overlay: #45293f;
+  --surface-overlay: var(--surface-raised);
   --surface-sunken: #1f1620;
   --surface-hover: #4e3f54;
   --surface-inset: #1f1620;
@@ -432,13 +433,13 @@
 
   --text-primary: #ffffff;
   --text-secondary: #e2daeb;
-  --text-muted: #9f93ad;
+  --text-muted: #b4a5c3;
   --text-disabled: #6c5c75;
   --text-on-accent: #2e222f;
-  --text-on-danger: #ffffff;
+  --text-on-danger: #2a0a0a;
   --text-on-scrim: #ffffff;
   --text-on-raised: #ffffff;
-  --text-link: #a884f3;
+  --text-link: #c5a7ff;
 
   --accent: #a884f3;
   --accent-hover: #eaaded;
@@ -448,8 +449,8 @@
   --accent-border: #905ea9;
 
   --border-subtle: #3e3546;
-  --border-default: #625565;
-  --border-strong: #7f708a;
+  --border-default: #99859f;
+  --border-strong: #bba5c2;
   --border-accent: #905ea9;
 
   --danger: #f87171;

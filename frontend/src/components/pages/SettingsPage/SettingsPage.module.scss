@@ -3,16 +3,16 @@
 
 .settingsPage {
   display: grid;
-  gap: 24px;
+  gap: $space-6;
 }
 
 .header {
   h1 {
-    margin: 4px 0 0;
+    margin: $space-1 0 0;
     color: var(--text-primary);
-    font-size: 32px;
-    font-weight: 750;
-    line-height: 40px;
+    font-size: $font-size-2xl;
+    font-weight: 700;
+    line-height: 36px;
     letter-spacing: -0.02em;
   }
 }
@@ -20,57 +20,54 @@
 .kicker {
   margin: 0;
   color: var(--accent);
-  font-size: 12px;
+  font-size: $font-size-xs;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .accountName {
-  color: var(--text-disabled);
+  color: var(--text-muted);
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 16px;
+  gap: $space-4;
 }
 
 .panel {
   display: grid;
   align-content: start;
-  padding: 20px;
-  gap: 16px;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-md;
-  background: var(--surface-raised);
-  box-shadow: $shadow-xs;
+  padding: $space-5;
+  gap: $space-4;
+  @include panel;
 }
 
 .panelHeader {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: $space-2;
   color: var(--accent);
 
   h2 {
     margin: 0;
     color: var(--text-primary);
-    font-size: 19px;
+    font-size: $font-size-lg;
     font-weight: 700;
-    line-height: 26px;
+    line-height: 24px;
     letter-spacing: -0.01em;
   }
 
   :global(svg) {
-    width: 22px;
-    height: 22px;
+    width: $icon-size;
+    height: $icon-size;
   }
 }
 
 .storageBar {
-  height: 10px;
+  height: $space-2;
   overflow: hidden;
   border-radius: $radius-pill;
   background: var(--surface-sunken);
@@ -87,7 +84,7 @@
 .storageText {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: $font-size-base;
 }
 
 .panelActions {
@@ -100,43 +97,43 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: $space-4;
 }
 
 .dangerText {
   display: grid;
   flex: 1 1 240px;
-  gap: 4px;
+  gap: $space-1;
   min-width: 0;
 }
 
 .dangerTitle {
   margin: 0;
   color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 650;
+  font-size: $font-size-base;
+  font-weight: 600;
 }
 
 .dangerHint {
   margin: 0;
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: $font-size-sm;
+  line-height: 20px;
 }
 
 .error,
 .success {
   margin: 0;
-  font-size: 14px;
+  font-size: $font-size-sm;
   line-height: 20px;
 }
 
 .error {
-  color: var(--danger);
+  color: var(--danger-soft-text);
 }
 
 .success {
-  color: var(--success);
+  color: var(--success-soft-text);
 }
 
 @media (max-width: 900px) {

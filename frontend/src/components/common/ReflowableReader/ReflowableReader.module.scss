@@ -64,7 +64,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: $space-6;
   background: var(--scrim);
   backdrop-filter: blur(4px);
   animation: fade-in $duration-base $ease-standard;
@@ -76,7 +76,7 @@
   max-height: min(640px, 72vh);
   flex-direction: column;
   border: 1px solid color-mix(in srgb, var(--fb2-text) 14%, transparent);
-  border-radius: $radius-md;
+  border-radius: $radius-lg;
   background: var(--fb2-bg);
   box-shadow: $shadow-lg;
   color: var(--fb2-text);
@@ -86,21 +86,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 14px 10px 20px;
+  padding: $space-4;
   gap: $space-3;
   border-bottom: 1px solid color-mix(in srgb, var(--fb2-text) 12%, transparent);
 
   h2 {
     margin: 0;
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 1.25;
+    font-family: $font-family-base;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    line-height: $line-height-base;
   }
 }
 
 .footnoteContent {
   overflow: auto;
-  padding: 18px 20px 20px;
+  padding: $space-4;
 }
 
 .footnoteCloseButton.footnoteCloseButton {
@@ -129,7 +130,7 @@
 
   .footnoteOverlay {
     align-items: flex-end;
-    padding: 16px;
+    padding: $space-4;
   }
 
   .footnoteDialog {

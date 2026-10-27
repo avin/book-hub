@@ -7,10 +7,7 @@
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-md;
-  background: var(--surface-raised);
-  box-shadow: $shadow-xs;
+  @include panel;
   transition:
     box-shadow $duration-base $ease-standard,
     border-color $duration-base $ease-standard,
@@ -30,6 +27,11 @@
   color: inherit;
   text-decoration: none;
 
+  &:focus-visible {
+    @include focus-ring;
+    outline-offset: -3px;
+  }
+
   // When the book has no cover, show the title in place of the image.
   :global(.cover) {
     border-radius: 0;
@@ -43,7 +45,7 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  padding: 12px;
+  padding: $space-3;
   border-radius: 0;
   background: var(--surface-sunken);
 
@@ -51,9 +53,9 @@
     display: -webkit-box;
     overflow: hidden;
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: $font-size-sm;
     font-weight: 600;
-    line-height: 19px;
+    line-height: 20px;
     text-align: center;
     text-overflow: ellipsis;
     word-break: break-word;
@@ -72,7 +74,7 @@
   padding: 0;
   border: none;
   border-radius: $radius-sm;
-  background: rgb(var(--shadow-color) / 0.08);
+  background: var(--scrim);
   color: var(--text-on-scrim);
   cursor: pointer;
   opacity: 0;
@@ -90,12 +92,11 @@
   }
 
   &:hover {
-    background: rgb(var(--shadow-color-strong) / 0.16);
+    background: color-mix(in srgb, var(--scrim) 80%, var(--text-primary));
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+    @include focus-ring;
   }
 }
 
@@ -104,7 +105,7 @@
   right: 0;
   bottom: 0;
   left: 0;
-  height: 3px;
+  height: $space-1;
   overflow: hidden;
   background: var(--surface-sunken);
 
@@ -125,11 +126,11 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  color: var(--danger);
+  color: var(--favorite);
 
   :global(svg) {
     fill: currentColor;
-    stroke: #fff;
+    stroke: var(--text-on-scrim);
     stroke-width: 2.5;
   }
 }
@@ -140,7 +141,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 16px;
+  padding: $space-4;
   background: var(--scrim);
   backdrop-filter: blur(4px);
 }

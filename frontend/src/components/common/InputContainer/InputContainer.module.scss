@@ -4,7 +4,7 @@
 .container {
   display: grid;
   width: 100%;
-  gap: 6px;
+  gap: $space-2;
 }
 
 .control {
@@ -14,14 +14,11 @@
 
 .label {
   display: flex;
-  min-height: 18px;
+  min-height: 20px;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 18px;
+  gap: $space-2;
+  @include form-label;
 }
 
 .labelText {
@@ -38,13 +35,22 @@
 
 .invalid {
   .label {
-    color: var(--danger);
+    color: var(--danger-soft-text);
   }
 
   :global(input),
   :global(textarea),
   :global(select) {
     border-color: var(--danger);
+
+    &:hover:not(:disabled),
+    &:focus-within {
+      border-color: var(--danger);
+    }
+
+    &:focus-within {
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
+    }
   }
 }
 
@@ -52,7 +58,7 @@
   :global(input),
   :global(textarea),
   :global(select) {
-    padding-right: 44px;
+    padding-right: $space-10 + $space-1;
   }
 }
 
@@ -60,7 +66,7 @@
   display: inline-flex;
   position: absolute;
   top: 50%;
-  right: 10px;
+  right: $space-3;
   align-items: center;
   justify-content: center;
   transform: translateY(-50%);
@@ -69,9 +75,8 @@
 
 .subtext,
 .error {
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: $font-size-sm;
+  line-height: 20px;
 }
 
 .subtext {
@@ -79,5 +84,5 @@
 }
 
 .error {
-  color: var(--danger);
+  color: var(--danger-soft-text);
 }

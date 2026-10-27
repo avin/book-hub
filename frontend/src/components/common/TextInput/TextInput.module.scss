@@ -2,59 +2,29 @@
 @use '@/styles/_mixins.scss' as *;
 
 .input {
-  @include control-text;
+  @include control-size;
+  @include field-surface;
 
   width: 100%;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-sm;
-  background: var(--surface-raised);
-  color: var(--text-primary);
+  min-width: 0;
   letter-spacing: 0;
-  transition:
-    border-color $duration-fast $ease-standard,
-    box-shadow $duration-fast $ease-standard,
-    background $duration-fast $ease-standard;
 
-  &::placeholder {
-    color: var(--text-disabled);
-  }
-
-  &[type='search'] {
-    &::-webkit-search-cancel-button {
-      -webkit-appearance: none;
-      appearance: none;
-      display: none;
-    }
-  }
-
-  &:hover:not(:disabled):not(:focus) {
-    border-color: var(--border-strong);
-  }
-
-  &:focus {
-    border-color: var(--accent);
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
-  }
-
-  &:disabled {
-    background: var(--surface-sunken);
-    color: var(--text-disabled);
-    cursor: not-allowed;
+  &[type='search']::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
   }
 }
 
-.invalid {
+.input.invalid {
   border-color: var(--danger);
 
-  &:hover:not(:disabled):not(:focus) {
+  &:hover:not(:disabled),
+  &:focus-within {
     border-color: var(--danger);
   }
 
-  &:focus {
-    border-color: var(--danger);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent);
+  &:focus-within {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
   }
 }

@@ -3,7 +3,8 @@
 
 .textarea {
   display: block;
-  padding: 9px 12px;
+  height: auto;
+  padding: 9px $space-3;
   max-height: calc(10lh + 20px);
   overflow-y: hidden;
   resize: none;

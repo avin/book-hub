@@ -4,16 +4,16 @@
 .uploadPage {
   display: grid;
   max-width: 980px;
-  gap: 24px;
+  gap: $space-6;
 }
 
 .header {
   h1 {
-    margin: 4px 0 0;
+    margin: $space-1 0 0;
     color: var(--text-primary);
-    font-size: 32px;
-    font-weight: 750;
-    line-height: 40px;
+    font-size: $font-size-2xl;
+    font-weight: 700;
+    line-height: 36px;
     letter-spacing: -0.02em;
   }
 }
@@ -21,7 +21,7 @@
 .kicker {
   margin: 0;
   color: var(--accent);
-  font-size: 12px;
+  font-size: $font-size-xs;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -29,15 +29,15 @@
 
 .form {
   display: grid;
-  gap: 18px;
+  gap: $space-4;
 }
 
 .dropzone {
   display: grid;
   min-height: 220px;
   place-items: center;
-  padding: 28px;
-  gap: 8px;
+  padding: $space-6;
+  gap: $space-2;
   border: 2px dashed var(--border-strong);
   border-radius: $radius-md;
   background: var(--surface-raised);
@@ -48,30 +48,31 @@
     background $duration-fast $ease-standard,
     box-shadow $duration-fast $ease-standard;
 
-  &:hover,
-  &:focus-visible {
+  &:hover:not(:disabled) {
     border-color: var(--accent);
-    outline: none;
     background: var(--accent-soft-bg);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  &:focus-visible {
+    @include focus-ring;
   }
 
   &:disabled {
     cursor: default;
-    opacity: 0.72;
+    opacity: 0.55;
   }
 
   span {
     max-width: 100%;
     overflow-wrap: anywhere;
     color: var(--text-primary);
-    font-size: 18px;
+    font-size: $font-size-lg;
     font-weight: 700;
   }
 
   small {
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: $font-size-sm;
   }
 
   :global(svg) {
@@ -92,30 +93,24 @@
 
 .bookDrafts {
   display: grid;
-  gap: 14px;
+  gap: $space-4;
 }
 
 .bulkTags {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-md;
-  background: var(--surface-raised);
-  box-shadow: $shadow-xs;
+  gap: $space-3;
+  padding: $space-4;
+  @include panel;
 }
 
 .bookDraft {
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr);
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-md;
-  background: var(--surface-raised);
-  box-shadow: $shadow-xs;
+  gap: $space-4;
+  padding: $space-4;
+  @include panel;
 }
 
 .coverColumn {
@@ -137,7 +132,7 @@
 
   &:disabled {
     cursor: default;
-    opacity: 0.72;
+    opacity: 0.55;
   }
 }
 
@@ -176,7 +171,7 @@
   align-self: start;
   flex-direction: column;
   min-width: 0;
-  gap: 14px;
+  gap: $space-4;
 }
 
 .titleInput {
@@ -184,20 +179,20 @@
 }
 
 .titleInputField {
-  padding-right: 46px;
+  padding-right: $control-height + $space-2;
 }
 
 .extractTitleButton {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: $space-1;
+  right: $space-1;
 }
 
 .statusText,
 .warningText {
-  margin: 4px 0 0;
-  font-size: 13px;
-  line-height: 18px;
+  margin: $space-1 0 0;
+  font-size: $font-size-sm;
+  line-height: 20px;
 }
 
 .statusText {
@@ -205,13 +200,13 @@
 }
 
 .warningText {
-  color: var(--danger);
+  color: var(--warning-soft-text);
 }
 
 .draftStatus {
   display: grid;
-  min-height: 18px;
-  gap: 4px;
+  min-height: 20px;
+  gap: $space-1;
 }
 
 .draftActions {
@@ -221,8 +216,8 @@
 
 .error {
   margin: 0;
-  color: var(--danger);
-  font-size: 14px;
+  color: var(--danger-soft-text);
+  font-size: $font-size-sm;
   line-height: 20px;
 }
 
@@ -230,14 +225,14 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: $space-2;
 }
 
 .uploadProgress {
   overflow: hidden;
   width: min(240px, 100%);
   height: 8px;
-  border-radius: 999px;
+  border-radius: $radius-pill;
   background: var(--surface-sunken);
 }
 

@@ -7,7 +7,7 @@
   display: grid;
   place-items: center;
   grid-template-columns: minmax(0, 1fr);
-  padding: 20px;
+  padding: $space-5;
   overflow-y: auto;
   background: var(--scrim);
   backdrop-filter: blur(4px);
@@ -17,13 +17,15 @@
   min-width: 0;
   justify-self: center;
   margin: auto;
-  padding: 20px;
+  padding: $space-5;
   border: 1px solid var(--border-default);
   border-radius: $radius-lg;
-  background: var(--surface-raised);
+  background: var(--surface-overlay);
   box-shadow: $shadow-lg;
   h2 {
-    margin: 0 0 20px;
-    font-size: 20px;
+    margin: 0 0 $space-5;
+    font-size: $font-size-lg;
+    line-height: 24px;
+    font-weight: 600;
   }
 }

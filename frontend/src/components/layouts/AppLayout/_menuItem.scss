@@ -6,14 +6,17 @@
   align-items: center;
   justify-content: flex-start;
   min-width: 0;
-  padding: 9px 12px;
-  gap: 11px;
+  min-height: $control-height;
+  padding: $space-2 $space-3;
+  gap: $space-3;
   border: 0;
   border-radius: $radius-sm;
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-weight: 550;
+  font-size: $font-size-base;
+  line-height: 20px;
+  font-weight: 500;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -37,8 +40,8 @@
 
   :global(svg) {
     flex: 0 0 auto;
-    width: 20px;
-    height: 20px;
+    width: $icon-size;
+    height: $icon-size;
     transition: color $duration-fast $ease-standard;
   }
 }

@@ -17,11 +17,11 @@
   z-index: $z-dropdown;
   position: fixed;
   width: max-content;
-  max-height: min(320px, calc(100vh - 24px));
+  max-height: min(320px, calc(100dvh - #{$space-6}));
   overflow: auto;
   border: 1px solid var(--border-default);
   border-radius: $radius-md;
-  background: var(--surface-raised);
+  background: var(--surface-overlay);
   color: var(--text-primary);
   animation: fade-in $duration-fast $ease-standard;
 }

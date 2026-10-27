@@ -4,22 +4,19 @@
 .auth {
   width: min(100%, 420px);
   margin: 0 auto;
-  padding: 32px;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-lg;
-  background: var(--surface-raised);
-  box-shadow: $shadow-lg;
+  padding: $space-8;
+  @include panel;
 }
 
 .header {
-  margin-bottom: 24px;
+  margin-bottom: $space-6;
   text-align: center;
 
   h1 {
     margin: 0;
     color: var(--text-primary);
-    font-size: 28px;
-    font-weight: 750;
+    font-size: $font-size-2xl;
+    font-weight: 700;
     line-height: 36px;
     letter-spacing: -0.02em;
   }
@@ -28,20 +25,21 @@
 .tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-bottom: 24px;
-  padding: 4px;
+  margin-bottom: $space-6;
+  padding: calc(($control-height - $control-height-sm) / 2 - 1px);
   border: 1px solid var(--border-default);
   border-radius: $radius-sm;
   background: var(--surface-sunken);
 
   a {
+    @include control-size(sm);
+
     display: flex;
-    min-height: 36px;
     align-items: center;
     justify-content: center;
     border-radius: $radius-xs;
     color: var(--text-muted);
-    font-size: 14px;
+    font-size: $font-size-sm;
     font-weight: 600;
     text-decoration: none;
     transition:
@@ -63,20 +61,20 @@
 
 .form {
   display: grid;
-  gap: 16px;
+  gap: $space-4;
 }
 
 .iconButton {
   display: inline-flex;
-  width: 30px;
-  height: 30px;
+  width: $control-height-sm;
+  height: $control-height-sm;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 0;
   border-radius: $radius-sm;
   background: transparent;
-  color: var(--text-disabled);
+  color: var(--text-muted);
   cursor: pointer;
   transition:
     background $duration-fast $ease-standard,
@@ -92,38 +90,33 @@
   }
 
   :global(svg) {
-    width: 18px;
-    height: 18px;
+    width: $icon-size;
+    height: $icon-size;
   }
 }
 
 .alert,
 .success {
-  padding: 10px 12px;
-  border-radius: $radius-sm;
-  font-size: 14px;
-  line-height: 20px;
+  margin: 0;
 }
 
 .alert {
-  background: var(--danger-soft-bg);
-  color: var(--danger-hover);
+  @include feedback(danger);
 }
 
 .success {
-  background: var(--success-soft-bg);
-  color: var(--success-hover);
+  @include feedback(success);
 }
 
 .hint {
-  margin: 18px 0 0;
+  margin: $space-4 0 0;
   color: var(--text-muted);
-  font-size: 14px;
-  line-height: 22px;
+  font-size: $font-size-sm;
+  line-height: 24px;
 }
 
 @media (max-width: 520px) {
   .auth {
-    padding: 24px;
+    padding: $space-6;
   }
 }

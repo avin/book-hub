@@ -1,13 +1,95 @@
 @use '@/styles/_variables.scss' as *;
 
 @mixin focus-ring {
-  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 @mixin control-text {
   font-family: $font-family-base;
-  font-size: 15px;
+  font-size: $font-size-base;
+  line-height: 20px;
+}
+
+@mixin control-size($size: md) {
+  @include control-text;
+
+  height: $control-height;
+  min-height: $control-height;
+  padding: 0 $space-3;
+
+  @if $size == sm {
+    height: $control-height-sm;
+    min-height: $control-height-sm;
+    padding: 0 $space-2;
+    font-size: $font-size-sm;
+  } @else if $size == lg {
+    height: $control-height-lg;
+    min-height: $control-height-lg;
+    padding: 0 $space-4;
+  }
+}
+
+@mixin field-surface {
+  border: 1px solid var(--border-default);
+  border-radius: $radius-sm;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  transition:
+    border-color $duration-fast $ease-standard,
+    box-shadow $duration-fast $ease-standard,
+    background $duration-fast $ease-standard;
+
+  &::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+
+  &:hover:not(:disabled):not(.disabled):not(:focus-within) {
+    border-color: var(--border-strong);
+  }
+
+  &:focus-within {
+    border-color: var(--focus-ring);
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 20%, transparent);
+  }
+
+  &:disabled,
+  &.disabled {
+    background: var(--surface-sunken);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+  }
+}
+
+@mixin panel {
+  border: 1px solid var(--border-default);
+  border-radius: $radius-lg;
+  background: var(--surface-raised);
+  box-shadow: $shadow-sm;
+}
+
+@mixin form-label {
+  color: var(--text-secondary);
+  font-size: $font-size-sm;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+@mixin muted-text {
+  color: var(--text-muted);
+  font-size: $font-size-sm;
+  line-height: 20px;
+}
+
+@mixin feedback($tone: danger) {
+  padding: $space-3 $space-4;
+  border: 1px solid color-mix(in srgb, var(--#{$tone}) 28%, transparent);
+  border-radius: $radius-md;
+  background: var(--#{$tone}-soft-bg);
+  color: var(--#{$tone}-soft-text);
+  font-size: $font-size-sm;
   line-height: 20px;
 }
 

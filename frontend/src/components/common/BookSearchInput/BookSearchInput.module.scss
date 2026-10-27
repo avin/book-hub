@@ -2,58 +2,47 @@
 @use '@/styles/_mixins.scss' as *;
 
 .searchField {
+  @include field-surface;
+
   position: relative;
   display: flex;
+  height: $control-height;
+  min-width: 0;
   align-items: center;
-  border: 1px solid var(--border-default);
-  border-radius: $radius-sm;
-  background: var(--surface-raised);
-  transition:
-    border-color $duration-fast $ease-standard,
-    box-shadow $duration-fast $ease-standard;
-
-  &:hover {
-    border-color: var(--border-strong);
-  }
-
-  &:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
-  }
 }
 
 .searchInput.searchInput {
   flex: 1 1 0;
   min-width: 0;
   width: 0;
-  min-height: 38px;
+  height: 100%;
+  min-height: 0;
   border: 0;
   background: transparent;
 
-  &:focus {
+  &:focus-within {
+    outline: none;
     box-shadow: none;
   }
 }
 
 // Reserve space on the right only while the clear button is visible.
-.searchFieldActive {
-  :global(input) {
-    padding-right: 40px;
-  }
+.searchFieldActive :global(input) {
+  padding-right: $control-height;
 }
 
 .searchClear {
   display: inline-flex;
   position: absolute;
   top: 50%;
-  right: 8px;
+  right: $space-1;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: $control-height-sm;
+  height: $control-height-sm;
   padding: 0;
   border: none;
-  border-radius: $radius-sm;
+  border-radius: $radius-xs;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -63,17 +52,16 @@
     background $duration-fast $ease-standard;
 
   :global(svg) {
-    width: 16px;
-    height: 16px;
+    width: $icon-size-sm;
+    height: $icon-size-sm;
   }
 
   &:hover {
-    color: var(--danger);
-    background: var(--danger-soft-bg);
+    color: var(--text-primary);
+    background: var(--surface-hover);
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+    @include focus-ring;
   }
 }

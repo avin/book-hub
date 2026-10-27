@@ -3,19 +3,19 @@
 
 .trigger {
   position: relative;
-  width: 42px;
-  height: 42px;
+  width: $control-height;
+  height: $control-height;
 
   &::after {
     content: '';
     position: absolute;
-    top: 7px;
-    right: 7px;
+    top: $space-2;
+    right: $space-2;
     width: 8px;
     height: 8px;
     border: 2px solid var(--surface-raised);
     border-radius: 50%;
-    background: var(--danger);
+    background: var(--accent);
     opacity: 0;
     transform: scale(0.75);
     transition:
@@ -37,22 +37,20 @@
 .favoriteGroup {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 8px;
+  gap: $space-1;
+  padding: $space-2;
   border-bottom: 1px solid var(--border-default);
 }
 
 .favoriteButton {
-  @include control-text;
+  @include control-size(sm);
 
   display: inline-flex;
-  min-height: 36px;
   align-items: center;
   justify-content: center;
-  padding: 0 10px;
-  gap: 6px;
+  gap: $space-2;
   border: 0;
-  border-radius: $radius-xs;
+  border-radius: $radius-sm;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -71,16 +69,16 @@
 }
 
 .activeFavoriteButton {
-  background: var(--danger-soft-bg);
-  color: var(--danger-hover);
+  background: var(--accent-soft-bg);
+  color: var(--accent-soft-text);
 }
 
 .heart {
-  width: 18px;
-  height: 18px;
+  width: $icon-size;
+  height: $icon-size;
   color: currentColor;
 }
 
 .filledHeart {
-  color: var(--danger);
+  color: var(--favorite);
 }

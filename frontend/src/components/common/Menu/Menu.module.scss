@@ -3,7 +3,7 @@
 
 .menu {
   min-width: 180px;
-  padding: 6px 0;
+  padding: $space-1;
 }
 
 .itemWrapper {
@@ -15,17 +15,17 @@
   box-sizing: border-box;
   display: flex;
   width: 100%;
-  min-height: 36px;
+  min-height: $control-height;
   align-items: center;
-  padding: 8px 14px;
-  padding-left: calc(14px + (var(--menu-depth, 0) * 12px));
-  gap: 10px;
+  padding: $space-2 $space-3;
+  padding-left: calc(#{$space-3} + (var(--menu-depth, 0) * #{$space-3}));
+  gap: $space-2;
   border: 0;
-  border-radius: 0;
+  border-radius: $radius-xs;
   background: transparent;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 14px;
+  font-size: $font-size-sm;
   line-height: 20px;
   letter-spacing: 0;
   text-align: left;
@@ -34,9 +34,9 @@
 }
 
 .category {
-  min-height: 30px;
+  min-height: $control-height-sm;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: $font-size-xs;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -66,13 +66,13 @@
 
 .selected {
   background: var(--accent-soft-bg);
-  color: var(--accent-hover);
-  font-weight: 650;
+  color: var(--accent-soft-text);
+  font-weight: 600;
 }
 
 .separator {
   height: 1px;
-  margin: 6px 0;
+  margin: $space-1 0;
   background: var(--border-default);
 }
 
@@ -85,15 +85,15 @@
 
 .icon {
   display: inline-flex;
-  width: 18px;
-  height: 18px;
+  width: $icon-size;
+  height: $icon-size;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
 
   :global(svg) {
-    width: 18px;
-    height: 18px;
+    width: $icon-size;
+    height: $icon-size;
   }
 }

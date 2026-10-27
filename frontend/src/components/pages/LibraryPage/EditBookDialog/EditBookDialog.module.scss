@@ -9,7 +9,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: $space-5;
   overflow-y: auto;
   background: var(--scrim);
   backdrop-filter: blur(4px);
@@ -21,7 +21,7 @@
   margin: auto;
   border: 1px solid var(--border-default);
   border-radius: $radius-lg;
-  background: var(--surface-raised);
+  background: var(--surface-overlay);
   box-shadow: $shadow-lg;
   animation: slide-up $duration-base $ease-out;
 }
@@ -30,15 +30,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px 16px 20px;
+  padding: $space-4 $space-4 $space-4 $space-5;
   border-bottom: 1px solid var(--border-default);
 
   h2 {
     margin: 0;
     color: var(--text-primary);
-    font-size: 19px;
+    font-size: $font-size-lg;
     font-weight: 700;
-    line-height: 26px;
+    line-height: 24px;
     letter-spacing: -0.01em;
   }
 }
@@ -47,24 +47,25 @@
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
   align-items: start;
-  padding: 20px;
-  gap: 18px;
+  padding: $space-5;
+  gap: $space-4;
 }
 
 .dialogFooter {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: $space-4 $space-5;
   border-top: 1px solid var(--border-default);
-  gap: 10px;
+  gap: $space-2;
 }
 
 .footerActions {
   display: flex;
   align-items: center;
   margin-left: auto;
-  gap: 10px;
+  gap: $space-2;
 }
 
 // ── Cover column ────────────────────────────────────────────
@@ -78,6 +79,7 @@
   position: relative;
   display: block;
   width: 120px;
+  padding: 0;
   border: 0;
   border-radius: $radius-sm;
   background: transparent;
@@ -90,7 +92,7 @@
   &:disabled,
   &[aria-disabled='true'] {
     cursor: default;
-    opacity: 0.72;
+    opacity: 0.55;
   }
 }
 
@@ -146,8 +148,8 @@
     transform $duration-base $ease-standard;
 
   :global(svg) {
-    width: 22px;
-    height: 22px;
+    width: $icon-size;
+    height: $icon-size;
   }
 
   .coverWrapper:hover & {
@@ -159,11 +161,11 @@
 // Real delete button in the top-right corner.
 .coverRemove {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: $space-1;
+  right: $space-1;
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: $control-height-sm;
+  height: $control-height-sm;
   place-items: center;
   padding: 0;
   border: 0;
@@ -204,7 +206,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 16px;
+  gap: $space-4;
 }
 
 .fileInput {
@@ -213,15 +215,15 @@
 
 .error {
   margin: 0;
-  color: var(--danger);
-  font-size: 14px;
+  color: var(--danger-soft-text);
+  font-size: $font-size-sm;
   line-height: 20px;
 }
 
 @media (max-width: 600px) {
   .dialogBody {
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
+    gap: $space-6;
   }
 
   .coverColumn {

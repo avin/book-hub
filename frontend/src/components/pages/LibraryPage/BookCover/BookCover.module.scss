@@ -20,9 +20,9 @@
 .coverFallback {
   display: grid;
   justify-items: center;
-  gap: 8px;
+  gap: $space-2;
   color: var(--accent);
-  font-size: 12px;
+  font-size: $font-size-xs;
   font-weight: 800;
   letter-spacing: 0.04em;
 
