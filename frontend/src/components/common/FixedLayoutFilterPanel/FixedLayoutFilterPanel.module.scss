@@ -39,7 +39,7 @@
   display: grid;
   gap: $space-2;
   padding: $space-2 $space-3;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: $radius-sm;
   background: var(--surface-raised);
   will-change: transform;
@@ -49,6 +49,27 @@
   @include range-control;
 
   height: $space-6;
+
+  &::-webkit-slider-runnable-track {
+    height: 3px;
+    background: var(--border-default);
+  }
+
+  &::-moz-range-track {
+    height: 3px;
+    background: var(--border-default);
+  }
+
+  &::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    margin-top: -5.5px;
+  }
+
+  &::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .filterPlaceholder {

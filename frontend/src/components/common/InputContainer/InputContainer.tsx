@@ -4,6 +4,7 @@ import styles from './InputContainer.module.scss';
 function InputContainer(props: {
   children: JSX.Element;
   label: string;
+  size?: 'sm' | 'md';
   labelEnd?: JSX.Element;
   error?: JSX.Element;
   subtext?: JSX.Element;
@@ -14,6 +15,7 @@ function InputContainer(props: {
     <div
       class={styles.container}
       classList={{
+        [styles.small]: props.size === 'sm',
         [styles.invalid]: Boolean(props.error),
         [styles.withEndContent]: Boolean(props.endContent),
       }}

@@ -12,6 +12,22 @@
   min-width: 0;
 }
 
+.small {
+  gap: 2px;
+
+  .label {
+    min-height: 20px;
+    font-size: $font-size-sm;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  .labelEnd {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 .label {
   display: flex;
   min-height: 20px;

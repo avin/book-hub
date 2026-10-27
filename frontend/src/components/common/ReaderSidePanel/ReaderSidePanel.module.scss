@@ -39,7 +39,7 @@
   justify-content: space-between;
   gap: $space-2;
   padding: $space-2 $space-3;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-default);
 
   h2 {
     margin: 0;
@@ -67,5 +67,5 @@
   gap: $space-2;
   margin-top: auto;
   padding: $space-2 $space-3;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-default);
 }

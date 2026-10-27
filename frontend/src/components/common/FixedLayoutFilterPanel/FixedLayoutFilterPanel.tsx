@@ -270,7 +270,11 @@ function FixedLayoutFilterPanel(props: {
           <FileText size={17} />
           {t('page')}
         </h3>
-        <InputContainer label={t('pageWidthIncrease')} labelEnd={`${draftPageWidthOverflow()}%`}>
+        <InputContainer
+          size="sm"
+          label={t('pageWidthIncrease')}
+          labelEnd={`${draftPageWidthOverflow()}%`}
+        >
           <input
             type="range"
             min={fixedLayoutPageWidthOverflowRange.min}
@@ -348,7 +352,11 @@ function FixedLayoutFilterPanel(props: {
                 </div>
 
                 <Show when={filter.id === 'textEnhancement' && filter.enabled && props.available}>
-                  <InputContainer label={t('strokeWidth')} labelEnd={draftStrokeWidth().toFixed(2)}>
+                  <InputContainer
+                    size="sm"
+                    label={t('strokeWidth')}
+                    labelEnd={draftStrokeWidth().toFixed(2)}
+                  >
                     <input
                       type="range"
                       min={pdfTextEnhancementRanges.strokeWidth.min}
@@ -367,7 +375,11 @@ function FixedLayoutFilterPanel(props: {
                     />
                   </InputContainer>
 
-                  <InputContainer label={t('threshold')} labelEnd={draftThreshold().toFixed(2)}>
+                  <InputContainer
+                    size="sm"
+                    label={t('threshold')}
+                    labelEnd={draftThreshold().toFixed(2)}
+                  >
                     <input
                       type="range"
                       min={pdfTextEnhancementRanges.threshold.min}
@@ -386,7 +398,11 @@ function FixedLayoutFilterPanel(props: {
                     />
                   </InputContainer>
 
-                  <InputContainer label={t('contrast')} labelEnd={draftContrast().toFixed(2)}>
+                  <InputContainer
+                    size="sm"
+                    label={t('contrast')}
+                    labelEnd={draftContrast().toFixed(2)}
+                  >
                     <input
                       type="range"
                       min={pdfTextEnhancementRanges.contrast.min}
@@ -405,7 +421,11 @@ function FixedLayoutFilterPanel(props: {
                     />
                   </InputContainer>
 
-                  <InputContainer label={t('grayLevels')} labelEnd={String(draftGrayLevels())}>
+                  <InputContainer
+                    size="sm"
+                    label={t('grayLevels')}
+                    labelEnd={String(draftGrayLevels())}
+                  >
                     <input
                       type="range"
                       min={pdfTextEnhancementRanges.grayLevels.min}
@@ -424,7 +444,11 @@ function FixedLayoutFilterPanel(props: {
                     />
                   </InputContainer>
 
-                  <InputContainer label={t('toneShift')} labelEnd={draftToneShift().toFixed(2)}>
+                  <InputContainer
+                    size="sm"
+                    label={t('toneShift')}
+                    labelEnd={draftToneShift().toFixed(2)}
+                  >
                     <input
                       type="range"
                       min={pdfTextEnhancementRanges.toneShift.min}
@@ -448,6 +472,7 @@ function FixedLayoutFilterPanel(props: {
                   when={filter.id === 'softTextEnhancement' && filter.enabled && props.available}
                 >
                   <InputContainer
+                    size="sm"
                     label={t('strokeWidth')}
                     labelEnd={draftSoftStrokeWidth().toFixed(2)}
                   >
@@ -472,6 +497,7 @@ function FixedLayoutFilterPanel(props: {
                   </InputContainer>
 
                   <InputContainer
+                    size="sm"
                     label={t('filterStrength')}
                     labelEnd={`${Math.round(draftSoftStrength() * 100)}%`}
                   >
@@ -496,6 +522,7 @@ function FixedLayoutFilterPanel(props: {
 
                 <Show when={filter.id === 'invert' && filter.enabled && props.available}>
                   <InputContainer
+                    size="sm"
                     label={t('filterStrength')}
                     labelEnd={`${Math.round(draftStrength() * 100)}%`}
                   >
@@ -515,7 +542,11 @@ function FixedLayoutFilterPanel(props: {
                 </Show>
 
                 <Show when={filter.id === 'visualAdjustment' && filter.enabled && props.available}>
-                  <InputContainer label={t('brightness')} labelEnd={draftBrightness().toFixed(2)}>
+                  <InputContainer
+                    size="sm"
+                    label={t('brightness')}
+                    labelEnd={draftBrightness().toFixed(2)}
+                  >
                     <input
                       type="range"
                       min={pdfVisualAdjustmentRanges.brightness.min}
@@ -534,7 +565,11 @@ function FixedLayoutFilterPanel(props: {
                     />
                   </InputContainer>
 
-                  <InputContainer label={t('contrast')} labelEnd={draftVisualContrast().toFixed(2)}>
+                  <InputContainer
+                    size="sm"
+                    label={t('contrast')}
+                    labelEnd={draftVisualContrast().toFixed(2)}
+                  >
                     <input
                       type="range"
                       min={pdfVisualAdjustmentRanges.contrast.min}
@@ -553,7 +588,7 @@ function FixedLayoutFilterPanel(props: {
                     />
                   </InputContainer>
 
-                  <InputContainer label={t('gamma')} labelEnd={draftGamma().toFixed(2)}>
+                  <InputContainer size="sm" label={t('gamma')} labelEnd={draftGamma().toFixed(2)}>
                     <input
                       type="range"
                       min={pdfVisualAdjustmentRanges.gamma.min}
@@ -571,6 +606,7 @@ function FixedLayoutFilterPanel(props: {
 
                 <Show when={filter.id === 'warmth' && filter.enabled && props.available}>
                   <InputContainer
+                    size="sm"
                     label={t('filterStrength')}
                     labelEnd={`${Math.round(draftWarmthStrength() * 100)}%`}
                   >
@@ -591,6 +627,7 @@ function FixedLayoutFilterPanel(props: {
 
                 <Show when={filter.id === 'grayscale' && filter.enabled && props.available}>
                   <InputContainer
+                    size="sm"
                     label={t('filterStrength')}
                     labelEnd={`${Math.round(draftGrayscaleStrength() * 100)}%`}
                   >
