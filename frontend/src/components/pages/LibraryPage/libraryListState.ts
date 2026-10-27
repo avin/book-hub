@@ -23,8 +23,6 @@ const listQueryParamNames = ['q', 'search_field', 'tag', 'sort', 'favorite'] as 
 const sortValues = new Set<BookSort>(['relevance', 'created_at_desc', 'title_asc', 'title_desc']);
 const favoriteFilterValues = new Set<LibraryFavoriteFilter>(['all', 'favorite', 'regular']);
 
-let lastLibraryListState: LibraryListState = cloneLibraryListState(defaultLibraryListState);
-
 function cloneLibraryListState(state: LibraryListState): LibraryListState {
   return {
     search: state.search,
@@ -94,14 +92,13 @@ export function readLibraryListStateFromSearch(search: string) {
 }
 
 export function readInitialLibraryListState(search: string) {
-  return readLibraryListStateFromSearch(search) ?? cloneLibraryListState(lastLibraryListState);
+  return readLibraryListStateFromSearch(search) ?? getLastLibraryListState();
 }
 
 const [currentLibraryListState, setCurrentLibraryListState] = createSignal<LibraryListState>();
 
 export function rememberLibraryListState(state: LibraryListState) {
-  lastLibraryListState = cloneLibraryListState(state);
-  setCurrentLibraryListState(lastLibraryListState);
+  setCurrentLibraryListState(cloneLibraryListState(state));
 }
 
 export function buildLibraryListStateUrl(
@@ -140,7 +137,15 @@ export const [libraryBookmarkApplication, setLibraryBookmarkApplication] =
   createSignal<LibraryListState>();
 
 export function getLastLibraryListState() {
-  return cloneLibraryListState(lastLibraryListState);
+  return cloneLibraryListState(currentLibraryListState() ?? defaultLibraryListState);
+}
+
+export function getLibraryListUrl() {
+  return buildLibraryListStateUrl(getLastLibraryListState(), {
+    pathname: '/library',
+    search: '',
+    hash: '',
+  });
 }
 
 export { currentLibraryListState };

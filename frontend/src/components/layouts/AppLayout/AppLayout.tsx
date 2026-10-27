@@ -4,6 +4,7 @@ import { BookOpen, ChevronDown, Library, LogOut, Settings, Upload } from 'lucide
 import { createLogoutMutation } from '@/api/auth';
 import Button from '@/components/common/Button/Button';
 import LanguageSelect from '@/components/common/LanguageSelect/LanguageSelect';
+import { getLibraryListUrl } from '@/components/pages/LibraryPage/libraryListState';
 import { useI18n } from '@/i18n/I18nProvider';
 import LibraryBookmarks from './LibraryBookmarks/LibraryBookmarks';
 import styles from './AppLayout.module.scss';
@@ -27,14 +28,14 @@ function AppLayout(props: { children: JSX.Element }) {
       <aside class={styles.sidebar}>
         <div class={styles.sidebarTop}>
           <div class={styles.sidebarHeader}>
-            <A href="/library" class={styles.brand}>
+            <A href={getLibraryListUrl()} class={styles.brand}>
               <BookOpen />
               <span>{t('bookHub')}</span>
             </A>
           </div>
 
           <nav class={styles.nav}>
-            <A href="/library" class={styles.libraryNavLink}>
+            <A href={getLibraryListUrl()} class={styles.libraryNavLink}>
               <Library />
               <span class={styles.navLabel}>{t('library')}</span>
             </A>

@@ -23,6 +23,7 @@ import {
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import { useI18n } from '@/i18n/I18nProvider';
+import { getLibraryListUrl } from '@/components/pages/LibraryPage/libraryListState';
 import styles from './ReaderPage.module.scss';
 
 const Fb2Reader = lazy(() => loadModule(() => import('@/components/common/Fb2Reader/Fb2Reader')));
@@ -157,7 +158,7 @@ function ReaderPage() {
   const chromeContent = () => (
     <div class={styles.chromeContent}>
       <Button
-        href="/library"
+        href={getLibraryListUrl()}
         variant="ghost"
         size="sm"
         iconOnly
@@ -339,7 +340,7 @@ function ReaderPage() {
                 {t('tryAgain')}
               </Button>
             </Show>
-            <Button href="/library">{t('backToLibrary')}</Button>
+            <Button href={getLibraryListUrl()}>{t('backToLibrary')}</Button>
           </div>
         </div>
       </Show>

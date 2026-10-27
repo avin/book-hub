@@ -2,6 +2,62 @@ import { expect, test } from './fixtures';
 import { login } from './support/api';
 import * as books from './mocks/books';
 
+for (const linkName of ['Библиотека', 'Book Hub']) {
+  test(`повторный переход через «${linkName}» сохраняет параметры библиотеки`, async ({ page }) => {
+    await login(page);
+    const params = new URLSearchParams({
+      q: 'роман',
+      search_field: 'description',
+      sort: 'title_desc',
+      favorite: 'favorite',
+    });
+    params.append('tag', 'роман');
+    params.append('tag', 'классика');
+    let url = `/library?${params}`;
+    await page.goto(url);
+    const search = page.getByRole('textbox', { name: 'Поиск книг', exact: true });
+    await expect(search).toHaveValue('роман');
+    const link = page.getByRole('link', { name: linkName, exact: true });
+
+    await link.click();
+    await expect(page).toHaveURL(url);
+    await expect(search).toHaveValue('роман');
+    await link.click();
+    await expect(page).toHaveURL(url);
+
+    await search.fill('приключения');
+    params.set('q', 'приключения');
+    url = `/library?${params}`;
+    await expect(page).toHaveURL(url);
+    await expect(link).toHaveAttribute('href', url);
+    await link.click();
+    await expect(page).toHaveURL(url);
+
+    await page.getByRole('link', { name: 'Загрузка', exact: true }).click();
+    await expect(page).toHaveURL('/upload');
+    await link.click();
+    await expect(page).toHaveURL(url);
+    await expect(search).toHaveValue('приключения');
+    await page.reload();
+    await expect(search).toHaveValue('приключения');
+    await expect(page.getByRole('button', { name: 'Где искать', exact: true })).toHaveText(
+      'По описанию',
+    );
+    await expect(
+      page.getByRole('button', { name: 'Удалить тег роман', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Удалить тег классика', exact: true }),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Сбросить фильтр', exact: true }).first().click();
+    await expect(page).toHaveURL('/library?sort=title_desc');
+    await link.click();
+    await expect(page).toHaveURL('/library?sort=title_desc');
+    await expect(search).toHaveValue('');
+  });
+}
+
 for (const view of ['Список', 'Сетка']) {
   test(`правый клик по обложке (${view}) открывает меню книги у курсора`, async ({ page }) => {
     await login(page);
