@@ -46,7 +46,7 @@
     min-width: 0;
   }
 }
-.remove {
+.edit {
   display: flex;
   visibility: hidden;
   flex: 0 0 30px;
@@ -61,12 +61,12 @@
     @include focus-ring;
   }
 }
-.revealed .remove,
-.row:has(:focus-visible) .remove {
+.revealed .edit,
+.row:has(:focus-visible) .edit {
   visibility: visible;
 }
 @media (hover: hover) and (pointer: fine) {
-  .row:hover .remove {
+  .row:hover .edit {
     visibility: visible;
   }
 }

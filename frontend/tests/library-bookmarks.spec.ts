@@ -134,21 +134,21 @@ test('черновик независим, предзаполняется на �
   const entries = page.getByRole('button', { name: 'Дубликат', exact: true });
   await entries.first().hover();
   const remove = page.getByRole('button', {
-    name: 'Удалить закладку Дубликат',
+    name: 'Редактировать закладку Дубликат',
     exact: true,
     includeHidden: true,
   });
   await expect(remove.first()).toBeVisible();
   await expect(remove.last()).toBeHidden();
   await remove.first().click();
+  const editor = page.getByRole('dialog', { name: 'Редактировать закладку', exact: true });
+  await editor.getByRole('button', { name: 'Удалить', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: 'Удалить закладку', exact: true });
   await expect(confirm.getByText('Дубликат', { exact: true })).toBeVisible();
   await confirm.getByRole('button', { name: 'Нет', exact: true }).click();
-  await entries.first().hover();
-  await remove.first().click();
+  await editor.getByRole('button', { name: 'Удалить', exact: true }).click();
   await page.keyboard.press('Escape');
-  await entries.first().hover();
-  await remove.first().click();
+  await editor.getByRole('button', { name: 'Удалить', exact: true }).click();
   await confirm.getByRole('button', { name: 'Да', exact: true }).click();
   await expect(entries).toHaveCount(1);
   expect(settings().libraryBookmarks).toHaveLength(1);
@@ -223,7 +223,7 @@ for (const mobile of [false, true]) {
 
 test.describe('сенсорное управление', () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
-  test('длительное нажатие раскрывает удаление без применения, нажатие снаружи скрывает крестик', async ({
+  test('длительное нажатие раскрывает редактирование без применения, нажатие снаружи скрывает кнопку', async ({
     page,
   }) => {
     await mockSettings(page, [
@@ -234,7 +234,7 @@ test.describe('сенсорное управление', () => {
     await page.getByRole('button', { name: 'Закладки', exact: true }).tap();
     const list = page.getByRole('dialog', { name: 'Закладки', exact: true });
     const first = list.getByRole('button', { name: 'Первая', exact: true });
-    const remove = list.getByRole('button', { name: 'Удалить закладку Первая', exact: true });
+    const remove = list.getByRole('button', { name: 'Редактировать закладку Первая', exact: true });
     await expect(remove).toBeHidden();
     const bounds = await first.boundingBox();
     const session = await page.context().newCDPSession(page);
@@ -393,7 +393,14 @@ for (const view of ['Список', 'Сетка']) {
     await page.screenshot({ path: test.info().outputPath('bookmark-form.png') });
     await form.getByRole('button', { name: 'Отмена', exact: true }).click();
     await page.getByRole('button', { name: 'Моя выборка', exact: true }).hover();
-    await page.getByRole('button', { name: 'Удалить закладку Моя выборка', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Редактировать закладку Моя выборка', exact: true })
+      .click();
+    await covered();
+    await page
+      .getByRole('dialog', { name: 'Редактировать закладку', exact: true })
+      .getByRole('button', { name: 'Удалить', exact: true })
+      .click();
     await covered();
     await page
       .getByRole('dialog', { name: 'Удалить закладку', exact: true })
@@ -444,3 +451,79 @@ test('кнопка создания и закладки выровнены с о
   }
   await page.screenshot({ path: test.info().outputPath('bookmark-menu.png') });
 });
+
+for (const mobile of [false, true]) {
+  test(`редактирование сохраняет параметры и место закладки, отмена сохраняет черновик (${mobile ? 'mobile' : 'desktop'})`, async ({
+    page,
+  }) => {
+    const original = bookmark('one', 'Моя выборка', {
+      search: 'старое',
+      searchField: 'description',
+      tags: ['роман'],
+    });
+    const settings = await mockSettings(page, [original, bookmark('two', 'Другая')]);
+    await page.setViewportSize({ width: mobile ? 390 : 1100, height: 844 });
+    await login(page);
+    await page.goto('/library?q=выдача');
+    if (mobile) await page.getByRole('button', { name: 'Закладки', exact: true }).click();
+    const entry = page.getByRole('button', { name: 'Моя выборка', exact: true });
+    if (mobile) {
+      await entry.focus();
+      await page.keyboard.press('ArrowDown');
+    } else await entry.hover();
+    await page
+      .getByRole('button', { name: 'Редактировать закладку Моя выборка', exact: true })
+      .click();
+    const editor = page.getByRole('dialog', { name: 'Редактировать закладку', exact: true });
+    const name = editor.getByRole('textbox', { name: 'Название', exact: true });
+    const search = editor.getByRole('textbox', { name: 'Поиск книг', exact: true });
+    await expect(name).toHaveValue('Моя выборка');
+    await expect(search).toHaveValue('старое');
+    await expect(editor.getByRole('button', { name: 'Где искать' })).toHaveText('По описанию');
+    await expect(editor.getByRole('button', { name: 'Удалить тег роман' })).toBeVisible();
+    await name.fill('  Новая выборка  ');
+    await search.fill('новое');
+    await editor.getByRole('button', { name: 'Где искать' }).click();
+    await page.getByRole('menuitem', { name: 'По названию' }).click();
+    await editor.getByRole('button', { name: 'Удалить тег роман' }).click();
+    const tags = editor.getByRole('combobox', { name: 'Теги', exact: true });
+    await tags.fill('новый');
+    await tags.press('Enter');
+    const remove = editor.getByRole('button', { name: 'Удалить', exact: true });
+    const cancel = editor.getByRole('button', { name: 'Отмена', exact: true });
+    const removeBounds = await remove.boundingBox();
+    const cancelBounds = await cancel.boundingBox();
+    expect(removeBounds!.x).toBeLessThan(cancelBounds!.x);
+    expect(Math.abs(removeBounds!.y - cancelBounds!.y)).toBeLessThan(1);
+    await remove.click();
+    await page
+      .getByRole('dialog', { name: 'Удалить закладку', exact: true })
+      .getByRole('button', { name: 'Нет', exact: true })
+      .click();
+    await expect(name).toHaveValue('  Новая выборка  ');
+    await expect(search).toHaveValue('новое');
+    expect(settings().libraryBookmarks[0]).toEqual(original);
+    await editor.getByRole('button', { name: 'Сохранить', exact: true }).click();
+    await expect(editor).toBeHidden();
+    expect(settings().libraryBookmarks).toEqual([
+      bookmark('one', 'Новая выборка', { search: 'новое', tags: ['новый'] }),
+      bookmark('two', 'Другая'),
+    ]);
+    expect(settings().unrelated).toEqual({ keep: 42 });
+    if (mobile)
+      await page
+        .getByRole('dialog', { name: 'Закладки', exact: true })
+        .getByRole('button', { name: 'Закрыть', exact: true })
+        .click();
+    await expect(page.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue(
+      'выдача',
+    );
+    await page.reload();
+    if (mobile) await page.getByRole('button', { name: 'Закладки', exact: true }).click();
+    await page.getByRole('button', { name: 'Новая выборка', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Поиск книг', exact: true })).toHaveValue(
+      'новое',
+    );
+    await expect(page).toHaveURL(/tag=/);
+  });
+}

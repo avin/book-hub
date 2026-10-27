@@ -1,6 +1,6 @@
 import { Portal } from 'solid-js/web';
 import { useNavigate } from '@solidjs/router';
-import { Bookmark, Plus, X } from 'lucide-solid';
+import { Bookmark, Pencil, Plus } from 'lucide-solid';
 import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { createLibraryBookmarks, type LibraryBookmark } from '@/api/libraryBookmarks';
 import Button from '@/components/common/Button/Button';
@@ -12,7 +12,7 @@ import {
   setLibraryBookmarkApplication,
 } from '@/components/pages/LibraryPage/libraryListState';
 import { useI18n } from '@/i18n/I18nProvider';
-import CreateBookmarkDialog from './CreateBookmarkDialog/CreateBookmarkDialog';
+import BookmarkDialog from './BookmarkDialog/BookmarkDialog';
 import styles from './LibraryBookmarks.module.scss';
 
 function LibraryBookmarks() {
@@ -21,6 +21,7 @@ function LibraryBookmarks() {
   const { settings, mutation, bookmarks } = createLibraryBookmarks();
   const [mobileOpen, setMobileOpen] = createSignal(false);
   const [creating, setCreating] = createSignal(false);
+  const [editing, setEditing] = createSignal<LibraryBookmark>();
   const [deleting, setDeleting] = createSignal<LibraryBookmark>();
   const [revealed, setRevealed] = createSignal<string>();
   let pressTimer: ReturnType<typeof setTimeout> | undefined;
@@ -41,6 +42,10 @@ function LibraryBookmarks() {
   });
   const closeCreation = () => {
     setCreating(false);
+    mutation.reset();
+  };
+  const closeEditing = () => {
+    setEditing(undefined);
     mutation.reset();
   };
   const openCreation = () => {
@@ -102,14 +107,14 @@ function LibraryBookmarks() {
               </button>
               <button
                 type="button"
-                class={styles.remove}
-                aria-label={`${t('deleteBookmark')} ${bookmark.name}`}
+                class={styles.edit}
+                aria-label={`${t('editBookmark')} ${bookmark.name}`}
                 onClick={() => {
                   mutation.reset();
-                  setDeleting(bookmark);
+                  setEditing(bookmark);
                 }}
               >
-                <X size={16} />
+                <Pencil size={16} aria-hidden="true" />
               </button>
             </div>
           )}
@@ -146,7 +151,7 @@ function LibraryBookmarks() {
         onClick={() => setMobileOpen(true)}
       />
       <Portal>
-        <Show when={mobileOpen() && !creating() && !deleting()}>
+        <Show when={mobileOpen() && !creating() && !editing() && !deleting()}>
           <ModalDialog
             ariaLabel={t('bookmarks')}
             overlayClass={styles.overlay}
@@ -161,7 +166,7 @@ function LibraryBookmarks() {
           </ModalDialog>
         </Show>
         <Show when={creating()}>
-          <CreateBookmarkDialog
+          <BookmarkDialog
             saving={mutation.isPending}
             error={mutation.isError}
             onClose={closeCreation}
@@ -173,6 +178,31 @@ function LibraryBookmarks() {
             }
           />
         </Show>
+        <Show when={editing()}>
+          {(bookmark) => (
+            <BookmarkDialog
+              bookmark={bookmark()}
+              hidden={!!deleting()}
+              saving={mutation.isPending}
+              error={mutation.isError}
+              onClose={closeEditing}
+              onDelete={() => {
+                mutation.reset();
+                setDeleting(bookmark());
+              }}
+              onSave={(updated) =>
+                mutation.mutate(
+                  {
+                    libraryBookmarks: bookmarks().map((item) =>
+                      item.id === updated.id ? updated : item,
+                    ),
+                  },
+                  { onSuccess: closeEditing },
+                )
+              }
+            />
+          )}
+        </Show>
         <Show when={deleting()}>
           {(bookmark) => (
             <ModalDialog
@@ -180,7 +210,10 @@ function LibraryBookmarks() {
               overlayClass={styles.overlay}
               contentClass={styles.dialog}
               onClose={() => {
-                if (!mutation.isPending) setDeleting(undefined);
+                if (!mutation.isPending) {
+                  setDeleting(undefined);
+                  mutation.reset();
+                }
               }}
             >
               <h2>{t('deleteBookmark')}?</h2>
@@ -192,7 +225,10 @@ function LibraryBookmarks() {
                 <Button
                   variant="ghost"
                   disabled={mutation.isPending}
-                  onClick={() => setDeleting(undefined)}
+                  onClick={() => {
+                    setDeleting(undefined);
+                    mutation.reset();
+                  }}
                 >
                   {t('no')}
                 </Button>
@@ -204,6 +240,7 @@ function LibraryBookmarks() {
                       {
                         onSuccess: () => {
                           setDeleting(undefined);
+                          setEditing(undefined);
                           setRevealed(undefined);
                         },
                       },
