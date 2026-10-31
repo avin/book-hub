@@ -235,6 +235,8 @@
 }
 
 @media (pointer: coarse) {
+  .topHoverZone,
+  .bottomHoverZone,
   .scrollbarToggle {
     display: none;
   }

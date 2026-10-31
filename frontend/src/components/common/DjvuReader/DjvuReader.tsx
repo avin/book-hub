@@ -1248,9 +1248,9 @@ function DjvuReader(props: {
           ref={documentRef}
           class={styles.document}
           classList={{ [styles.documentFit]: isFitWidth() }}
-          onPointerUp={(event) => {
-            if (readerChrome.toggleOnTouch(event)) event.preventDefault();
-          }}
+          onPointerDown={readerChrome.onDocumentPointerDown}
+          onPointerUp={readerChrome.onDocumentPointerUp}
+          onPointerCancel={readerChrome.onDocumentPointerCancel}
           onClick={readerChrome.onDocumentClick}
         >
           {

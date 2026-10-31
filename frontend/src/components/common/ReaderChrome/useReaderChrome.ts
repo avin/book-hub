@@ -10,7 +10,8 @@ import {
 const headerHideOffset = 128;
 const headerShowOffset = 72;
 const bottomShowOffset = 88;
-const touchToggleClickTimeoutMs = 500;
+const tapMovementThreshold = 12;
+const tapDurationMs = 500;
 const defaultHoverOffsets = { hide: headerHideOffset, show: headerShowOffset };
 
 function useReaderChrome(props: {
@@ -21,8 +22,17 @@ function useReaderChrome(props: {
     show: number;
   };
 }) {
-  let touchToggleClickTimeout: number | undefined;
   let ignoreNextDocumentClick = false;
+  let touchStart:
+    | {
+        pointerId: number;
+        x: number;
+        y: number;
+        scrollX: number;
+        scrollY: number;
+        timeStamp: number;
+      }
+    | undefined;
   const [headerVisible, setHeaderVisible] = createSignal(false);
   const visible = createMemo(() => headerVisible() || props.keepVisible());
   const hoverOffsets = () => props.hoverOffsets ?? defaultHoverOffsets;
@@ -34,32 +44,78 @@ function useReaderChrome(props: {
     props.onClose();
   };
 
-  const toggleOnTouch = (event: PointerEvent) => {
+  const isInteractiveTarget = (target: EventTarget | null) =>
+    target instanceof Element &&
+    Boolean(
+      target.closest('a, button, input, textarea, select, [role="button"], [contenteditable]'),
+    );
+
+  const onDocumentPointerDown = (event: PointerEvent) => {
+    ignoreNextDocumentClick = event.pointerType === 'touch';
+
     if (
       event.pointerType !== 'touch' ||
-      event.clientY < window.innerHeight * 0.25 ||
-      event.clientY > window.innerHeight * 0.75
+      !event.isPrimary ||
+      touchStart ||
+      isInteractiveTarget(event.target)
     ) {
-      return false;
+      touchStart = undefined;
+      return;
     }
 
-    setHeaderVisible((current) => !current);
-    ignoreNextDocumentClick = true;
-
-    if (touchToggleClickTimeout !== undefined) {
-      window.clearTimeout(touchToggleClickTimeout);
-    }
-
-    touchToggleClickTimeout = window.setTimeout(() => {
-      ignoreNextDocumentClick = false;
-      touchToggleClickTimeout = undefined;
-    }, touchToggleClickTimeoutMs);
-
-    return true;
+    touchStart = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+      timeStamp: event.timeStamp,
+    };
   };
 
-  const onDocumentClick = () => {
-    if (ignoreNextDocumentClick) {
+  const onDocumentPointerCancel = () => {
+    touchStart = undefined;
+  };
+
+  const onDocumentPointerUp = (event: PointerEvent) => {
+    const start = touchStart;
+    touchStart = undefined;
+
+    if (
+      event.pointerType !== 'touch' ||
+      !start ||
+      event.pointerId !== start.pointerId ||
+      Math.hypot(event.clientX - start.x, event.clientY - start.y) > tapMovementThreshold ||
+      Math.hypot(window.scrollX - start.scrollX, window.scrollY - start.scrollY) >
+        tapMovementThreshold ||
+      event.timeStamp - start.timeStamp > tapDurationMs ||
+      isInteractiveTarget(event.target) ||
+      window.getSelection()?.isCollapsed === false
+    ) {
+      return;
+    }
+
+    const topSector = event.clientY < window.innerHeight * 0.25;
+    const bottomSector = event.clientY > window.innerHeight * 0.75;
+
+    if (event.clientX >= (window.innerWidth * 2) / 3 && (topSector || bottomSector)) {
+      window.scrollBy({
+        top: window.innerHeight * 0.9 * (topSector ? -1 : 1),
+        behavior: 'instant',
+      });
+    } else if (!topSector && !bottomSector) {
+      if (visible()) close();
+      else show();
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+  };
+
+  const onDocumentClick = (event: MouseEvent) => {
+    // A touch can emit a compatibility click after pointerup, even if it was prevented.
+    if (ignoreNextDocumentClick || (event as PointerEvent).pointerType === 'touch') {
       ignoreNextDocumentClick = false;
       return;
     }
@@ -75,6 +131,19 @@ function useReaderChrome(props: {
 
   onMount(() => {
     const onPointerMove = (event: PointerEvent) => {
+      if (
+        event.pointerType === 'touch' &&
+        touchStart?.pointerId === event.pointerId &&
+        Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) >
+          tapMovementThreshold
+      ) {
+        touchStart = undefined;
+      }
+
+      if (event.pointerType !== 'mouse') {
+        return;
+      }
+
       if (
         event.clientY <= hoverOffsets().show ||
         event.clientY >= window.innerHeight - bottomShowOffset
@@ -96,17 +165,13 @@ function useReaderChrome(props: {
     });
   });
 
-  onCleanup(() => {
-    if (touchToggleClickTimeout !== undefined) {
-      window.clearTimeout(touchToggleClickTimeout);
-    }
-  });
-
   return {
     visible,
     show,
     close,
-    toggleOnTouch,
+    onDocumentPointerDown,
+    onDocumentPointerUp,
+    onDocumentPointerCancel,
     onDocumentClick,
   };
 }

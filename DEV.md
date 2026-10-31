@@ -65,7 +65,9 @@ make dev-backend
 make dev-frontend
 ```
 
-Backend слушает `http://localhost:8080`, Vite — `http://localhost:5173`.
+Backend по умолчанию слушает все интерфейсы на порту `8080`, Vite — на `0.0.0.0:5173`.
+На компьютере разработки приложение доступно по `http://localhost:5173`,
+с других устройств в сети — по `http://<IP-компьютера>:5173`. Запросы к API Vite проксирует в локальный backend.
 
 Для проверки production-сборки без Vite выполните `npm --prefix frontend run build` и запустите
 Go-сервер с `BOOK_HUB_FRONTEND_DIR`, указывающим на `frontend/dist`. Используйте абсолютный путь:

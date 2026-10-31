@@ -1177,11 +1177,9 @@ function ReflowableReader(props: {
           documentShellRef = element;
         }}
         class={styles.documentShell}
-        onPointerUp={(event) => {
-          if (readerChrome.toggleOnTouch(event)) {
-            event.preventDefault();
-          }
-        }}
+        onPointerDown={readerChrome.onDocumentPointerDown}
+        onPointerUp={readerChrome.onDocumentPointerUp}
+        onPointerCancel={readerChrome.onDocumentPointerCancel}
         onClick={readerChrome.onDocumentClick}
       >
         <article ref={documentRef} class={styles.document} style={{ width: `${textWidth()}px` }}>

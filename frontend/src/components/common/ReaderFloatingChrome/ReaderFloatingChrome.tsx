@@ -31,6 +31,9 @@ function ReaderFloatingChrome(props: {
   const [minimalScrollbars, setMinimalScrollbars] = createSignal(getMinimalScrollbarsPreference());
   let searchInputRef: HTMLInputElement | undefined;
   const showChrome = () => props.onShow();
+  const showChromeOnHover = (event: PointerEvent) => {
+    if (event.pointerType === 'mouse') showChrome();
+  };
 
   createEffect(() => {
     const root = document.documentElement;
@@ -109,15 +112,15 @@ function ReaderFloatingChrome(props: {
 
   return (
     <>
-      <div class={styles.topHoverZone} aria-hidden="true" onPointerEnter={showChrome} />
-      <div class={styles.bottomHoverZone} aria-hidden="true" onPointerEnter={showChrome} />
+      <div class={styles.topHoverZone} aria-hidden="true" onPointerEnter={showChromeOnHover} />
+      <div class={styles.bottomHoverZone} aria-hidden="true" onPointerEnter={showChromeOnHover} />
 
       <header
         class={styles.header}
         classList={{ [styles.visible]: props.visible }}
         data-testid="reader-floating-header"
         data-visible={props.visible}
-        onPointerEnter={showChrome}
+        onPointerEnter={showChromeOnHover}
       >
         <div class={styles.headerBar}>
           <div class={styles.headerContent}>
@@ -132,7 +135,7 @@ function ReaderFloatingChrome(props: {
 
         <Show when={props.secondaryBar}>
           {(secondaryBar) => (
-            <div class={styles.secondaryBar} onPointerEnter={showChrome}>
+            <div class={styles.secondaryBar} onPointerEnter={showChromeOnHover}>
               {secondaryBar()}
             </div>
           )}
