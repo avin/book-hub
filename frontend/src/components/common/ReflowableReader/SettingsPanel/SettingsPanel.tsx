@@ -2,6 +2,7 @@ import { AlignLeft, Palette, RotateCcw, SlidersHorizontal, Type } from 'lucide-s
 import { For } from 'solid-js';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
+import RangeInput from '@/components/common/RangeInput/RangeInput';
 import ReaderSidePanel from '@/components/common/ReaderSidePanel/ReaderSidePanel';
 import { useI18n } from '@/i18n/I18nProvider';
 import { fontOptions } from '../reflowableReaderSettings';
@@ -25,11 +26,6 @@ function SettingsPanel(props: {
   onEndAdjustLayout: () => void;
 }) {
   const { t } = useI18n();
-
-  const captureLayoutAdjust = (event: PointerEvent) => {
-    (event.currentTarget as HTMLInputElement).setPointerCapture(event.pointerId);
-    props.onBeginAdjustLayout();
-  };
 
   return (
     <ReaderSidePanel
@@ -77,29 +73,27 @@ function SettingsPanel(props: {
           </select>
         </InputContainer>
         <InputContainer label={t('size')} labelEnd={`${props.settings.fontSize}px`}>
-          <input
-            type="range"
+          <RangeInput
             min="14"
             max="90"
             value={props.settings.fontSize}
-            onPointerDown={captureLayoutAdjust}
-            onPointerUp={() => props.onEndAdjustLayout()}
-            onPointerCancel={() => props.onEndAdjustLayout()}
+            aria-label={t('size')}
+            onAdjustStart={props.onBeginAdjustLayout}
+            onAdjustEnd={props.onEndAdjustLayout}
             onInput={(event) =>
               props.onUpdateSetting('fontSize', Number(event.currentTarget.value))
             }
           />
         </InputContainer>
         <InputContainer label={t('lineHeight')} labelEnd={props.settings.lineHeight.toFixed(2)}>
-          <input
-            type="range"
+          <RangeInput
             min="1.0"
             max="2.2"
             step="0.02"
             value={props.settings.lineHeight}
-            onPointerDown={captureLayoutAdjust}
-            onPointerUp={() => props.onEndAdjustLayout()}
-            onPointerCancel={() => props.onEndAdjustLayout()}
+            aria-label={t('lineHeight')}
+            onAdjustStart={props.onBeginAdjustLayout}
+            onAdjustEnd={props.onEndAdjustLayout}
             onInput={(event) =>
               props.onUpdateSetting('lineHeight', Number(event.currentTarget.value))
             }
@@ -116,14 +110,13 @@ function SettingsPanel(props: {
           label={t('firstLineIndent')}
           labelEnd={`${props.settings.paragraphIndent}px`}
         >
-          <input
-            type="range"
+          <RangeInput
             min="0"
             max="256"
             value={props.settings.paragraphIndent}
-            onPointerDown={captureLayoutAdjust}
-            onPointerUp={() => props.onEndAdjustLayout()}
-            onPointerCancel={() => props.onEndAdjustLayout()}
+            aria-label={t('firstLineIndent')}
+            onAdjustStart={props.onBeginAdjustLayout}
+            onAdjustEnd={props.onEndAdjustLayout}
             onInput={(event) =>
               props.onUpdateSetting('paragraphIndent', Number(event.currentTarget.value))
             }
@@ -133,30 +126,27 @@ function SettingsPanel(props: {
           label={t('paragraphSpacing')}
           labelEnd={`${props.settings.paragraphSpacing}px`}
         >
-          <input
-            type="range"
+          <RangeInput
             min="4"
             max="120"
             value={props.settings.paragraphSpacing}
-            onPointerDown={captureLayoutAdjust}
-            onPointerUp={() => props.onEndAdjustLayout()}
-            onPointerCancel={() => props.onEndAdjustLayout()}
+            aria-label={t('paragraphSpacing')}
+            onAdjustStart={props.onBeginAdjustLayout}
+            onAdjustEnd={props.onEndAdjustLayout}
             onInput={(event) =>
               props.onUpdateSetting('paragraphSpacing', Number(event.currentTarget.value))
             }
           />
         </InputContainer>
         <InputContainer label={t('sidePadding')} labelEnd={`${props.settings.sidePadding}px`}>
-          <input
-            type="range"
+          <RangeInput
             min="2"
             max="32"
             step="1"
             aria-label={t('sidePadding')}
             value={props.settings.sidePadding}
-            onPointerDown={captureLayoutAdjust}
-            onPointerUp={() => props.onEndAdjustLayout()}
-            onPointerCancel={() => props.onEndAdjustLayout()}
+            onAdjustStart={props.onBeginAdjustLayout}
+            onAdjustEnd={props.onEndAdjustLayout}
             onInput={(event) =>
               props.onUpdateSetting('sidePadding', Number(event.currentTarget.value))
             }

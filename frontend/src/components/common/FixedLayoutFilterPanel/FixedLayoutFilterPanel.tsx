@@ -3,6 +3,7 @@ import Sortable from 'sortablejs';
 import { createEffect, createSignal, For, onCleanup, onMount, Show, untrack } from 'solid-js';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
+import RangeInput from '@/components/common/RangeInput/RangeInput';
 import ReaderSidePanel from '@/components/common/ReaderSidePanel/ReaderSidePanel';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
@@ -179,10 +180,6 @@ function FixedLayoutFilterPanel(props: {
     props.onVisualAdjustmentParameterChange(parameter, value);
   };
 
-  const capturePointer = (event: PointerEvent) => {
-    (event.currentTarget as HTMLInputElement).setPointerCapture(event.pointerId);
-  };
-
   const filterTitle = (filter: PdfFilter) => {
     switch (filter.id) {
       case 'textEnhancement':
@@ -275,16 +272,12 @@ function FixedLayoutFilterPanel(props: {
           label={t('pageWidthIncrease')}
           labelEnd={`${draftPageWidthOverflow()}%`}
         >
-          <input
-            type="range"
+          <RangeInput
             min={fixedLayoutPageWidthOverflowRange.min}
             max={fixedLayoutPageWidthOverflowRange.max}
             step={fixedLayoutPageWidthOverflowRange.step}
             value={draftPageWidthOverflow()}
             aria-label={t('pageWidthIncrease')}
-            onPointerDown={capturePointer}
-            onPointerUp={commitPageWidthOverflow}
-            onPointerCancel={commitPageWidthOverflow}
             onChange={commitPageWidthOverflow}
             onInput={(event) => setDraftPageWidthOverflow(Number(event.currentTarget.value))}
           />
@@ -357,18 +350,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('strokeWidth')}
                     labelEnd={draftStrokeWidth().toFixed(2)}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfTextEnhancementRanges.strokeWidth.min}
                       max={pdfTextEnhancementRanges.strokeWidth.max}
                       step={pdfTextEnhancementRanges.strokeWidth.step}
                       value={draftStrokeWidth()}
                       aria-label={t('strokeWidth')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitTextEnhancementParameter('strokeWidth', draftStrokeWidth())
-                      }
-                      onPointerCancel={() =>
+                      onChange={() =>
                         commitTextEnhancementParameter('strokeWidth', draftStrokeWidth())
                       }
                       onInput={(event) => setDraftStrokeWidth(Number(event.currentTarget.value))}
@@ -380,20 +368,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('threshold')}
                     labelEnd={draftThreshold().toFixed(2)}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfTextEnhancementRanges.threshold.min}
                       max={pdfTextEnhancementRanges.threshold.max}
                       step={pdfTextEnhancementRanges.threshold.step}
                       value={draftThreshold()}
                       aria-label={t('threshold')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitTextEnhancementParameter('threshold', draftThreshold())
-                      }
-                      onPointerCancel={() =>
-                        commitTextEnhancementParameter('threshold', draftThreshold())
-                      }
+                      onChange={() => commitTextEnhancementParameter('threshold', draftThreshold())}
                       onInput={(event) => setDraftThreshold(Number(event.currentTarget.value))}
                     />
                   </InputContainer>
@@ -403,20 +384,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('contrast')}
                     labelEnd={draftContrast().toFixed(2)}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfTextEnhancementRanges.contrast.min}
                       max={pdfTextEnhancementRanges.contrast.max}
                       step={pdfTextEnhancementRanges.contrast.step}
                       value={draftContrast()}
                       aria-label={t('contrast')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitTextEnhancementParameter('contrast', draftContrast())
-                      }
-                      onPointerCancel={() =>
-                        commitTextEnhancementParameter('contrast', draftContrast())
-                      }
+                      onChange={() => commitTextEnhancementParameter('contrast', draftContrast())}
                       onInput={(event) => setDraftContrast(Number(event.currentTarget.value))}
                     />
                   </InputContainer>
@@ -426,18 +400,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('grayLevels')}
                     labelEnd={String(draftGrayLevels())}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfTextEnhancementRanges.grayLevels.min}
                       max={pdfTextEnhancementRanges.grayLevels.max}
                       step={pdfTextEnhancementRanges.grayLevels.step}
                       value={draftGrayLevels()}
                       aria-label={t('grayLevels')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitTextEnhancementParameter('grayLevels', draftGrayLevels())
-                      }
-                      onPointerCancel={() =>
+                      onChange={() =>
                         commitTextEnhancementParameter('grayLevels', draftGrayLevels())
                       }
                       onInput={(event) => setDraftGrayLevels(Number(event.currentTarget.value))}
@@ -449,20 +418,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('toneShift')}
                     labelEnd={draftToneShift().toFixed(2)}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfTextEnhancementRanges.toneShift.min}
                       max={pdfTextEnhancementRanges.toneShift.max}
                       step={pdfTextEnhancementRanges.toneShift.step}
                       value={draftToneShift()}
                       aria-label={t('toneShift')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitTextEnhancementParameter('toneShift', draftToneShift())
-                      }
-                      onPointerCancel={() =>
-                        commitTextEnhancementParameter('toneShift', draftToneShift())
-                      }
+                      onChange={() => commitTextEnhancementParameter('toneShift', draftToneShift())}
                       onInput={(event) => setDraftToneShift(Number(event.currentTarget.value))}
                     />
                   </InputContainer>
@@ -476,18 +438,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('strokeWidth')}
                     labelEnd={draftSoftStrokeWidth().toFixed(2)}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfSoftTextEnhancementRanges.strokeWidth.min}
                       max={pdfSoftTextEnhancementRanges.strokeWidth.max}
                       step={pdfSoftTextEnhancementRanges.strokeWidth.step}
                       value={draftSoftStrokeWidth()}
                       aria-label={t('strokeWidth')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitSoftTextEnhancementParameter('strokeWidth', draftSoftStrokeWidth())
-                      }
-                      onPointerCancel={() =>
+                      onChange={() =>
                         commitSoftTextEnhancementParameter('strokeWidth', draftSoftStrokeWidth())
                       }
                       onInput={(event) =>
@@ -501,18 +458,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('filterStrength')}
                     labelEnd={`${Math.round(draftSoftStrength() * 100)}%`}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfSoftTextEnhancementRanges.strength.min}
                       max={pdfSoftTextEnhancementRanges.strength.max}
                       step={pdfSoftTextEnhancementRanges.strength.step}
                       value={draftSoftStrength()}
                       aria-label={t('filterStrength')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitSoftTextEnhancementParameter('strength', draftSoftStrength())
-                      }
-                      onPointerCancel={() =>
+                      onChange={() =>
                         commitSoftTextEnhancementParameter('strength', draftSoftStrength())
                       }
                       onInput={(event) => setDraftSoftStrength(Number(event.currentTarget.value))}
@@ -526,16 +478,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('filterStrength')}
                     labelEnd={`${Math.round(draftStrength() * 100)}%`}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min="0"
                       max="1"
                       step="0.01"
                       value={draftStrength()}
                       aria-label={t('filterStrength')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={commitStrength}
-                      onPointerCancel={commitStrength}
+                      onChange={commitStrength}
                       onInput={(event) => setDraftStrength(Number(event.currentTarget.value))}
                     />
                   </InputContainer>
@@ -547,18 +496,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('brightness')}
                     labelEnd={draftBrightness().toFixed(2)}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfVisualAdjustmentRanges.brightness.min}
                       max={pdfVisualAdjustmentRanges.brightness.max}
                       step={pdfVisualAdjustmentRanges.brightness.step}
                       value={draftBrightness()}
                       aria-label={t('brightness')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitVisualAdjustmentParameter('brightness', draftBrightness())
-                      }
-                      onPointerCancel={() =>
+                      onChange={() =>
                         commitVisualAdjustmentParameter('brightness', draftBrightness())
                       }
                       onInput={(event) => setDraftBrightness(Number(event.currentTarget.value))}
@@ -570,18 +514,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('contrast')}
                     labelEnd={draftVisualContrast().toFixed(2)}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfVisualAdjustmentRanges.contrast.min}
                       max={pdfVisualAdjustmentRanges.contrast.max}
                       step={pdfVisualAdjustmentRanges.contrast.step}
                       value={draftVisualContrast()}
                       aria-label={t('contrast')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() =>
-                        commitVisualAdjustmentParameter('contrast', draftVisualContrast())
-                      }
-                      onPointerCancel={() =>
+                      onChange={() =>
                         commitVisualAdjustmentParameter('contrast', draftVisualContrast())
                       }
                       onInput={(event) => setDraftVisualContrast(Number(event.currentTarget.value))}
@@ -589,16 +528,13 @@ function FixedLayoutFilterPanel(props: {
                   </InputContainer>
 
                   <InputContainer size="sm" label={t('gamma')} labelEnd={draftGamma().toFixed(2)}>
-                    <input
-                      type="range"
+                    <RangeInput
                       min={pdfVisualAdjustmentRanges.gamma.min}
                       max={pdfVisualAdjustmentRanges.gamma.max}
                       step={pdfVisualAdjustmentRanges.gamma.step}
                       value={draftGamma()}
                       aria-label={t('gamma')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() => commitVisualAdjustmentParameter('gamma', draftGamma())}
-                      onPointerCancel={() => commitVisualAdjustmentParameter('gamma', draftGamma())}
+                      onChange={() => commitVisualAdjustmentParameter('gamma', draftGamma())}
                       onInput={(event) => setDraftGamma(Number(event.currentTarget.value))}
                     />
                   </InputContainer>
@@ -610,16 +546,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('filterStrength')}
                     labelEnd={`${Math.round(draftWarmthStrength() * 100)}%`}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min="0"
                       max="1"
                       step="0.01"
                       value={draftWarmthStrength()}
                       aria-label={t('filterStrength')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() => props.onWarmthStrengthChange(draftWarmthStrength())}
-                      onPointerCancel={() => props.onWarmthStrengthChange(draftWarmthStrength())}
+                      onChange={() => props.onWarmthStrengthChange(draftWarmthStrength())}
                       onInput={(event) => setDraftWarmthStrength(Number(event.currentTarget.value))}
                     />
                   </InputContainer>
@@ -631,18 +564,13 @@ function FixedLayoutFilterPanel(props: {
                     label={t('filterStrength')}
                     labelEnd={`${Math.round(draftGrayscaleStrength() * 100)}%`}
                   >
-                    <input
-                      type="range"
+                    <RangeInput
                       min="0"
                       max="1"
                       step="0.01"
                       value={draftGrayscaleStrength()}
                       aria-label={t('filterStrength')}
-                      onPointerDown={capturePointer}
-                      onPointerUp={() => props.onGrayscaleStrengthChange(draftGrayscaleStrength())}
-                      onPointerCancel={() =>
-                        props.onGrayscaleStrengthChange(draftGrayscaleStrength())
-                      }
+                      onChange={() => props.onGrayscaleStrengthChange(draftGrayscaleStrength())}
                       onInput={(event) =>
                         setDraftGrayscaleStrength(Number(event.currentTarget.value))
                       }

@@ -1,0 +1,21 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+@use '@/styles/_reader-controls.scss' as *;
+
+.rangeInput {
+  min-width: 0;
+  line-height: 0;
+  cursor: pointer;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+
+  &:has(input:disabled) {
+    cursor: not-allowed;
+  }
+
+  input {
+    @include range-control;
+
+    pointer-events: none;
+  }
+}

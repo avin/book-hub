@@ -2,6 +2,8 @@
 @use '@/styles/_mixins.scss' as *;
 
 @mixin range-control {
+  --range-thumb-size: #{$space-4};
+
   width: 100%;
   height: $control-height-sm;
   margin: 0;

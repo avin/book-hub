@@ -48,6 +48,8 @@
 .settingGroup :global(input[type='range']) {
   @include range-control;
 
+  --range-thumb-size: 14px;
+
   height: $space-6;
 
   &::-webkit-slider-runnable-track {
