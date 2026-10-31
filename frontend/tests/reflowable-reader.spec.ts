@@ -91,3 +91,65 @@ test('читатель EPUB сохраняет общий reflowable сцена�
     footnoteText: 'Текст EPUB-сноски.',
   });
 });
+
+test('Literata не обрезает абзац после загрузки кириллицы', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'book-hub-preferences',
+      JSON.stringify({
+        version: 1,
+        language: 'ru',
+        readers: {
+          fb2: {
+            settings: {
+              fontFamily: '"Literata", "Noto Serif", "Noto Sans", serif',
+              fontSize: 46,
+              lineHeight: 1.3,
+              paragraphIndent: 29,
+              paragraphSpacing: 36,
+              maxTextWidth: 1063,
+            },
+          },
+        },
+      }),
+    );
+  });
+  let releaseFont!: () => void;
+  const fontGate = new Promise<void>((resolve) => {
+    releaseFont = resolve;
+  });
+  await page.route('**/normal-200-900-cyrillic*.woff2', async (route) => {
+    await fontGate;
+    await route.continue();
+  });
+  await page.route('**/api/v1/books/00000000-0000-0000-0000-000000000101/file', (route) =>
+    route.fulfill({
+      contentType: 'application/xml',
+      body: '<FictionBook><body><section><p>— Смотря какой шрифт, — возразил Дмитрий.</p></section></body></FictionBook>',
+    }),
+  );
+  await login(page);
+  await page.getByRole('heading', { name: 'Война и мир', exact: true }).getByRole('link').click();
+  const paragraph = page.locator('article p');
+  try {
+    await expect(paragraph).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => document.fonts.check('46px "Literata"')))
+      .toBe(true);
+    expect(await page.evaluate(() => document.fonts.check('46px "Literata"', 'Дмитрий'))).toBe(
+      false,
+    );
+  } finally {
+    releaseFont();
+  }
+  await page.evaluate(() => document.fonts.ready);
+  await expect
+    .poll(() =>
+      paragraph.evaluate((element) => {
+        const slot = element.parentElement!;
+        return element.getBoundingClientRect().bottom - slot.getBoundingClientRect().bottom;
+      }),
+    )
+    .toBeLessThanOrEqual(1);
+});

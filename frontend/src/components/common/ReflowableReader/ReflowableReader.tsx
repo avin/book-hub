@@ -11,6 +11,7 @@ import {
   untrack,
 } from 'solid-js';
 import { X } from 'lucide-solid';
+import { clearCache } from '@chenglou/pretext';
 import BlockView from './BlockView/BlockView';
 import Button from '@/components/common/Button/Button';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
@@ -948,6 +949,8 @@ function ReflowableReader(props: {
 
         fontLayoutAnchor = undefined;
 
+        // Pretext caches fallback widths even after the web font has loaded.
+        clearCache();
         setLayoutGeneration((value) => value + 1);
       });
     });
@@ -969,6 +972,7 @@ function ReflowableReader(props: {
         setPendingScrollAnchor(anchor);
       }
 
+      clearCache();
       setLayoutGeneration((value) => value + 1);
     };
 
