@@ -588,9 +588,9 @@ export const messages = {
     ru: 'Добавить книги',
     en: 'Add books',
   },
-  fileNotSelected: {
-    ru: 'Файл не выбран',
-    en: 'No file selected',
+  dragBooksHereOrChooseFiles: {
+    ru: 'Перетащите книги сюда или выберите файлы',
+    en: 'Drag books here or choose files',
   },
   booksSelected: {
     ru: 'Выбрано книг: {count}',

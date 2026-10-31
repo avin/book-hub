@@ -71,7 +71,9 @@ function UploadPage() {
 
   const selectedBooksText = createMemo(() => {
     const count = drafts().length;
-    return count > 0 ? t('booksSelected').replace('{count}', String(count)) : t('fileNotSelected');
+    return count > 0
+      ? t('booksSelected').replace('{count}', String(count))
+      : t('dragBooksHereOrChooseFiles');
   });
   const tagOptions = createMemo(() =>
     mergeTagOptions(
