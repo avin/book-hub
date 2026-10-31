@@ -52,9 +52,31 @@ async function verifyReflowableReader(page: Page, fixture: ReflowableReaderFixtu
   await fontSize.press('ArrowRight');
   await expect(fontSize).not.toHaveValue(initialFontSize);
   await fontSize.press('End');
-  await expect(fontSize).toHaveValue('60');
-  await expect(settingsPanel).toContainText('60px');
-  await expect(page.locator('article')).toHaveCSS('--fb2-font-size', '60px');
+  await expect(fontSize).toHaveValue('90');
+  await expect(settingsPanel).toContainText('90px');
+  await expect(page.locator('article')).toHaveCSS('--fb2-font-size', '90px');
+
+  const lineHeight = settingsPanel.getByRole('slider').nth(1);
+  await lineHeight.press('Home');
+  await expect(lineHeight).toHaveValue('1');
+  await expect(page.locator('article')).toHaveCSS('--fb2-line-height', '1');
+
+  const paragraphIndent = settingsPanel.getByRole('slider').nth(2);
+  await paragraphIndent.press('End');
+  await expect(paragraphIndent).toHaveValue('256');
+  await expect(page.locator('article')).toHaveCSS('--fb2-paragraph-indent', '256px');
+
+  const paragraphSpacing = settingsPanel.getByRole('slider').nth(3);
+  await paragraphSpacing.press('End');
+  await expect(paragraphSpacing).toHaveValue('120');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
+        return preferences.readers?.fb2?.settings;
+      }),
+    )
+    .toMatchObject({ fontSize: 90, lineHeight: 1, paragraphIndent: 256, paragraphSpacing: 120 });
   await settingsPanel.getByRole('button', { name: 'Закрыть' }).click();
 
   await expect

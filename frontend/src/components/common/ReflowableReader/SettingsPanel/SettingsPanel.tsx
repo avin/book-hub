@@ -80,7 +80,7 @@ function SettingsPanel(props: {
           <input
             type="range"
             min="14"
-            max="60"
+            max="90"
             value={props.settings.fontSize}
             onPointerDown={captureLayoutAdjust}
             onPointerUp={() => props.onEndAdjustLayout()}
@@ -93,7 +93,7 @@ function SettingsPanel(props: {
         <InputContainer label={t('lineHeight')} labelEnd={props.settings.lineHeight.toFixed(2)}>
           <input
             type="range"
-            min="1.2"
+            min="1.0"
             max="2.2"
             step="0.02"
             value={props.settings.lineHeight}
@@ -119,7 +119,7 @@ function SettingsPanel(props: {
           <input
             type="range"
             min="0"
-            max="64"
+            max="256"
             value={props.settings.paragraphIndent}
             onPointerDown={captureLayoutAdjust}
             onPointerUp={() => props.onEndAdjustLayout()}
@@ -136,7 +136,7 @@ function SettingsPanel(props: {
           <input
             type="range"
             min="4"
-            max="36"
+            max="120"
             value={props.settings.paragraphSpacing}
             onPointerDown={captureLayoutAdjust}
             onPointerUp={() => props.onEndAdjustLayout()}
