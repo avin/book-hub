@@ -37,6 +37,24 @@ function ModalDialog(props: {
         event.preventDefault();
         props.onClose();
       }
+      if (event.key === 'Tab' && !event.defaultPrevented && dialogRef) {
+        const focusable = Array.from(
+          dialogRef.querySelectorAll<HTMLElement>(focusableSelector),
+        ).filter((element) => element.tabIndex >= 0 && !element.closest('[hidden], [inert]'));
+        const first = focusable[0];
+        const last = focusable.at(-1);
+
+        if (!first) {
+          event.preventDefault();
+          dialogRef.focus();
+        } else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);

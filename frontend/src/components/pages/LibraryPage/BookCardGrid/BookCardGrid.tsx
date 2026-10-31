@@ -22,6 +22,11 @@ function BookCardGrid(props: {
 }) {
   const { t } = useI18n();
   const [menuMode, setMenuMode] = createSignal<'button' | 'info' | null>(null);
+  let menuTriggerRef: HTMLButtonElement | undefined;
+  const confirmAction = (action: (book: Book) => void) => {
+    menuTriggerRef?.focus({ preventScroll: true });
+    action(props.book());
+  };
   const contextMenu = createContextMenu(() => setMenuMode(null));
   const [infoOpen, setInfoOpen] = createSignal(false);
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
@@ -71,6 +76,7 @@ function BookCardGrid(props: {
         }}
         trigger={
           <button
+            ref={menuTriggerRef}
             type="button"
             class={styles.menuTrigger}
             aria-label={t('bookActions')}
@@ -96,8 +102,8 @@ function BookCardGrid(props: {
           book={props.book}
           onFavoriteToggle={props.onFavoriteToggle}
           onEdit={props.onEdit}
-          onDelete={props.onDelete}
-          onResetProgress={props.onResetProgress}
+          onDelete={() => confirmAction(props.onDelete)}
+          onResetProgress={() => confirmAction(props.onResetProgress)}
           onShowInfo={() => setInfoOpen(true)}
           onShowCover={showCover}
           onAction={() => setMenuMode(null)}
@@ -109,8 +115,8 @@ function BookCardGrid(props: {
           book={props.book}
           onFavoriteToggle={props.onFavoriteToggle}
           onEdit={props.onEdit}
-          onDelete={props.onDelete}
-          onResetProgress={props.onResetProgress}
+          onDelete={() => confirmAction(props.onDelete)}
+          onResetProgress={() => confirmAction(props.onResetProgress)}
           onShowInfo={() => setInfoOpen(true)}
           onShowCover={showCover}
           onAction={contextMenu.close}

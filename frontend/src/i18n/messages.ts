@@ -516,9 +516,9 @@ export const messages = {
     ru: 'Сбросить прогресс',
     en: 'Reset progress',
   },
-  resetReadingProgressConfirm: {
-    ru: 'Сбросить прогресс чтения этой книги?',
-    en: "Reset this book's reading progress?",
+  resetReadingProgressForBook: {
+    ru: 'Сбросить прогресс чтения „{title}“?',
+    en: 'Reset reading progress for “{title}”?',
   },
   back: {
     ru: 'Назад',
@@ -576,9 +576,9 @@ export const messages = {
     ru: 'Сохранить',
     en: 'Save',
   },
-  deleteBookConfirm: {
-    ru: 'Удалить книгу из библиотеки?',
-    en: 'Delete this book from the library?',
+  deleteBook: {
+    ru: 'Удалить „{title}“?',
+    en: 'Delete “{title}”?',
   },
   addBook: {
     ru: 'Добавить книгу',

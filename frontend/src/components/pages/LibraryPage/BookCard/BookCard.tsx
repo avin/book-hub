@@ -35,6 +35,11 @@ function BookCard(props: {
   const [infoOpen, setInfoOpen] = createSignal(false);
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const [menuOpen, setMenuOpen] = createSignal(false);
+  let menuTriggerRef: HTMLButtonElement | undefined;
+  const confirmAction = (action: (book: Book) => void) => {
+    menuTriggerRef?.focus({ preventScroll: true });
+    action(props.book());
+  };
   const contextMenu = createContextMenu(() => setMenuOpen(false));
   const tags = createMemo<Book['tags']>((previousTags) => {
     const nextTags = props.book().tags;
@@ -113,6 +118,7 @@ function BookCard(props: {
           minWidth={220}
           trigger={
             <Button
+              ref={menuTriggerRef}
               type="button"
               variant="ghost"
               size="sm"
@@ -129,8 +135,8 @@ function BookCard(props: {
             book={props.book}
             onFavoriteToggle={props.onFavoriteToggle}
             onEdit={props.onEdit}
-            onDelete={props.onDelete}
-            onResetProgress={props.onResetProgress}
+            onDelete={() => confirmAction(props.onDelete)}
+            onResetProgress={() => confirmAction(props.onResetProgress)}
             onShowInfo={() => setInfoOpen(true)}
             onShowCover={showCover}
             onAction={() => setMenuOpen(false)}
@@ -143,8 +149,8 @@ function BookCard(props: {
           book={props.book}
           onFavoriteToggle={props.onFavoriteToggle}
           onEdit={props.onEdit}
-          onDelete={props.onDelete}
-          onResetProgress={props.onResetProgress}
+          onDelete={() => confirmAction(props.onDelete)}
+          onResetProgress={() => confirmAction(props.onResetProgress)}
           onShowInfo={() => setInfoOpen(true)}
           onShowCover={showCover}
           onAction={contextMenu.close}

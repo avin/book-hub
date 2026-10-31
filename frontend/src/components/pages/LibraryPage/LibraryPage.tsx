@@ -21,8 +21,6 @@ import {
   type BookSort,
   booksQueryKey,
   createBookTagsQuery,
-  createDeleteBookMutation,
-  createResetReadingProgressMutation,
   createUpdateBookMutation,
   queryBooks,
 } from '@/api/books';
@@ -40,6 +38,7 @@ import {
 import BookCard from './BookCard/BookCard';
 import BookCardGrid from './BookCardGrid/BookCardGrid';
 import EditBookDialog from './EditBookDialog/EditBookDialog';
+import BookActionDialog from './BookActionDialog/BookActionDialog';
 import LibraryFiltersDropdown from './LibraryFiltersDropdown/LibraryFiltersDropdown';
 import BookSearchInput from '@/components/common/BookSearchInput/BookSearchInput';
 import {
@@ -75,9 +74,11 @@ function LibraryPage() {
   const [selectedTags, setSelectedTags] = createSignal<string[]>(initialListState.tags);
   const [view, setView] = createSignal<LibraryView>(getLibraryViewPreference() ?? 'list');
   const [editingBook, setEditingBook] = createSignal<Book>();
+  const [bookAction, setBookAction] = createSignal<{
+    book: Book;
+    action: 'delete' | 'resetProgress';
+  }>();
   const updateBookMutation = createUpdateBookMutation();
-  const deleteBookMutation = createDeleteBookMutation();
-  const resetReadingProgressMutation = createResetReadingProgressMutation();
   const bookTagsQuery = createBookTagsQuery();
 
   const applyListState = (state: LibraryListState, options?: { immediateSearch?: boolean }) => {
@@ -271,19 +272,11 @@ function LibraryPage() {
   };
 
   const handleDelete = (book: Book) => {
-    if (!window.confirm(t('deleteBookConfirm'))) {
-      return;
-    }
-
-    deleteBookMutation.mutate(book.id);
+    setBookAction({ book, action: 'delete' });
   };
 
   const handleResetProgress = (book: Book) => {
-    if (!window.confirm(t('resetReadingProgressConfirm'))) {
-      return;
-    }
-
-    resetReadingProgressMutation.mutate(book.id);
+    setBookAction({ book, action: 'resetProgress' });
   };
 
   const resetFilters = () => {
@@ -500,6 +493,15 @@ function LibraryPage() {
             book={book()}
             tagOptions={tagOptions()}
             onClose={() => setEditingBook(undefined)}
+          />
+        )}
+      </Show>
+      <Show when={bookAction()}>
+        {(selection) => (
+          <BookActionDialog
+            book={selection().book}
+            action={selection().action}
+            onClose={() => setBookAction(undefined)}
           />
         )}
       </Show>

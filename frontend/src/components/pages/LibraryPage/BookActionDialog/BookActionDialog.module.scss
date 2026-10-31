@@ -1,0 +1,46 @@
+@use '@/styles/_variables.scss' as *;
+@use '@/styles/_mixins.scss' as *;
+
+.overlay {
+  z-index: 50;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  padding: $space-5;
+  overflow-y: auto;
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+}
+
+.dialog {
+  width: min(520px, 100%);
+  min-width: 0;
+  margin: auto;
+  padding: $space-5;
+  border: 1px solid var(--border-default);
+  border-radius: $radius-lg;
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  box-shadow: $shadow-lg;
+
+  h2 {
+    margin: 0 0 $space-5;
+    overflow-wrap: anywhere;
+    font-size: $font-size-lg;
+    font-weight: 700;
+    line-height: 24px;
+  }
+
+  p {
+    color: var(--danger-soft-text);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: $space-2;
+}
