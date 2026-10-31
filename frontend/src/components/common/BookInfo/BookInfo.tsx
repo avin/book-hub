@@ -86,6 +86,7 @@ function BookInfo(props: {
                   type="button"
                   variant="ghost"
                   class={styles.tag}
+                  title={tag}
                   onClick={() => {
                     props.onClose();
                     props.onTagSelect(tag);

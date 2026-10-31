@@ -167,6 +167,56 @@ test('мобильный Grid: длинное название, много те�
   await expect(info).toBeHidden();
 });
 
+for (const width of [390, 1280]) {
+  test(`длинные теги обрезаются с многоточием без переноса при ширине ${width}`, async ({
+    page,
+    api,
+  }) => {
+    const longTags = ['длинный тег с пробелами '.repeat(3).slice(0, 64), 'ш'.repeat(64)];
+    await page.setViewportSize({ width, height: 844 });
+    await api.intercept(books.req.list, {
+      items: [{ ...books.items[0], tags: longTags }],
+      total: 1,
+      limit: 24,
+      offset: 0,
+    });
+    await login(page);
+    await page.getByRole('button', { name: 'Сетка', exact: true }).click();
+    const card = page.getByRole('article').first();
+    const info = page.getByRole('dialog', { name: 'Информация о книге', exact: true });
+    for (const compact of [true, false]) {
+      if (compact) {
+        await card.getByRole('button', { name: 'Информация о книге', exact: true }).click();
+      } else {
+        await card.getByRole('button', { name: 'Действия с книгой', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Информация о книге', exact: true }).click();
+      }
+      for (const tag of longTags) {
+        const button = info.getByRole('button', { name: tag, exact: true });
+        await expect(button).toHaveAttribute('title', tag);
+        await expect(button).toHaveCSS('height', '32px');
+        const text = button.locator('span').last();
+        await expect(text).toHaveCSS('white-space', 'nowrap');
+        await expect(text).toHaveCSS('text-overflow', 'ellipsis');
+        await expect(text).toHaveCSS('height', '20px');
+        if (tag === longTags[1]) {
+          expect(await text.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(
+            true,
+          );
+        }
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+      await info.screenshot({
+        path: test.info().outputPath(`long-tags-${compact ? 'panel' : 'dialog'}-${width}.png`),
+      });
+      if (compact) await page.keyboard.press('Escape');
+    }
+    await info.getByRole('button', { name: longTags[0], exact: true }).click();
+    await expect(info).toBeHidden();
+    await expect.poll(() => new URL(page.url()).searchParams.getAll('tag')).toEqual([longTags[0]]);
+  });
+}
+
 test('книга без тегов показывает пустое состояние', async ({ page, api }) => {
   await api.intercept(books.req.list, {
     items: [{ ...books.items[0], tags: [] }],

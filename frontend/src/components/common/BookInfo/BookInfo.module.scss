@@ -92,6 +92,7 @@
 }
 
 .tag.tag {
+  min-width: 0;
   max-width: 100%;
   height: auto;
   min-height: $control-height-sm;
@@ -100,8 +101,7 @@
   background: var(--accent-soft-bg);
   color: var(--accent-soft-text);
   font-size: $font-size-sm;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 
   &:hover {
     background: color-mix(in srgb, var(--accent) 20%, var(--surface-raised));
@@ -156,7 +156,7 @@
 }
 
 .tagText {
+  @include truncate;
+
   display: block;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
