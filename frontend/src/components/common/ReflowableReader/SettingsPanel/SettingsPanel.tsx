@@ -159,27 +159,31 @@ function SettingsPanel(props: {
           <Palette size={17} />
           {t('colors')}
         </h3>
-        <InputContainer label={t('background')}>
-          <input
-            type="color"
-            value={props.settings.backgroundColor}
-            onInput={(event) => props.onUpdateSetting('backgroundColor', event.currentTarget.value)}
-          />
-        </InputContainer>
-        <InputContainer label={t('text')}>
-          <input
-            type="color"
-            value={props.settings.textColor}
-            onInput={(event) => props.onUpdateSetting('textColor', event.currentTarget.value)}
-          />
-        </InputContainer>
-        <InputContainer label={t('links')}>
-          <input
-            type="color"
-            value={props.settings.linkColor}
-            onInput={(event) => props.onUpdateSetting('linkColor', event.currentTarget.value)}
-          />
-        </InputContainer>
+        <div class={styles.colorSettings}>
+          <InputContainer label={t('background')}>
+            <input
+              type="color"
+              value={props.settings.backgroundColor}
+              onInput={(event) =>
+                props.onUpdateSetting('backgroundColor', event.currentTarget.value)
+              }
+            />
+          </InputContainer>
+          <InputContainer label={t('text')}>
+            <input
+              type="color"
+              value={props.settings.textColor}
+              onInput={(event) => props.onUpdateSetting('textColor', event.currentTarget.value)}
+            />
+          </InputContainer>
+          <InputContainer label={t('links')}>
+            <input
+              type="color"
+              value={props.settings.linkColor}
+              onInput={(event) => props.onUpdateSetting('linkColor', event.currentTarget.value)}
+            />
+          </InputContainer>
+        </div>
       </section>
     </ReaderSidePanel>
   );
