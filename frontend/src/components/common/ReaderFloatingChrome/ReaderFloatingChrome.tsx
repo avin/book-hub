@@ -76,6 +76,13 @@ function ReaderFloatingChrome(props: {
       (event.key.toLowerCase() === 'f' || event.code === 'KeyF');
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"][aria-modal="true"]')
+      ) {
+        return;
+      }
+
       if (isFindShortcut(event)) {
         event.preventDefault();
         event.stopPropagation();

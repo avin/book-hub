@@ -1,4 +1,4 @@
-import { useParams } from '@solidjs/router';
+import { useNavigate, useParams } from '@solidjs/router';
 import {
   createEffect,
   createMemo,
@@ -9,7 +9,7 @@ import {
   Suspense,
   untrack,
 } from 'solid-js';
-import { ArrowLeft, Heart } from 'lucide-solid';
+import { ArrowLeft, Heart, Info } from 'lucide-solid';
 import { loadModule } from '@/loadModule';
 import {
   createBookFileTextQuery,
@@ -18,12 +18,19 @@ import {
   createReadingProgressQuery,
   createUpdateBookMutation,
   createUpdateReadingProgressMutation,
+  getBookCoverUrl,
   getBookFileUrl,
 } from '@/api/books';
+import BookInfo from '@/components/common/BookInfo/BookInfo';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
+import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import { useI18n } from '@/i18n/I18nProvider';
-import { getLibraryListUrl } from '@/components/pages/LibraryPage/libraryListState';
+import {
+  buildLibraryListStateUrl,
+  getLastLibraryListState,
+  getLibraryListUrl,
+} from '@/components/pages/LibraryPage/libraryListState';
 import styles from './ReaderPage.module.scss';
 
 const Fb2Reader = lazy(() => loadModule(() => import('@/components/common/Fb2Reader/Fb2Reader')));
@@ -60,6 +67,7 @@ function restoreScrollProgress(progressPercent: number) {
 
 function ReaderPage() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const params = useParams();
   const bookId = () => params.bookId ?? '';
   const bookQuery = createBookQuery(bookId);
@@ -68,6 +76,8 @@ function ReaderPage() {
   const epubFileQuery = createBookFileBlobQuery(bookId, () => bookQuery.data?.format === 'epub');
   const updateBookMutation = createUpdateBookMutation();
   const updateProgressMutation = createUpdateReadingProgressMutation();
+  const [infoOpen, setInfoOpen] = createSignal(false);
+  const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const [pdfReady, setPdfReady] = createSignal(false);
   const [djvuReady, setDjvuReady] = createSignal(false);
   const [epubReady, setEpubReady] = createSignal(false);
@@ -134,6 +144,8 @@ function ReaderPage() {
     clearScheduledProgressSave();
     clearScheduledProgressRestore();
     activeBookId = currentBookId;
+    setInfoOpen(false);
+    setCoverPreviewOpen(false);
     setRestoreState('pending');
     setPdfReady(false);
     setDjvuReady(false);
@@ -170,6 +182,18 @@ function ReaderPage() {
         <Show when={book()} fallback={<span>{t('loading')}</span>}>
           {(currentBook) => <strong>{currentBook().title}</strong>}
         </Show>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          iconOnly
+          aria-label={t('bookInformation')}
+          title={t('bookInformation')}
+          aria-haspopup="dialog"
+          aria-expanded={infoOpen()}
+          iconStart={<Info />}
+          onClick={() => setInfoOpen(true)}
+        />
       </div>
 
       <Button
@@ -323,6 +347,36 @@ function ReaderPage() {
 
   return (
     <div class={styles.readerPage}>
+      <Show when={infoOpen() && !coverPreviewOpen() && book()}>
+        {(currentBook) => (
+          <BookInfo
+            book={currentBook()}
+            onShowCover={() => setCoverPreviewOpen(true)}
+            onTagSelect={(tag) => {
+              const state = getLastLibraryListState();
+              void navigate(
+                buildLibraryListStateUrl(
+                  { ...state, tags: [...state.tags, tag] },
+                  { pathname: '/library', search: '', hash: '' },
+                ),
+              );
+            }}
+            onClose={() => setInfoOpen(false)}
+          />
+        )}
+      </Show>
+
+      <Show when={coverPreviewOpen()}>
+        <ModalDialog
+          overlayClass={styles.coverPreviewBackdrop}
+          contentClass={styles.coverPreviewDialog}
+          ariaLabel={t('showFullCoverMenu')}
+          onClose={() => setCoverPreviewOpen(false)}
+        >
+          <img src={getBookCoverUrl(bookId())} alt="" />
+        </ModalDialog>
+      </Show>
+
       <Show when={loadError()}>
         <div class={styles.state}>
           <p>{loadErrorIsNotFound() ? t('bookNotFound') : t('requestFailedTryAgain')}</p>

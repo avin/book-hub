@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import {
   getMinimalScrollbarsPreference,
@@ -14,6 +15,36 @@ beforeEach(() => {
   setLanguagePreference('ru');
 });
 afterEach(cleanup);
+
+describe('клавиатура в читалке', () => {
+  it('передаёт Escape модальному диалогу, а после его закрытия — панели читалки', () => {
+    const closeChrome = vi.fn();
+    const closeDialog = vi.fn();
+    const chrome = render(() => (
+      <I18nProvider>
+        <ReaderFloatingChrome visible onShow={() => undefined} onClose={closeChrome} />
+      </I18nProvider>
+    ));
+    const modal = render(() => (
+      <ModalDialog
+        contentClass=""
+        overlayClass=""
+        ariaLabel="Информация о книге"
+        onClose={closeDialog}
+      >
+        <button type="button">Закрыть</button>
+      </ModalDialog>
+    ));
+
+    fireEvent.keyDown(modal.getByRole('button', { name: 'Закрыть' }), { key: 'Escape' });
+    expect(closeDialog).toHaveBeenCalledOnce();
+    expect(closeChrome).not.toHaveBeenCalled();
+
+    modal.unmount();
+    fireEvent.keyDown(chrome.getByTestId('reader-floating-header'), { key: 'Escape' });
+    expect(closeChrome).toHaveBeenCalledOnce();
+  });
+});
 
 describe('тонкие полосы прокрутки читалки', () => {
   const renderChrome = () =>

@@ -8,8 +8,8 @@ import { createContextMenu } from '@/components/common/ContextMenu/createContext
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import { useI18n } from '@/i18n/I18nProvider';
 import BookActionsMenu from '../BookActionsMenu/BookActionsMenu';
-import BookCover from '../BookCover/BookCover';
-import BookInfo from '../BookInfo/BookInfo';
+import BookCover from '@/components/common/BookCover/BookCover';
+import BookInfo from '@/components/common/BookInfo/BookInfo';
 import styles from './BookCardGrid.module.scss';
 
 function BookCardGrid(props: {

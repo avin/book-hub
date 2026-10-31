@@ -5,7 +5,7 @@ import type { Book } from '@/api/books';
 import Button from '@/components/common/Button/Button';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
 import { useI18n } from '@/i18n/I18nProvider';
-import BookCover from '../BookCover/BookCover';
+import BookCover from '@/components/common/BookCover/BookCover';
 import styles from './BookInfo.module.scss';
 
 function BookInfo(props: {
