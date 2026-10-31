@@ -6,29 +6,13 @@ import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import TextInput from '@/components/common/TextInput/TextInput';
 import ThemeSelect from '@/components/common/ThemeSelect/ThemeSelect';
+import { formatBytes } from '@/formatBytes';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
 import { getThemePreference } from '@/storage/browserPreferences';
 import { changeTheme } from '@/styles/ThemeSync';
 import { defaultThemeId, type ThemeId } from '@/styles/themes';
 import styles from './SettingsPage.module.scss';
-
-function formatBytes(value: number) {
-  if (value < 1024) {
-    return `${value} B`;
-  }
-
-  const units = ['KB', 'MB', 'GB'];
-  let nextValue = value / 1024;
-  let unitIndex = 0;
-
-  while (nextValue >= 1024 && unitIndex < units.length - 1) {
-    nextValue /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${nextValue.toFixed(nextValue >= 10 ? 0 : 1)} ${units[unitIndex]}`;
-}
 
 function passwordErrorMessage(error: unknown): MessageKey {
   const code = (error as { code?: unknown } | null)?.code;

@@ -1,6 +1,7 @@
 import { useNavigate } from '@solidjs/router';
 import { useQueryClient } from '@tanstack/solid-query';
 import { uploadBook, uploadBookCover, bookTagsQueryKey, booksQueryKey } from '@/api/books';
+import { currentUserQueryKey } from '@/api/user';
 import usePageLocker from '@/components/common/PageLockerProvider/usePageLocker';
 import {
   isDjvuBookFile,
@@ -131,6 +132,7 @@ export default function useUploadBatch(options: {
 
       await queryClient.invalidateQueries({ queryKey: booksQueryKey });
       await queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
+      await queryClient.invalidateQueries({ queryKey: currentUserQueryKey });
 
       if (options.isPageActive() && results.every(Boolean)) {
         navigate('/library');

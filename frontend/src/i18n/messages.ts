@@ -596,6 +596,26 @@ export const messages = {
     ru: 'Выбрано книг: {count}',
     en: 'Books selected: {count}',
   },
+  freeSpace: {
+    ru: 'Свободное место: {size}',
+    en: 'Free space: {size}',
+  },
+  checkingFreeSpace: {
+    ru: 'Свободное место: уточняем…',
+    en: 'Free space: checking…',
+  },
+  freeSpaceUnavailable: {
+    ru: 'Не удалось узнать свободное место',
+    en: 'Could not check free space',
+  },
+  selectedFilesSize: {
+    ru: 'Размер выбранных файлов: {size}',
+    en: 'Selected files size: {size}',
+  },
+  notEnoughSpace: {
+    ru: 'Недостаточно места: освободите ещё {size} или уберите часть файлов',
+    en: 'Not enough space: free up another {size} or remove some files',
+  },
   supportedBookFormats: {
     ru: 'DJVU, EPUB, FB2 или PDF, можно несколько файлов сразу',
     en: 'DJVU, EPUB, FB2 or PDF, multiple files are supported',

@@ -1,4 +1,5 @@
 import { createMutation, useQueryClient } from '@tanstack/solid-query';
+import { currentUserQueryKey } from '@/api/user';
 import { updateBookProgressCache, updateCachedBookLists } from './cache';
 import { bookProgressQueryKey, bookQueryKey, bookTagsQueryKey, booksQueryKey } from './queryKeys';
 import {
@@ -19,6 +20,7 @@ export function createUploadBookMutation() {
   return createMutation(() => ({
     mutationFn: uploadBook,
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: currentUserQueryKey });
       void queryClient.invalidateQueries({ queryKey: booksQueryKey });
       void queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
     },
@@ -50,6 +52,7 @@ export function createDeleteBookMutation() {
   return createMutation(() => ({
     mutationFn: deleteBook,
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: currentUserQueryKey });
       void queryClient.invalidateQueries({ queryKey: booksQueryKey });
       void queryClient.invalidateQueries({ queryKey: bookTagsQueryKey });
     },

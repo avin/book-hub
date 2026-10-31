@@ -1,6 +1,7 @@
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { FileUp, ImagePlus, ScanText, Trash2, Upload } from 'lucide-solid';
 import { createBookTagsQuery } from '@/api/books';
+import { createCurrentUserQuery } from '@/api/user';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import usePageLocker from '@/components/common/PageLockerProvider/usePageLocker';
@@ -8,6 +9,7 @@ import TagsSelect from '@/components/common/TagsSelect/TagsSelect';
 import { mergeTagOptions } from '@/components/common/TagsSelect/tagUtils';
 import TextInput from '@/components/common/TextInput/TextInput';
 import AutosizeTextarea from '@/components/common/AutosizeTextarea/AutosizeTextarea';
+import { formatBytes } from '@/formatBytes';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
   applyBulkTags as applyBulkTagsToDrafts,
@@ -68,6 +70,27 @@ function UploadPage() {
   let batchInProgress = false;
   let preparationGeneration = 0;
   const bookTagsQuery = createBookTagsQuery();
+  const currentUserQuery = createCurrentUserQuery();
+
+  const selectedFilesBytes = createMemo(() =>
+    drafts().reduce((total, draft) => total + draft.file.size, 0),
+  );
+  const freeBytes = createMemo(() => {
+    const user = currentUserQuery.data;
+    return user && !currentUserQuery.isError
+      ? Math.max(0, user.quota_bytes - user.used_bytes)
+      : undefined;
+  });
+  const missingBytes = createMemo(() => {
+    const available = freeBytes();
+    return available === undefined ? 0 : Math.max(0, selectedFilesBytes() - available);
+  });
+  const freeSpaceText = createMemo(() => {
+    const available = freeBytes();
+    return available === undefined
+      ? t(currentUserQuery.isError ? 'freeSpaceUnavailable' : 'checkingFreeSpace')
+      : t('freeSpace').replace('{size}', formatBytes(available));
+  });
 
   const selectedBooksText = createMemo(() => {
     const count = drafts().length;
@@ -299,7 +322,20 @@ function UploadPage() {
         >
           <FileUp />
           <span>{selectedBooksText()}</span>
-          <small>{t('supportedBookFormats')}</small>
+          <small class={styles.uploadDetails}>
+            <span>{t('supportedBookFormats')}</span>
+            <span class={styles.storageSummary} aria-live="polite" aria-atomic="true">
+              <span>{freeSpaceText()}</span>
+              <span>
+                {t('selectedFilesSize').replace('{size}', formatBytes(selectedFilesBytes()))}
+              </span>
+              <Show when={missingBytes() > 0}>
+                <span class={styles.quotaWarning}>
+                  {t('notEnoughSpace').replace('{size}', formatBytes(missingBytes()))}
+                </span>
+              </Show>
+            </span>
+          </small>
         </button>
 
         <input

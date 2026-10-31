@@ -53,7 +53,7 @@
     opacity: 0.55;
   }
 
-  span {
+  > span {
     max-width: 100%;
     overflow-wrap: anywhere;
     color: var(--text-primary);
@@ -71,6 +71,25 @@
     height: 40px;
     color: var(--accent);
   }
+}
+
+.uploadDetails {
+  display: grid;
+  gap: $space-1;
+}
+
+.storageSummary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: $space-2 $space-4;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.quotaWarning {
+  flex-basis: 100%;
+  color: var(--warning-soft-text);
 }
 
 .dragActive {
