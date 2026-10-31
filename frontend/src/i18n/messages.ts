@@ -517,7 +517,7 @@ export const messages = {
     en: 'Reset progress',
   },
   resetReadingProgressForBook: {
-    ru: 'Сбросить прогресс чтения „{title}“?',
+    ru: 'Сбросить прогресс чтения «{title}»?',
     en: 'Reset reading progress for “{title}”?',
   },
   back: {
@@ -577,7 +577,7 @@ export const messages = {
     en: 'Save',
   },
   deleteBook: {
-    ru: 'Удалить „{title}“?',
+    ru: 'Удалить «{title}»?',
     en: 'Delete “{title}”?',
   },
   addBook: {

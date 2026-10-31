@@ -6,12 +6,12 @@ import { themeIds } from '../src/styles/themes';
 const actions = [
   {
     button: 'Удалить',
-    title: (title: string) => `Удалить „${title}“?`,
+    title: (title: string) => `Удалить «${title}»?`,
     request: books.req.remove,
   },
   {
     button: 'Сбросить прогресс',
-    title: (title: string) => `Сбросить прогресс чтения „${title}“?`,
+    title: (title: string) => `Сбросить прогресс чтения «${title}»?`,
     request: books.req.resetProgress,
   },
 ];
