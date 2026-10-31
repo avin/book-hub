@@ -39,7 +39,7 @@ function BookCardGrid(props: {
 
   return (
     <article class={styles.gridCard} onContextMenu={contextMenu.handleContextMenu}>
-      <A class={styles.coverLink} href={`/reader/${bookId()}`}>
+      <A class={styles.coverLink} href={`/reader/${bookId()}`} title={title()}>
         <BookCover
           bookId={bookId()}
           format={format()}

@@ -66,6 +66,7 @@ for (const view of ['Список', 'Сетка']) {
     const cover = card.getByRole('link').first();
     const preview = page.getByRole('dialog', { name: 'Показать обложку', exact: true });
 
+    await expect(cover).toHaveAttribute('title', books.items[0].title);
     const coverBounds = await cover.boundingBox();
     expect(coverBounds).not.toBeNull();
     const clickPosition = { x: coverBounds!.x + 20, y: coverBounds!.y + 30 };

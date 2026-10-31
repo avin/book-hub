@@ -56,6 +56,7 @@ function BookCard(props: {
             class={styles.coverLink}
             href={`/reader/${bookId()}`}
             aria-label={title()}
+            title={title()}
             onContextMenu={contextMenu.handleContextMenu}
           >
             <BookCover bookId={bookId()} format={format()} version={props.book().updated_at} />
