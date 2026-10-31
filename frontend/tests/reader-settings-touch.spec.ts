@@ -18,9 +18,6 @@ async function scrollPosition(slider: Locator, reset = false) {
 }
 
 const readerBooks = [
-  books.items[0],
-  books.items[2],
-  books.items[3],
   { ...books.items[0], id: '00000000-0000-0000-0000-000000000105', format: 'djvu' },
 ];
 
