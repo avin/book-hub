@@ -83,8 +83,11 @@
 }
 .edit {
   display: flex;
-  visibility: hidden;
-  flex: 0 0 $control-height-sm;
+  overflow: hidden;
+  pointer-events: none;
+  flex: 0 0 0;
+  min-width: 0;
+  padding: 0;
   align-items: center;
   justify-content: center;
   align-self: stretch;
@@ -102,11 +105,13 @@
 }
 .revealed .edit,
 .row:has(:focus-visible) .edit {
-  visibility: visible;
+  pointer-events: auto;
+  flex-basis: $control-height-sm;
 }
 @media (hover: hover) and (pointer: fine) {
   .row:hover .edit {
-    visibility: visible;
+    pointer-events: auto;
+    flex-basis: $control-height-sm;
   }
 }
 .create {

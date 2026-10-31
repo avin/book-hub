@@ -198,9 +198,9 @@ for (const mobile of [false, true]) {
       .toEqual(['one', 'two', 'three']);
     expect(saved().unrelated).toEqual({ keep: 42 });
     const link = page.getByRole('button', { name: 'А', exact: true });
-    const bounds = (await link.boundingBox())!;
     const edit = page.getByRole('button', { name: 'Редактировать закладку А', exact: true });
     await link.hover();
+    const bounds = (await link.boundingBox())!;
     expect(bounds.x + bounds.width).toBeCloseTo((await edit.boundingBox())!.x, 0);
     await link.click({ position: { x: bounds.width - 3, y: bounds.height / 2 } });
     if (mobile) await open();
@@ -230,6 +230,47 @@ test('ошибка сохранения порядка возвращает ис
   await dragBookmark(page, 'one', 'two');
   await expect.poll(() => saved().libraryBookmarks.map((item) => item.id)).toEqual(['two', 'one']);
   await expect(page.getByRole('alert')).toBeHidden();
+});
+
+test('название закладки занимает всю ширину до появления кнопки редактирования', async ({
+  page,
+}) => {
+  const name = 'Очень длинное название закладки '.repeat(3).trim();
+  await mockSettings(page, [bookmark('wide', name)]);
+  await login(page);
+  await page.mouse.move(0, 0);
+  const row = page.locator('[data-bookmark-id="wide"]');
+  const link = row.getByRole('button', { name, exact: true });
+  const edit = row.locator('[data-bookmark-edit]');
+  const label = link.locator('span');
+  await expect(edit).toBeHidden();
+  const fullWidth = (await link.boundingBox())!;
+  const rowBounds = (await row.boundingBox())!;
+  expect(fullWidth.x + fullWidth.width).toBeCloseTo(rowBounds.x + rowBounds.width, 0);
+  const labelWidth = (await label.boundingBox())!.width;
+  expect(await label.evaluate((element) => element.scrollWidth)).toBeGreaterThan(labelWidth);
+
+  await link.hover();
+  await expect(edit).toBeVisible();
+  const compactWidth = (await link.boundingBox())!;
+  const editBounds = (await edit.boundingBox())!;
+  expect(compactWidth.x + compactWidth.width).toBeCloseTo(editBounds.x, 0);
+  expect(fullWidth.width - compactWidth.width).toBeCloseTo(editBounds.width, 0);
+  expect((await label.boundingBox())!.width).toBeCloseTo(labelWidth - editBounds.width, 0);
+
+  await page.mouse.move(0, 0);
+  await expect(edit).toBeHidden();
+  expect((await link.boundingBox())!.width).toBeCloseTo(fullWidth.width, 0);
+
+  await page.keyboard.press('Tab');
+  await link.focus();
+  await expect(edit).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(edit).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('dialog', { name: 'Редактировать закладку', exact: true }),
+  ).toBeVisible();
 });
 
 test('подсветка закладки затухает вместе с областью кнопки редактирования', async ({ page }) => {
