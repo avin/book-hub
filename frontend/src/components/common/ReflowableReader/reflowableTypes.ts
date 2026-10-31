@@ -110,6 +110,7 @@ export type ReflowableReaderSettings = {
   lineHeight: number;
   paragraphSpacing: number;
   paragraphIndent: number;
+  sidePadding: number;
   maxTextWidth?: number;
 };
 
@@ -127,4 +128,5 @@ export type ReflowableCssVars = JSX.CSSProperties & {
   '--fb2-font-size': string;
   '--fb2-line-height': string;
   '--fb2-paragraph-indent': string;
+  '--fb2-side-padding': string;
 };

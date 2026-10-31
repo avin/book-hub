@@ -68,7 +68,6 @@ type SearchMatch = {
 };
 type ScrollAnchor = { pageNumber: number; offsetRatio: number };
 
-const documentPaddingX = 20;
 const minPageWidth = 240;
 const minPageHalfWidth = 120;
 const maxPixelRatio = 2;
@@ -226,7 +225,9 @@ function DjvuReader(props: {
 
   const measure = () => {
     if (!rootRef) return;
-    const nextWidth = Math.round(rootRef.clientWidth - documentPaddingX * 2);
+    const padding =
+      Number.parseFloat(getComputedStyle(rootRef).getPropertyValue('--reader-padding-x')) || 20;
+    const nextWidth = Math.round(rootRef.clientWidth - padding * 2);
 
     if (nextWidth === documentWidth()) return;
 

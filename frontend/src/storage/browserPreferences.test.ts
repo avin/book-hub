@@ -51,12 +51,31 @@ describe('browserPreferences', () => {
     expect(getRecentTagsPreference()).toEqual(['fantasy', 'history']);
     expect(getReflowableReaderSettingsPreference()).toMatchObject({
       fontSize: defaultSettings.fontSize,
+      sidePadding: 8,
     });
     expect(getFixedLayoutReaderContentWidthPreference()).toBe(840);
     expect(getPdfReaderPageWidthOverflowPreference('book')).toBe(80);
     expect(
       getPdfReaderFilterChainPreference('book')?.find((filter) => filter.id === 'invert'),
     ).toMatchObject({ strength: 1 });
+  });
+
+  it.each([
+    [undefined, undefined],
+    ['16', undefined],
+    [null, undefined],
+    [-4, 2],
+    [2, 2],
+    [16, 16],
+    [16.6, 17],
+    [32, 32],
+    [99, 32],
+  ])('читает боковые отступы %s как %s', (sidePadding, expected) => {
+    localStorage.setItem(
+      'book-hub-preferences',
+      JSON.stringify({ version: 1, readers: { fb2: { settings: { sidePadding } } } }),
+    );
+    expect(getReflowableReaderSettingsPreference()?.sidePadding).toBe(expected);
   });
 
   it('игнорирует повреждённые предпочтения', () => {

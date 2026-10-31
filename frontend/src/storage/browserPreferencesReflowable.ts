@@ -16,6 +16,7 @@ function sanitizeReflowableReaderSettings(
   }
 
   const sanitized: Partial<ReflowableReaderSettings> = {};
+  const sidePadding = finiteNumber(settings.sidePadding);
   const values = {
     backgroundColor: stringValue(settings.backgroundColor),
     textColor: stringValue(settings.textColor),
@@ -25,6 +26,8 @@ function sanitizeReflowableReaderSettings(
     lineHeight: finiteNumber(settings.lineHeight),
     paragraphSpacing: finiteNumber(settings.paragraphSpacing),
     paragraphIndent: finiteNumber(settings.paragraphIndent),
+    sidePadding:
+      sidePadding === undefined ? undefined : Math.min(32, Math.max(2, Math.round(sidePadding))),
     maxTextWidth: finiteNumber(settings.maxTextWidth),
   };
 

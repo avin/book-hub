@@ -146,6 +146,22 @@ function SettingsPanel(props: {
             }
           />
         </InputContainer>
+        <InputContainer label={t('sidePadding')} labelEnd={`${props.settings.sidePadding}px`}>
+          <input
+            type="range"
+            min="2"
+            max="32"
+            step="1"
+            aria-label={t('sidePadding')}
+            value={props.settings.sidePadding}
+            onPointerDown={captureLayoutAdjust}
+            onPointerUp={() => props.onEndAdjustLayout()}
+            onPointerCancel={() => props.onEndAdjustLayout()}
+            onInput={(event) =>
+              props.onUpdateSetting('sidePadding', Number(event.currentTarget.value))
+            }
+          />
+        </InputContainer>
       </section>
 
       <section class={styles.settingGroup}>

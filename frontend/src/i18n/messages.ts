@@ -272,6 +272,10 @@ export const messages = {
     ru: 'Отступ после абзаца',
     en: 'Paragraph spacing',
   },
+  sidePadding: {
+    ru: 'Боковые отступы',
+    en: 'Side padding',
+  },
   colors: {
     ru: 'Цвета',
     en: 'Colors',

@@ -121,7 +121,6 @@ const maxRenderPixelRatio = 2;
 const maxConcurrentRenderJobs = 2;
 const maxRenderMargin = 1200;
 const tileKeepViewportFactor = 3;
-const documentPaddingX = 20;
 const minPageWidth = 240;
 const minPageHalfWidth = 120;
 const guideOutsideMargin = 12;
@@ -209,6 +208,10 @@ function PdfReader(props: {
 }) {
   const { t } = useI18n();
   let rootRef: HTMLDivElement | undefined;
+  const documentPaddingX = () =>
+    rootRef
+      ? Number.parseFloat(getComputedStyle(rootRef).getPropertyValue('--reader-padding-x')) || 20
+      : 20;
   let documentRef: HTMLElement | undefined;
   let loadingTask: PDFDocumentLoadingTask | undefined;
   let pdfDocument: PDFDocumentProxy | undefined;
@@ -290,7 +293,7 @@ function PdfReader(props: {
   const basePageWidth = createMemo(() =>
     pageWidthForAvailableWidth(maxPageWidth(), availablePageWidth()),
   );
-  const viewportPageWidth = createMemo(() => availablePageWidth() + documentPaddingX * 2);
+  const viewportPageWidth = createMemo(() => availablePageWidth() + documentPaddingX() * 2);
   const pageWidthOverflowReferenceWidth = createMemo(() =>
     pageWidthOverflowReference(maxPageWidth(), availablePageWidth(), viewportPageWidth()),
   );
@@ -434,7 +437,7 @@ function PdfReader(props: {
       return availablePageWidth();
     }
 
-    return Math.max(minPageWidth, Math.round(rootRef.clientWidth - documentPaddingX * 2));
+    return Math.max(minPageWidth, Math.round(rootRef.clientWidth - documentPaddingX() * 2));
   };
 
   const resolvePageWidthPx = (width: number | undefined) => {
@@ -447,7 +450,7 @@ function PdfReader(props: {
     return pageWidthWithOverflow(
       baseWidth,
       pageWidthOverflow(),
-      pageWidthOverflowReference(width, availableWidth, availableWidth + documentPaddingX * 2),
+      pageWidthOverflowReference(width, availableWidth, availableWidth + documentPaddingX() * 2),
     );
   };
 
@@ -934,7 +937,7 @@ function PdfReader(props: {
       return;
     }
 
-    const nextWidth = Math.round(rootRef.clientWidth - documentPaddingX * 2);
+    const nextWidth = Math.round(rootRef.clientWidth - documentPaddingX() * 2);
 
     if (nextWidth === documentWidth()) {
       return;
@@ -949,7 +952,7 @@ function PdfReader(props: {
       return;
     }
 
-    const nextWidth = Math.round(rootRef.clientWidth - documentPaddingX * 2);
+    const nextWidth = Math.round(rootRef.clientWidth - documentPaddingX() * 2);
 
     if (nextWidth === documentWidth()) {
       return;
@@ -963,7 +966,7 @@ function PdfReader(props: {
       pageWidthOverflowReference(
         maxPageWidth(),
         nextAvailableWidth,
-        nextAvailableWidth + documentPaddingX * 2,
+        nextAvailableWidth + documentPaddingX() * 2,
       ),
     );
 

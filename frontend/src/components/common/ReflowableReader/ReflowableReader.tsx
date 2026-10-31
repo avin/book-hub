@@ -327,6 +327,7 @@ function ReflowableReader(props: {
     '--fb2-font-size': `${settings().fontSize}px`,
     '--fb2-line-height': String(settings().lineHeight),
     '--fb2-paragraph-indent': `${settings().paragraphIndent}px`,
+    '--fb2-side-padding': `${settings().sidePadding}px`,
   }));
   const markerStyles = createMemo<{ left: JSX.CSSProperties; right: JSX.CSSProperties }>(() =>
     computeWidthRulerMarkers(rulerElement(), effectiveMaxTextWidth(), availableTextWidth()),

@@ -114,6 +114,86 @@ test('читатель EPUB сохраняет общий reflowable сцена�
   });
 });
 
+for (const bookTitle of ['Война и мир', 'EPUB для проверки']) {
+  test(`боковые отступы регулируются, сохраняются и сбрасываются: ${bookTitle}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await login(page);
+    await page.getByRole('heading', { name: bookTitle, exact: true }).getByRole('link').click();
+    await expect(page.locator('main article')).toBeVisible();
+    await expect(page.locator('main')).toHaveCSS('padding-left', '8px');
+    await expect(page.locator('main')).toHaveCSS('padding-right', '8px');
+    await showReaderChrome(page);
+    await page.getByRole('button', { name: 'Внешний вид' }).click();
+    const padding = page.getByRole('slider', { name: 'Боковые отступы', exact: true });
+    await expect(padding).toHaveValue('8');
+    await padding.press('Home');
+    await expect(padding).toHaveValue('2');
+    await expect(page.locator('main')).toHaveCSS('padding-left', '2px');
+    await expect(page.locator('main article')).toHaveCSS('width', '386px');
+    await padding.press('End');
+    await expect(padding).toHaveValue('32');
+    await expect(page.locator('main')).toHaveCSS('padding-right', '32px');
+    await expect(page.locator('main article')).toHaveCSS('width', '326px');
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const preferences = JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}');
+          return preferences.readers?.fb2?.settings?.sidePadding;
+        }),
+      )
+      .toBe(32);
+
+    await page.reload();
+    await expect(page.locator('main')).toHaveCSS('padding-left', '32px');
+    await page.setViewportSize({ width: 900, height: 800 });
+    await expect(page.locator('main')).toHaveCSS('padding-right', '32px');
+    await showReaderChrome(page);
+    await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
+    const otherTitle = bookTitle === 'Война и мир' ? 'EPUB для проверки' : 'Война и мир';
+    await page.getByRole('heading', { name: otherTitle, exact: true }).getByRole('link').click();
+    await expect(page.locator('main')).toHaveCSS('padding-left', '32px');
+    await showReaderChrome(page);
+    await page.getByRole('button', { name: 'Внешний вид' }).click();
+    await expect(padding).toHaveValue('32');
+    await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await expect(padding).toHaveValue('8');
+    await expect(page.locator('main')).toHaveCSS('padding-left', '8px');
+  });
+}
+
+test('изменение боковых отступов сохраняет видимый текстовый блок', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await login(page);
+  await page.getByRole('heading', { name: 'Война и мир', exact: true }).getByRole('link').click();
+  await expect(page.locator('main article')).toBeVisible();
+  await showReaderChrome(page);
+  await page.getByRole('button', { name: 'Внешний вид' }).click();
+  const padding = page.getByRole('slider', { name: 'Боковые отступы', exact: true });
+  await padding.focus();
+  await page.evaluate(() => window.scrollTo(0, 4000));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(4000);
+  const anchor = await page.locator('article > div').evaluateAll((elements) => {
+    const slot = elements.find((element) => {
+      const rect = element.getBoundingClientRect();
+      return element.textContent && rect.top <= 0 && rect.bottom > 0;
+    })!;
+    return { text: slot.textContent!, top: slot.getBoundingClientRect().top };
+  });
+  await padding.press('End');
+  await expect(page.locator('main article')).toHaveCSS('width', '326px');
+  const block = page.getByText(anchor.text, { exact: true });
+  await expect
+    .poll(() => block.evaluate((element) => element.parentElement!.getBoundingClientRect().top))
+    .toBeCloseTo(anchor.top, 0);
+  await padding.press('Home');
+  await expect(page.locator('main article')).toHaveCSS('width', '386px');
+  await expect
+    .poll(() => block.evaluate((element) => element.parentElement!.getBoundingClientRect().top))
+    .toBeCloseTo(anchor.top, 0);
+});
+
 test('Literata не обрезает абзац после загрузки кириллицы', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.addInitScript(() => {

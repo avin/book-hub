@@ -233,6 +233,12 @@
   }
 }
 
+@media (width < 720px) {
+  .content {
+    padding-inline: $space-4;
+  }
+}
+
 @media (max-width: 360px) {
   .brand span {
     @include visually-hidden;
