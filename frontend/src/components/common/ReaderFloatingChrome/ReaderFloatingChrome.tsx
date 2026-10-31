@@ -212,6 +212,7 @@ function ReaderFloatingChrome(props: {
 
           <div class={styles.positionContent}>{props.bottomContent}</div>
           <Button
+            class={styles.scrollbarToggle}
             variant="secondary"
             size="sm"
             iconOnly

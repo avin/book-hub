@@ -234,6 +234,12 @@
   font-weight: 600;
 }
 
+@media (pointer: coarse) {
+  .scrollbarToggle {
+    display: none;
+  }
+}
+
 @media (max-width: 720px) {
   .headerBar {
     gap: $space-2;
