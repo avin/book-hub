@@ -6,6 +6,7 @@ import {
   onMount,
   type Accessor,
 } from 'solid-js';
+import useReaderFullscreen from './useReaderFullscreen';
 
 const headerHideOffset = 128;
 const headerShowOffset = 72;
@@ -38,6 +39,7 @@ function useReaderChrome(props: {
   const hoverOffsets = () => props.hoverOffsets ?? defaultHoverOffsets;
 
   const show = () => setHeaderVisible(true);
+  const syncFullscreen = useReaderFullscreen({ visible, onExit: show });
 
   const close = () => {
     setHeaderVisible(false);
@@ -110,6 +112,7 @@ function useReaderChrome(props: {
       return;
     }
 
+    syncFullscreen();
     event.preventDefault();
   };
 
