@@ -89,16 +89,18 @@ describe('сенсорное управление панелями читалк�
   });
 
   it.each([
-    { sector: 'нижнему', y: 0.875, direction: 1 },
-    { sector: 'верхнему', y: 0.125, direction: -1 },
+    { sector: 'нижнему', x: 0.85, y: 0.875, direction: 1 },
+    { sector: 'верхнему', x: 0.85, y: 0.125, direction: -1 },
+    { sector: 'нижнему', x: 0.5, y: 0.7, direction: 1 },
+    { sector: 'верхнему', x: 0.5, y: 0.3, direction: -1 },
   ])(
     'перелистывает по тапу в $sector правом секторе, сохраняя панели скрытыми',
-    ({ y, direction }) => {
+    ({ x, y, direction }) => {
       const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
       const reader = render(() => <TestReader />);
       const touch = {
         ...centerTouch(),
-        clientX: window.innerWidth * 0.85,
+        clientX: window.innerWidth * x,
         clientY: window.innerHeight * y,
       };
 
@@ -111,6 +113,43 @@ describe('сенсорное управление панелями читалк�
       expect(reader.getByTestId('reader-floating-header').dataset.visible).toBe('false');
     },
   );
+
+  it.each([
+    { x: 0.1, y: 1 / 3 },
+    { x: 0.9, y: 1 / 3 },
+    { x: 0.1, y: 2 / 3 },
+    { x: 0.9, y: 2 / 3 },
+  ])('переключает панели в средней трети при x=$x, y=$y', ({ x, y }) => {
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    const reader = render(() => <TestReader />);
+    const content = reader.getByTestId('document');
+    const header = reader.getByTestId('reader-floating-header');
+    const touch = {
+      ...centerTouch(),
+      clientX: window.innerWidth * x,
+      clientY: window.innerHeight * y,
+    };
+
+    tap(content, touch);
+    expect(header.dataset.visible).toBe('true');
+    tap(content, touch);
+    expect(header.dataset.visible).toBe('false');
+    expect(scrollBy).not.toHaveBeenCalled();
+  });
+
+  it.each([0.3, 0.7])('не реагирует на тап слева от зон прокрутки при y=%s', (y) => {
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    const reader = render(() => <TestReader />);
+
+    tap(reader.getByTestId('document'), {
+      ...centerTouch(),
+      clientX: window.innerWidth / 2 - 1,
+      clientY: window.innerHeight * y,
+    });
+
+    expect(reader.getByTestId('reader-floating-header').dataset.visible).toBe('false');
+    expect(scrollBy).not.toHaveBeenCalled();
+  });
 
   it.each(['свайп', 'отмена', 'мультитач', 'долгое нажатие', 'выделение'])(
     'не считает тапом жест: %s',

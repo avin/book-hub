@@ -97,10 +97,10 @@ function useReaderChrome(props: {
       return;
     }
 
-    const topSector = event.clientY < window.innerHeight * 0.25;
-    const bottomSector = event.clientY > window.innerHeight * 0.75;
+    const topSector = event.clientY < window.innerHeight / 3;
+    const bottomSector = event.clientY > (window.innerHeight * 2) / 3;
 
-    if (event.clientX >= (window.innerWidth * 2) / 3 && (topSector || bottomSector)) {
+    if (event.clientX >= window.innerWidth / 2 && (topSector || bottomSector)) {
       window.scrollBy({
         top: window.innerHeight * 0.9 * (topSector ? -1 : 1),
         behavior: 'instant',
