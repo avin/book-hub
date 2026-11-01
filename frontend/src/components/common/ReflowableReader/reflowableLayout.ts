@@ -382,6 +382,49 @@ export function buildVirtualLayout(
   return { offsets, heights, totalHeight };
 }
 
+export async function buildVirtualLayoutAsync(
+  blocks: ReflowableBlock[],
+  width: number,
+  settings: ReflowableReaderSettings,
+  signal?: AbortSignal,
+): Promise<VirtualLayout | undefined> {
+  if (signal?.aborted) {
+    return undefined;
+  }
+
+  const yieldToBrowser = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+  // Дать браузеру показать индикатор до начала измерений большой книги.
+  await yieldToBrowser();
+
+  if (signal?.aborted) {
+    return undefined;
+  }
+
+  const heights: number[] = [];
+  const offsets: number[] = [];
+  let totalHeight = 0;
+  let sliceStartedAt = performance.now();
+
+  for (let index = 0; index < blocks.length; index += 1) {
+    if (index > 0 && index % 16 === 0 && performance.now() - sliceStartedAt >= 10) {
+      await yieldToBrowser();
+
+      if (signal?.aborted) {
+        return undefined;
+      }
+
+      sliceStartedAt = performance.now();
+    }
+
+    const height = measureBlockHeight(blocks[index], width, settings);
+    offsets.push(totalHeight);
+    heights.push(height);
+    totalHeight += height;
+  }
+
+  return { offsets, heights, totalHeight };
+}
+
 export function findBlockIndex(offsets: number[], scrollTop: number) {
   let low = 0;
   let high = offsets.length - 1;

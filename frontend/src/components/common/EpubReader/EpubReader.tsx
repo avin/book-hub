@@ -11,14 +11,16 @@ function EpubReader(props: {
   class?: string;
   headerContent?: JSX.Element;
   onReady?: () => void;
+  onError?: () => void;
+  initialProgressPercent?: number;
 }) {
   const { t } = useI18n();
   const [document, setDocument] = createSignal<EpubDocument>();
   const [error, setError] = createSignal<unknown>();
-  let readyFor: Blob | undefined;
 
   createEffect(() => {
     const epub = props.epub;
+    const onError = props.onError;
     let disposed = false;
 
     setDocument(undefined);
@@ -28,20 +30,16 @@ function EpubReader(props: {
         if (!disposed) setDocument(nextDocument);
       },
       (nextError) => {
-        if (!disposed) setError(nextError);
+        if (!disposed) {
+          setError(nextError);
+          onError?.();
+        }
       },
     );
 
     onCleanup(() => {
       disposed = true;
     });
-  });
-
-  createEffect(() => {
-    if (!document() || readyFor === props.epub) return;
-
-    readyFor = props.epub;
-    props.onReady?.();
   });
 
   return (
@@ -59,6 +57,8 @@ function EpubReader(props: {
           historyId={props.historyId}
           class={props.class}
           headerContent={props.headerContent}
+          initialProgressPercent={props.initialProgressPercent}
+          onReady={props.onReady}
         />
       )}
     </Show>

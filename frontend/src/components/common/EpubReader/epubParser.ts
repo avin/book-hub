@@ -112,12 +112,16 @@ function binaryId(path: string) {
 }
 
 function toBase64(data: Uint8Array) {
-  let binary = '';
-  const step = 0x8000;
-  for (let offset = 0; offset < data.length; offset += step) {
-    binary += String.fromCharCode(...data.subarray(offset, offset + step));
-  }
-  return btoa(binary);
+  // Let the browser encode the image without expanding its bytes into a JavaScript string.
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.slice(result.indexOf(',') + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(new Blob([data.slice().buffer]));
+  });
 }
 
 function imageMime(path: string, item?: ManifestItem) {
@@ -839,7 +843,7 @@ export async function parseEpub(
     binaries.set(binaryId(item.path), {
       id: binaryId(item.path),
       contentType: imageMime(item.path, item),
-      data: toBase64(safeData),
+      data: await toBase64(safeData),
     });
   }
   const navItem = Array.from(manifest.values()).find((item) =>

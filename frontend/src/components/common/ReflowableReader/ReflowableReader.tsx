@@ -15,8 +15,14 @@ import { clearCache } from '@chenglou/pretext';
 import BlockView from './BlockView/BlockView';
 import Button from '@/components/common/Button/Button';
 import ModalDialog from '@/components/common/ModalDialog/ModalDialog';
-import { findBlockIndex, buildVirtualLayout } from './reflowableLayout';
-import { isReaderLayoutFontReady, loadReaderLayoutFonts } from './reflowableFontMetrics';
+import { findBlockIndex, buildVirtualLayout, buildVirtualLayoutAsync } from './reflowableLayout';
+import {
+  createReaderFontSample,
+  isReaderLayoutFontReady,
+  loadReaderLayoutFonts,
+  type ReaderFontSample,
+} from './reflowableFontMetrics';
+import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import { binaryToDataUrl } from './reflowableBinary';
 import { defaultSettings } from './reflowableReaderSettings';
 import {
@@ -155,6 +161,8 @@ function ReflowableReader(props: {
   class?: string;
   initialSettings?: Partial<ReflowableReaderSettings>;
   headerContent?: JSX.Element;
+  initialProgressPercent?: number;
+  onReady?: () => void;
 }) {
   const { t } = useI18n();
   let rootRef: HTMLDivElement | undefined;
@@ -196,8 +204,40 @@ function ReflowableReader(props: {
   const [activeFootnoteId, setActiveFootnoteId] = createSignal<string>();
   const [layoutGeneration, setLayoutGeneration] = createSignal(0);
   const [rulerElement, setRulerElement] = createSignal<HTMLDivElement>();
+  const [measured, setMeasured] = createSignal(false);
+  const [loadedFonts, setLoadedFonts] = createSignal<{
+    family: string;
+    sample: ReaderFontSample;
+  }>();
+  const [layoutInitialized, setLayoutInitialized] = createSignal(false);
+  const [layoutError, setLayoutError] = createSignal<unknown>();
+  const [startupComplete, setStartupComplete] = createSignal(false);
   let lastMeasuredLayout: VirtualLayout = { offsets: [], heights: [], totalHeight: 0 };
+  let measuredInputs:
+    | {
+        blocks: ReflowableBlock[];
+        width: number;
+        settings: ReflowableReaderSettings;
+        generation: number;
+      }
+    | undefined;
   const parsed = createMemo(() => props.document);
+  const fontSample = createMemo(() => createReaderFontSample(parsed()));
+  const fontsReady = createMemo(
+    () => loadedFonts()?.family === settings().fontFamily && loadedFonts()?.sample === fontSample(),
+  );
+  createEffect(
+    on(
+      () => [props.document, props.historyId],
+      () => {
+        lastMeasuredLayout = { offsets: [], heights: [], totalHeight: 0 };
+        measuredInputs = undefined;
+        setStartupComplete(false);
+        setLayoutInitialized(false);
+        setLayoutError(undefined);
+      },
+    ),
+  );
   const availableTextWidth = createMemo(() => readerWidth());
   const effectiveMaxTextWidth = createMemo(() =>
     draggingWidth() ? pendingMaxTextWidth() : settings().maxTextWidth,
@@ -234,7 +274,7 @@ function ReflowableReader(props: {
     });
   };
 
-  const applyLayoutTextWidth = (anchor = currentWidthChangeAnchor()) => {
+  const applyLayoutTextWidth = (anchor = untrack(currentWidthChangeAnchor)) => {
     if (anchor) {
       setPendingScrollAnchor(anchor);
     }
@@ -252,7 +292,7 @@ function ReflowableReader(props: {
   };
 
   const scheduleLayoutTextWidth = () => {
-    const anchor = currentWidthChangeAnchor();
+    const anchor = untrack(currentWidthChangeAnchor);
 
     if (layoutWidthDebounceTimeout !== undefined) {
       window.clearTimeout(layoutWidthDebounceTimeout);
@@ -291,16 +331,66 @@ function ReflowableReader(props: {
   );
 
   const layout = createMemo(() => {
-    layoutGeneration();
+    const error = layoutError();
+    if (error) throw error;
+    const generation = layoutGeneration();
     const currentSettings = layoutSettings();
+    const blocks = parsed().blocks;
+    const width = layoutTextWidth();
 
-    if (typeof document !== 'undefined' && !isReaderLayoutFontReady(currentSettings)) {
+    if (!layoutInitialized() || !fontsReady()) {
       return lastMeasuredLayout;
     }
 
-    lastMeasuredLayout = buildVirtualLayout(parsed().blocks, layoutTextWidth(), currentSettings);
+    if (
+      measuredInputs?.blocks === blocks &&
+      measuredInputs.width === width &&
+      measuredInputs.settings === currentSettings &&
+      measuredInputs.generation === generation
+    )
+      return lastMeasuredLayout;
+
+    lastMeasuredLayout = buildVirtualLayout(blocks, width, currentSettings);
+    measuredInputs = { blocks, width, settings: currentSettings, generation };
 
     return lastMeasuredLayout;
+  });
+
+  createEffect(() => {
+    if (!measured() || !fontsReady() || layoutInitialized()) return;
+    const blocks = parsed().blocks;
+    const width = layoutTextWidth();
+    const currentSettings = layoutSettings();
+    const generation = layoutGeneration();
+    const controller = new AbortController();
+    void buildVirtualLayoutAsync(blocks, width, currentSettings, controller.signal).then(
+      (result) => {
+        if (!result || controller.signal.aborted) return;
+        lastMeasuredLayout = result;
+        measuredInputs = { blocks, width, settings: currentSettings, generation };
+        setLayoutInitialized(true);
+      },
+      (error: unknown) => {
+        if (!controller.signal.aborted) setLayoutError(error);
+      },
+    );
+    onCleanup(() => controller.abort());
+  });
+
+  createEffect(() => {
+    if (!layoutInitialized() || startupComplete()) return;
+    let frame = requestAnimationFrame(() => {
+      const progress = props.initialProgressPercent ?? 0;
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      window.scrollTo({ top: (maxScroll * clamp(progress, 0, 100)) / 100, behavior: 'instant' });
+      updateScrollPosition();
+      // The virtual range must be mounted at the restored position before revealing the book.
+      frame = requestAnimationFrame(() => {
+        setStartupComplete(true);
+        props.onReady?.();
+      });
+    });
+    onCleanup(() => cancelAnimationFrame(frame));
   });
   const imageSrcCache = createMemo(() => {
     void parsed();
@@ -459,6 +549,7 @@ function ReflowableReader(props: {
   };
 
   const captureScrollAnchor = () => {
+    if (!untrack(startupComplete)) return undefined;
     const currentLayout = layout();
 
     if (currentLayout.offsets.length === 0) {
@@ -468,12 +559,13 @@ function ReflowableReader(props: {
     const currentDocumentScrollTop = documentScrollTop();
     const blockIndex = findBlockIndex(currentLayout.offsets, currentDocumentScrollTop);
     const blockTop = currentLayout.offsets[blockIndex] ?? 0;
+    const documentTop = documentRef ? documentRef.getBoundingClientRect().top + window.scrollY : 0;
     // Процент внутри блока нельзя использовать: после смены ширины или
     // шрифта блок может получить другое число строк, и тот же процент покажет
     // уже другой текст. Пиксельное смещение сохраняет текущий видимый блок.
     const offsetPx = clamp(
-      currentDocumentScrollTop - blockTop,
-      0,
+      window.scrollY - documentTop - blockTop,
+      blockIndex === 0 ? -documentTop : 0,
       Math.max(0, currentLayout.heights[blockIndex] ?? 0),
     );
 
@@ -536,8 +628,7 @@ function ReflowableReader(props: {
         Number.isInteger(location.blockIndex) &&
         location.blockIndex >= 0 &&
         typeof location.offsetPx === 'number' &&
-        Number.isFinite(location.offsetPx) &&
-        location.offsetPx >= 0
+        Number.isFinite(location.offsetPx)
       );
     },
   });
@@ -923,39 +1014,39 @@ function ReflowableReader(props: {
     ),
   );
 
-  createEffect(() => {
-    const currentSettings = settings();
-    void currentSettings.fontFamily;
-    void currentSettings.fontSize;
+  createEffect(
+    on([() => settings().fontFamily, fontSample], () => {
+      const currentSettings = settings();
+      const sample = fontSample();
+      let cancelled = false;
+      const needsLoad = !isReaderLayoutFontReady(currentSettings, sample);
+      void loadReaderLayoutFonts(currentSettings, sample).then(() => {
+        untrack(() => {
+          if (disposed || cancelled) {
+            return;
+          }
 
-    if (isReaderLayoutFontReady(currentSettings)) {
-      return;
-    }
+          const anchor = layoutSettingsAnchor ?? fontLayoutAnchor ?? captureScrollAnchor();
 
-    void loadReaderLayoutFonts(currentSettings).then(() => {
-      untrack(() => {
-        if (disposed) {
-          return;
-        }
+          if (anchor) {
+            setPendingScrollAnchor(anchor);
+          }
 
-        // Якорь снимаем здесь, а не при запуске эффекта: к этому моменту позиция
-        // уже могла быть восстановлена из прогресса (ReaderPage.restoreScrollProgress).
-        // Снятый заранее якорь фиксирует scrollY=0 и после пересчёта layout
-        // отбрасывает читалку в начало книги.
-        const anchor = layoutSettingsAnchor ?? fontLayoutAnchor ?? captureScrollAnchor();
+          fontLayoutAnchor = undefined;
 
-        if (anchor) {
-          setPendingScrollAnchor(anchor);
-        }
-
-        fontLayoutAnchor = undefined;
-
-        // Pretext caches fallback widths even after the web font has loaded.
-        clearCache();
-        setLayoutGeneration((value) => value + 1);
+          // Pretext caches fallback widths even after the web font has loaded.
+          if (needsLoad) {
+            clearCache();
+            setLayoutGeneration((value) => value + 1);
+          }
+          setLoadedFonts({ family: currentSettings.fontFamily, sample });
+        });
       });
-    });
-  });
+      onCleanup(() => {
+        cancelled = true;
+      });
+    }),
+  );
 
   onMount(() => {
     const resizeObserver = new ResizeObserver(() => measureReaderWidthChange());
@@ -967,6 +1058,7 @@ function ReflowableReader(props: {
       }
     };
     const onFontsChanged = () => {
+      if (!startupComplete()) return;
       const anchor = captureScrollAnchor();
 
       if (anchor) {
@@ -987,6 +1079,7 @@ function ReflowableReader(props: {
 
     measureReader();
     flushLayoutTextWidth();
+    setMeasured(true);
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
     window.visualViewport?.addEventListener('resize', onResize);
@@ -1023,27 +1116,6 @@ function ReflowableReader(props: {
     const blockTop = currentLayout.offsets[blockIndex] ?? 0;
     const documentTop = documentRef.getBoundingClientRect().top + window.scrollY;
     const nextDocumentScrollTop = blockTop + anchor.offsetPx;
-
-    // Защита от устаревшего якоря «начало книги».
-    //
-    // Несколько путей (font loadingdone/loadingerror, debounce пересчёта ширины,
-    // resize) снимают якорь по текущему window-скроллу асинхронно. Если в этот
-    // момент позиция ещё не восстановлена из прогресса, якорь получается
-    // {blockIndex: 0, offsetPx: 0}. Применение такого якоря позже отбрасывает
-    // уже восстановленную позицию в начало книги.
-    //
-    // Легитимный «якорь = начало» идемпотентен: если читатель и так в начале,
-    // повторная прокрутка в 0 ничего не меняет. Поэтому различаем ситуации по
-    // реальной позиции документа: если она уже далеко от начала, а якорь
-    // указывает на начало — якорь устарел, игнорируем.
-    if (
-      blockIndex === 0 &&
-      anchor.offsetPx < 1e-6 &&
-      documentScrollTop() > currentLayout.heights[0] + 1
-    ) {
-      setPendingScrollAnchor(undefined);
-      return;
-    }
 
     const nextScrollTop = documentTop + nextDocumentScrollTop;
 
@@ -1089,9 +1161,17 @@ function ReflowableReader(props: {
   });
 
   return (
-    <div ref={rootRef} class={`${styles.reader} ${props.class ?? ''}`} style={cssVars()}>
+    <div
+      ref={rootRef}
+      class={`${styles.reader} ${props.class ?? ''}`}
+      style={cssVars()}
+      aria-busy={!startupComplete()}
+    >
+      <Show when={!startupComplete()}>
+        <LoadingScreen class={styles.loadingOverlay} label={t('loading')} />
+      </Show>
       <ReaderChrome
-        visible={readerChrome.visible()}
+        visible={startupComplete() && readerChrome.visible()}
         title={documentTitle()}
         headerContent={props.headerContent}
         searchValue={searchValue()}
@@ -1178,6 +1258,8 @@ function ReflowableReader(props: {
           documentShellRef = element;
         }}
         class={styles.documentShell}
+        style={{ visibility: startupComplete() ? undefined : 'hidden' }}
+        aria-hidden={!startupComplete()}
         onPointerDown={readerChrome.onDocumentPointerDown}
         onPointerUp={readerChrome.onDocumentPointerUp}
         onPointerCancel={readerChrome.onDocumentPointerCancel}

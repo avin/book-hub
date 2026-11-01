@@ -33,6 +33,8 @@ export function createBookFileTextQuery(bookId: () => string, enabled: () => boo
   return createQuery(() => ({
     queryKey: bookFileTextQueryKey(bookId()),
     queryFn: () => fetchBookFileText(bookId()),
+    // A book's source file cannot change; refetching would restart the reader.
+    staleTime: Infinity,
     enabled: enabled() && Boolean(bookId()),
   }));
 }
@@ -41,6 +43,7 @@ export function createBookFileBlobQuery(bookId: () => string, enabled: () => boo
   return createQuery(() => ({
     queryKey: bookFileBlobQueryKey(bookId()),
     queryFn: () => fetchBookFileBlob(bookId()),
+    staleTime: Infinity,
     enabled: enabled() && Boolean(bookId()),
   }));
 }

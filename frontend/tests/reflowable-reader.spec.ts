@@ -235,10 +235,8 @@ test('Literata не обрезает абзац после загрузки ки
   await page.getByRole('heading', { name: 'Война и мир', exact: true }).getByRole('link').click();
   const paragraph = page.locator('article p');
   try {
-    await expect(paragraph).toBeVisible();
-    await expect
-      .poll(() => page.evaluate(() => document.fonts.check('46px "Literata"')))
-      .toBe(true);
+    await expect(page.locator('main')).toHaveCSS('visibility', 'hidden');
+    await expect(paragraph).not.toBeVisible();
     expect(await page.evaluate(() => document.fonts.check('46px "Literata"', 'Дмитрий'))).toBe(
       false,
     );
@@ -246,6 +244,7 @@ test('Literata не обрезает абзац после загрузки ки
     releaseFont();
   }
   await page.evaluate(() => document.fonts.ready);
+  await expect(paragraph).toBeVisible();
   await expect
     .poll(() =>
       paragraph.evaluate((element) => {

@@ -80,7 +80,7 @@ function ReaderPage() {
   const [coverPreviewOpen, setCoverPreviewOpen] = createSignal(false);
   const [pdfReady, setPdfReady] = createSignal(false);
   const [djvuReady, setDjvuReady] = createSignal(false);
-  const [epubReady, setEpubReady] = createSignal(false);
+  const [reflowableReady, setReflowableReady] = createSignal(false);
   const [restoreState, setRestoreState] = createSignal<'pending' | 'restoring' | 'done'>('pending');
   let saveTimeout: number | undefined;
   let restoreTimeoutIds: number[] = [];
@@ -96,18 +96,11 @@ function ReaderPage() {
   const canTrackProgress = createMemo(
     () =>
       restoreState() === 'done' &&
-      (isFb2() ||
-        (isEpub() && epubReady()) ||
+      (((isFb2() || isEpub()) && reflowableReady()) ||
         (isPdf() && pdfReady()) ||
         (isDjvu() && djvuReady())),
   );
-  const canRestoreProgress = createMemo(
-    () =>
-      (isFb2() && fb2FileQuery.data) ||
-      (isEpub() && epubReady()) ||
-      (isPdf() && pdfReady()) ||
-      (isDjvu() && djvuReady()),
-  );
+  const canRestoreProgress = createMemo(() => (isPdf() && pdfReady()) || (isDjvu() && djvuReady()));
 
   const clearScheduledProgressSave = () => {
     if (saveTimeout === undefined) {
@@ -149,8 +142,13 @@ function ReaderPage() {
     setRestoreState('pending');
     setPdfReady(false);
     setDjvuReady(false);
-    setEpubReady(false);
+    setReflowableReady(false);
   });
+
+  const onReflowableReady = () => {
+    setReflowableReady(true);
+    setRestoreState('done');
+  };
 
   const toggleFavorite = () => {
     const currentBook = book();
@@ -340,6 +338,7 @@ function ReaderPage() {
   });
   const showLoadingOverlay = () =>
     bookQuery.isLoading ||
+    (!loadError() && (isFb2() || isEpub()) && restoreState() === 'pending') ||
     restoreState() === 'restoring' ||
     (restoreState() === 'pending' && Boolean(canRestoreProgress()) && progressQuery.isLoading);
   const loadErrorIsNotFound = () =>
@@ -404,7 +403,10 @@ function ReaderPage() {
       </Show>
 
       <Show when={isFb2() && !fb2FileQuery.isError}>
-        <Show when={fb2FileQuery.data} fallback={<LoadingScreen label={t('loading')} />}>
+        <Show
+          when={!progressQuery.isPending && fb2FileQuery.data}
+          fallback={<LoadingScreen label={t('loading')} />}
+        >
           {(fb2) => (
             <Suspense fallback={<LoadingScreen label={t('loading')} />}>
               <Fb2Reader
@@ -412,6 +414,8 @@ function ReaderPage() {
                 historyId={bookId()}
                 class={styles.fb2Reader}
                 headerContent={chromeContent()}
+                initialProgressPercent={progressQuery.data?.progress_percent ?? 0}
+                onReady={onReflowableReady}
               />
             </Suspense>
           )}
@@ -443,7 +447,10 @@ function ReaderPage() {
       </Show>
 
       <Show when={isEpub() && !epubFileQuery.isError}>
-        <Show when={epubFileQuery.data} fallback={<LoadingScreen label={t('loading')} />}>
+        <Show
+          when={!progressQuery.isPending && epubFileQuery.data}
+          fallback={<LoadingScreen label={t('loading')} />}
+        >
           {(epub) => (
             <Suspense fallback={<LoadingScreen label={t('loading')} />}>
               <EpubReader
@@ -451,7 +458,9 @@ function ReaderPage() {
                 historyId={bookId()}
                 class={styles.fb2Reader}
                 headerContent={chromeContent()}
-                onReady={() => setEpubReady(true)}
+                initialProgressPercent={progressQuery.data?.progress_percent ?? 0}
+                onReady={onReflowableReady}
+                onError={() => setRestoreState('done')}
               />
             </Suspense>
           )}

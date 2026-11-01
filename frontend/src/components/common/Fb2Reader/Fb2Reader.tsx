@@ -13,6 +13,8 @@ function Fb2Reader(props: {
   class?: string;
   initialSettings?: Partial<ReflowableReaderSettings>;
   headerContent?: JSX.Element;
+  initialProgressPercent?: number;
+  onReady?: () => void;
 }) {
   const document = createMemo(() => props.document ?? parseFb2(props.fb2 ?? ''));
 
@@ -23,6 +25,8 @@ function Fb2Reader(props: {
       class={props.class}
       initialSettings={props.initialSettings}
       headerContent={props.headerContent}
+      initialProgressPercent={props.initialProgressPercent}
+      onReady={props.onReady}
     />
   );
 }
