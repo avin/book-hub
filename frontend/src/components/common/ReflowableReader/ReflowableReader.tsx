@@ -24,7 +24,12 @@ import {
 } from './reflowableFontMetrics';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import { binaryToDataUrl } from './reflowableBinary';
-import { defaultSettings } from './reflowableReaderSettings';
+import {
+  defaultSettings,
+  readerFontOpticalSize,
+  readerFontWeight,
+} from './reflowableReaderSettings';
+import { createReaderFontVariants, readerFontFamily } from './reflowableFontVariants';
 import {
   findReflowableSearchMatches,
   normalizeSearchQuery,
@@ -223,9 +228,8 @@ function ReflowableReader(props: {
     | undefined;
   const parsed = createMemo(() => props.document);
   const fontSample = createMemo(() => createReaderFontSample(parsed()));
-  const fontsReady = createMemo(
-    () => loadedFonts()?.family === settings().fontFamily && loadedFonts()?.sample === fontSample(),
-  );
+  const fontVariants = createReaderFontVariants();
+  onCleanup(() => fontVariants.dispose());
   createEffect(
     on(
       () => [props.document, props.historyId],
@@ -324,10 +328,19 @@ function ReflowableReader(props: {
         !!prev &&
         prev.fontFamily === next.fontFamily &&
         prev.fontSize === next.fontSize &&
+        prev.fontWeight === next.fontWeight &&
+        prev.fontOpticalSize === next.fontOpticalSize &&
         prev.lineHeight === next.lineHeight &&
         prev.paragraphSpacing === next.paragraphSpacing &&
         prev.paragraphIndent === next.paragraphIndent,
     },
+  );
+
+  const fontKey = createMemo(
+    () => `${readerFontFamily(layoutSettings())}:${readerFontWeight(layoutSettings())}`,
+  );
+  const fontsReady = createMemo(
+    () => loadedFonts()?.family === fontKey() && loadedFonts()?.sample === fontSample(),
   );
 
   const layout = createMemo(() => {
@@ -409,12 +422,18 @@ function ReflowableReader(props: {
 
     return cache.get(id);
   };
+  const fontVariationSettings = createMemo(() => {
+    const opticalSize = readerFontOpticalSize(settings());
+    return opticalSize === undefined ? 'normal' : `"opsz" ${opticalSize}`;
+  });
   const cssVars = createMemo<ReflowableCssVars>(() => ({
     '--fb2-bg': settings().backgroundColor,
     '--fb2-text': settings().textColor,
     '--fb2-link': settings().linkColor,
-    '--fb2-font-family': settings().fontFamily,
+    '--fb2-font-family': readerFontFamily(layoutSettings()),
     '--fb2-font-size': `${settings().fontSize}px`,
+    '--fb2-font-weight': String(readerFontWeight(settings())),
+    '--fb2-font-variation-settings': fontVariationSettings(),
     '--fb2-line-height': String(settings().lineHeight),
     '--fb2-paragraph-indent': `${settings().paragraphIndent}px`,
     '--fb2-side-padding': `${settings().sidePadding}px`,
@@ -585,8 +604,13 @@ function ReflowableReader(props: {
     if (anchor) {
       setPendingScrollAnchor(anchor);
 
-      if (key === 'fontFamily' || key === 'fontSize') {
-        fontLayoutAnchor ??= anchor;
+      if (
+        key === 'fontFamily' ||
+        key === 'fontSize' ||
+        key === 'fontWeight' ||
+        key === 'fontOpticalSize'
+      ) {
+        fontLayoutAnchor = anchor;
       }
     }
 
@@ -1015,10 +1039,12 @@ function ReflowableReader(props: {
   );
 
   createEffect(
-    on([() => settings().fontFamily, fontSample], () => {
-      const currentSettings = settings();
+    on([fontKey, fontSample], () => {
+      const currentSettings = layoutSettings();
+      const key = fontKey();
       const sample = fontSample();
       let cancelled = false;
+      fontVariants.prepare(currentSettings);
       const needsLoad = !isReaderLayoutFontReady(currentSettings, sample);
       void loadReaderLayoutFonts(currentSettings, sample).then(() => {
         untrack(() => {
@@ -1039,7 +1065,7 @@ function ReflowableReader(props: {
             clearCache();
             setLayoutGeneration((value) => value + 1);
           }
-          setLoadedFonts({ family: currentSettings.fontFamily, sample });
+          setLoadedFonts({ family: key, sample });
         });
       });
       onCleanup(() => {

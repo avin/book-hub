@@ -12,6 +12,8 @@ export const defaultSettings: ReflowableReaderSettings = {
   sidePadding: 12,
 };
 
+type FontAxis = { min: number; max: number };
+
 export const fontOptions = [
   { label: 'Sans', value: 'system-ui, sans-serif' },
   { label: 'Sans Serif', value: 'sans-serif' },
@@ -31,3 +33,44 @@ export const fontOptions = [
   { label: 'Inter', value: '"Inter", "Noto Sans", sans-serif' },
   { label: 'Cousine', value: '"Cousine", "Noto Sans", monospace' },
 ];
+
+// Ranges from the fvar tables of the bundled WOFF2 files, not the full upstream fonts.
+const variableAxes: Record<string, { weight: FontAxis; opticalSize?: FontAxis } | undefined> = {
+  Literata: { weight: { min: 200, max: 900 }, opticalSize: { min: 7, max: 72 } },
+  'Noto Serif': { weight: { min: 100, max: 900 } },
+  'Source Serif 4': { weight: { min: 200, max: 900 }, opticalSize: { min: 8, max: 60 } },
+  Lora: { weight: { min: 400, max: 700 } },
+  Merriweather: { weight: { min: 300, max: 900 }, opticalSize: { min: 18, max: 144 } },
+  'Golos Text': { weight: { min: 400, max: 900 } },
+  'Noto Sans': { weight: { min: 100, max: 900 } },
+  'Open Sans': { weight: { min: 300, max: 800 } },
+  Roboto: { weight: { min: 100, max: 900 } },
+  'IBM Plex Sans': { weight: { min: 100, max: 700 } },
+  Inter: { weight: { min: 100, max: 900 }, opticalSize: { min: 14, max: 32 } },
+};
+
+export function primaryFontFamily(fontFamily: string) {
+  return fontFamily
+    .split(',')[0]
+    .trim()
+    .replace(/^["']|["']$/g, '');
+}
+
+export function readerFontAxes(fontFamily: string) {
+  return variableAxes[primaryFontFamily(fontFamily)];
+}
+
+export function readerFontWeight(settings: ReflowableReaderSettings, weight = 400) {
+  const axis = readerFontAxes(settings.fontFamily)?.weight;
+  const value = settings.fontWeight;
+  if (!axis || value === undefined || !Number.isFinite(value)) return weight;
+  const base = Math.min(axis.max, Math.max(axis.min, value));
+  return weight === 400 ? base : Math.max(weight, base);
+}
+
+export function readerFontOpticalSize(settings: ReflowableReaderSettings) {
+  const axis = readerFontAxes(settings.fontFamily)?.opticalSize;
+  const value = settings.fontOpticalSize;
+  if (!axis || value === undefined || !Number.isFinite(value)) return undefined;
+  return Math.min(axis.max, Math.max(axis.min, value));
+}

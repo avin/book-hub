@@ -80,6 +80,27 @@ describe('browserPreferences', () => {
     expect(getReflowableReaderSettingsPreference()?.sidePadding).toBe(expected);
   });
 
+  it('сохраняет параметры вариативных шрифтов и игнорирует повреждённые значения', () => {
+    setReflowableReaderSettingsPreference({
+      ...defaultSettings,
+      fontWeight: 525,
+      fontOpticalSize: 24,
+    });
+    expect(getReflowableReaderSettingsPreference()).toMatchObject({
+      fontWeight: 525,
+      fontOpticalSize: 24,
+    });
+    localStorage.setItem(
+      'book-hub-preferences',
+      JSON.stringify({
+        version: 1,
+        readers: { fb2: { settings: { fontWeight: 'bold', fontOpticalSize: null } } },
+      }),
+    );
+    expect(getReflowableReaderSettingsPreference()?.fontWeight).toBeUndefined();
+    expect(getReflowableReaderSettingsPreference()?.fontOpticalSize).toBeUndefined();
+  });
+
   it('игнорирует повреждённые предпочтения', () => {
     localStorage.setItem(
       'book-hub-preferences',

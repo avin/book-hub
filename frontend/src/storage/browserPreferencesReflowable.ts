@@ -23,6 +23,8 @@ function sanitizeReflowableReaderSettings(
     linkColor: stringValue(settings.linkColor),
     fontFamily: stringValue(settings.fontFamily),
     fontSize: finiteNumber(settings.fontSize),
+    fontWeight: finiteNumber(settings.fontWeight),
+    fontOpticalSize: finiteNumber(settings.fontOpticalSize),
     lineHeight: finiteNumber(settings.lineHeight),
     paragraphSpacing: finiteNumber(settings.paragraphSpacing),
     paragraphIndent: finiteNumber(settings.paragraphIndent),

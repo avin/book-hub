@@ -4,6 +4,8 @@ import type {
   ReflowableInline,
   ReflowableReaderSettings,
 } from './reflowableTypes';
+import { primaryFontFamily, readerFontWeight } from './reflowableReaderSettings';
+import { readerFontFamily } from './reflowableFontVariants';
 
 export type ReaderFontSample = {
   text: string;
@@ -54,17 +56,6 @@ export function createReaderFontSample(book: ReflowableDocument): ReaderFontSamp
   return { text: text.join(''), codeText: codeText.join('') };
 }
 
-function primaryFontFamily(fontFamily: string) {
-  const trimmed = fontFamily.trim();
-  const quoted = trimmed.match(/^["']([^"']+)["']/);
-
-  if (quoted) {
-    return quoted[1];
-  }
-
-  return trimmed.split(',')[0]?.trim() ?? trimmed;
-}
-
 export function isSystemFontStack(fontFamily: string) {
   const primary = primaryFontFamily(fontFamily).toLowerCase();
 
@@ -85,9 +76,9 @@ export function readerLayoutFontSpec(
 ) {
   const family = isSystemFontStack(settings.fontFamily)
     ? settings.fontFamily
-    : `"${primaryFontFamily(settings.fontFamily)}"`;
+    : `"${primaryFontFamily(readerFontFamily(settings))}"`;
 
-  return `${style} ${weight} ${fontSize}px ${family}`;
+  return `${style} ${readerFontWeight(settings, weight)} ${fontSize}px ${family}`;
 }
 
 function layoutFontRequests(
@@ -150,7 +141,7 @@ export function fontFamilyForMeasurement(settings: ReflowableReaderSettings) {
     return settings.fontFamily.includes(',') ? settings.fontFamily : `"${settings.fontFamily}"`;
   }
 
-  return `"${primaryFontFamily(settings.fontFamily)}"`;
+  return `"${primaryFontFamily(readerFontFamily(settings))}"`;
 }
 
 export function webFontMeasureWidthFudge(settings: ReflowableReaderSettings) {

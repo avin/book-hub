@@ -107,6 +107,8 @@ export type ReflowableReaderSettings = {
   linkColor: string;
   fontFamily: string;
   fontSize: number;
+  fontWeight?: number;
+  fontOpticalSize?: number;
   lineHeight: number;
   paragraphSpacing: number;
   paragraphIndent: number;
@@ -126,6 +128,8 @@ export type ReflowableCssVars = JSX.CSSProperties & {
   '--fb2-link': string;
   '--fb2-font-family': string;
   '--fb2-font-size': string;
+  '--fb2-font-weight': string;
+  '--fb2-font-variation-settings': string;
   '--fb2-line-height': string;
   '--fb2-paragraph-indent': string;
   '--fb2-side-padding': string;

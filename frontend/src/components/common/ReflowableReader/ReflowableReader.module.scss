@@ -50,11 +50,26 @@
   }
 
   code {
+    --fb2-font-weight: 400;
+
+    font-weight: 400;
     padding: 0 0.18em;
     border-radius: $radius-xs;
     background: color-mix(in srgb, var(--fb2-link) 14%, transparent);
     font-family: 'Cousine', monospace;
     font-size: 0.92em;
+  }
+}
+
+.document,
+.footnoteContent {
+  font-weight: var(--fb2-font-weight, 400);
+  // Preview the current axes while the font-face used for layout stays frozen during a drag.
+  font-variation-settings: var(--fb2-font-variation-settings, normal);
+
+  strong,
+  b {
+    font-weight: max(700, var(--fb2-font-weight, 400));
   }
 }
 

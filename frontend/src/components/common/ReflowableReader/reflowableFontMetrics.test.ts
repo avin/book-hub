@@ -3,6 +3,8 @@ import {
   createReaderFontSample,
   isReaderLayoutFontReady,
   loadReaderLayoutFonts,
+  readerLayoutFontSpec,
+  fontFamilyForMeasurement,
 } from './reflowableFontMetrics';
 import { defaultSettings } from './reflowableReaderSettings';
 import type { ReflowableBlock, ReflowableDocument } from './reflowableTypes';
@@ -29,6 +31,16 @@ function block(inlines: ReflowableBlock['inlines']): ReflowableBlock {
 }
 
 describe('шрифты адаптивной книги', () => {
+  it('загружает выбранную насыщенность и измеряет тот же оптический вариант, что и DOM', async () => {
+    const fonts = mockFonts();
+    const custom = { ...settings, fontWeight: 525, fontOpticalSize: 24 };
+    await loadReaderLayoutFonts(custom, { text: 'Текст', codeText: 'code' });
+    expect(fonts.load).toHaveBeenCalledWith('normal 525 19px "Book Hub Literata opsz 24"', 'Текст');
+    expect(fonts.load).toHaveBeenCalledWith('normal 700 19px "Book Hub Literata opsz 24"', 'Текст');
+    expect(fonts.load).toHaveBeenCalledWith('normal 400 17.48px "Cousine"', 'code');
+    expect(readerLayoutFontSpec(custom)).toContain(fontFamilyForMeasurement(custom));
+  });
+
   it('собирает символы из вложенного текста, таблиц и сносок без повторений', () => {
     const book: ReflowableDocument = {
       title: '',

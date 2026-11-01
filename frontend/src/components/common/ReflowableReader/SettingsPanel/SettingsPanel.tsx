@@ -1,11 +1,16 @@
 import { AlignLeft, Palette, RotateCcw, SlidersHorizontal, Type } from 'lucide-solid';
-import { For } from 'solid-js';
+import { For, Show } from 'solid-js';
 import Button from '@/components/common/Button/Button';
 import InputContainer from '@/components/common/InputContainer/InputContainer';
 import RangeInput from '@/components/common/RangeInput/RangeInput';
 import ReaderSidePanel from '@/components/common/ReaderSidePanel/ReaderSidePanel';
 import { useI18n } from '@/i18n/I18nProvider';
-import { fontOptions } from '../reflowableReaderSettings';
+import {
+  fontOptions,
+  readerFontAxes,
+  readerFontWeight,
+  readerFontOpticalSize,
+} from '../reflowableReaderSettings';
 import type { ReflowableReaderSettings } from '../reflowableTypes';
 import styles from './SettingsPanel.module.scss';
 
@@ -85,6 +90,58 @@ function SettingsPanel(props: {
             }
           />
         </InputContainer>
+        <Show when={readerFontAxes(props.settings.fontFamily)?.weight}>
+          {(axis) => (
+            <InputContainer label={t('fontWeight')} labelEnd={readerFontWeight(props.settings)}>
+              <RangeInput
+                min={axis().min}
+                max={axis().max}
+                step="1"
+                value={readerFontWeight(props.settings)}
+                aria-label={t('fontWeight')}
+                onAdjustStart={props.onBeginAdjustLayout}
+                onAdjustEnd={props.onEndAdjustLayout}
+                onInput={(event) =>
+                  props.onUpdateSetting('fontWeight', Number(event.currentTarget.value))
+                }
+              />
+            </InputContainer>
+          )}
+        </Show>
+        <Show when={readerFontAxes(props.settings.fontFamily)?.opticalSize}>
+          {(axis) => (
+            <InputContainer
+              label={t('opticalSize')}
+              labelEnd={readerFontOpticalSize(props.settings) ?? t('automatic')}
+              subtext={t('opticalSizeHint')}
+            >
+              <RangeInput
+                min={axis().min}
+                max={axis().max}
+                step="1"
+                value={
+                  readerFontOpticalSize(props.settings) ??
+                  Math.min(axis().max, Math.max(axis().min, props.settings.fontSize))
+                }
+                aria-label={t('opticalSize')}
+                onAdjustStart={props.onBeginAdjustLayout}
+                onAdjustEnd={props.onEndAdjustLayout}
+                onInput={(event) =>
+                  props.onUpdateSetting('fontOpticalSize', Number(event.currentTarget.value))
+                }
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                type="button"
+                disabled={props.settings.fontOpticalSize === undefined}
+                onClick={() => props.onUpdateSetting('fontOpticalSize', undefined)}
+              >
+                {t('automaticOpticalSize')}
+              </Button>
+            </InputContainer>
+          )}
+        </Show>
         <InputContainer label={t('lineHeight')} labelEnd={props.settings.lineHeight.toFixed(2)}>
           <RangeInput
             min="1.0"

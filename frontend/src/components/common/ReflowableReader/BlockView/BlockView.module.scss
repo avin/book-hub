@@ -15,7 +15,7 @@
 .title {
   padding-top: 8px;
   font-size: calc(var(--fb2-font-size) * 1.58);
-  font-weight: 700;
+  font-weight: max(700, var(--fb2-font-weight, 400));
   line-height: 1.22;
   text-align: center;
 }
@@ -26,7 +26,7 @@
 
 .subtitle {
   font-size: calc(var(--fb2-font-size) * 1.16);
-  font-weight: 650;
+  font-weight: max(650, var(--fb2-font-weight, 400));
   line-height: 1.28;
   text-align: center;
 }
@@ -47,6 +47,9 @@
 }
 
 .codeBlock {
+  --fb2-font-weight: 400;
+
+  font-weight: 400;
   overflow-x: auto;
   margin: 0;
   padding: $space-3 $space-4;
@@ -115,7 +118,7 @@
 .date {
   font-size: calc(var(--fb2-font-size) * 0.94);
   font-style: italic;
-  font-weight: 500;
+  font-weight: max(500, var(--fb2-font-weight, 400));
   line-height: var(--fb2-line-height);
   text-align: right;
 }
@@ -170,7 +173,7 @@
 
   th {
     background: color-mix(in srgb, var(--fb2-link) 12%, transparent);
-    font-weight: 700;
+    font-weight: max(700, var(--fb2-font-weight, 400));
     text-align: left;
   }
 }

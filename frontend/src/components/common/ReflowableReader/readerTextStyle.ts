@@ -9,7 +9,12 @@ export function readerTextStyle(
   return {
     'text-align': value.textAlign,
     'font-style': value.fontStyle,
-    'font-weight': value.fontWeight,
+    'font-weight':
+      value.fontWeight === 'normal'
+        ? 'var(--fb2-font-weight, 400)'
+        : value.fontWeight === 'bold'
+          ? 'max(700, var(--fb2-font-weight, 400))'
+          : undefined,
     'text-decoration-line': value.textDecorationLine,
     'white-space': value.whiteSpace,
   };

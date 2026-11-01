@@ -256,6 +256,26 @@ export const messages = {
     ru: 'Размер',
     en: 'Size',
   },
+  fontWeight: {
+    ru: 'Насыщенность шрифта',
+    en: 'Font weight',
+  },
+  opticalSize: {
+    ru: 'Оптический размер',
+    en: 'Optical size',
+  },
+  automatic: {
+    ru: 'Авто',
+    en: 'Auto',
+  },
+  automaticOpticalSize: {
+    ru: 'Автоматический оптический размер',
+    en: 'Automatic optical size',
+  },
+  opticalSizeHint: {
+    ru: 'Меняет форму букв для мелкого или крупного текста, сохраняя размер шрифта.',
+    en: 'Adjusts letterforms for small or large text without changing the font size.',
+  },
   lineHeight: {
     ru: 'Интерлиньяж',
     en: 'Line height',

@@ -6,6 +6,7 @@ import {
   type RichInlineItem,
 } from '@chenglou/pretext/rich-inline';
 import { fontFamilyForMeasurement, webFontMeasureWidthFudge } from './reflowableFontMetrics';
+import { readerFontWeight } from './reflowableReaderSettings';
 import type {
   ReflowableBlock,
   ReflowableInline,
@@ -41,7 +42,7 @@ function fontString(
   weight = 400,
   style = 'normal',
 ) {
-  return `${style} ${weight} ${fontSize}px ${fontFamily(settings)}`;
+  return `${style} ${readerFontWeight(settings, weight)} ${fontSize}px ${fontFamily(settings)}`;
 }
 
 function blockFont(
@@ -129,7 +130,7 @@ function inlineFont(
   const match = inheritedFont.match(/^(\S+)\s+(\d+)\s+(.+)$/);
   if (!match) return inheritedFont;
 
-  return `${fontStyle ?? match[1]} ${fontWeight === 'bold' ? 700 : fontWeight === 'normal' ? 400 : match[2]} ${match[3]}`;
+  return `${fontStyle ?? match[1]} ${fontWeight ? readerFontWeight(settings, fontWeight === 'bold' ? 700 : 400) : match[2]} ${match[3]}`;
 }
 
 function richInlineLines(
