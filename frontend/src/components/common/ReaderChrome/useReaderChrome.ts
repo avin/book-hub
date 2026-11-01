@@ -24,6 +24,8 @@ function useReaderChrome(props: {
   };
 }) {
   let ignoreNextDocumentClick = false;
+  let touchTapHandled = false;
+  let preventNextTouchEnd = false;
   let touchStart:
     | {
         pointerId: number;
@@ -54,12 +56,15 @@ function useReaderChrome(props: {
 
   const onDocumentPointerDown = (event: PointerEvent) => {
     ignoreNextDocumentClick = event.pointerType === 'touch';
+    touchTapHandled = false;
+    preventNextTouchEnd = false;
 
     if (
       event.pointerType !== 'touch' ||
       !event.isPrimary ||
       touchStart ||
-      isInteractiveTarget(event.target)
+      isInteractiveTarget(event.target) ||
+      window.getSelection()?.isCollapsed === false
     ) {
       touchStart = undefined;
       return;
@@ -77,6 +82,8 @@ function useReaderChrome(props: {
 
   const onDocumentPointerCancel = () => {
     touchStart = undefined;
+    touchTapHandled = false;
+    preventNextTouchEnd = false;
   };
 
   const onDocumentPointerUp = (event: PointerEvent) => {
@@ -91,8 +98,7 @@ function useReaderChrome(props: {
       Math.hypot(window.scrollX - start.scrollX, window.scrollY - start.scrollY) >
         tapMovementThreshold ||
       event.timeStamp - start.timeStamp > tapDurationMs ||
-      isInteractiveTarget(event.target) ||
-      window.getSelection()?.isCollapsed === false
+      isInteractiveTarget(event.target)
     ) {
       return;
     }
@@ -112,6 +118,9 @@ function useReaderChrome(props: {
       return;
     }
 
+    window.getSelection()?.removeAllRanges();
+    touchTapHandled = true;
+    preventNextTouchEnd = true;
     syncFullscreen();
     event.preventDefault();
   };
@@ -119,6 +128,10 @@ function useReaderChrome(props: {
   const onDocumentClick = (event: MouseEvent) => {
     // A touch can emit a compatibility click after pointerup, even if it was prevented.
     if (ignoreNextDocumentClick || (event as PointerEvent).pointerType === 'touch') {
+      if (touchTapHandled) {
+        event.preventDefault();
+        touchTapHandled = false;
+      }
       ignoreNextDocumentClick = false;
       return;
     }
@@ -133,6 +146,14 @@ function useReaderChrome(props: {
   });
 
   onMount(() => {
+    // Cancel the native tap after recognition, preserving scrolling and long-press selection.
+    const onTouchEnd = (event: TouchEvent) => {
+      if (preventNextTouchEnd) {
+        preventNextTouchEnd = false;
+        event.preventDefault();
+      }
+    };
+
     const onPointerMove = (event: PointerEvent) => {
       if (
         event.pointerType === 'touch' &&
@@ -162,9 +183,11 @@ function useReaderChrome(props: {
     };
 
     window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('touchend', onTouchEnd, { passive: false });
 
     onCleanup(() => {
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('touchend', onTouchEnd);
     });
   });
 
