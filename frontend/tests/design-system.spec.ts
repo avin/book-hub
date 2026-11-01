@@ -258,9 +258,19 @@ test('FB2 и EPUB сохраняют размеры и шрифт интерфе
     await expectHeight(page.getByRole('searchbox', { name: 'Поиск по книге' }), 32);
     await expectHeight(panel.getByRole('button', { name: 'Закрыть', exact: true }), 32);
 
+    // Font axes add and remove controls; compare the controls shared by all fonts.
+    const uiControls = panel
+      .locator('h2, h3, select, input[type="color"]')
+      .or(panel)
+      .or(
+        panel.getByRole('slider', {
+          name: /^(Размер|Интерлиньяж|Отступ первой строки|Отступ после абзаца|Боковые отступы)$/,
+        }),
+      )
+      .or(panel.getByRole('button', { name: /^(Закрыть|Сбросить|Автоширина)$/ }));
     const readUiMetrics = () =>
-      panel.evaluate((element) =>
-        [element, ...element.querySelectorAll('h2, h3, select, input, button')].map((control) => {
+      uiControls.evaluateAll((controls) =>
+        controls.map((control) => {
           const style = getComputedStyle(control);
           const bounds = control.getBoundingClientRect();
           return {

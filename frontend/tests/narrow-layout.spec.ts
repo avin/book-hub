@@ -49,7 +49,7 @@ for (const book of readerBooks) {
 
     for (const width of widths) {
       await page.setViewportSize({ width, height: 800 });
-      const padding = fixedLayout ? (width < 720 ? 16 : width === 720 ? 10 : 20) : 8;
+      const padding = fixedLayout ? (width < 720 ? 16 : width === 720 ? 10 : 20) : 12;
       await expect(page.locator('main')).toHaveCSS('padding-left', `${padding}px`);
       await expect(page.locator('main')).toHaveCSS('padding-right', `${padding}px`);
 

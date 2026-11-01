@@ -105,31 +105,34 @@ for (const deviceScaleFactor of [1, 1.25, 2]) {
 
       const expectNativeCanvasSize = async (filtered = false) => {
         await expect
-          .poll(() =>
-            canvases.evaluateAll((elements, filtered) => {
-              const visible = elements.filter(
-                (canvas) => canvas.isConnected && getComputedStyle(canvas).display !== 'none',
-              );
-              const ratio = Math.min(2, window.devicePixelRatio);
+          .poll(
+            () =>
+              canvases.evaluateAll((elements, filtered) => {
+                const visible = elements.filter(
+                  (canvas) => canvas.isConnected && getComputedStyle(canvas).display !== 'none',
+                );
+                const ratio = Math.min(2, window.devicePixelRatio);
 
-              return (
-                visible.length > 0 &&
-                visible.every((element) => {
-                  const canvas = element as HTMLCanvasElement;
-                  const rect = canvas.getBoundingClientRect();
-                  const page = canvas.closest('[data-page-number]');
+                return (
+                  visible.length > 0 &&
+                  visible.every((element) => {
+                    const canvas = element as HTMLCanvasElement;
+                    const rect = canvas.getBoundingClientRect();
+                    const page = canvas.closest('[data-page-number]');
 
-                  return (
-                    page !== null &&
-                    (!filtered || canvas.getAttribute('aria-hidden') === 'true') &&
-                    canvas.width === Math.round(page.clientWidth * ratio) &&
-                    canvas.height > 0 &&
-                    Math.abs(rect.width - canvas.width / ratio) < 0.02 &&
-                    Math.abs(rect.height - canvas.height / ratio) < 0.02
-                  );
-                })
-              );
-            }, filtered),
+                    return (
+                      page !== null &&
+                      (!filtered || canvas.getAttribute('aria-hidden') === 'true') &&
+                      canvas.width === Math.round(page.clientWidth * ratio) &&
+                      canvas.height > 0 &&
+                      Math.abs(rect.width - canvas.width / ratio) < 0.02 &&
+                      Math.abs(rect.height - canvas.height / ratio) < 0.02
+                    );
+                  })
+                );
+              }, filtered),
+            // Software WebGL readback on CI can block the page for over five seconds.
+            { timeout: filtered ? 15_000 : 5_000 },
           )
           .toBe(true);
       };
