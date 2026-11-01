@@ -122,20 +122,20 @@ for (const bookTitle of ['Война и мир', 'EPUB для проверки']
     await login(page);
     await page.getByRole('heading', { name: bookTitle, exact: true }).getByRole('link').click();
     await expect(page.locator('main article')).toBeVisible();
-    await expect(page.locator('main')).toHaveCSS('padding-left', '8px');
-    await expect(page.locator('main')).toHaveCSS('padding-right', '8px');
+    await expect(page.locator('main')).toHaveCSS('padding-left', '12px');
+    await expect(page.locator('main')).toHaveCSS('padding-right', '12px');
     await showReaderChrome(page);
     await page.getByRole('button', { name: 'Внешний вид' }).click();
     const padding = page.getByRole('slider', { name: 'Боковые отступы', exact: true });
-    await expect(padding).toHaveValue('8');
+    await expect(padding).toHaveValue('12');
     await padding.press('Home');
     await expect(padding).toHaveValue('2');
     await expect(page.locator('main')).toHaveCSS('padding-left', '2px');
     await expect(page.locator('main article')).toHaveCSS('width', '386px');
     await padding.press('End');
-    await expect(padding).toHaveValue('32');
-    await expect(page.locator('main')).toHaveCSS('padding-right', '32px');
-    await expect(page.locator('main article')).toHaveCSS('width', '326px');
+    await expect(padding).toHaveValue('64');
+    await expect(page.locator('main')).toHaveCSS('padding-right', '64px');
+    await expect(page.locator('main article')).toHaveCSS('width', '262px');
     await expect
       .poll(() =>
         page.evaluate(() => {
@@ -143,23 +143,23 @@ for (const bookTitle of ['Война и мир', 'EPUB для проверки']
           return preferences.readers?.fb2?.settings?.sidePadding;
         }),
       )
-      .toBe(32);
+      .toBe(64);
 
     await page.reload();
-    await expect(page.locator('main')).toHaveCSS('padding-left', '32px');
+    await expect(page.locator('main')).toHaveCSS('padding-left', '64px');
     await page.setViewportSize({ width: 900, height: 800 });
-    await expect(page.locator('main')).toHaveCSS('padding-right', '32px');
+    await expect(page.locator('main')).toHaveCSS('padding-right', '64px');
     await showReaderChrome(page);
     await page.getByRole('link', { name: 'Библиотека', exact: true }).click();
     const otherTitle = bookTitle === 'Война и мир' ? 'EPUB для проверки' : 'Война и мир';
     await page.getByRole('heading', { name: otherTitle, exact: true }).getByRole('link').click();
-    await expect(page.locator('main')).toHaveCSS('padding-left', '32px');
+    await expect(page.locator('main')).toHaveCSS('padding-left', '64px');
     await showReaderChrome(page);
     await page.getByRole('button', { name: 'Внешний вид' }).click();
-    await expect(padding).toHaveValue('32');
+    await expect(padding).toHaveValue('64');
     await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
-    await expect(padding).toHaveValue('8');
-    await expect(page.locator('main')).toHaveCSS('padding-left', '8px');
+    await expect(padding).toHaveValue('12');
+    await expect(page.locator('main')).toHaveCSS('padding-left', '12px');
   });
 }
 
@@ -182,7 +182,7 @@ test('изменение боковых отступов сохраняет ви
     return { text: slot.textContent!, top: slot.getBoundingClientRect().top };
   });
   await padding.press('End');
-  await expect(page.locator('main article')).toHaveCSS('width', '326px');
+  await expect(page.locator('main article')).toHaveCSS('width', '262px');
   const block = page.getByText(anchor.text, { exact: true });
   await expect
     .poll(() => block.evaluate((element) => element.parentElement!.getBoundingClientRect().top))

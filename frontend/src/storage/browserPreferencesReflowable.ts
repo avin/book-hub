@@ -27,7 +27,7 @@ function sanitizeReflowableReaderSettings(
     paragraphSpacing: finiteNumber(settings.paragraphSpacing),
     paragraphIndent: finiteNumber(settings.paragraphIndent),
     sidePadding:
-      sidePadding === undefined ? undefined : Math.min(32, Math.max(2, Math.round(sidePadding))),
+      sidePadding === undefined ? undefined : Math.min(64, Math.max(2, Math.round(sidePadding))),
     maxTextWidth: finiteNumber(settings.maxTextWidth),
   };
 

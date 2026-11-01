@@ -51,7 +51,7 @@ describe('browserPreferences', () => {
     expect(getRecentTagsPreference()).toEqual(['fantasy', 'history']);
     expect(getReflowableReaderSettingsPreference()).toMatchObject({
       fontSize: defaultSettings.fontSize,
-      sidePadding: 8,
+      sidePadding: 12,
     });
     expect(getFixedLayoutReaderContentWidthPreference()).toBe(840);
     expect(getPdfReaderPageWidthOverflowPreference('book')).toBe(80);
@@ -69,7 +69,9 @@ describe('browserPreferences', () => {
     [16, 16],
     [16.6, 17],
     [32, 32],
-    [99, 32],
+    [48, 48],
+    [64, 64],
+    [99, 64],
   ])('читает боковые отступы %s как %s', (sidePadding, expected) => {
     localStorage.setItem(
       'book-hub-preferences',

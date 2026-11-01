@@ -141,7 +141,7 @@ function SettingsPanel(props: {
         <InputContainer label={t('sidePadding')} labelEnd={`${props.settings.sidePadding}px`}>
           <RangeInput
             min="2"
-            max="32"
+            max="64"
             step="1"
             aria-label={t('sidePadding')}
             value={props.settings.sidePadding}
