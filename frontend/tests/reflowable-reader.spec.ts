@@ -62,6 +62,8 @@ async function verifyReflowableReader(page: Page, fixture: ReflowableReaderFixtu
   await expect(page.locator('article')).toHaveCSS('--fb2-line-height', '1');
 
   const paragraphIndent = settingsPanel.getByRole('slider').nth(2);
+  await expect(paragraphIndent).toHaveValue('32');
+  await expect(page.locator('article')).toHaveCSS('--fb2-paragraph-indent', '32px');
   await paragraphIndent.press('End');
   await expect(paragraphIndent).toHaveValue('256');
   await expect(page.locator('article')).toHaveCSS('--fb2-paragraph-indent', '256px');
@@ -157,7 +159,12 @@ for (const bookTitle of ['Война и мир', 'EPUB для проверки']
     await showReaderChrome(page);
     await page.getByRole('button', { name: 'Внешний вид' }).click();
     await expect(padding).toHaveValue('64');
+    const paragraphIndent = page.getByRole('slider', { name: 'Отступ первой строки', exact: true });
+    await paragraphIndent.press('End');
+    await expect(paragraphIndent).toHaveValue('256');
     await page.getByRole('button', { name: 'Сбросить', exact: true }).click();
+    await expect(paragraphIndent).toHaveValue('32');
+    await expect(page.locator('main article')).toHaveCSS('--fb2-paragraph-indent', '32px');
     await expect(padding).toHaveValue('12');
     await expect(page.locator('main')).toHaveCSS('padding-left', '12px');
   });

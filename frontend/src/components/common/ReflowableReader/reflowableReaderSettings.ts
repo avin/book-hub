@@ -8,7 +8,7 @@ export const defaultSettings: ReflowableReaderSettings = {
   fontSize: 19,
   lineHeight: 1.62,
   paragraphSpacing: 14,
-  paragraphIndent: 28,
+  paragraphIndent: 32,
   sidePadding: 12,
 };
 
