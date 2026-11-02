@@ -5,7 +5,9 @@ import { login } from './support/api';
 
 const djvuBookId = '00000000-0000-0000-0000-000000000105';
 
-test('читатель DJVU отрисовывает страницу в браузере', async ({ page }) => {
+test('читатель DJVU отрисовывает страницы и переходит по стрелкам после отпускания мыши', async ({
+  page,
+}) => {
   const file = await readFile(new URL('./fixtures/djvu/sample2.djvu', import.meta.url));
   await login(page);
   await page.route(`**/api/v1/books/${djvuBookId}`, (route) =>
@@ -24,6 +26,32 @@ test('читатель DJVU отрисовывает страницу в бра�
   await expect
     .poll(() => canvas.evaluate((element) => element.width > 0 && element.height > 0))
     .toBe(true);
+
+  await page.mouse.move(0, 0);
+  const input = page.getByRole('spinbutton', { name: 'Номер страницы' });
+  await input.hover();
+  const bounds = (await input.boundingBox())!;
+  const initialScroll = await page.evaluate(() => window.scrollY);
+  await input.evaluate((element) => {
+    // Native autorepeat can tick between Playwright commands; read the value at release.
+    window.addEventListener(
+      'mouseup',
+      () => {
+        element.dataset.valueOnRelease = (element as HTMLInputElement).value;
+      },
+      { capture: true, once: true },
+    );
+  });
+  await page.mouse.move(bounds.x + bounds.width - 8, bounds.y + bounds.height / 4);
+  await page.mouse.down();
+  await expect.poll(() => input.inputValue()).not.toBe('1');
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+  await page.mouse.up();
+  const finalValue = (await input.getAttribute('data-value-on-release'))!;
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(initialScroll);
+  await expect(input).toHaveValue(finalValue);
+  await expect(input).toBeFocused();
 });
 
 test('читатель DJVU завершает Worker при размонтировании', async ({ page }) => {

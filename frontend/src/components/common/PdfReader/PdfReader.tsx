@@ -35,6 +35,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import useFixedLayoutWidthPreview from '../FixedLayoutReader/useFixedLayoutWidthPreview';
+import usePageInputMouseCommit from '../FixedLayoutReader/usePageInputMouseCommit';
 import {
   getFixedLayoutReaderContentWidthPreference,
   getFixedLayoutReaderFilterChainPreference,
@@ -627,6 +628,8 @@ function PdfReader(props: {
     setCurrentPage(nextPage);
     setPageInputValue(String(nextPage));
   };
+
+  const onPageInputMouseDown = usePageInputMouseCommit(goToPage);
 
   const readerNavigationHistory = useReaderNavigationHistory({
     readerId: untrack(() => props.bookId ?? props.fileUrl),
@@ -2105,6 +2108,7 @@ function PdfReader(props: {
               max={pages().length || undefined}
               value={pageInputValue()}
               aria-label={t('pageNumber')}
+              onMouseDown={onPageInputMouseDown}
               onFocus={(event) => {
                 setPageInputFocused(true);
                 event.currentTarget.select();

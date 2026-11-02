@@ -13,6 +13,7 @@ import {
 import { type DjVuContentsEntry, type DjVuTextZone, type DjVuWorker } from '@/api/djvujs';
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import useFixedLayoutWidthPreview from '../FixedLayoutReader/useFixedLayoutWidthPreview';
+import usePageInputMouseCommit from '../FixedLayoutReader/usePageInputMouseCommit';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
@@ -877,6 +878,8 @@ function DjvuReader(props: {
     setPageInput(String(pageNumber));
   };
 
+  const onPageInputMouseDown = usePageInputMouseCommit(goToPage);
+
   const readerChrome = useReaderChrome({
     keepVisible: () => tocOpen() || filterPanelOpen() || draggingWidth(),
     onClose: () => {
@@ -1118,6 +1121,7 @@ function DjvuReader(props: {
               max={pages().length || undefined}
               value={pageInput()}
               aria-label={t('pageNumber')}
+              onMouseDown={onPageInputMouseDown}
               onInput={(event) => setPageInput(event.currentTarget.value)}
               onBlur={() => goToPage(pageInput())}
               onKeyDown={(event) => {

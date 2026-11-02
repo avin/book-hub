@@ -7,6 +7,38 @@ async function showReaderChrome(page: Page) {
   await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
 }
 
+test('переход по стрелкам номера страницы применяется после отпускания мыши', async ({ page }) => {
+  await login(page);
+  await page
+    .getByRole('heading', { name: 'PDF с оглавлением', exact: true })
+    .getByRole('link')
+    .click();
+  await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible({ timeout: 30_000 });
+  await showReaderChrome(page);
+  const input = page.getByRole('spinbutton', { name: 'Номер страницы' });
+  await input.hover();
+  const bounds = (await input.boundingBox())!;
+  const initialScroll = await page.evaluate(() => window.scrollY);
+
+  await page.mouse.move(bounds.x + bounds.width - 8, bounds.y + bounds.height / 4);
+  await page.mouse.down();
+  await expect(input).toHaveValue('2');
+  expect(await page.evaluate(() => window.scrollY)).toBe(initialScroll);
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(initialScroll);
+  await expect(input).toBeFocused();
+
+  const secondPageScroll = await page.evaluate(() => window.scrollY);
+  await page.mouse.move(bounds.x + bounds.width - 8, bounds.y + (bounds.height * 3) / 4);
+  await page.mouse.down();
+  await expect(input).toHaveValue('1');
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.scrollY)).toBe(secondPageScroll);
+  await page.mouse.move(bounds.x - 20, bounds.y + (bounds.height * 3) / 4);
+  await page.mouse.up();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(initialScroll);
+});
+
 test('перемещение первого PDF-фильтра в конец не ломает читалку', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1200 });
   await login(page);
