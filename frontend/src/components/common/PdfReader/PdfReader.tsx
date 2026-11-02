@@ -34,6 +34,7 @@ import {
 import { useI18n } from '@/i18n/I18nProvider';
 import { pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
+import useFixedLayoutWidthPreview from '../FixedLayoutReader/useFixedLayoutWidthPreview';
 import {
   getFixedLayoutReaderContentWidthPreference,
   getFixedLayoutReaderFilterChainPreference,
@@ -1014,6 +1015,14 @@ function PdfReader(props: {
     restoreHorizontalScrollPositionIfNeeded();
   };
 
+  const widthPreview = useFixedLayoutWidthPreview({
+    document: () => documentRef,
+    width: pageWidth,
+    widthForOverflow: (value) =>
+      pageWidthWithOverflow(basePageWidth(), value, pageWidthOverflowReferenceWidth()),
+    onCommit: updatePageWidthOverflow,
+  });
+
   const syncObservedPages = () => {
     if (!observer) {
       return;
@@ -1348,6 +1357,7 @@ function PdfReader(props: {
   // Сначала рисуются полосы, затем текстовый слой: он не виден и не должен
   // задерживать появление изображения при быстрой прокрутке.
   const pumpRenderJobs = () => {
+    if (widthPreview.active()) return;
     while (activeRenderJobs < maxConcurrentRenderJobs) {
       const tileJob = tileQueue.shift();
 
@@ -1368,7 +1378,7 @@ function PdfReader(props: {
   };
 
   const updateTiles = () => {
-    if (destroyed || !pdfDocument) {
+    if (destroyed || !pdfDocument || widthPreview.active()) {
       return;
     }
 
@@ -1718,12 +1728,15 @@ function PdfReader(props: {
     void documentWidth();
     void pageWidth();
     void isFitWidth();
+    if (widthPreview.active()) return;
     scheduleTileUpdate();
   });
 
   createEffect(() => {
     const currentPages = pages();
     const currentVisiblePages = visiblePages();
+
+    if (widthPreview.active()) return;
 
     if (currentPages.length === 0 || currentVisiblePages.size === 0) {
       return;
@@ -2209,7 +2222,8 @@ function PdfReader(props: {
         onToggleGrayscale={(enabled) => toggleStrengthFilter('grayscale', enabled)}
         onGrayscaleStrengthChange={(strength) => updateStrengthFilter('grayscale', strength)}
         onMoveFilter={moveFilter}
-        onPageWidthOverflowChange={updatePageWidthOverflow}
+        onPageWidthOverflowPreview={widthPreview.preview}
+        onPageWidthOverflowChange={widthPreview.commit}
         onReset={resetFilters}
         onAutoWidth={resetToFitWidth}
       />

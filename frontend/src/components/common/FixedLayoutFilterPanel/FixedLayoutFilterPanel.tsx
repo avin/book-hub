@@ -69,6 +69,7 @@ function FixedLayoutFilterPanel(props: {
   onGrayscaleStrengthChange: (strength: number) => void;
   onMoveFilter: (filterId: PdfFilter['id'], targetIndex: number) => void;
   onPageWidthOverflowChange: (value: number) => void;
+  onPageWidthOverflowPreview?: (value: number) => void;
   onReset: () => void;
   onAutoWidth: () => void;
 }) {
@@ -279,7 +280,11 @@ function FixedLayoutFilterPanel(props: {
             value={draftPageWidthOverflow()}
             aria-label={t('pageWidthIncrease')}
             onChange={commitPageWidthOverflow}
-            onInput={(event) => setDraftPageWidthOverflow(Number(event.currentTarget.value))}
+            onInput={(event) => {
+              const value = Number(event.currentTarget.value);
+              setDraftPageWidthOverflow(value);
+              props.onPageWidthOverflowPreview?.(value);
+            }}
           />
         </InputContainer>
       </section>

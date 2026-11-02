@@ -12,6 +12,7 @@ import {
 } from 'solid-js';
 import { type DjVuContentsEntry, type DjVuTextZone, type DjVuWorker } from '@/api/djvujs';
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
+import useFixedLayoutWidthPreview from '../FixedLayoutReader/useFixedLayoutWidthPreview';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
@@ -495,7 +496,7 @@ function DjvuReader(props: {
   };
 
   const runNextRenderTask = () => {
-    if (renderInProgress) return;
+    if (renderInProgress || widthPreview.active()) return;
 
     const page = renderQueue.shift();
     if (!page) return;
@@ -837,6 +838,13 @@ function DjvuReader(props: {
     });
   };
 
+  const widthPreview = useFixedLayoutWidthPreview({
+    document: () => documentRef,
+    width: pageWidth,
+    widthForOverflow: (value) => Math.round(baseWidth() * (1 + value / 100)),
+    onCommit: updateOverflow,
+  });
+
   const readerNavigationHistory = useReaderNavigationHistory({
     readerId: untrack(preferenceKey),
     captureLocation: captureScrollAnchor,
@@ -880,11 +888,14 @@ function DjvuReader(props: {
   createEffect(() => {
     visiblePages();
     pages();
+    if (widthPreview.active()) return;
     scheduleVisiblePageRendering();
   });
   createEffect(() => {
     const currentPages = pages();
     const currentVisiblePages = visiblePages();
+
+    if (widthPreview.active()) return;
 
     if (currentPages.length === 0 || currentVisiblePages.size === 0) {
       return;
@@ -1231,7 +1242,8 @@ function DjvuReader(props: {
             return next;
           })
         }
-        onPageWidthOverflowChange={updateOverflow}
+        onPageWidthOverflowPreview={widthPreview.preview}
+        onPageWidthOverflowChange={widthPreview.commit}
         onReset={() => {
           updateFilterChain(() => defaultPdfFilterChain());
           updateOverflow(defaultFixedLayoutPageWidthOverflow);

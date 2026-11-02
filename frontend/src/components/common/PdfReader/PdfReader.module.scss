@@ -82,6 +82,25 @@
   display: none;
 }
 
+// DJVU renders whole pages and uses the same page container as PDF.
+.sourceCanvas,
+.filteredCanvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface-raised);
+}
+
+.filteredCanvas {
+  display: none;
+}
+
+.filteredCanvasVisible {
+  display: block;
+}
+
 .textLayer {
   position: absolute;
   inset: 0;
