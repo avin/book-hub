@@ -77,6 +77,10 @@ for (const onThumb of [false, true]) {
     await expect(slider).toHaveValue(initial);
     await swipeVertically(session, point);
     await expect(slider).toHaveValue(initial);
+    await expect(page.locator('aside').filter({ hasText: 'Внешний вид' })).toHaveCSS(
+      'opacity',
+      '1',
+    );
     await expect.poll(() => scrollPosition(slider)).toBeGreaterThan(scrollBefore + 20);
     await session.detach();
   });
@@ -103,7 +107,10 @@ test('DJVU: тап и горизонтальный жест не прокруч�
     type: 'touchMove',
     touchPoints: [{ x: point.x + 50, y: point.y + 2 }],
   });
+  const panel = page.locator('aside').filter({ hasText: 'Внешний вид' });
+  await expect(panel).toHaveCSS('opacity', '0.5');
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(panel).toHaveCSS('opacity', '1');
   const changed = Number(await slider.inputValue());
   expect(changed).toBeGreaterThan(Number(initial));
   const range = await slider.evaluate(

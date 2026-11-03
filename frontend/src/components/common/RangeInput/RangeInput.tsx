@@ -1,4 +1,4 @@
-import { onCleanup, type JSX } from 'solid-js';
+import { createSignal, onCleanup, type JSX } from 'solid-js';
 import styles from './RangeInput.module.scss';
 
 function RangeInput(props: {
@@ -13,6 +13,7 @@ function RangeInput(props: {
   onAdjustStart?: () => void;
   onAdjustEnd?: () => void;
 }) {
+  const [adjusting, setAdjusting] = createSignal(false);
   let input!: HTMLInputElement;
   let gesture:
     | {
@@ -29,6 +30,7 @@ function RangeInput(props: {
   const finish = () => {
     const current = gesture;
     gesture = undefined;
+    setAdjusting(false);
     if (!current?.adjusting) return;
     if (current.changed) input.dispatchEvent(new Event('change', { bubbles: true }));
     props.onAdjustEnd?.();
@@ -37,6 +39,7 @@ function RangeInput(props: {
   const begin = () => {
     if (!gesture) return;
     gesture.adjusting = true;
+    setAdjusting(true);
     if (!gesture.touch) input.focus({ preventScroll: true });
     props.onAdjustStart?.();
   };
@@ -111,6 +114,7 @@ function RangeInput(props: {
   return (
     <div
       class={styles.rangeInput}
+      data-adjusting={adjusting() ? 'true' : undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd}

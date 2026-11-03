@@ -33,11 +33,12 @@ function ReaderSidePanel(props: {
         />
       </div>
 
-      <div class={styles.panelBody}>{props.children}</div>
-
-      <Show when={props.footer}>
-        {(footer) => <div class={styles.panelFooter}>{footer()}</div>}
-      </Show>
+      <div class={styles.panelScrollArea}>
+        <div class={styles.panelBody}>{props.children}</div>
+        <Show when={props.footer}>
+          {(footer) => <div class={styles.panelFooter}>{footer()}</div>}
+        </Show>
+      </div>
     </aside>
   );
 }
