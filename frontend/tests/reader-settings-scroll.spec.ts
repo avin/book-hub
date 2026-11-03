@@ -37,13 +37,19 @@ for (const format of ['fb2', 'pdf']) {
 
     for (const viewport of [
       { width: 390, height: 844 },
+      { width: 390, height: 720 },
+      { width: 390, height: 721 },
       { width: 844, height: 390 },
       { width: 1280, height: 600 },
       { width: 1280, height: 900 },
     ]) {
       await page.setViewportSize(viewport);
-      const compact = viewport.width <= 480 || viewport.height <= 720;
-      const width = viewport.width <= 480 ? viewport.width : 380;
+      const compact = viewport.height <= 720;
+      const width = compact
+        ? viewport.width <= 480
+          ? viewport.width
+          : 380
+        : Math.min(380, viewport.width - 32);
       await expect
         .poll(() => panel.boundingBox())
         .toEqual({
@@ -56,7 +62,10 @@ for (const format of ['fb2', 'pdf']) {
       for (const side of ['top', 'right', 'bottom']) {
         await expect(panel).toHaveCSS(`border-${side}-width`, compact ? '0px' : '1px');
       }
-      await expect(panel).toHaveCSS('border-left-width', '1px');
+      await expect(panel).toHaveCSS(
+        'border-left-width',
+        compact && viewport.width <= 480 ? '0px' : '1px',
+      );
       await expect(close).toBeInViewport({ ratio: 1 });
     }
   });

@@ -91,7 +91,7 @@
   border-top: 1px solid var(--border-default);
 }
 
-@media (max-height: 720px), (max-width: 480px) {
+@media (max-height: 720px) {
   .readerSidePanel {
     top: 0;
     right: 0;
@@ -104,8 +104,9 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-height: 720px) and (max-width: 480px) {
   .readerSidePanel {
     width: 100vw;
+    border-left: 0;
   }
 }
