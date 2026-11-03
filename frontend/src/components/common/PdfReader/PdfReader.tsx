@@ -35,6 +35,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import useFixedLayoutWidthPreview from '../FixedLayoutReader/useFixedLayoutWidthPreview';
+import useFixedLayoutPinchZoom from '../FixedLayoutReader/useFixedLayoutPinchZoom';
 import usePageInputMouseCommit from '../FixedLayoutReader/usePageInputMouseCommit';
 import {
   getFixedLayoutReaderContentWidthPreference,
@@ -1028,6 +1029,17 @@ function PdfReader(props: {
     widthForOverflow: (value) =>
       pageWidthWithOverflow(basePageWidth(), value, pageWidthOverflowReferenceWidth()),
     onCommit: updatePageWidthOverflow,
+  });
+
+  useFixedLayoutPinchZoom({
+    root: () => rootRef,
+    document: () => documentRef,
+    overflow: pageWidthOverflow,
+    width: pageWidth,
+    widthForOverflow: (value) =>
+      pageWidthWithOverflow(basePageWidth(), value, pageWidthOverflowReferenceWidth()),
+    preview: widthPreview.preview,
+    commit: widthPreview.commit,
   });
 
   const syncObservedPages = () => {

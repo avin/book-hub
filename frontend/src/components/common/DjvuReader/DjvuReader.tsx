@@ -13,6 +13,7 @@ import {
 import { type DjVuContentsEntry, type DjVuTextZone, type DjVuWorker } from '@/api/djvujs';
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import useFixedLayoutWidthPreview from '../FixedLayoutReader/useFixedLayoutWidthPreview';
+import useFixedLayoutPinchZoom from '../FixedLayoutReader/useFixedLayoutPinchZoom';
 import usePageInputMouseCommit from '../FixedLayoutReader/usePageInputMouseCommit';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
@@ -848,6 +849,16 @@ function DjvuReader(props: {
     width: pageWidth,
     widthForOverflow: (value) => Math.round(baseWidth() * (1 + value / 100)),
     onCommit: updateOverflow,
+  });
+
+  useFixedLayoutPinchZoom({
+    root: () => rootRef,
+    document: () => documentRef,
+    overflow,
+    width: pageWidth,
+    widthForOverflow: (value) => Math.round(baseWidth() * (1 + value / 100)),
+    preview: widthPreview.preview,
+    commit: widthPreview.commit,
   });
 
   const readerNavigationHistory = useReaderNavigationHistory({

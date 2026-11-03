@@ -35,6 +35,7 @@
   padding: 32px var(--reader-padding-x) 72px;
   gap: 18px;
   overflow-anchor: none;
+  touch-action: pan-x pan-y;
 }
 
 .documentFit {
@@ -202,6 +203,8 @@
 @media (max-width: 720px) {
   .reader {
     --reader-padding-x: 10px;
+
+    overflow-x: clip;
   }
 
   .document {
