@@ -473,7 +473,9 @@ function PdfReader(props: {
         return;
       }
 
-      const scrollingElement = document.scrollingElement;
+      const scrollingElement = window.matchMedia('(max-width: 720px)').matches
+        ? documentRef
+        : document.scrollingElement;
 
       if (scrollingElement) {
         const maxScrollLeft = scrollingElement.scrollWidth - scrollingElement.clientWidth;
@@ -498,7 +500,9 @@ function PdfReader(props: {
       return;
     }
 
-    const scrollingElement = document.scrollingElement;
+    const scrollingElement = window.matchMedia('(max-width: 720px)').matches
+      ? documentRef
+      : document.scrollingElement;
 
     if (!scrollingElement) {
       return;
@@ -2251,6 +2255,7 @@ function PdfReader(props: {
           onPointerUp={readerChrome.onDocumentPointerUp}
           onPointerCancel={readerChrome.onDocumentPointerCancel}
           onClick={readerChrome.onDocumentClick}
+          onScroll={rememberHorizontalScrollPosition}
         >
           <For each={pages()}>
             {(page) => (

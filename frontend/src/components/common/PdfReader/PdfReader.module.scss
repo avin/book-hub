@@ -205,6 +205,8 @@
   }
 
   .document {
+    width: 100%;
+    overflow-x: auto;
     padding: 20px var(--reader-padding-x) 56px;
     gap: 12px;
   }

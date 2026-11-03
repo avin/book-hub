@@ -7,6 +7,47 @@ async function showReaderChrome(page: Page) {
   await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
 }
 
+test.describe('PDF на телефоне', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('увеличение ширины прокручивает только страницу книги', async ({ page }) => {
+    await login(page);
+    await page
+      .getByRole('heading', { name: 'PDF с оглавлением', exact: true })
+      .getByRole('link')
+      .click();
+    await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
+    await page.touchscreen.tap(195, 400);
+    await page.getByRole('button', { name: 'Внешний вид' }).tap();
+    await page.getByRole('slider', { name: 'Увеличение ширины' }).fill('80');
+    await expect
+      .poll(() => page.locator('main').evaluate((el) => el.scrollWidth > el.clientWidth))
+      .toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390,
+    );
+    await page.locator('main').evaluate((el) => {
+      el.scrollLeft = el.scrollWidth;
+    });
+    await expect
+      .poll(() => page.locator('main').evaluate((el) => el.scrollLeft))
+      .toBeGreaterThan(0);
+    const horizontalPosition = await page.locator('main').evaluate((el) => el.scrollLeft);
+    for (const id of ['reader-floating-header', 'reader-floating-footer']) {
+      const bounds = await page.getByTestId(id).boundingBox();
+      expect(bounds?.x).toBe(0);
+      expect(bounds?.width).toBe(390);
+    }
+    await page.reload();
+    await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
+    await expect
+      .poll(() => page.locator('main').evaluate((el) => el.scrollLeft))
+      .toBeCloseTo(horizontalPosition, 0);
+    await page.evaluate(() => window.scrollTo(0, 300));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  });
+});
+
 test('поиск PDF сохраняется при выделении текста двойным щелчком', async ({ page }) => {
   await login(page);
   await page
@@ -227,7 +268,7 @@ for (const deviceScaleFactor of [1, 1.25, 2]) {
 test('читатель PDF сохраняет поиск, оглавление, историю и fixed-layout настройки', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 640, height: 720 });
+  await page.setViewportSize({ width: 800, height: 720 });
   await login(page);
   await page
     .getByRole('heading', { name: 'PDF с оглавлением', exact: true })
@@ -263,7 +304,7 @@ test('читатель PDF сохраняет поиск, оглавление, 
         viewportWidth: window.innerWidth,
       })),
     )
-    .toEqual(expect.objectContaining({ scrollWidth: expect.any(Number), viewportWidth: 640 }));
+    .toEqual(expect.objectContaining({ scrollWidth: expect.any(Number), viewportWidth: 800 }));
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth))
     .toBe(true);

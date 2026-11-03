@@ -71,6 +71,40 @@ test.beforeEach(async ({ page, api }) => {
   );
 });
 
+test('DJVU: увеличенная страница прокручивается отдельно от панелей', async ({ page }) => {
+  await widthSlider(page).fill('80');
+  const document = page.locator('main');
+  await expect
+    .poll(() => document.evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBeGreaterThan(0);
+  expect(
+    await page.evaluate(() => window.document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  await document.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
+  await expect.poll(() => document.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  const position = await document.evaluate((element) => element.scrollLeft);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (id) =>
+          JSON.parse(localStorage.getItem('book-hub-preferences')!).readers?.fixedLayout
+            ?.horizontalScrollPositions?.[id],
+        book.id,
+      ),
+    )
+    .toBe(1);
+  await page.reload();
+  await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
+  await expect
+    .poll(() => document.evaluate((element) => element.scrollLeft))
+    .toBeCloseTo(position, 0);
+});
+
 for (const onThumb of [false, true]) {
   test(`DJVU: вертикальный свайп ${onThumb ? 'с бегунка' : 'со шкалы'} прокручивает настройки, сохраняя значение`, async ({
     page,

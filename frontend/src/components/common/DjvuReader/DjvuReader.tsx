@@ -311,7 +311,9 @@ function DjvuReader(props: {
       horizontalScrollRestoreFrame = undefined;
       if (restoreGeneration !== horizontalScrollRestoreGeneration) return;
 
-      const scrollingElement = document.scrollingElement;
+      const scrollingElement = window.matchMedia('(max-width: 720px)').matches
+        ? documentRef
+        : document.scrollingElement;
       if (scrollingElement) {
         const maxScrollLeft = scrollingElement.scrollWidth - scrollingElement.clientWidth;
         const position = horizontalScrollPosition() ?? horizontalScrollCenter;
@@ -332,7 +334,9 @@ function DjvuReader(props: {
   const rememberHorizontalScrollPosition = () => {
     if (horizontalScrollRestorePending) return;
 
-    const scrollingElement = document.scrollingElement;
+    const scrollingElement = window.matchMedia('(max-width: 720px)').matches
+      ? documentRef
+      : document.scrollingElement;
     if (!scrollingElement) return;
 
     const maxScrollLeft = scrollingElement.scrollWidth - scrollingElement.clientWidth;
@@ -1269,6 +1273,7 @@ function DjvuReader(props: {
           onPointerUp={readerChrome.onDocumentPointerUp}
           onPointerCancel={readerChrome.onDocumentPointerCancel}
           onClick={readerChrome.onDocumentClick}
+          onScroll={rememberHorizontalScrollPosition}
         >
           {
             <For each={pages()}>
