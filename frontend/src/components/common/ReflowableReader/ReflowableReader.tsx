@@ -1108,7 +1108,8 @@ function ReflowableReader(props: {
     };
     const onFontsChanged = () => {
       if (!startupComplete()) return;
-      const anchor = captureScrollAnchor();
+      // A reflow may already have changed offsets while its scroll correction is pending.
+      const anchor = pendingScrollAnchor() ?? captureScrollAnchor();
 
       if (anchor) {
         setPendingScrollAnchor(anchor);

@@ -62,7 +62,8 @@ for (const format of ['pdf', 'djvu'] as const) {
         width: element.width,
         height: element.height,
         image: element.toDataURL(),
-        preferences: localStorage.getItem('book-hub-preferences'),
+        pageWidthOverflows: JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}').readers
+          ?.fixedLayout?.pageWidthOverflows,
       }));
       const readAnchor = () =>
         page
@@ -95,12 +96,14 @@ for (const format of ['pdf', 'djvu'] as const) {
           width: element.width,
           height: element.height,
           image: element.toDataURL(),
-          preferences: localStorage.getItem('book-hub-preferences'),
+          pageWidthOverflows: JSON.parse(localStorage.getItem('book-hub-preferences') ?? '{}')
+            .readers?.fixedLayout?.pageWidthOverflows,
         }));
         expect(preview.width).toBe(before.width);
         expect(preview.height).toBe(before.height);
         expect(preview.image).toBe(before.image);
-        expect(preview.preferences).toBe(before.preferences);
+        // Scroll positions and filter settings may be persisted independently of this gesture.
+        expect(preview.pageWidthOverflows).toEqual(before.pageWidthOverflows);
         expect(preview.displayWidth / before.displayWidth).toBeCloseTo(
           preview.displayHeight / before.displayHeight,
           2,

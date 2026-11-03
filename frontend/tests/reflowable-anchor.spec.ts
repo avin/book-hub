@@ -100,6 +100,39 @@ for (const touch of [false, true]) {
   });
 }
 
+test('событие загрузки шрифта во время пересчёта сохраняет исходный якорь', async ({ page }) => {
+  await login(page);
+  await page.getByRole('heading', { name: 'Война и мир', exact: true }).getByRole('link').click();
+  await expect(page.locator('main')).toHaveCSS('visibility', 'visible');
+  await page.mouse.move(0, 0);
+  await page.getByRole('button', { name: 'Внешний вид' }).click();
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    window.scrollTo({ top: 4000, behavior: 'instant' });
+  });
+  await settleLayout(page);
+  const anchor = await page.locator('article > div').evaluateAll((elements) => {
+    const slot = elements.find((element) => {
+      const rect = element.getBoundingClientRect();
+      return element.textContent && rect.top <= 0 && rect.bottom > 0;
+    })!;
+    return { text: slot.textContent!, top: slot.getBoundingClientRect().top };
+  });
+  const slider = page
+    .locator('aside')
+    .filter({ hasText: 'Внешний вид' })
+    .getByRole('slider')
+    .first();
+  await expectStableReaderBlocks(page, [anchor], () =>
+    slider.evaluate((element: HTMLInputElement) => {
+      element.value = '28';
+      element.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      // FontFaceSet may finish between the layout commit and its scroll restoration frame.
+      document.fonts.dispatchEvent(new Event('loadingdone'));
+    }),
+  );
+});
+
 test('смена семейства шрифта после размера сохраняет текущее место чтения', async ({ page }) => {
   await login(page);
   await page.getByRole('heading', { name: 'Война и мир', exact: true }).getByRole('link').click();

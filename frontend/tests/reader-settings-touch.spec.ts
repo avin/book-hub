@@ -4,7 +4,7 @@ import { expect, test } from './fixtures';
 import * as books from './mocks/books';
 import { login } from './support/api';
 
-test.use({ viewport: { width: 390, height: 600 }, hasTouch: true, isMobile: true });
+test.use({ viewport: { width: 390, height: 480 }, hasTouch: true, isMobile: true });
 
 const book = { ...books.items[0], id: '00000000-0000-0000-0000-000000000105', format: 'djvu' };
 
@@ -16,6 +16,20 @@ async function scrollPosition(slider: Locator) {
     }
     return parent?.scrollTop ?? 0;
   });
+}
+
+async function expectSwipeSpace(slider: Locator) {
+  await expect
+    .poll(() =>
+      slider.evaluate((element) => {
+        let parent = element.parentElement;
+        while (parent && getComputedStyle(parent).overflowY !== 'auto') {
+          parent = parent.parentElement;
+        }
+        return parent ? parent.scrollHeight - parent.clientHeight - parent.scrollTop : 0;
+      }),
+    )
+    .toBeGreaterThan(96);
 }
 
 async function sliderPoint(slider: Locator, ratio = 0.5) {
@@ -71,6 +85,7 @@ for (const onThumb of [false, true]) {
             (Number(element.max) - Number(element.min)),
         );
     const point = await sliderPoint(slider, ratio);
+    await expectSwipeSpace(slider);
     const scrollBefore = await scrollPosition(slider);
     const session = await page.context().newCDPSession(page);
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
@@ -143,6 +158,7 @@ test.describe('DJVU: сенсорное управление фильтром', 
   test('вертикальный свайп прокручивает настройки, сохраняя толщину штриха', async ({ page }) => {
     const stroke = page.getByRole('slider', { name: 'Толщина штриха', exact: true });
     const point = await sliderPoint(stroke);
+    await expectSwipeSpace(stroke);
     const before = await stroke.inputValue();
     const scrollBefore = await scrollPosition(stroke);
     const session = await page.context().newCDPSession(page);

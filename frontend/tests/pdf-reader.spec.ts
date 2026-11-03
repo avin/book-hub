@@ -204,6 +204,9 @@ test('читатель PDF сохраняет поиск, оглавление, 
   await page.getByRole('button', { name: 'Оглавление' }).click();
   await page.getByRole('button', { name: 'Second page' }).click();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('2');
+  const toc = page.locator('aside').filter({ hasText: 'Оглавление' });
+  await toc.getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(toc).toBeHidden();
 
   await page.goBack();
   await expect(page.getByRole('spinbutton', { name: 'Номер страницы' })).toHaveValue('1');

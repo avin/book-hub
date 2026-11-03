@@ -7,31 +7,46 @@ export async function expectStableReaderBlocks(
 ) {
   await page.evaluate((blocks) => {
     const frames: (number | null)[][] = [];
+    let remainingFrames: number | undefined;
+    const marker = document.createElement('div');
+    marker.style.cssText =
+      'position:fixed;top:0;left:0;width:1px;height:1px;visibility:hidden;pointer-events:none';
+    document.body.append(marker);
+    let frame: number;
     const recording = new Promise<typeof frames>((resolve) => {
-      const sample = () => {
-        requestAnimationFrame(() => {
-          // Read after animation callbacks, when scroll corrections for this paint ran.
-          setTimeout(() => {
-            const slots = [...document.querySelectorAll('article > div')];
-            frames.push(
-              blocks.map(
-                ({ text }) =>
-                  slots.find((slot) => slot.textContent === text)?.getBoundingClientRect().top ??
-                  null,
-              ),
-            );
-            if (frames.length < 20) sample();
-            else resolve(frames);
-          }, 0);
-        });
+      // ResizeObserver runs after animation callbacks and layout, before the frame is painted.
+      // A timer can observe changes made after the last paint but corrected before the next one.
+      const observer = new ResizeObserver(() => {
+        const slots = [...document.querySelectorAll('article > div')];
+        frames.push(
+          blocks.map(
+            ({ text }) =>
+              slots.find((slot) => slot.textContent === text)?.getBoundingClientRect().top ?? null,
+          ),
+        );
+        if (remainingFrames !== undefined && --remainingFrames === 0) {
+          observer.disconnect();
+          cancelAnimationFrame(frame);
+          marker.remove();
+          resolve(frames);
+        }
+      });
+      observer.observe(marker);
+      const tick = () => {
+        marker.style.width = marker.style.width === '1px' ? '2px' : '1px';
+        frame = requestAnimationFrame(tick);
       };
-      sample();
+      frame = requestAnimationFrame(tick);
     });
-    Reflect.set(window, 'readerFrameRecording', recording);
+    Reflect.set(window, 'finishReaderFrameRecording', () => {
+      // Keep recording throughout the action, even if Playwright dispatches it slowly.
+      remainingFrames = 20;
+      return recording;
+    });
   }, blocks);
   await update();
   const frames: (number | null)[][] = await page.evaluate(() =>
-    Reflect.get(window, 'readerFrameRecording'),
+    Reflect.get(window, 'finishReaderFrameRecording')(),
   );
   for (const frame of frames) {
     for (const [index, block] of blocks.entries()) {
