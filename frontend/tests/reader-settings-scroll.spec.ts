@@ -4,7 +4,7 @@ import { login } from './support/api';
 
 for (const format of ['fb2', 'pdf']) {
   test(`${format}: кнопки внешнего вида доступны после прокрутки настроек`, async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 682 });
+    await page.setViewportSize({ width: 390, height: 480 });
     await login(page);
     const book = books.items.find((book) => book.format === format)!;
     await page.goto(`/reader/${book.id}`);
@@ -34,5 +34,30 @@ for (const format of ['fb2', 'pdf']) {
     await page.mouse.wheel(0, -2000);
     await expect(reset).not.toBeInViewport();
     await expect(close).toBeInViewport({ ratio: 1 });
+
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 844, height: 390 },
+      { width: 1280, height: 600 },
+      { width: 1280, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const compact = viewport.width <= 480 || viewport.height <= 720;
+      const width = viewport.width <= 480 ? viewport.width : 380;
+      await expect
+        .poll(() => panel.boundingBox())
+        .toEqual({
+          x: viewport.width - width - (compact ? 0 : 16),
+          y: compact ? 0 : 88,
+          width,
+          height: viewport.height - (compact ? 0 : 152),
+        });
+      await expect(panel).toHaveCSS('border-radius', compact ? '0px' : '12px');
+      for (const side of ['top', 'right', 'bottom']) {
+        await expect(panel).toHaveCSS(`border-${side}-width`, compact ? '0px' : '1px');
+      }
+      await expect(panel).toHaveCSS('border-left-width', '1px');
+      await expect(close).toBeInViewport({ ratio: 1 });
+    }
   });
 }

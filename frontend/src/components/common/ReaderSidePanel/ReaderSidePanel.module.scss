@@ -87,3 +87,22 @@
   padding: $space-4;
   border-top: 1px solid var(--border-default);
 }
+
+@media (max-height: 720px), (max-width: 480px) {
+  .readerSidePanel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(380px, 100vw);
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .readerSidePanel {
+    width: 100vw;
+  }
+}
