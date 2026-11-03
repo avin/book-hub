@@ -254,6 +254,10 @@
   }
 
   .searchInputWrap {
-    min-width: 80px;
+    min-width: 0;
+  }
+
+  .positionContent {
+    flex-shrink: 0;
   }
 }

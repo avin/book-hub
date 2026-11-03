@@ -10,6 +10,30 @@ async function showReaderChrome(page: Page) {
 test.describe('PDF на телефоне', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
+  test('поиск и номер страницы помещаются в нижней панели на узком экране', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 844 });
+    await login(page);
+    await page
+      .getByRole('heading', { name: 'PDF с оглавлением', exact: true })
+      .getByRole('link')
+      .click();
+    await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
+    await page.touchscreen.tap(160, 400);
+    const footer = page.getByTestId('reader-floating-footer');
+    const search = footer.getByRole('searchbox', { name: 'Поиск по книге' });
+    await expect(search).toHaveAttribute('placeholder', 'Поиск...');
+    for (const value of ['', 'Page']) {
+      await search.fill(value);
+      await expect
+        .poll(() => footer.evaluate((element) => element.scrollWidth - element.clientWidth))
+        .toBeLessThanOrEqual(0);
+      const pageNumber = await footer
+        .getByRole('spinbutton', { name: 'Номер страницы' })
+        .boundingBox();
+      expect(pageNumber!.x + pageNumber!.width).toBeLessThanOrEqual(320);
+    }
+  });
+
   test('увеличение ширины прокручивает только страницу книги', async ({ page }) => {
     await login(page);
     await page

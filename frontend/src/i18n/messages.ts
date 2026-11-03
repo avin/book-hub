@@ -184,6 +184,10 @@ export const messages = {
     ru: 'Поиск по книге',
     en: 'Search in book',
   },
+  search: {
+    ru: 'Поиск...',
+    en: 'Search...',
+  },
   bookSearchUnavailable: {
     ru: 'Поиск недоступен: в книге нет текстового слоя.',
     en: 'Search is unavailable: the book has no text layer.',

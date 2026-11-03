@@ -158,7 +158,7 @@ function ReaderFloatingChrome(props: {
                   class={styles.searchInput}
                   type="search"
                   value={props.searchValue ?? ''}
-                  placeholder={t('bookSearch')}
+                  placeholder={t('search')}
                   aria-label={t('bookSearch')}
                   onInput={(event) => props.onSearchValueChange?.(event.currentTarget.value)}
                   onFocus={(event) => event.currentTarget.select()}
