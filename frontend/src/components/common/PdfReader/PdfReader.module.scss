@@ -156,7 +156,7 @@
 
   :global(.highlight) {
     color: transparent;
-    background: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
     border-radius: 2px;
   }
 
@@ -166,7 +166,7 @@
   }
 
   :global(.highlight.selected) {
-    background: color-mix(in srgb, var(--accent) 75%, transparent);
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
     outline: 1px solid color-mix(in srgb, var(--accent) 80%, transparent);
   }
 
