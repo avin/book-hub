@@ -861,8 +861,9 @@ function ReflowableReader(props: {
   const endLayoutSettingsAdjustment = () => {
     const anchor = layoutSettingsAnchor;
 
+    // Restore against the committed layout before its first paint, just like other reflows.
+    setPendingScrollAnchor(anchor);
     setAdjustingLayoutSettings(false);
-    restoreScrollAnchorAfterLayout(anchor);
   };
   const isFootnoteTarget = (targetId: string) => parsed().notes.has(targetId);
   const onFootnoteLink = (targetId: string) => {

@@ -2,6 +2,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { expect, test } from './fixtures';
 import * as books from './mocks/books';
 import { login } from './support/api';
+import { expectStableReaderBlocks } from './support/readerFrames';
 
 for (const touch of [false, true]) {
   test.describe(touch ? 'касание' : 'мышь', () => {
@@ -126,9 +127,14 @@ for (const touch of [false, true]) {
             0,
           );
         } finally {
-          if (touch)
-            await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-          else await page.mouse.up();
+          await expectStableReaderBlocks(
+            page,
+            [anchor, { text: anchor.nextText, top: anchor.nextTop + delta }],
+            () =>
+              touch
+                ? session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+                : page.mouse.up(),
+          );
           await session.detach();
         }
         await expect.poll(articleHeight).not.toBe(height);

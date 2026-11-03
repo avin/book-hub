@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { login } from './support/api';
+import { expectStableReaderBlocks } from './support/readerFrames';
 
 async function settleFonts(page: Page) {
   await page.evaluate(async () => {
@@ -220,9 +221,11 @@ for (const touch of [false, true]) {
           ).toBe(height);
           expect(await page.evaluate(() => Reflect.get(window, 'readerFontMeasurements'))).toBe(0);
         } finally {
-          if (touch)
-            await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-          else await page.mouse.up();
+          await expectStableReaderBlocks(page, [anchor], () =>
+            touch
+              ? session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+              : page.mouse.up(),
+          );
         }
         await expect
           .poll(() => page.evaluate(() => Reflect.get(window, 'readerFontMeasurements') as number))

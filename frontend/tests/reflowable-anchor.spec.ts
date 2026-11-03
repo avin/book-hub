@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { login } from './support/api';
+import { expectStableReaderBlocks } from './support/readerFrames';
 
 async function settleLayout(page: Page) {
   await page.evaluate(
@@ -76,8 +77,15 @@ for (const touch of [false, true]) {
             type: 'touchMove',
             touchPoints: [{ ...point, x: point.x + 20 }],
           });
-          await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-        } else await page.mouse.click(point.x, point.y);
+        } else {
+          await page.mouse.move(point.x, point.y);
+          await page.mouse.down();
+        }
+        await expectStableReaderBlocks(page, [anchor], () =>
+          touch
+            ? session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+            : page.mouse.up(),
+        );
         await expect(slider).not.toHaveValue(initialValue);
         // Width changes also schedule a debounced layout after the gesture ends.
         await page.waitForTimeout(250);
