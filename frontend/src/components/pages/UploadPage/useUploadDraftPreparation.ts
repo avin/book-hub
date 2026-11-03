@@ -34,55 +34,64 @@ export default function useUploadDraftPreparation(options: {
   errorMessage: (error: unknown, fallback: string) => string;
   messages: Messages;
 }) {
-  const preparationAbortByDraftId = new Map<string, AbortController>();
+  const preparationAbortByDraftId = new Map<string, Map<string, AbortController>>();
 
-  const beginDraftPreparation = (draftId: string) => {
-    preparationAbortByDraftId.get(draftId)?.abort();
+  const beginDraftPreparation = (draftId: string, kind: string) => {
+    const preparations = preparationAbortByDraftId.get(draftId) ?? new Map();
+    preparations.get(kind)?.abort();
     const controller = new AbortController();
-    preparationAbortByDraftId.set(draftId, controller);
+    preparations.set(kind, controller);
+    preparationAbortByDraftId.set(draftId, preparations);
     return controller;
   };
 
-  const finishDraftPreparation = (draftId: string, controller: AbortController) => {
-    if (preparationAbortByDraftId.get(draftId) === controller) {
-      preparationAbortByDraftId.delete(draftId);
+  const finishDraftPreparation = (draftId: string, kind: string, controller: AbortController) => {
+    const preparations = preparationAbortByDraftId.get(draftId);
+    if (preparations?.get(kind) === controller) {
+      preparations.delete(kind);
+      if (preparations.size === 0) preparationAbortByDraftId.delete(draftId);
     }
   };
 
   const cancelDraftPreparation = (draftId: string) => {
-    preparationAbortByDraftId.get(draftId)?.abort();
+    for (const controller of preparationAbortByDraftId.get(draftId)?.values() ?? []) {
+      controller.abort();
+    }
     preparationAbortByDraftId.delete(draftId);
   };
 
   const cancelAllDraftPreparations = () => {
-    for (const controller of preparationAbortByDraftId.values()) {
-      controller.abort();
+    for (const preparations of preparationAbortByDraftId.values()) {
+      for (const controller of preparations.values()) controller.abort();
     }
     preparationAbortByDraftId.clear();
   };
 
   const prepareDraft = async (draft: BookDraft, generation: number) => {
-    const preparation = beginDraftPreparation(draft.id);
+    const preparation = beginDraftPreparation(draft.id, 'book');
 
     try {
       const { prepareBookFile } = await loadCoverExtraction();
       const prepared = await prepareBookFile(draft.file, { signal: preparation.signal });
       options.updatePreparedDraft(draft.id, generation, (currentDraft) => {
-        if (currentDraft.coverSource === 'manual') {
-          return currentDraft;
-        }
-
-        if (currentDraft.coverPreviewUrl) {
+        const manualCover = currentDraft.coverSource === 'manual';
+        if (!manualCover && currentDraft.coverPreviewUrl) {
           URL.revokeObjectURL(currentDraft.coverPreviewUrl);
         }
 
         return {
           ...currentDraft,
-          coverFile: prepared.coverFile,
-          coverPreviewUrl: prepared.coverFile ? URL.createObjectURL(prepared.coverFile) : undefined,
-          coverSource: prepared.coverFile ? 'auto' : undefined,
-          coverStatus: prepared.coverFile ? 'ready' : 'missing',
-          coverError: undefined,
+          ...(manualCover
+            ? {}
+            : {
+                coverFile: prepared.coverFile,
+                coverPreviewUrl: prepared.coverFile
+                  ? URL.createObjectURL(prepared.coverFile)
+                  : undefined,
+                coverSource: prepared.coverFile ? ('auto' as const) : undefined,
+                coverStatus: prepared.coverFile ? ('ready' as const) : ('missing' as const),
+                coverError: undefined,
+              }),
           epubValidationStatus: isEpubBookFile(currentDraft.file)
             ? 'ready'
             : currentDraft.epubValidationStatus,
@@ -113,7 +122,7 @@ export default function useUploadDraftPreparation(options: {
               : options.errorMessage(nextError, options.messages.coverCouldNotBeExtracted()),
       }));
     } finally {
-      finishDraftPreparation(draft.id, preparation);
+      finishDraftPreparation(draft.id, 'book', preparation);
     }
   };
 
@@ -123,7 +132,7 @@ export default function useUploadDraftPreparation(options: {
       return;
     }
 
-    const preparation = beginDraftPreparation(id);
+    const preparation = beginDraftPreparation(id, 'title');
     options.updateDraft(id, (currentDraft) => ({
       ...currentDraft,
       titleExtracting: true,
@@ -141,12 +150,6 @@ export default function useUploadDraftPreparation(options: {
         titleExtracting: false,
         titleError: extractedTitle ? undefined : options.messages.titleCouldNotBeExtracted(),
         uploadError: undefined,
-        epubValidationStatus: isEpubBookFile(currentDraft.file)
-          ? 'ready'
-          : currentDraft.epubValidationStatus,
-        djvuValidationStatus: isDjvuBookFile(currentDraft.file)
-          ? 'ready'
-          : currentDraft.djvuValidationStatus,
       }));
     } catch (nextError) {
       if (isAbortError(nextError)) {
@@ -157,15 +160,9 @@ export default function useUploadDraftPreparation(options: {
         ...currentDraft,
         titleExtracting: false,
         titleError: options.errorMessage(nextError, options.messages.titleCouldNotBeExtracted()),
-        epubValidationStatus: isEpubBookFile(currentDraft.file)
-          ? 'failed'
-          : currentDraft.epubValidationStatus,
-        djvuValidationStatus: isDjvuBookFile(currentDraft.file)
-          ? 'failed'
-          : currentDraft.djvuValidationStatus,
       }));
     } finally {
-      finishDraftPreparation(id, preparation);
+      finishDraftPreparation(id, 'title', preparation);
     }
   };
 
@@ -174,7 +171,7 @@ export default function useUploadDraftPreparation(options: {
       return;
     }
 
-    const preparation = beginDraftPreparation(id);
+    const preparation = beginDraftPreparation(id, 'cover');
     options.setCover(id, file, 'pending');
 
     const draft = options.findDraft(id);
@@ -227,7 +224,7 @@ export default function useUploadDraftPreparation(options: {
         };
       });
     } finally {
-      finishDraftPreparation(id, preparation);
+      finishDraftPreparation(id, 'cover', preparation);
     }
   };
 

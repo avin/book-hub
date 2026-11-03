@@ -86,11 +86,26 @@ function normalizedWithPositions(value: string) {
 
   const start = text.search(/\S/u);
   const end = text.trimEnd().length;
+  const trimmedText = start === -1 ? '' : text.slice(start, end);
+  const trimmedStarts = starts.slice(start === -1 ? 0 : start, end);
+  const trimmedEnds = ends.slice(start === -1 ? 0 : start, end);
+  const lowerStarts: number[] = [];
+  const lowerEnds: number[] = [];
+
+  for (let offset = 0; offset < trimmedText.length;) {
+    const character = String.fromCodePoint(trimmedText.codePointAt(offset)!);
+    const lowerLength = character.toLowerCase().length;
+    for (let index = 0; index < lowerLength; index += 1) {
+      lowerStarts.push(trimmedStarts[offset]!);
+      lowerEnds.push(trimmedEnds[offset + character.length - 1]!);
+    }
+    offset += character.length;
+  }
 
   return {
-    text: start === -1 ? '' : text.slice(start, end),
-    starts: starts.slice(start === -1 ? 0 : start, end),
-    ends: ends.slice(start === -1 ? 0 : start, end),
+    text: trimmedText.toLowerCase(),
+    starts: lowerStarts,
+    ends: lowerEnds,
   };
 }
 
@@ -98,7 +113,7 @@ export function findReflowableSearchMatches(
   blocks: ReflowableBlock[],
   query: string,
 ): ReflowableSearchMatch[] {
-  const normalizedQuery = normalizeSearchQuery(query).toLocaleLowerCase();
+  const normalizedQuery = normalizeSearchQuery(query).toLowerCase();
 
   if (!normalizedQuery) {
     return [];
@@ -109,7 +124,7 @@ export function findReflowableSearchMatches(
   blocks.forEach((block, blockIndex) => {
     const rawText = blockSearchText(block);
     const normalized = normalizedWithPositions(rawText);
-    const searchableText = normalized.text.toLocaleLowerCase();
+    const searchableText = normalized.text;
     let offset = 0;
     let matchNumber = 0;
 

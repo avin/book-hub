@@ -178,7 +178,7 @@ function LibraryPage() {
       getNextPageParam: (lastPage) => {
         const nextOffset = lastPage.offset + lastPage.items.length;
 
-        return nextOffset < lastPage.total ? nextOffset : undefined;
+        return lastPage.items.length > 0 && nextOffset < lastPage.total ? nextOffset : undefined;
       },
     };
   });
@@ -484,6 +484,15 @@ function LibraryPage() {
       <Show when={booksQuery.isFetchingNextPage}>
         <div class={styles.loadingMore} role="status" aria-label={t('loading')}>
           <span class={styles.loadingMoreSpinner} aria-hidden="true" />
+        </div>
+      </Show>
+
+      <Show when={booksQuery.isFetchNextPageError}>
+        <div class={styles.loadMoreError} role="alert">
+          <p>{t('requestFailedTryAgain')}</p>
+          <Button type="button" variant="secondary" onClick={() => void booksQuery.fetchNextPage()}>
+            {t('tryAgain')}
+          </Button>
         </div>
       </Show>
 

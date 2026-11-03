@@ -258,6 +258,64 @@ test('авторизованный пользователь видит библ�
   await expect(page.getByRole('article')).toHaveCount(4);
 });
 
+test('ошибка загрузки следующей страницы не скрывает книги и допускает повтор', async ({
+  page,
+}) => {
+  const firstPage = Array.from({ length: 24 }, (_, index) => ({
+    ...books.items[0],
+    id: `book-${index}`,
+    title: `Книга ${index}`,
+  }));
+  let nextPageAttempts = 0;
+  await page.route(`**/api${books.req.list.path}`, (route) => {
+    const { offset } = route.request().postDataJSON();
+    if (offset === 0) {
+      return route.fulfill({ json: { items: firstPage, total: 25, limit: 24, offset: 0 } });
+    }
+    nextPageAttempts += 1;
+    if (nextPageAttempts <= 4) {
+      return route.fulfill({ status: 500, json: { message: 'error' } });
+    }
+    return route.fulfill({
+      json: {
+        items: [{ ...books.items[0], id: 'last-book', title: 'Последняя книга' }],
+        total: 25,
+        limit: 24,
+        offset: 24,
+      },
+    });
+  });
+  await login(page);
+  await page.getByRole('article').last().scrollIntoViewIfNeeded();
+  const error = page.getByRole('alert');
+  await expect(error).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('article')).toHaveCount(24);
+  await error.getByRole('button', { name: 'Повторить' }).click();
+  await expect(error).toBeHidden();
+  await expect(page.getByRole('article')).toHaveCount(25);
+  await expect(page.getByRole('heading', { name: 'Последняя книга' })).toBeVisible();
+});
+
+test('пустая следующая страница завершает загрузку при устаревшем total', async ({ page }) => {
+  const firstPage = Array.from({ length: 24 }, (_, index) => ({
+    ...books.items[0],
+    id: `book-${index}`,
+  }));
+  let nextPageAttempts = 0;
+  await page.route(`**/api${books.req.list.path}`, (route) => {
+    const { offset } = route.request().postDataJSON();
+    if (offset !== 0) nextPageAttempts += 1;
+    return route.fulfill({
+      json: { items: offset === 0 ? firstPage : [], total: 25, limit: 24, offset },
+    });
+  });
+  await login(page);
+  await page.getByRole('article').last().scrollIntoViewIfNeeded();
+  await expect.poll(() => nextPageAttempts).toBe(1);
+  await page.waitForTimeout(1000);
+  expect(nextPageAttempts).toBe(1);
+});
+
 test('много тегов остаются в границах редактора книги при изменении ширины', async ({
   page,
   api,

@@ -159,6 +159,18 @@
   animation: spin 720ms linear infinite;
 }
 
+.loadMoreError {
+  display: grid;
+  justify-items: center;
+  gap: $space-4;
+  color: var(--text-muted);
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

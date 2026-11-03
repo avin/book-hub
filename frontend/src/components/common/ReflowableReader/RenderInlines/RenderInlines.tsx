@@ -2,7 +2,7 @@ import { For, Match, Show, Switch, type JSX } from 'solid-js';
 import Button from '@/components/common/Button/Button';
 import { inlineTextLength, type ReflowableSearchRange } from '../reflowableSearch';
 import type { ReflowableInline } from '../reflowableTypes';
-import { isExternalHref, normalizeInternalHref } from '../linkUtils';
+import { isExternalHref, normalizeInternalHref, safeExternalHref } from '../linkUtils';
 import { readerTextStyle } from '../readerTextStyle';
 import styles from './RenderInlines.module.scss';
 
@@ -203,7 +203,7 @@ function RenderInlines(props: {
                 </Button>
               }
             >
-              <a href={inline.href} target="_blank" rel="noreferrer">
+              <a href={safeExternalHref(inline.href)} target="_blank" rel="noreferrer">
                 <RenderInlines
                   inlines={inline.children}
                   imageSrc={props.imageSrc}

@@ -8,7 +8,11 @@ import {
 } from '../ReflowableReader/reflowableSearch';
 import { parseFb2 } from './fb2Parser';
 import { decodeFb2Text } from '@/bookFormats/fb2TextDecoder';
-import { isExternalHref, normalizeInternalHref } from '../ReflowableReader/linkUtils';
+import {
+  isExternalHref,
+  normalizeInternalHref,
+  safeExternalHref,
+} from '../ReflowableReader/linkUtils';
 
 describe('FB2 core', () => {
   it('разбирает метаданные, текст, сноски и встроенную обложку', () => {
@@ -57,8 +61,20 @@ describe('FB2 core', () => {
 
     expect(decodeFb2Text(bytes)).toContain('Привет');
     expect(isExternalHref('https://example.com')).toBe(true);
+    expect(safeExternalHref('https://example.com')).toBe('https://example.com');
+    expect(safeExternalHref('javascript:alert(1)')).toBeUndefined();
+    expect(safeExternalHref('data:text/html,hello')).toBeUndefined();
     expect(isExternalHref('#chapter')).toBe(false);
     expect(normalizeInternalHref('#chapter')).toBe('chapter');
     expect(normalizeInternalHref('https://example.com')).toBe('https://example.com');
+  });
+
+  it('правильно выделяет совпадение после символа с расширяющимся нижним регистром', () => {
+    const blocks = parseFb2(
+      '<FictionBook><body><section><p>İ Тест</p></section></body></FictionBook>',
+    ).blocks;
+    const match = findReflowableSearchMatches(blocks, 'тест')[0];
+
+    expect(match).toMatchObject({ start: 2, end: 6 });
   });
 });

@@ -126,6 +126,8 @@ function SettingsPage() {
           <InputContainer label={t('currentPassword')}>
             <TextInput
               type="password"
+              aria-label={t('currentPassword')}
+              autocomplete="current-password"
               value={currentPassword()}
               onInput={(event) =>
                 updatePasswordField(setCurrentPassword, event.currentTarget.value)
@@ -135,6 +137,8 @@ function SettingsPage() {
           <InputContainer label={t('newPassword')}>
             <TextInput
               type="password"
+              aria-label={t('newPassword')}
+              autocomplete="new-password"
               value={newPassword()}
               onInput={(event) => updatePasswordField(setNewPassword, event.currentTarget.value)}
             />
@@ -142,6 +146,8 @@ function SettingsPage() {
           <InputContainer label={t('repeatPassword')}>
             <TextInput
               type="password"
+              aria-label={t('repeatPassword')}
+              autocomplete="new-password"
               value={repeatPassword()}
               onInput={(event) => updatePasswordField(setRepeatPassword, event.currentTarget.value)}
             />

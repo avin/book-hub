@@ -158,6 +158,7 @@ function AuthPage() {
           <InputContainer label={t('login')} error={loginError()}>
             <TextInput
               id="login"
+              aria-label={t('login')}
               value={login()}
               placeholder={t('login')}
               invalid={Boolean(loginError())}
@@ -184,6 +185,7 @@ function AuthPage() {
           >
             <TextInput
               id="password"
+              aria-label={t('password')}
               type={showPassword() ? 'text' : 'password'}
               value={password()}
               placeholder={t('password')}
@@ -197,6 +199,7 @@ function AuthPage() {
             <InputContainer label={t('repeatPassword')} error={repeatPasswordError()}>
               <TextInput
                 id="repeat-password"
+                aria-label={t('repeatPassword')}
                 type={showPassword() ? 'text' : 'password'}
                 value={repeatPassword()}
                 placeholder={t('repeatPassword')}
