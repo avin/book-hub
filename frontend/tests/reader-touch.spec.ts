@@ -41,11 +41,13 @@ for (const book of readerBooks) {
       await page.touchscreen.tap(point.x, point.y);
     };
 
-    for (let index = 0; index < 3; index += 1) {
-      await tapAt(0.5, 0.5);
+    for (const y of [0.25, 0.5, 0.75]) {
+      const scrollBefore = await page.evaluate(() => window.scrollY);
+      await tapAt(0.5, y);
       await expect(header).toHaveAttribute('data-visible', 'true');
       await expect(footer).toHaveAttribute('data-visible', 'true');
       await expect.poll(isFullscreen).toBe(false);
+      expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
       const center = await page.evaluate(() => ({
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
@@ -65,17 +67,22 @@ for (const book of readerBooks) {
       await expect.poll(isFullscreen).toBe(true);
     }
 
-    await tapAt(0.9, 0.875);
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
-    const scrollAfterNext = await page.evaluate(() => window.scrollY);
-    await expect(header).toHaveAttribute('data-visible', 'false');
-    await expect(footer).toHaveAttribute('data-visible', 'false');
+    for (const x of [0.1, 0.9]) {
+      const scrollBefore = await page.evaluate(() => window.scrollY);
+      await tapAt(x, 0.6);
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY))
+        .toBeGreaterThan(scrollBefore + 100);
+      const scrollAfterNext = await page.evaluate(() => window.scrollY);
+      await expect(header).toHaveAttribute('data-visible', 'false');
+      await expect(footer).toHaveAttribute('data-visible', 'false');
 
-    await tapAt(0.9, 0.125);
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(scrollAfterNext);
-    await expect(header).toHaveAttribute('data-visible', 'false');
-    await expect(footer).toHaveAttribute('data-visible', 'false');
-    await expect.poll(isFullscreen).toBe(true);
+      await tapAt(x, 0.4);
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(scrollAfterNext);
+      await expect(header).toHaveAttribute('data-visible', 'false');
+      await expect(footer).toHaveAttribute('data-visible', 'false');
+      await expect.poll(isFullscreen).toBe(true);
+    }
 
     await page.evaluate(() => document.exitFullscreen());
     await expect(header).toHaveAttribute('data-visible', 'true');

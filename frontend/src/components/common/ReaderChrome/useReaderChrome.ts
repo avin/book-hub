@@ -103,19 +103,18 @@ function useReaderChrome(props: {
       return;
     }
 
-    const topSector = event.clientY < window.innerHeight / 3;
-    const bottomSector = event.clientY > (window.innerHeight * 2) / 3;
+    const x = event.clientX / window.innerWidth;
+    const y = event.clientY / window.innerHeight;
+    const centerDistance = Math.abs(x - 0.5) + Math.abs(y - 0.5);
 
-    if (event.clientX >= window.innerWidth / 2 && (topSector || bottomSector)) {
-      window.scrollBy({
-        top: window.innerHeight * 0.9 * (topSector ? -1 : 1),
-        behavior: 'instant',
-      });
-    } else if (!topSector && !bottomSector) {
+    if (centerDistance <= 0.3 + Number.EPSILON) {
       if (visible()) close();
       else show();
     } else {
-      return;
+      window.scrollBy({
+        top: window.innerHeight * 0.9 * (y < 0.5 ? -1 : 1),
+        behavior: 'instant',
+      });
     }
 
     window.getSelection()?.removeAllRanges();

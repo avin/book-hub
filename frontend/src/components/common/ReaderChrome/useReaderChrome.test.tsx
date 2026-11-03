@@ -90,12 +90,20 @@ describe('сенсорное управление панелями читалк�
   });
 
   it.each([
-    { sector: 'нижнему', x: 0.85, y: 0.875, direction: 1 },
-    { sector: 'верхнему', x: 0.85, y: 0.125, direction: -1 },
-    { sector: 'нижнему', x: 0.5, y: 0.7, direction: 1 },
-    { sector: 'верхнему', x: 0.5, y: 0.3, direction: -1 },
+    { x: 0.1, y: 0.125, direction: -1 },
+    { x: 0.9, y: 0.125, direction: -1 },
+    { x: 0.1, y: 0.4, direction: -1 },
+    { x: 0.9, y: 0.4, direction: -1 },
+    { x: 0.1, y: 0.6, direction: 1 },
+    { x: 0.9, y: 0.6, direction: 1 },
+    { x: 0.1, y: 0.875, direction: 1 },
+    { x: 0.9, y: 0.875, direction: 1 },
+    { x: 0.5, y: 0.19, direction: -1 },
+    { x: 0.5, y: 0.81, direction: 1 },
+    { x: 0.19, y: 0.49, direction: -1 },
+    { x: 0.81, y: 0.51, direction: 1 },
   ])(
-    'перелистывает по тапу в $sector правом секторе, сохраняя панели скрытыми',
+    'перелистывает за пределами ромба при x=$x, y=$y, сохраняя панели скрытыми',
     ({ x, y, direction }) => {
       const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
       const reader = render(() => <TestReader />);
@@ -116,11 +124,24 @@ describe('сенсорное управление панелями читалк�
   );
 
   it.each([
-    { x: 0.1, y: 1 / 3 },
-    { x: 0.9, y: 1 / 3 },
-    { x: 0.1, y: 2 / 3 },
-    { x: 0.9, y: 2 / 3 },
-  ])('переключает панели в средней трети при x=$x, y=$y', ({ x, y }) => {
+    { x: 0.5, y: 0.5 },
+    { x: 0.5, y: 0.21 },
+    { x: 0.5, y: 0.79 },
+    { x: 0.21, y: 0.5 },
+    { x: 0.79, y: 0.5 },
+    { x: 0.36, y: 0.36 },
+    { x: 0.64, y: 0.36 },
+    { x: 0.36, y: 0.64 },
+    { x: 0.64, y: 0.64 },
+    { x: 0.5, y: 0.2 },
+    { x: 0.5, y: 0.8 },
+    { x: 0.2, y: 0.5 },
+    { x: 0.8, y: 0.5 },
+    { x: 0.35, y: 0.35 },
+    { x: 0.65, y: 0.35 },
+    { x: 0.35, y: 0.65 },
+    { x: 0.65, y: 0.65 },
+  ])('переключает панели внутри ромба и на его границе при x=$x, y=$y', ({ x, y }) => {
     const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
     const reader = render(() => <TestReader />);
     const content = reader.getByTestId('document');
@@ -138,19 +159,28 @@ describe('сенсорное управление панелями читалк�
     expect(scrollBy).not.toHaveBeenCalled();
   });
 
-  it.each([0.3, 0.7])('не реагирует на тап слева от зон прокрутки при y=%s', (y) => {
-    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
-    const reader = render(() => <TestReader />);
+  it.each([0.1, 0.9])(
+    'сохраняет панели открытыми при перелистывании с обеих сторон при x=%s',
+    (x) => {
+      const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+      const reader = render(() => <TestReader />);
+      const content = reader.getByTestId('document');
+      tap(content);
 
-    tap(reader.getByTestId('document'), {
-      ...centerTouch(),
-      clientX: window.innerWidth / 2 - 1,
-      clientY: window.innerHeight * y,
-    });
+      tap(content, {
+        ...centerTouch(),
+        clientX: window.innerWidth * x,
+        clientY: window.innerHeight * 0.6,
+      });
 
-    expect(reader.getByTestId('reader-floating-header').dataset.visible).toBe('false');
-    expect(scrollBy).not.toHaveBeenCalled();
-  });
+      expect(reader.getByTestId('reader-floating-header').dataset.visible).toBe('true');
+      expect(reader.getByTestId('reader-floating-footer').dataset.visible).toBe('true');
+      expect(scrollBy).toHaveBeenCalledExactlyOnceWith({
+        top: window.innerHeight * 0.9,
+        behavior: 'instant',
+      });
+    },
+  );
 
   it.each(['свайп', 'отмена', 'мультитач', 'долгое нажатие', 'выделение'])(
     'не считает тапом жест: %s',
