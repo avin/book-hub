@@ -1995,7 +1995,6 @@ function PdfReader(props: {
     onClose: () => {
       setTocOpen(false);
       setFilterPanelOpen(false);
-      clearSearchHighlights();
     },
   });
 
@@ -2129,7 +2128,10 @@ function PdfReader(props: {
             <span>/ {pages().length}</span>
           </label>
         }
-        onSearchValueChange={setSearchValue}
+        onSearchValueChange={(value) => {
+          setSearchValue(value);
+          if (!value.trim()) clearSearchHighlights();
+        }}
         onSearchNext={() => void search('next')}
         onSearchPrevious={() => void search('previous')}
         onSearchOpen={() => {

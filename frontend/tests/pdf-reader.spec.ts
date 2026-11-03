@@ -7,6 +7,41 @@ async function showReaderChrome(page: Page) {
   await expect(page.getByTestId('reader-floating-header')).toHaveAttribute('data-visible', 'true');
 }
 
+test('поиск PDF сохраняется при выделении текста двойным щелчком', async ({ page }) => {
+  await login(page);
+  await page
+    .getByRole('heading', { name: 'PDF с оглавлением', exact: true })
+    .getByRole('link')
+    .click();
+  await expect(page.locator('[data-page-number="1"] canvas')).toBeVisible();
+  await showReaderChrome(page);
+  const search = page.getByRole('searchbox', { name: 'Поиск по книге' });
+  await search.fill('Page Two');
+  await search.press('Enter');
+  const match = page.getByTestId('pdf-text-layer').locator('.highlight');
+  await expect(match).toHaveCount(1);
+  const initialBounds = (await match.boundingBox())!;
+  await match.dblclick({ position: { x: initialBounds.width / 4, y: initialBounds.height / 2 } });
+  await expect
+    .poll(() => page.evaluate(() => window.getSelection()?.toString().trim()))
+    .toBeTruthy();
+  await expect(match).toHaveCount(1);
+
+  const bounds = (await match.boundingBox())!;
+  await page.mouse.move(bounds.x + 1, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width - 1, bounds.y + bounds.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect
+    .poll(() => page.evaluate(() => window.getSelection()?.toString().trim()))
+    .toBeTruthy();
+  await expect(match).toHaveCount(1);
+
+  await showReaderChrome(page);
+  await page.getByRole('button', { name: 'Очистить поиск' }).click();
+  await expect(match).toHaveCount(0);
+});
+
 test('переход по стрелкам номера страницы применяется после отпускания мыши', async ({ page }) => {
   await login(page);
   await page
