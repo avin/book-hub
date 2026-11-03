@@ -464,6 +464,28 @@ function ReflowableReader(props: {
 
     return Array.from({ length: end - start }, (_, offset) => start + offset);
   });
+  const paragraphSpacingPreviewOffsets = createMemo(() => {
+    const delta = settings().paragraphSpacing - layoutSettings().paragraphSpacing;
+    const offsets = new Map<number, number>();
+    if (delta === 0) return offsets;
+
+    const blocks = parsed().blocks;
+    let offset = 0;
+    for (const index of visibleBlockIndexes()) {
+      offsets.set(index, offset);
+      const kind = blocks[index].kind;
+      if (kind !== 'emptyLine' && kind !== 'divider' && kind !== 'poemLine') {
+        offset += delta;
+      }
+    }
+
+    // Preview spacing around the reading anchor without measuring text or changing slot heights.
+    const anchorOffset = offsets.get(layoutSettingsAnchor?.blockIndex ?? -1) ?? 0;
+    for (const [index, top] of offsets) {
+      offsets.set(index, top - anchorOffset);
+    }
+    return offsets;
+  });
   const topSpacer = createMemo(() =>
     visibleRange().end > visibleRange().start ? (layout().offsets[visibleRange().start] ?? 0) : 0,
   );
@@ -1295,7 +1317,15 @@ function ReflowableReader(props: {
           <div style={{ height: `${topSpacer()}px` }} aria-hidden="true" />
           <For each={visibleBlockIndexes()}>
             {(index) => (
-              <div class={styles.blockSlot} style={{ height: `${layout().heights[index] ?? 0}px` }}>
+              <div
+                class={styles.blockSlot}
+                style={{
+                  height: `${layout().heights[index] ?? 0}px`,
+                  transform: paragraphSpacingPreviewOffsets().has(index)
+                    ? `translateY(${paragraphSpacingPreviewOffsets().get(index)}px)`
+                    : undefined,
+                }}
+              >
                 <BlockView
                   block={parsed().blocks[index]}
                   imageSrc={imageSrc}
