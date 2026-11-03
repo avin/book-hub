@@ -25,7 +25,8 @@
   transform: translateX(calc(100% + #{$space-4}));
   transition:
     transform $duration-base $ease-out,
-    opacity 120ms linear;
+    opacity 120ms linear,
+    visibility 0s linear $duration-base;
 
   &:has([data-adjusting='true']) {
     opacity: 0.5;
@@ -34,7 +35,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .readerSidePanel {
-    transition-duration: 0.01ms, 120ms !important;
+    transition-duration: 0.01ms, 120ms, 0s !important;
+    transition-delay: 0s;
   }
 }
 
@@ -42,6 +44,7 @@
   visibility: visible;
   pointer-events: auto;
   transform: translateX(0);
+  transition-delay: 0s;
 }
 
 .panelHeader {
