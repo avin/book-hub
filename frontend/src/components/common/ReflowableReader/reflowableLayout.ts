@@ -371,7 +371,8 @@ export function buildVirtualLayout(
   width: number,
   settings: ReflowableReaderSettings,
 ): VirtualLayout {
-  const heights = blocks.map((block) => measureBlockHeight(block, width, settings));
+  // Whole CSS pixels keep spacer sums identical to mounted slot heights after browser rounding.
+  const heights = blocks.map((block) => Math.ceil(measureBlockHeight(block, width, settings)));
   const offsets: number[] = [];
   let totalHeight = 0;
 
@@ -417,7 +418,7 @@ export async function buildVirtualLayoutAsync(
       sliceStartedAt = performance.now();
     }
 
-    const height = measureBlockHeight(blocks[index], width, settings);
+    const height = Math.ceil(measureBlockHeight(blocks[index], width, settings));
     offsets.push(totalHeight);
     heights.push(height);
     totalHeight += height;

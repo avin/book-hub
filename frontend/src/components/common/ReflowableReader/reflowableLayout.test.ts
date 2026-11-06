@@ -10,6 +10,23 @@ afterEach(() => {
 });
 
 describe('buildVirtualLayoutAsync', () => {
+  it('округляет дробные высоты вверх до суммирования смещений', async () => {
+    const blocks: ReflowableBlock[] = Array.from({ length: 100 }, (_, index) => ({
+      id: String(index),
+      kind: 'emptyLine',
+      level: 0,
+      role: 'body',
+    }));
+    const height = Math.ceil(defaultSettings.fontSize * defaultSettings.lineHeight);
+    const expected = {
+      heights: blocks.map(() => height),
+      offsets: blocks.map((_, index) => index * height),
+      totalHeight: blocks.length * height,
+    };
+    expect(buildVirtualLayout(blocks, 320, defaultSettings)).toEqual(expected);
+    expect(await buildVirtualLayoutAsync(blocks, 320, defaultSettings)).toEqual(expected);
+  });
+
   it('сохраняет высоты и смещения синхронной раскладки для смешанного содержимого', async () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       font: '',
