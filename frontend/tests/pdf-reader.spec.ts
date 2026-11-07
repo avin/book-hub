@@ -137,6 +137,16 @@ test('переход по стрелкам номера страницы при�
   await page.mouse.move(bounds.x - 20, bounds.y + (bounds.height * 3) / 4);
   await page.mouse.up();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(initialScroll);
+
+  await expect(input).toBeFocused();
+  const { width, height } = page.viewportSize()!;
+  await page.mouse.move(width / 2, height / 2);
+  await page.mouse.wheel(0, 250);
+  const scrolledPosition = initialScroll + 250;
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scrolledPosition);
+  await page.mouse.click(width / 2, height / 2);
+  await expect(input).not.toBeFocused();
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrolledPosition);
 });
 
 test('перемещение первого PDF-фильтра в конец не ломает читалку', async ({ page }) => {

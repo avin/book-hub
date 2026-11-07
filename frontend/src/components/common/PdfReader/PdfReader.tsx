@@ -36,7 +36,7 @@ import { pdfjsWorkerSrc } from '@/api/pdfjsConfig';
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import useFixedLayoutWidthPreview from '../FixedLayoutReader/useFixedLayoutWidthPreview';
 import useFixedLayoutPinchZoom from '../FixedLayoutReader/useFixedLayoutPinchZoom';
-import usePageInputMouseCommit from '../FixedLayoutReader/usePageInputMouseCommit';
+import usePageInput from '../FixedLayoutReader/usePageInput';
 import {
   getFixedLayoutReaderContentWidthPreference,
   getFixedLayoutReaderFilterChainPreference,
@@ -259,8 +259,6 @@ function PdfReader(props: {
   const [searchValue, setSearchValue] = createSignal('');
   const [searchCount, setSearchCount] = createSignal<{ current: number; total: number }>();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const [pageInputValue, setPageInputValue] = createSignal('1');
-  const [pageInputFocused, setPageInputFocused] = createSignal(false);
   const [tocOpen, setTocOpen] = createSignal(false);
   const [filterPanelOpen, setFilterPanelOpen] = createSignal(false);
   const [filterChain, setFilterChain] = createSignal<PdfFilterChain>(
@@ -584,10 +582,6 @@ function PdfReader(props: {
     }
 
     setCurrentPage(closestPage);
-
-    if (!pageInputFocused()) {
-      setPageInputValue(String(closestPage));
-    }
   };
 
   const scrollToPdfAnchor = (anchor: ScrollAnchor) => {
@@ -604,7 +598,6 @@ function PdfReader(props: {
       behavior: 'instant',
     });
     setCurrentPage(anchor.pageNumber);
-    setPageInputValue(String(anchor.pageNumber));
   };
 
   const goToPage = (value: string) => {
@@ -631,10 +624,9 @@ function PdfReader(props: {
 
     window.scrollTo({ top: Math.max(0, nextScrollTop), behavior: 'instant' });
     setCurrentPage(nextPage);
-    setPageInputValue(String(nextPage));
   };
 
-  const onPageInputMouseDown = usePageInputMouseCommit(goToPage);
+  const pageInput = usePageInput(currentPage, goToPage);
 
   const readerNavigationHistory = useReaderNavigationHistory({
     readerId: untrack(() => props.bookId ?? props.fileUrl),
@@ -2121,25 +2113,9 @@ function PdfReader(props: {
               type="number"
               min="1"
               max={pages().length || undefined}
-              value={pageInputValue()}
               aria-label={t('pageNumber')}
-              onMouseDown={onPageInputMouseDown}
-              onFocus={(event) => {
-                setPageInputFocused(true);
-                event.currentTarget.select();
-              }}
-              onInput={(event) => setPageInputValue(event.currentTarget.value)}
-              onBlur={() => {
-                setPageInputFocused(false);
-                goToPage(pageInputValue());
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  goToPage(pageInputValue());
-                  event.currentTarget.blur();
-                }
-              }}
+              {...pageInput}
+              onFocus={(event) => event.currentTarget.select()}
             />
             <span>/ {pages().length}</span>
           </label>

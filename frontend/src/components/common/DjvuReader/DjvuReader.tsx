@@ -14,7 +14,7 @@ import { type DjVuContentsEntry, type DjVuTextZone, type DjVuWorker } from '@/ap
 import { createFixedLayoutReader } from '../FixedLayoutReader/fixedLayoutReader';
 import useFixedLayoutWidthPreview from '../FixedLayoutReader/useFixedLayoutWidthPreview';
 import useFixedLayoutPinchZoom from '../FixedLayoutReader/useFixedLayoutPinchZoom';
-import usePageInputMouseCommit from '../FixedLayoutReader/usePageInputMouseCommit';
+import usePageInput from '../FixedLayoutReader/usePageInput';
 import Button from '@/components/common/Button/Button';
 import LoadingScreen from '@/components/common/LoadingScreen/LoadingScreen';
 import useReaderNavigationHistory from '@/components/common/ReaderChrome/useReaderNavigationHistory';
@@ -138,7 +138,6 @@ function DjvuReader(props: {
   const [tocOpen, setTocOpen] = createSignal(false);
   const [filterPanelOpen, setFilterPanelOpen] = createSignal(false);
   const [currentPage, setCurrentPage] = createSignal(1);
-  const [pageInput, setPageInput] = createSignal('1');
   const [searchValue, setSearchValue] = createSignal('');
   const [searchMatches, setSearchMatches] = createSignal<SearchMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = createSignal(-1);
@@ -297,7 +296,6 @@ function DjvuReader(props: {
       behavior: 'instant',
     });
     setCurrentPage(anchor.pageNumber);
-    setPageInput(String(anchor.pageNumber));
     lastScrollAnchor = anchor;
   };
 
@@ -890,10 +888,9 @@ function DjvuReader(props: {
 
     pageRefs.get(pageNumber)?.scrollIntoView({ block: 'start' });
     setCurrentPage(pageNumber);
-    setPageInput(String(pageNumber));
   };
 
-  const onPageInputMouseDown = usePageInputMouseCommit(goToPage);
+  const pageInput = usePageInput(currentPage, goToPage);
 
   const readerChrome = useReaderChrome({
     keepVisible: () => tocOpen() || filterPanelOpen() || draggingWidth(),
@@ -1001,7 +998,6 @@ function DjvuReader(props: {
       }
 
       setCurrentPage(closestPage);
-      setPageInput(String(closestPage));
       readerNavigationHistory.updateCurrentLocation();
     };
 
@@ -1134,18 +1130,8 @@ function DjvuReader(props: {
               type="number"
               min="1"
               max={pages().length || undefined}
-              value={pageInput()}
               aria-label={t('pageNumber')}
-              onMouseDown={onPageInputMouseDown}
-              onInput={(event) => setPageInput(event.currentTarget.value)}
-              onBlur={() => goToPage(pageInput())}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  goToPage(event.currentTarget.value);
-                  event.currentTarget.blur();
-                }
-              }}
+              {...pageInput}
             />
             <span>/ {pages().length}</span>
           </label>
